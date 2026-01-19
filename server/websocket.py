@@ -16,7 +16,7 @@ from models.input import SpinInput
 from models.output import SuggestionOutput, AckOutput, ErrorOutput
 from models.trace import TraceContext, now_ms
 from state.game import GameState
-from strategies.sda import SDAStrategy
+from strategies.sda17 import SDA17Strategy
 
 # Logging
 logging.basicConfig(
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Estado global
 game_state: GameState = GameState.load()
-strategy = SDAStrategy(num_neighbors=5)  # SDA-11
+strategy = SDA17Strategy()  # SDA-17 com regressão linear
 
 # Conexões ativas
 active_connections: Set[WebSocketServerProtocol] = set()
@@ -57,9 +57,17 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             if numero is None:
                 raise ValueError("Campo 'numero' obrigatório")
             
+            # Verificar predição anterior (performance tracking)
+            hit_result = game_state.check_prediction(numero)
+            
             # Processar spin
             force = game_state.process_spin(numero, direcao)
-            trace.step("processed", {"numero": numero, "direcao": direcao, "force": force})
+            trace.step("processed", {
+                "numero": numero,
+                "direcao": direcao,
+                "force": force,
+                "prediction_hit": hit_result
+            })
             
             # Salvar estado
             game_state.save()
@@ -71,7 +79,19 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                 game_state.last_number,
                 config.WHEEL_SEQUENCE
             )
-            trace.step("analyzed", {"should_bet": result.should_bet, "score": result.score})
+            trace.step("analyzed", {
+                "should_bet": result.should_bet,
+                "score": result.score,
+                "trend": result.details.get("trend", "")
+            })
+            
+            # Armazenar predição para verificar no próximo spin
+            if result.should_bet:
+                game_state.store_prediction(
+                    result.numbers,
+                    game_state.target_direction,
+                    result.center
+                )
             
             # Determinar ação
             acao = "APOSTAR" if result.should_bet else "PULAR"
@@ -111,8 +131,14 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                     "acao": acao,
                     "centro": result.center,
                     "score": result.score,
-                    "numeros": result.numbers
+                    "numeros": result.numbers,
+                    "trend": result.details.get("trend", "")
                 },
+                "strategy": {
+                    "name": strategy.name,
+                    "description": getattr(strategy, 'description', ''),
+                },
+                "performance": game_state.get_performance_stats(),
                 "state": {
                     "timeline_cw": game_state.timeline_cw.size,
                     "timeline_ccw": game_state.timeline_ccw.size,

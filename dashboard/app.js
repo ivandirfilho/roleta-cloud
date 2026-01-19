@@ -51,7 +51,15 @@ const el = {
     traceSteps: document.getElementById('trace-steps'),
     logsContainer: document.getElementById('logs-container'),
     logCount: document.getElementById('log-count'),
-    lastUpdate: document.getElementById('last-update')
+    lastUpdate: document.getElementById('last-update'),
+    // Strategy & Performance
+    strategyName: document.getElementById('strategy-name'),
+    strategyDesc: document.getElementById('strategy-desc'),
+    strategyTrend: document.getElementById('strategy-trend'),
+    perfCW: document.getElementById('perf-cw'),
+    perfCCW: document.getElementById('perf-ccw'),
+    perfRateCW: document.getElementById('perf-rate-cw'),
+    perfRateCCW: document.getElementById('perf-rate-ccw')
 };
 
 // WebSocket
@@ -119,6 +127,10 @@ function handleTrace(data) {
     updateTimeline();
     updateMetrics();
     updateTraceSteps(data);
+
+    // Strategy & Performance
+    if (data.strategy) updateStrategy(data.strategy, data.result.trend);
+    if (data.performance) updatePerformance(data.performance);
 
     // Log
     const dir = data.spin.direcao === 'horario' ? '⬅️' : '➡️';
@@ -192,6 +204,42 @@ function updateTraceSteps(data) {
             <span class="trace-step-data">${JSON.stringify(step.data || {})}</span>
         </div>
     `).join('');
+}
+
+function updateStrategy(strategy, trend) {
+    if (el.strategyName) el.strategyName.textContent = strategy.name || 'SDA-17';
+    if (el.strategyDesc) el.strategyDesc.textContent = strategy.description || '';
+    if (el.strategyTrend) el.strategyTrend.textContent = trend || '--';
+}
+
+function updatePerformance(perf) {
+    // Update CW squares
+    if (el.perfCW) {
+        const squares = el.perfCW.querySelectorAll('.perf-square');
+        squares.forEach((sq, i) => {
+            sq.className = 'perf-square';
+            if (perf.cw.results && i < perf.cw.results.length) {
+                sq.classList.add(perf.cw.results[i] ? 'hit' : 'miss');
+            } else {
+                sq.classList.add('empty');
+            }
+        });
+    }
+    if (el.perfRateCW) el.perfRateCW.textContent = `${perf.cw.rate || 0}%`;
+
+    // Update CCW squares
+    if (el.perfCCW) {
+        const squares = el.perfCCW.querySelectorAll('.perf-square');
+        squares.forEach((sq, i) => {
+            sq.className = 'perf-square';
+            if (perf.ccw.results && i < perf.ccw.results.length) {
+                sq.classList.add(perf.ccw.results[i] ? 'hit' : 'miss');
+            } else {
+                sq.classList.add('empty');
+            }
+        });
+    }
+    if (el.perfRateCCW) el.perfRateCCW.textContent = `${perf.ccw.rate || 0}%`;
 }
 
 // Flow Animation
