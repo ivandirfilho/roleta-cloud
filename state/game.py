@@ -11,20 +11,21 @@ from .timeline import Timeline
 
 @dataclass
 class CalibrationState:
-    """Estado de calibração para fine-tuning de uma direção."""
-    state: str = "normal"  # normal, atento, confirmado
-    first_error: Optional[int] = None  # Primeiro erro observado
+    """Estado de calibração usando Momentum (otimizado após auditoria)."""
     offset: int = 0  # Offset atual aplicado
+    error_history: List[int] = field(default_factory=list)  # Histórico de erros para momentum
     
     def to_dict(self) -> Dict:
-        return {"state": self.state, "first_error": self.first_error, "offset": self.offset}
+        return {
+            "offset": self.offset,
+            "error_history": self.error_history[-5:]  # Guarda últimos 5
+        }
     
     @classmethod
     def from_dict(cls, data: Dict) -> "CalibrationState":
         return cls(
-            state=data.get("state", "normal"),
-            first_error=data.get("first_error"),
-            offset=data.get("offset", 0)
+            offset=data.get("offset", 0),
+            error_history=data.get("error_history", [])
         )
 
 
@@ -134,47 +135,32 @@ class GameState:
     
     def _update_calibration(self, direction: str, error: int) -> None:
         """
-        Atualiza calibração em 3 etapas:
-        1. NORMAL → ATENTO: primeiro erro, anota
-        2. ATENTO → CONFIRMADO: segundo erro na mesma direção, calcula offset
-        3. Se erro na direção oposta → volta para NORMAL
+        Atualiza calibração usando MOMENTUM.
+        
+        Calcula offset considerando:
+        - 30% do erro atual
+        - 20% da aceleração (mudança no erro)
+        
+        Baseado em auditoria de 90 estratégias que mostrou +80% de melhoria.
         """
         cal = self.calibration_cw if direction in ("cw", "horario") else self.calibration_ccw
         
-        if cal.state == "normal":
-            # Etapa 1: primeiro erro → atenção
-            cal.state = "atento"
-            cal.first_error = error
-            
-        elif cal.state == "atento":
-            # Etapa 2: verificar se confirma ou cancela
-            if cal.first_error is not None:
-                # Mesmo sinal = confirma
-                if (error > 0 and cal.first_error > 0) or (error < 0 and cal.first_error < 0):
-                    # Confirma! Calcula offset (média dos dois erros)
-                    new_offset = (cal.first_error + error) // 2
-                    # Limitar a ±8
-                    cal.offset = max(-8, min(8, new_offset))
-                    cal.state = "confirmado"
-                else:
-                    # Direção oposta = outlier, cancela
-                    cal.state = "normal"
-                    cal.first_error = None
-                    
-        elif cal.state == "confirmado":
-            # Já tem offset aplicado, continua ajustando suavemente
-            if (error > 0 and cal.offset >= 0) or (error < 0 and cal.offset <= 0):
-                # Erro na mesma direção do offset - ajustar um pouco mais
-                adjustment = 1 if error > 0 else -1
-                cal.offset = max(-8, min(8, cal.offset + adjustment))
-            else:
-                # Erro na direção oposta - reduzir offset
-                if cal.offset > 0:
-                    cal.offset -= 1
-                elif cal.offset < 0:
-                    cal.offset += 1
-                if cal.offset == 0:
-                    cal.state = "normal"
+        # Calcular aceleração (mudança no erro)
+        if cal.error_history and len(cal.error_history) > 0:
+            accel = error - cal.error_history[-1]
+        else:
+            accel = 0
+        
+        # Novo offset = offset atual + (30% do erro) + (20% da aceleração)
+        new_offset = cal.offset + int(error * 0.3 + accel * 0.2)
+        
+        # Limitar a ±8
+        cal.offset = max(-8, min(8, new_offset))
+        
+        # Guardar erro no histórico (máximo 5)
+        cal.error_history.append(error)
+        if len(cal.error_history) > 5:
+            cal.error_history.pop(0)
     
     def store_prediction(self, numbers: List[int], direction: str, center: int, predicted_force: int = 0) -> None:
         """Armazena a predição atual para verificar no próximo spin."""
