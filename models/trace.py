@@ -52,3 +52,12 @@ class TraceContext:
         duration = now_ms() - self.t_start
         steps_names = " → ".join(s.name for s in self.steps)
         return f"[{self.trace_id}] {duration}ms | {steps_names}"
+    
+    def total_ms(self) -> int:
+        """Retorna duração total em ms."""
+        return now_ms() - self.t_start
+    
+    @property
+    def steps_dict(self) -> List[Dict]:
+        """Retorna steps como lista de dicts para JSON."""
+        return [asdict(s) for s in self.steps]

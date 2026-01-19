@@ -1,42 +1,60 @@
-// Roleta Cloud Dashboard - Real-time WebSocket Client
+// Roleta Cloud - Glass Box Dashboard JavaScript
 
 const WS_URL = 'wss://roleta.xma-ia.com:8765';
 const RECONNECT_INTERVAL = 5000;
+const MAX_LOGS = 50;
 
-// State
 let ws = null;
 let reconnectAttempts = 0;
-let metrics = {
-    totalSpins: 0,
-    suggestions: 0,
-    betCount: 0,
-    skipCount: 0,
-    timelineCW: 0,
-    timelineCCW: 0,
-    lastSpin: null
+
+// State
+const state = {
+    spins: 0, betCount: 0, skipCount: 0,
+    timelineCW: 0, timelineCCW: 0,
+    lastSpin: null, lastResult: null,
+    logs: [], currentFilter: 'all'
 };
-let logs = [];
 
 // DOM Elements
-const elements = {
-    statusIndicator: document.getElementById('status-indicator'),
-    uptime: document.getElementById('uptime'),
-    connections: document.getElementById('connections'),
-    memory: document.getElementById('memory'),
-    totalSpins: document.getElementById('total-spins'),
-    suggestions: document.getElementById('suggestions'),
-    betCount: document.getElementById('bet-count'),
-    skipCount: document.getElementById('skip-count'),
-    timelineCW: document.getElementById('timeline-cw'),
-    timelineCCW: document.getElementById('timeline-ccw'),
-    lastSpin: document.getElementById('last-spin'),
+const el = {
+    status: document.getElementById('status-indicator'),
+    latency: document.getElementById('latency'),
+    flowNodes: {
+        escuta: document.getElementById('flow-escuta'),
+        server: document.getElementById('flow-server'),
+        sda: document.getElementById('flow-sda'),
+        overlay: document.getElementById('flow-overlay')
+    },
+    arrows: [
+        document.getElementById('arrow-1'),
+        document.getElementById('arrow-2'),
+        document.getElementById('arrow-3')
+    ],
+    spinNumber: document.getElementById('spin-number'),
+    spinDirection: document.getElementById('spin-direction'),
+    spinForce: document.getElementById('spin-force'),
+    spinLatency: document.getElementById('spin-latency'),
+    resultCard: document.getElementById('result-card'),
+    resultAction: document.getElementById('result-action'),
+    resultCenter: document.getElementById('result-center'),
+    resultScore: document.getElementById('result-score'),
+    resultRegion: document.getElementById('result-region'),
+    barCW: document.getElementById('bar-cw'),
+    barCCW: document.getElementById('bar-ccw'),
+    countCW: document.getElementById('count-cw'),
+    countCCW: document.getElementById('count-ccw'),
+    metricSpins: document.getElementById('metric-spins'),
+    metricBet: document.getElementById('metric-bet'),
+    metricSkip: document.getElementById('metric-skip'),
+    metricRate: document.getElementById('metric-rate'),
+    traceId: document.getElementById('trace-id'),
+    traceSteps: document.getElementById('trace-steps'),
     logsContainer: document.getElementById('logs-container'),
     logCount: document.getElementById('log-count'),
-    lastUpdate: document.getElementById('last-update'),
-    btnRefresh: document.getElementById('btn-refresh')
+    lastUpdate: document.getElementById('last-update')
 };
 
-// WebSocket Connection
+// WebSocket
 function connect() {
     addLog('info', 'Conectando ao servidor...');
 
@@ -46,134 +64,205 @@ function connect() {
         ws.onopen = () => {
             reconnectAttempts = 0;
             updateStatus(true);
-            addLog('success', '✅ Conectado ao servidor');
-
-            // Request initial state
+            addLog('info', '✅ Conectado');
+            animateFlow('escuta', true);
             ws.send(JSON.stringify({ type: 'get_state' }));
         };
 
         ws.onclose = () => {
             updateStatus(false);
-            addLog('warning', '🔌 Desconectado');
-            scheduleReconnect();
+            addLog('error', '🔌 Desconectado');
+            resetFlow();
+            setTimeout(connect, RECONNECT_INTERVAL);
         };
 
-        ws.onerror = (error) => {
-            addLog('error', '❌ Erro de conexão');
-            console.error('WebSocket error:', error);
-        };
+        ws.onerror = () => addLog('error', '❌ Erro de conexão');
+        ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 
-        ws.onmessage = (event) => {
-            handleMessage(JSON.parse(event.data));
-        };
-
-    } catch (error) {
-        addLog('error', `❌ Falha ao conectar: ${error.message}`);
-        scheduleReconnect();
-    }
-}
-
-function scheduleReconnect() {
-    if (reconnectAttempts < 10) {
-        reconnectAttempts++;
-        addLog('info', `🔄 Reconectando em ${RECONNECT_INTERVAL / 1000}s (${reconnectAttempts}/10)`);
+    } catch (err) {
+        addLog('error', `Falha: ${err.message}`);
         setTimeout(connect, RECONNECT_INTERVAL);
     }
 }
 
 function handleMessage(data) {
-    const type = data.type;
-
-    if (type === 'sugestao') {
-        const sugestao = data.data;
-        metrics.suggestions++;
-        metrics.totalSpins++;
-
-        if (sugestao.acao === 'APOSTAR') {
-            metrics.betCount++;
-            addLog('success', `🎯 APOSTAR: centro ${sugestao.centro} - ${sugestao.regiao}`);
-        } else {
-            metrics.skipCount++;
-            addLog('info', `⏸️ PULAR: score insuficiente`);
-        }
-
-        metrics.lastSpin = {
-            numero: sugestao.ultimo_numero,
-            acao: sugestao.acao,
-            timestamp: Date.now()
-        };
-
-        updateUI();
-    }
-    else if (type === 'ack') {
+    if (data.type === 'trace') {
+        handleTrace(data);
+    } else if (data.type === 'sugestao') {
+        handleSuggestion(data.data);
+    } else if (data.type === 'state') {
+        handleState(data);
+    } else if (data.type === 'ack') {
         addLog('info', `✅ ${data.message}`);
     }
-    else if (type === 'state') {
-        // Update from server state
-        if (data.timeline_cw) metrics.timelineCW = data.timeline_cw;
-        if (data.timeline_ccw) metrics.timelineCCW = data.timeline_ccw;
-        updateUI();
+}
+
+function handleTrace(data) {
+    state.spins++;
+    state.lastSpin = data.spin;
+    state.lastResult = data.result;
+
+    // Update timeline
+    state.timelineCW = data.state.timeline_cw;
+    state.timelineCCW = data.state.timeline_ccw;
+
+    // Count actions
+    if (data.result.acao === 'APOSTAR') state.betCount++;
+    else state.skipCount++;
+
+    // Animate flow
+    animateFlowSequence();
+
+    // Update UI
+    updateSpinDisplay(data.spin, data.total_ms);
+    updateResultDisplay(data.result);
+    updateTimeline();
+    updateMetrics();
+    updateTraceSteps(data);
+
+    // Log
+    const dir = data.spin.direcao === 'horario' ? '⬅️' : '➡️';
+    addLog('spin', `${data.spin.numero} ${dir} → força ${data.spin.force}`);
+    addLog('result', `${data.result.acao} centro ${data.result.centro} (score: ${data.result.score})`);
+
+    el.latency.textContent = `${data.total_ms}ms`;
+}
+
+function handleSuggestion(data) {
+    // From overlay connection - lighter update
+    if (!state.lastResult || state.lastResult.trace_id !== data.trace_id) {
+        state.spins++;
+        if (data.acao === 'APOSTAR') state.betCount++;
+        else state.skipCount++;
+        updateMetrics();
     }
-    else if (type === 'error') {
-        addLog('error', `❌ ${data.message}`);
-    }
+}
+
+function handleState(data) {
+    state.timelineCW = data.timeline_cw || 0;
+    state.timelineCCW = data.timeline_ccw || 0;
+    updateTimeline();
+    addLog('info', `Estado: CW=${state.timelineCW}, CCW=${state.timelineCCW}`);
 }
 
 // UI Updates
 function updateStatus(online) {
-    elements.statusIndicator.className = `status ${online ? 'online' : 'offline'}`;
-    elements.statusIndicator.textContent = online ? '● ONLINE' : '● OFFLINE';
+    el.status.className = `status ${online ? 'online' : 'offline'}`;
+    el.status.textContent = online ? '● ONLINE' : '● OFFLINE';
 }
 
-function updateUI() {
-    elements.totalSpins.textContent = metrics.totalSpins;
-    elements.suggestions.textContent = metrics.suggestions;
-    elements.betCount.textContent = metrics.betCount;
-    elements.skipCount.textContent = metrics.skipCount;
-    elements.timelineCW.textContent = `${metrics.timelineCW} forças`;
-    elements.timelineCCW.textContent = `${metrics.timelineCCW} forças`;
+function updateSpinDisplay(spin, ms) {
+    el.spinNumber.textContent = spin.numero;
+    el.spinDirection.textContent = spin.direcao === 'horario' ? '⬅️' : '➡️';
+    el.spinForce.textContent = spin.force;
+    el.spinLatency.textContent = `${ms}ms`;
+}
 
-    if (metrics.lastSpin) {
-        const ago = Math.round((Date.now() - metrics.lastSpin.timestamp) / 1000);
-        elements.lastSpin.textContent = `${metrics.lastSpin.numero} (${metrics.lastSpin.acao}) há ${ago}s`;
+function updateResultDisplay(result) {
+    const isApostar = result.acao === 'APOSTAR';
+    el.resultCard.className = `card result-card ${isApostar ? 'apostar' : 'pular'}`;
+    el.resultAction.className = `result-action ${isApostar ? 'apostar' : 'pular'}`;
+    el.resultAction.textContent = result.acao;
+    el.resultCenter.textContent = result.centro;
+    el.resultScore.textContent = `${result.score}/6`;
+    el.resultRegion.textContent = result.numeros?.join(', ') || '--';
+}
+
+function updateTimeline() {
+    const maxForces = 20;
+    el.barCW.style.width = `${Math.min(state.timelineCW / maxForces * 100, 100)}%`;
+    el.barCCW.style.width = `${Math.min(state.timelineCCW / maxForces * 100, 100)}%`;
+    el.countCW.textContent = state.timelineCW;
+    el.countCCW.textContent = state.timelineCCW;
+}
+
+function updateMetrics() {
+    el.metricSpins.textContent = state.spins;
+    el.metricBet.textContent = state.betCount;
+    el.metricSkip.textContent = state.skipCount;
+    const rate = state.spins > 0 ? Math.round(state.betCount / state.spins * 100) : 0;
+    el.metricRate.textContent = `${rate}%`;
+}
+
+function updateTraceSteps(data) {
+    el.traceId.textContent = `[${data.trace_id.substring(0, 12)}...]`;
+    el.traceSteps.innerHTML = data.steps.map(step => `
+        <div class="trace-step">
+            <span class="trace-step-name">${step.name}</span>
+            <span class="trace-step-data">${JSON.stringify(step.data || {})}</span>
+        </div>
+    `).join('');
+}
+
+// Flow Animation
+function animateFlow(node, active) {
+    Object.values(el.flowNodes).forEach(n => n.classList.remove('active', 'success'));
+    el.arrows.forEach(a => a.classList.remove('active'));
+
+    if (active && el.flowNodes[node]) {
+        el.flowNodes[node].classList.add('active');
     }
-
-    elements.lastUpdate.textContent = new Date().toLocaleTimeString();
 }
 
+function animateFlowSequence() {
+    const nodes = ['escuta', 'server', 'sda', 'overlay'];
+    let i = 0;
+
+    const animate = () => {
+        if (i > 0) el.flowNodes[nodes[i - 1]].classList.replace('active', 'success');
+        if (i > 0) el.arrows[i - 1].classList.add('active');
+        if (i < nodes.length) {
+            el.flowNodes[nodes[i]].classList.add('active');
+            i++;
+            setTimeout(animate, 150);
+        }
+    };
+
+    animateFlow(null, false);
+    animate();
+}
+
+function resetFlow() {
+    Object.values(el.flowNodes).forEach(n => {
+        n.classList.remove('active', 'success');
+        n.querySelector('.flow-status').textContent = '--';
+    });
+    el.arrows.forEach(a => a.classList.remove('active'));
+}
+
+// Logs
 function addLog(type, message) {
     const timestamp = new Date().toLocaleTimeString();
-    logs.unshift({ type, message, timestamp });
-
-    // Keep last 50 logs
-    if (logs.length > 50) logs.pop();
-
+    state.logs.unshift({ type, message, timestamp });
+    if (state.logs.length > MAX_LOGS) state.logs.pop();
     renderLogs();
+    el.lastUpdate.textContent = timestamp;
 }
 
 function renderLogs() {
-    elements.logsContainer.innerHTML = logs
-        .map(log => `<div class="log-entry ${log.type}">[${log.timestamp}] ${log.message}</div>`)
-        .join('');
+    const filtered = state.currentFilter === 'all'
+        ? state.logs
+        : state.logs.filter(l => l.type === state.currentFilter);
 
-    elements.logCount.textContent = `(${logs.length})`;
+    el.logsContainer.innerHTML = filtered.map(log =>
+        `<div class="log-entry ${log.type}">[${log.timestamp}] ${log.message}</div>`
+    ).join('');
+
+    el.logCount.textContent = `(${state.logs.length})`;
 }
 
-// Events
-elements.btnRefresh.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'get_state' }));
-        addLog('info', '🔄 Solicitando atualização...');
-    } else {
-        connect();
-    }
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.currentFilter = btn.dataset.filter;
+        renderLogs();
+    });
 });
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-    addLog('info', '🎰 Dashboard iniciado');
+    addLog('info', '🎰 Dashboard Glass Box iniciado');
     connect();
-
-    // Update relative times every second
-    setInterval(updateUI, 1000);
 });

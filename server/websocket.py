@@ -95,6 +95,37 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             
             await websocket.send(json.dumps(overlay_response))
             trace.step("sent")
+            
+            # Broadcast trace para dashboards conectados
+            trace_broadcast = {
+                "type": "trace",
+                "trace_id": trace_id,
+                "steps": trace.steps_dict,
+                "total_ms": trace.total_ms(),
+                "spin": {
+                    "numero": numero,
+                    "direcao": direcao,
+                    "force": force
+                },
+                "result": {
+                    "acao": acao,
+                    "centro": result.center,
+                    "score": result.score,
+                    "numeros": result.numbers
+                },
+                "state": {
+                    "timeline_cw": game_state.timeline_cw.size,
+                    "timeline_ccw": game_state.timeline_ccw.size,
+                    "last_number": game_state.last_number
+                }
+            }
+            # Enviar para todas as conexões (dashboards receberão)
+            for conn in active_connections:
+                try:
+                    await conn.send(json.dumps(trace_broadcast))
+                except:
+                    pass
+            
             logger.info(trace.to_log_line())
         
         # === HISTÓRICO INICIAL (batch) ===

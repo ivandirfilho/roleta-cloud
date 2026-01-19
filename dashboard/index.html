@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎰 Roleta Cloud Dashboard</title>
+    <title>🎰 Roleta Cloud - Glass Box</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="dashboard">
         <!-- Header -->
@@ -13,78 +15,128 @@
             <h1>🎰 Roleta Cloud</h1>
             <div class="header-actions">
                 <span id="status-indicator" class="status offline">● OFFLINE</span>
-                <button id="btn-refresh" title="Atualizar">🔄</button>
+                <span id="latency">--ms</span>
             </div>
         </header>
 
+        <!-- Flow Diagram -->
+        <section class="flow-section">
+            <div class="flow-container">
+                <div class="flow-node" id="flow-escuta">
+                    <span class="flow-icon">📱</span>
+                    <span class="flow-label">Escuta</span>
+                    <span class="flow-status">--</span>
+                </div>
+                <div class="flow-arrow" id="arrow-1">→</div>
+                <div class="flow-node" id="flow-server">
+                    <span class="flow-icon">☁️</span>
+                    <span class="flow-label">Servidor</span>
+                    <span class="flow-status">--</span>
+                </div>
+                <div class="flow-arrow" id="arrow-2">→</div>
+                <div class="flow-node" id="flow-sda">
+                    <span class="flow-icon">🧠</span>
+                    <span class="flow-label">SDA</span>
+                    <span class="flow-status">--</span>
+                </div>
+                <div class="flow-arrow" id="arrow-3">→</div>
+                <div class="flow-node" id="flow-overlay">
+                    <span class="flow-icon">📊</span>
+                    <span class="flow-label">Overlay</span>
+                    <span class="flow-status">--</span>
+                </div>
+            </div>
+        </section>
+
         <!-- Main Grid -->
         <main class="main-grid">
-            <!-- Status Card -->
-            <section class="card status-card">
-                <h2>📡 Status</h2>
-                <div class="status-content">
-                    <div class="metric">
-                        <span class="metric-value" id="uptime">--</span>
-                        <span class="metric-label">Uptime</span>
+            <!-- Last Spin -->
+            <section class="card spin-card">
+                <h2>🎯 Último Spin</h2>
+                <div class="spin-display">
+                    <span class="spin-number" id="spin-number">--</span>
+                    <span class="spin-direction" id="spin-direction">--</span>
+                </div>
+                <div class="spin-details">
+                    <div class="detail"><span>Força:</span><span id="spin-force">--</span></div>
+                    <div class="detail"><span>Latência:</span><span id="spin-latency">--</span></div>
+                </div>
+            </section>
+
+            <!-- Result -->
+            <section class="card result-card" id="result-card">
+                <h2>💡 Resultado</h2>
+                <div class="result-action" id="result-action">--</div>
+                <div class="result-details">
+                    <div class="detail"><span>Centro:</span><span id="result-center">--</span></div>
+                    <div class="detail"><span>Score:</span><span id="result-score">--</span></div>
+                    <div class="detail"><span>Região:</span><span id="result-region">--</span></div>
+                </div>
+            </section>
+
+            <!-- Timeline -->
+            <section class="card timeline-card">
+                <h2>📈 Timeline</h2>
+                <div class="timeline-bars">
+                    <div class="timeline-row">
+                        <span>⬅️ CW</span>
+                        <div class="bar-container">
+                            <div class="bar" id="bar-cw"></div>
+                        </div>
+                        <span id="count-cw">0</span>
                     </div>
-                    <div class="metric">
-                        <span class="metric-value" id="connections">0</span>
-                        <span class="metric-label">Conexões</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-value" id="memory">--</span>
-                        <span class="metric-label">Memória</span>
+                    <div class="timeline-row">
+                        <span>➡️ CCW</span>
+                        <div class="bar-container">
+                            <div class="bar bar-ccw" id="bar-ccw"></div>
+                        </div>
+                        <span id="count-ccw">0</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Metrics Card -->
+            <!-- Metrics -->
             <section class="card metrics-card">
                 <h2>📊 Métricas</h2>
                 <div class="metrics-grid">
-                    <div class="metric-box">
-                        <span class="metric-number" id="total-spins">0</span>
-                        <span class="metric-desc">Total Spins</span>
+                    <div class="metric-item">
+                        <span class="metric-value" id="metric-spins">0</span>
+                        <span class="metric-label">Spins</span>
                     </div>
-                    <div class="metric-box highlight">
-                        <span class="metric-number" id="suggestions">0</span>
-                        <span class="metric-desc">Sugestões</span>
+                    <div class="metric-item success">
+                        <span class="metric-value" id="metric-bet">0</span>
+                        <span class="metric-label">APOSTAR</span>
                     </div>
-                    <div class="metric-box success">
-                        <span class="metric-number" id="bet-count">0</span>
-                        <span class="metric-desc">APOSTAR</span>
+                    <div class="metric-item">
+                        <span class="metric-value" id="metric-skip">0</span>
+                        <span class="metric-label">PULAR</span>
                     </div>
-                    <div class="metric-box">
-                        <span class="metric-number" id="skip-count">0</span>
-                        <span class="metric-desc">PULAR</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Timeline Card -->
-            <section class="card timeline-card">
-                <h2>📈 Timeline</h2>
-                <div class="timeline-content">
-                    <div class="timeline-row">
-                        <span class="timeline-label">⬅️ Horário (CW)</span>
-                        <span class="timeline-value" id="timeline-cw">0 forças</span>
-                    </div>
-                    <div class="timeline-row">
-                        <span class="timeline-label">➡️ Anti-horário (CCW)</span>
-                        <span class="timeline-value" id="timeline-ccw">0 forças</span>
-                    </div>
-                    <div class="timeline-row last-spin">
-                        <span class="timeline-label">Último spin</span>
-                        <span class="timeline-value" id="last-spin">--</span>
+                    <div class="metric-item highlight">
+                        <span class="metric-value" id="metric-rate">0%</span>
+                        <span class="metric-label">Taxa</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Logs Card -->
+            <!-- Trace Panel -->
+            <section class="card trace-card">
+                <h2>🔍 Trace <span id="trace-id"></span></h2>
+                <div class="trace-steps" id="trace-steps">
+                    <div class="trace-step">Aguardando...</div>
+                </div>
+            </section>
+
+            <!-- Logs -->
             <section class="card logs-card">
                 <h2>📋 Logs <span id="log-count">(0)</span></h2>
+                <div class="log-filters">
+                    <button class="filter-btn active" data-filter="all">Todos</button>
+                    <button class="filter-btn" data-filter="spin">Spin</button>
+                    <button class="filter-btn" data-filter="result">Resultado</button>
+                    <button class="filter-btn" data-filter="error">Erro</button>
+                </div>
                 <div class="logs-container" id="logs-container">
-                    <div class="log-entry info">Conectando ao servidor...</div>
+                    <div class="log-entry info">Dashboard iniciado...</div>
                 </div>
             </section>
         </main>
@@ -98,4 +150,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
