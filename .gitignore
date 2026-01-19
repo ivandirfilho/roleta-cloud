@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs e Estado
+*.log
+state.json
+
+# Secrets
+.env
+my_key.pub
+*.pem
+*.key
+
+# Temp
+tunnel_output.txt
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db

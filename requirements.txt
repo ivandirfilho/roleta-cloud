@@ -1,0 +1,7 @@
+# requirements.txt - Roleta Cloud
+
+# Validação e serialização
+pydantic>=2.0
+
+# WebSocket server
+websockets>=12.0
