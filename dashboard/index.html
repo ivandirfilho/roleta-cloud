@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎰 Roleta Cloud Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎰 Roleta Cloud</h1>
+            <div class="header-actions">
+                <span id="status-indicator" class="status offline">● OFFLINE</span>
+                <button id="btn-refresh" title="Atualizar">🔄</button>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <main class="main-grid">
+            <!-- Status Card -->
+            <section class="card status-card">
+                <h2>📡 Status</h2>
+                <div class="status-content">
+                    <div class="metric">
+                        <span class="metric-value" id="uptime">--</span>
+                        <span class="metric-label">Uptime</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value" id="connections">0</span>
+                        <span class="metric-label">Conexões</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-value" id="memory">--</span>
+                        <span class="metric-label">Memória</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Metrics Card -->
+            <section class="card metrics-card">
+                <h2>📊 Métricas</h2>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-number" id="total-spins">0</span>
+                        <span class="metric-desc">Total Spins</span>
+                    </div>
+                    <div class="metric-box highlight">
+                        <span class="metric-number" id="suggestions">0</span>
+                        <span class="metric-desc">Sugestões</span>
+                    </div>
+                    <div class="metric-box success">
+                        <span class="metric-number" id="bet-count">0</span>
+                        <span class="metric-desc">APOSTAR</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-number" id="skip-count">0</span>
+                        <span class="metric-desc">PULAR</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Timeline Card -->
+            <section class="card timeline-card">
+                <h2>📈 Timeline</h2>
+                <div class="timeline-content">
+                    <div class="timeline-row">
+                        <span class="timeline-label">⬅️ Horário (CW)</span>
+                        <span class="timeline-value" id="timeline-cw">0 forças</span>
+                    </div>
+                    <div class="timeline-row">
+                        <span class="timeline-label">➡️ Anti-horário (CCW)</span>
+                        <span class="timeline-value" id="timeline-ccw">0 forças</span>
+                    </div>
+                    <div class="timeline-row last-spin">
+                        <span class="timeline-label">Último spin</span>
+                        <span class="timeline-value" id="last-spin">--</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Logs Card -->
+            <section class="card logs-card">
+                <h2>📋 Logs <span id="log-count">(0)</span></h2>
+                <div class="logs-container" id="logs-container">
+                    <div class="log-entry info">Conectando ao servidor...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>wss://roleta.xma-ia.com:8765</span>
+            <span id="last-update">--</span>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

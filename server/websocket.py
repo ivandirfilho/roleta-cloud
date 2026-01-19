@@ -154,6 +154,19 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             await websocket.send(json.dumps(ack_response))
             logger.info(f"Correção histórico: {count} spins reprocessados")
         
+        # === GET STATE (para dashboard) ===
+        elif msg_type == "get_state":
+            state_response = {
+                "type": "state",
+                "timeline_cw": game_state.timeline_cw.size,
+                "timeline_ccw": game_state.timeline_ccw.size,
+                "last_number": game_state.last_number,
+                "last_direction": game_state.last_direction,
+                "t_server": now_ms()
+            }
+            await websocket.send(json.dumps(state_response))
+            logger.info("Estado enviado para dashboard")
+        
         # === FORMATO ANTIGO (compatibilidade) ===
         else:
             # Tentar processar como SpinInput direto
