@@ -48,20 +48,8 @@ class SDA17Strategy(StrategyBase):
             predicted_force = max(1, min(37, predicted_force + calibration))
             trend = f"{trend} [offset: {calibration:+d}]"
         
-        # Calcular confiança baseada na variância
+        # Calcular confiança (para referência, não bloqueia mais)
         confidence = self._calculate_confidence(forces, predicted_force)
-        
-        # Score mínimo para apostar
-        if confidence < 2:
-            return StrategyResult(
-                should_bet=False,
-                score=confidence,
-                details={
-                    "reason": f"Confiança baixa ({confidence})",
-                    "trend": trend,
-                    "predicted_force": predicted_force
-                }
-            )
         
         # Aplicar força predita ao último número
         center_number = self._apply_force(
