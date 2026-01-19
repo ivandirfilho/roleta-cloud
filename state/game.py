@@ -10,11 +10,30 @@ from .timeline import Timeline
 
 
 @dataclass
+class CalibrationState:
+    """Estado de calibração para fine-tuning de uma direção."""
+    state: str = "normal"  # normal, atento, confirmado
+    first_error: Optional[int] = None  # Primeiro erro observado
+    offset: int = 0  # Offset atual aplicado
+    
+    def to_dict(self) -> Dict:
+        return {"state": self.state, "first_error": self.first_error, "offset": self.offset}
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "CalibrationState":
+        return cls(
+            state=data.get("state", "normal"),
+            first_error=data.get("first_error"),
+            offset=data.get("offset", 0)
+        )
+
+
+@dataclass
 class GameState:
     """
     Estado completo do jogo.
     Mantém duas timelines (horário e anti-horário) + último spin.
-    Inclui tracking de performance por direção.
+    Inclui tracking de performance e calibração por direção.
     """
     # Último spin
     last_number: int = 0
@@ -25,8 +44,12 @@ class GameState:
     timeline_ccw: Timeline = field(default_factory=lambda: Timeline("ccw"))
     
     # Performance tracking (últimos 12 por direção)
-    performance_cw: List[bool] = field(default_factory=list)  # True=hit, False=miss
+    performance_cw: List[bool] = field(default_factory=list)
     performance_ccw: List[bool] = field(default_factory=list)
+    
+    # Calibração por direção (fine-tuning 3 etapas)
+    calibration_cw: CalibrationState = field(default_factory=CalibrationState)
+    calibration_ccw: CalibrationState = field(default_factory=CalibrationState)
     
     # Pendente: última sugestão para verificar no próximo spin
     pending_prediction: Dict[str, Any] = field(default_factory=dict)
@@ -68,9 +91,22 @@ class GameState:
         pred = self.pending_prediction
         numbers = pred.get("numbers", [])
         direction = pred.get("direction", "")
+        predicted_force = pred.get("predicted_force", 0)
         
         # Verificar se acertou
         hit = actual_number in numbers
+        
+        # Calcular erro para calibração (se errou)
+        if not hit and predicted_force > 0:
+            actual_force = self._calculate_force(
+                self.last_number, actual_number, 
+                "horario" if direction in ("cw", "horario") else "anti-horario"
+            )
+            error = self._circular_diff(actual_force, predicted_force)
+            self._update_calibration(direction, error)
+        elif hit:
+            # Acertou - manter calibração atual
+            pass
         
         # Adicionar ao tracking da direção correspondente
         if direction in ("cw", "horario"):
@@ -87,12 +123,66 @@ class GameState:
         
         return hit
     
-    def store_prediction(self, numbers: List[int], direction: str, center: int) -> None:
+    def _circular_diff(self, a: int, b: int, universe: int = 37) -> int:
+        """Diferença circular com sinal (a - b) no universo circular."""
+        diff = a - b
+        if diff > universe // 2:
+            diff -= universe
+        elif diff < -universe // 2:
+            diff += universe
+        return diff
+    
+    def _update_calibration(self, direction: str, error: int) -> None:
+        """
+        Atualiza calibração em 3 etapas:
+        1. NORMAL → ATENTO: primeiro erro, anota
+        2. ATENTO → CONFIRMADO: segundo erro na mesma direção, calcula offset
+        3. Se erro na direção oposta → volta para NORMAL
+        """
+        cal = self.calibration_cw if direction in ("cw", "horario") else self.calibration_ccw
+        
+        if cal.state == "normal":
+            # Etapa 1: primeiro erro → atenção
+            cal.state = "atento"
+            cal.first_error = error
+            
+        elif cal.state == "atento":
+            # Etapa 2: verificar se confirma ou cancela
+            if cal.first_error is not None:
+                # Mesmo sinal = confirma
+                if (error > 0 and cal.first_error > 0) or (error < 0 and cal.first_error < 0):
+                    # Confirma! Calcula offset (média dos dois erros)
+                    new_offset = (cal.first_error + error) // 2
+                    # Limitar a ±8
+                    cal.offset = max(-8, min(8, new_offset))
+                    cal.state = "confirmado"
+                else:
+                    # Direção oposta = outlier, cancela
+                    cal.state = "normal"
+                    cal.first_error = None
+                    
+        elif cal.state == "confirmado":
+            # Já tem offset aplicado, continua ajustando suavemente
+            if (error > 0 and cal.offset >= 0) or (error < 0 and cal.offset <= 0):
+                # Erro na mesma direção do offset - ajustar um pouco mais
+                adjustment = 1 if error > 0 else -1
+                cal.offset = max(-8, min(8, cal.offset + adjustment))
+            else:
+                # Erro na direção oposta - reduzir offset
+                if cal.offset > 0:
+                    cal.offset -= 1
+                elif cal.offset < 0:
+                    cal.offset += 1
+                if cal.offset == 0:
+                    cal.state = "normal"
+    
+    def store_prediction(self, numbers: List[int], direction: str, center: int, predicted_force: int = 0) -> None:
         """Armazena a predição atual para verificar no próximo spin."""
         self.pending_prediction = {
             "numbers": numbers,
             "direction": direction,
-            "center": center
+            "center": center,
+            "predicted_force": predicted_force
         }
     
     def get_performance_stats(self) -> Dict[str, Any]:
@@ -151,17 +241,26 @@ class GameState:
             return self.timeline_ccw
         return self.timeline_cw
     
+    @property
+    def target_calibration(self) -> int:
+        """Offset de calibração para a direção alvo."""
+        if self.last_direction == "horario":
+            return self.calibration_ccw.offset
+        return self.calibration_cw.offset
+    
     def save(self, path: Optional[Path] = None) -> None:
         """Salva estado em arquivo JSON."""
         path = path or config.STATE_FILE
         data = {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
             "timeline_ccw": self.timeline_ccw.to_dict(),
             "performance_cw": self.performance_cw,
             "performance_ccw": self.performance_ccw,
+            "calibration_cw": self.calibration_cw.to_dict(),
+            "calibration_ccw": self.calibration_ccw.to_dict(),
             "pending_prediction": self.pending_prediction
         }
         with open(path, "w", encoding="utf-8") as f:
@@ -185,6 +284,8 @@ class GameState:
                 timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
                 performance_cw=data.get("performance_cw", []),
                 performance_ccw=data.get("performance_ccw", []),
+                calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
+                calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})
             )
         except Exception:

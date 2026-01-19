@@ -25,7 +25,8 @@ class SDA17Strategy(StrategyBase):
         self,
         timeline: Timeline,
         last_number: int,
-        wheel_sequence: List[int]
+        wheel_sequence: List[int],
+        calibration: int = 0  # Fine-tuning offset
     ) -> StrategyResult:
         """Analisa timeline e prediz próxima força."""
         
@@ -41,6 +42,11 @@ class SDA17Strategy(StrategyBase):
         
         # Prever próxima força usando regressão linear
         predicted_force, trend = self._predict_next_force(forces)
+        
+        # Aplicar calibração (fine-tuning)
+        if calibration != 0:
+            predicted_force = max(1, min(37, predicted_force + calibration))
+            trend = f"{trend} [offset: {calibration:+d}]"
         
         # Calcular confiança baseada na variância
         confidence = self._calculate_confidence(forces, predicted_force)
@@ -79,7 +85,8 @@ class SDA17Strategy(StrategyBase):
                 "forces": forces,
                 "predicted_force": predicted_force,
                 "trend": trend,
-                "confidence": confidence
+                "confidence": confidence,
+                "calibration": calibration
             }
         )
     

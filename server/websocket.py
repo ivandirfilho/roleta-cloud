@@ -73,16 +73,18 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             game_state.save()
             trace.step("saved")
             
-            # Analisar com estratégia
+            # Analisar com estratégia (incluindo calibração)
             result = strategy.analyze(
                 game_state.target_timeline,
                 game_state.last_number,
-                config.WHEEL_SEQUENCE
+                config.WHEEL_SEQUENCE,
+                calibration=game_state.target_calibration
             )
             trace.step("analyzed", {
                 "should_bet": result.should_bet,
                 "score": result.score,
-                "trend": result.details.get("trend", "")
+                "trend": result.details.get("trend", ""),
+                "calibration": game_state.target_calibration
             })
             
             # Armazenar predição para verificar no próximo spin
@@ -90,7 +92,8 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                 game_state.store_prediction(
                     result.numbers,
                     game_state.target_direction,
-                    result.center
+                    result.center,
+                    predicted_force=result.details.get("predicted_force", 0)
                 )
             
             # Determinar ação
