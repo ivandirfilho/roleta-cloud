@@ -30,6 +30,106 @@ class CalibrationState:
 
 
 @dataclass
+class MartingaleState:
+    """
+    Sistema de Martingale Inteligente com janela de 5 jogadas.
+    
+    Lógica:
+    - GALE 1 = R$17 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
+    - GALE 2 = R$34 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
+    - GALE 3 = R$68 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
+    """
+    level: int = 1                    # Nível atual (1, 2 ou 3)
+    window_hits: int = 0              # Acertos na janela atual
+    window_count: int = 0             # Jogadas na janela atual
+    total_stops: int = 0              # Total de stops desde início
+    
+    # Valores de aposta por nível
+    BET_VALUES = {1: 17, 2: 34, 3: 68}
+    WINDOW_SIZE = 5                   # Tamanho da janela
+    MIN_HITS_TO_PASS = 3              # Mínimo de acertos para passar/manter
+    
+    @property
+    def current_bet(self) -> int:
+        """Retorna valor da aposta atual."""
+        return self.BET_VALUES.get(self.level, 17)
+    
+    @property
+    def multiplier(self) -> str:
+        """Retorna multiplicador como string (ex: '1x', '2x', '4x')."""
+        multipliers = {1: "1x", 2: "2x", 3: "4x"}
+        return multipliers.get(self.level, "1x")
+    
+    def update(self, hit: bool) -> Dict[str, Any]:
+        """
+        Atualiza estado do martingale após um resultado.
+        
+        Returns:
+            Dict com informações da transição
+        """
+        self.window_count += 1
+        if hit:
+            self.window_hits += 1
+        
+        result = {
+            "hit": hit,
+            "window_count": self.window_count,
+            "window_hits": self.window_hits,
+            "level_before": self.level,
+            "transition": None
+        }
+        
+        # Verificar se completou janela de 5
+        if self.window_count >= self.WINDOW_SIZE:
+            if self.window_hits >= self.MIN_HITS_TO_PASS:
+                # Sucesso! Volta para GALE 1
+                if self.level > 1:
+                    result["transition"] = f"SUCESSO: Voltando para GALE 1"
+                else:
+                    result["transition"] = f"SUCESSO: Mantém GALE 1"
+                self.level = 1
+            else:
+                # Falha! Próximo nível ou STOP
+                if self.level < 3:
+                    self.level += 1
+                    result["transition"] = f"SUBINDO: Vai para GALE {self.level}"
+                else:
+                    # STOP e reinicia
+                    self.total_stops += 1
+                    result["transition"] = f"STOP #{self.total_stops}: Reiniciando GALE 1"
+                    self.level = 1
+            
+            # Reset da janela
+            self.window_hits = 0
+            self.window_count = 0
+        
+        result["level_after"] = self.level
+        result["current_bet"] = self.current_bet
+        result["multiplier"] = self.multiplier
+        
+        return result
+    
+    def to_dict(self) -> Dict:
+        return {
+            "level": self.level,
+            "window_hits": self.window_hits,
+            "window_count": self.window_count,
+            "total_stops": self.total_stops,
+            "current_bet": self.current_bet,
+            "multiplier": self.multiplier
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "MartingaleState":
+        return cls(
+            level=data.get("level", 1),
+            window_hits=data.get("window_hits", 0),
+            window_count=data.get("window_count", 0),
+            total_stops=data.get("total_stops", 0)
+        )
+
+
+@dataclass
 class GameState:
     """
     Estado completo do jogo.
@@ -48,9 +148,12 @@ class GameState:
     performance_cw: List[bool] = field(default_factory=list)
     performance_ccw: List[bool] = field(default_factory=list)
     
-    # Calibração por direção (fine-tuning 3 etapas)
+    # Calibração por direção (momentum)
     calibration_cw: CalibrationState = field(default_factory=CalibrationState)
     calibration_ccw: CalibrationState = field(default_factory=CalibrationState)
+    
+    # Martingale inteligente (janela de 5 jogadas)
+    martingale: MartingaleState = field(default_factory=MartingaleState)
     
     # Pendente: última sugestão para verificar no próximo spin
     pending_prediction: Dict[str, Any] = field(default_factory=dict)
@@ -238,7 +341,7 @@ class GameState:
         """Salva estado em arquivo JSON."""
         path = path or config.STATE_FILE
         data = {
-            "version": "1.2.0",
+            "version": "1.3.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
@@ -247,6 +350,7 @@ class GameState:
             "performance_ccw": self.performance_ccw,
             "calibration_cw": self.calibration_cw.to_dict(),
             "calibration_ccw": self.calibration_ccw.to_dict(),
+            "martingale": self.martingale.to_dict(),
             "pending_prediction": self.pending_prediction
         }
         with open(path, "w", encoding="utf-8") as f:
@@ -272,6 +376,7 @@ class GameState:
                 performance_ccw=data.get("performance_ccw", []),
                 calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
                 calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
+                martingale=MartingaleState.from_dict(data.get("martingale", {})),
                 pending_prediction=data.get("pending_prediction", {})
             )
         except Exception:

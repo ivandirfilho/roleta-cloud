@@ -57,8 +57,22 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             if numero is None:
                 raise ValueError("Campo 'numero' obrigatório")
             
+            # Log da predição pendente antes de verificar
+            pending = game_state.pending_prediction
+            if pending:
+                logger.info(f"VERIFICANDO: numero={numero}, centro_previsto={pending.get('center')}, numeros={pending.get('numbers', [])[:5]}...")
+                logger.info(f"  {numero} in numeros? {numero in pending.get('numbers', [])}")
+            
             # Verificar predição anterior (performance tracking)
             hit_result = game_state.check_prediction(numero)
+            
+            # Atualizar Martingale (se havia predição pendente)
+            martingale_info = {}
+            if pending and hit_result is not None:
+                martingale_info = game_state.martingale.update(hit_result)
+                if martingale_info.get("transition"):
+                    logger.info(f"  MARTINGALE: {martingale_info['transition']}")
+                logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
             
             # Processar spin
             force = game_state.process_spin(numero, direcao)
@@ -99,6 +113,9 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             # Determinar ação
             acao = "APOSTAR" if result.should_bet else "PULAR"
             
+            # Obter info do martingale atual
+            mg = game_state.martingale
+            
             # Formato esperado pelo overlay
             overlay_response = {
                 "type": "sugestao",
@@ -109,7 +126,10 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                     "regiao": result.visual,
                     "ultimo_numero": game_state.last_number,
                     "confianca": int(result.score / 6 * 100),
-                    "martingale": "1x",
+                    "martingale": mg.multiplier,
+                    "aposta": mg.current_bet,
+                    "gale_level": mg.level,
+                    "gale_window": f"{mg.window_hits}/{mg.window_count}",
                     "estrategia": strategy.name,
                     "trace_id": trace_id,
                     "t_server": now_ms()
