@@ -36,6 +36,54 @@ strategy = SDA17Strategy()  # SDA-17 com regressão linear
 # Conexões ativas
 active_connections: Set[WebSocketServerProtocol] = set()
 
+# Lock para acesso thread-safe ao game_state
+state_lock = asyncio.Lock()
+
+
+async def broadcast_heartbeat():
+    """Envia estado atual para todos os clientes a cada 1 segundo."""
+    while True:
+        await asyncio.sleep(1)
+        
+        if not active_connections:
+            continue
+        
+        try:
+            # Snapshot do estado com lock para evitar race condition
+            async with state_lock:
+                mg = game_state.martingale
+                state_sync = {
+                    "type": "state_sync",
+                    "data": {
+                        "gale_level": mg.level,
+                        "gale_display": mg.gale_display,
+                        "martingale": mg.multiplier,
+                        "aposta": mg.current_bet,
+                        "last_number": game_state.last_number,
+                        "target_direction": game_state.target_direction,
+                        "performance": game_state.get_performance_stats(),
+                        "pending_prediction": game_state.pending_prediction,
+                        "timestamp": now_ms()
+                    }
+                }
+            
+            message = json.dumps(state_sync)
+            
+            # Broadcast para todas as conexões (coletar desconectados separado)
+            disconnected = set()
+            for conn in active_connections:
+                try:
+                    await conn.send(message)
+                except:
+                    disconnected.add(conn)
+            
+            # Limpar desconectados APÓS iteração
+            for conn in disconnected:
+                active_connections.discard(conn)
+                
+        except Exception as e:
+            logger.error(f"Erro no heartbeat: {e}")
+
 
 async def handle_message(websocket: WebSocketServerProtocol, message: str) -> None:
     """Processa uma mensagem recebida."""
@@ -351,6 +399,10 @@ async def start_server() -> None:
     logger.info(f"Auth: {'ENABLED' if config.AUTH_ENABLED else 'DISABLED (bypass)'}")
     logger.info(f"Timeline CW: {game_state.timeline_cw.size} forças")
     logger.info(f"Timeline CCW: {game_state.timeline_ccw.size} forças")
+    
+    # Iniciar heartbeat task
+    asyncio.create_task(broadcast_heartbeat())
+    logger.info("Heartbeat broadcast iniciado (intervalo: 1s)")
     
     async with websockets.serve(
         handler,
