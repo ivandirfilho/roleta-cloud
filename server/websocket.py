@@ -129,7 +129,7 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                     "martingale": mg.multiplier,
                     "aposta": mg.current_bet,
                     "gale_level": mg.level,
-                    "gale_window": f"{mg.window_hits}/{mg.window_count}",
+                    "gale_display": mg.gale_display,  # "G1 2/5" format
                     "estrategia": strategy.name,
                     "trace_id": trace_id,
                     "t_server": now_ms()

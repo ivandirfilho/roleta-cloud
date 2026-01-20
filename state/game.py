@@ -60,6 +60,11 @@ class MartingaleState:
         multipliers = {1: "1x", 2: "2x", 3: "4x"}
         return multipliers.get(self.level, "1x")
     
+    @property
+    def gale_display(self) -> str:
+        """Retorna status no formato 'G1 2/5' (nível + hits/window_count)."""
+        return f"G{self.level} {self.window_hits}/{self.window_count}"
+    
     def update(self, hit: bool) -> Dict[str, Any]:
         """
         Atualiza estado do martingale após um resultado.
