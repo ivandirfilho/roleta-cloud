@@ -5,3 +5,7 @@ pydantic>=2.0
 
 # WebSocket server
 websockets>=12.0
+
+# Database (SQLite é built-in, não precisa de pacote extra)
+# Para futuro migration para SurrealDB:
+# surrealdb>=0.3.0

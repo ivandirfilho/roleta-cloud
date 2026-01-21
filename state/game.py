@@ -7,6 +7,7 @@ from pathlib import Path
 
 import config
 from .timeline import Timeline
+from .bet_advisor import TripleRateAdvisor, BetAdvice
 
 
 @dataclass
@@ -162,6 +163,9 @@ class GameState:
     
     # Pendente: última sugestão para verificar no próximo spin
     pending_prediction: Dict[str, Any] = field(default_factory=dict)
+    
+    # Triple Rate Advisor
+    bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
     
     def process_spin(self, numero: int, direcao: str) -> int:
         """
@@ -341,6 +345,26 @@ class GameState:
         if self.last_direction == "horario":
             return self.calibration_ccw.offset
         return self.calibration_cw.offset
+    
+    @property
+    def target_performance(self) -> List[bool]:
+        """
+        Retorna performance da direção ALVO (oposta à última).
+        Usado pelo Triple Rate Advisor para analisar tendência.
+        """
+        if self.last_direction == "horario":
+            return self.performance_ccw
+        return self.performance_cw
+    
+    def get_bet_advice(self) -> BetAdvice:
+        """
+        Retorna recomendação de aposta baseada no Triple Rate Advisor.
+        Analisa a performance da direção alvo (próxima aposta).
+        
+        Returns:
+            BetAdvice com should_bet, confidence, reason e rates
+        """
+        return self.bet_advisor.analyze(self.target_performance)
     
     def save(self, path: Optional[Path] = None) -> None:
         """Salva estado em arquivo JSON."""

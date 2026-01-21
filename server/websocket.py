@@ -17,6 +17,9 @@ from models.output import SuggestionOutput, AckOutput, ErrorOutput
 from models.trace import TraceContext, now_ms
 from state.game import GameState
 from strategies.sda17 import SDA17Strategy
+from database import get_repository
+from database.models import Decision, Session
+import uuid
 
 # Logging
 logging.basicConfig(
@@ -38,6 +41,12 @@ active_connections: Set[WebSocketServerProtocol] = set()
 
 # Lock para acesso thread-safe ao game_state
 state_lock = asyncio.Lock()
+
+# Session ID para logging
+current_session_id: str = str(uuid.uuid4())[:8]
+
+# Última decisão ID para atualizar resultado
+last_decision_id: int = None
 
 
 async def broadcast_heartbeat():
@@ -149,20 +158,87 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                 "calibration": game_state.target_calibration
             })
             
-            # Armazenar predição para verificar no próximo spin
-            if result.should_bet:
+            # ====================================================
+            # TRIPLE RATE ADVISOR - Pode vetar a aposta
+            # ====================================================
+            advice = game_state.get_bet_advice()
+            trace.step("triple_rate", {
+                "should_bet": advice.should_bet,
+                "confidence": advice.confidence,
+                "reason": advice.reason,
+                "rates": {"c4": advice.c4_rate, "m6": advice.m6_rate, "l12": advice.l12_rate}
+            })
+            
+            # Decisão combinada: Triple Rate pode VETAR
+            action_reason = ""
+            if not advice.should_bet:
+                acao = "PULAR"
+                action_reason = f"Triple Rate vetou: {advice.reason}"
+                # NÃO armazenar predição quando Triple Rate veta
+            elif result.should_bet:
+                acao = "APOSTAR"
+                action_reason = f"SDA17 + Triple Rate aprovaram ({advice.confidence})"
+                # Armazenar predição para verificar no próximo spin
                 game_state.store_prediction(
                     result.numbers,
                     game_state.target_direction,
                     result.center,
                     predicted_force=result.details.get("predicted_force", 0)
                 )
-            
-            # Determinar ação
-            acao = "APOSTAR" if result.should_bet else "PULAR"
+            else:
+                acao = "PULAR"
+                action_reason = "SDA17 não recomendou (forças insuficientes)"
             
             # Obter info do martingale atual
             mg = game_state.martingale
+            
+            # ====================================================
+            # LOGGING - Salvar decisão no banco de dados
+            # ====================================================
+            try:
+                global last_decision_id
+                repo = get_repository()
+                
+                # Atualizar resultado da decisão anterior (se existia)
+                if last_decision_id and hit_result is not None:
+                    repo.update_result(last_decision_id, hit_result, numero)
+                
+                # Salvar nova decisão
+                decision = Decision(
+                    session_id=current_session_id,
+                    spin_number=numero,
+                    spin_direction=direcao,
+                    spin_force=force,
+                    tr_should_bet=advice.should_bet,
+                    tr_confidence=advice.confidence,
+                    tr_reason=advice.reason,
+                    tr_c4_rate=advice.c4_rate,
+                    tr_m6_rate=advice.m6_rate,
+                    tr_l12_rate=advice.l12_rate,
+                    sda_should_bet=result.should_bet,
+                    sda_score=result.score,
+                    sda_center=result.center,
+                    sda_numbers=result.numbers,
+                    sda_predicted_force=result.details.get("predicted_force", 0),
+                    final_action=acao,
+                    action_reason=action_reason,
+                    gale_level=mg.level,
+                    gale_window_hits=mg.window_hits,
+                    gale_window_count=mg.window_count,
+                    gale_bet_value=mg.current_bet,
+                    calibration_offset=game_state.target_calibration,
+                    performance_snapshot=game_state.target_performance[:12]
+                )
+                
+                # Atualizar last_decision_id apenas se apostou
+                if acao == "APOSTAR":
+                    last_decision_id = repo.save_decision(decision)
+                else:
+                    repo.save_decision(decision)
+                    last_decision_id = None  # Não há predição para verificar
+                    
+            except Exception as db_error:
+                logger.warning(f"Erro ao salvar decisão no DB: {db_error}")
             
             # Formato esperado pelo overlay
             overlay_response = {
@@ -177,10 +253,13 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                     "martingale": mg.multiplier,
                     "aposta": mg.current_bet,
                     "gale_level": mg.level,
-                    "gale_display": mg.gale_display,  # "G1 2/5" format
+                    "gale_display": mg.gale_display,
                     "estrategia": strategy.name,
                     "trace_id": trace_id,
-                    "t_server": now_ms()
+                    "t_server": now_ms(),
+                    # Novo: Triple Rate advice
+                    "bet_advice": advice.to_dict(),
+                    "action_reason": action_reason
                 }
             }
             

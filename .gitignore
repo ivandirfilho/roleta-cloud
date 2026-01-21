@@ -25,10 +25,29 @@ my_key.pub
 *.pem
 *.key
 
+# Data (banco de dados local)
+data/
+*.db
+
 # Temp
 tunnel_output.txt
 *.tmp
+audit_result.txt
+
+# Debug/Analysis scripts (development only)
+analysis.py
+audit_*.py
+backtest_*.py
+compare_*.py
+simulation.py
+dashboard.py
+database_proposal.py
+explicacao_triple_rate.py
+post_audit.py
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent/Gemini
+.agent/
