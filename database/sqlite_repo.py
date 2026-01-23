@@ -114,6 +114,40 @@ class SQLiteDecisionRepository(DecisionRepository):
                     FOREIGN KEY (session_id) REFERENCES sessions(id)
                 );
                 
+                -- Tabela de janelas de gale (ML-ready)
+                CREATE TABLE IF NOT EXISTS gale_windows (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    direction TEXT NOT NULL,
+                    gale_level INTEGER NOT NULL,
+                    started_at DATETIME NOT NULL,
+                    ended_at DATETIME,
+                    total_hits INTEGER DEFAULT 0,
+                    total_plays INTEGER DEFAULT 0,
+                    result TEXT,
+                    next_level INTEGER,
+                    sda17_rate_at_start REAL,
+                    bet_rate_at_start REAL,
+                    calibration_offset INTEGER
+                );
+                
+                -- Tabela de jogadas por janela
+                CREATE TABLE IF NOT EXISTS window_plays (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    window_id INTEGER NOT NULL,
+                    play_number INTEGER NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    spin_number INTEGER,
+                    spin_direction TEXT,
+                    spin_force INTEGER,
+                    center_predicted INTEGER,
+                    hit BOOLEAN,
+                    actual_number INTEGER,
+                    sda_score INTEGER,
+                    tr_confidence TEXT,
+                    tr_reason TEXT,
+                    FOREIGN KEY (window_id) REFERENCES gale_windows(id)
+                );
+                
                 -- Índices para consultas frequentes
                 CREATE INDEX IF NOT EXISTS idx_decisions_session 
                     ON decisions(session_id);
@@ -123,6 +157,16 @@ class SQLiteDecisionRepository(DecisionRepository):
                     ON decisions(final_action);
                 CREATE INDEX IF NOT EXISTS idx_decisions_gale 
                     ON decisions(gale_level);
+                
+                -- Índices para novas tabelas ML
+                CREATE INDEX IF NOT EXISTS idx_gale_windows_direction 
+                    ON gale_windows(direction);
+                CREATE INDEX IF NOT EXISTS idx_gale_windows_level 
+                    ON gale_windows(gale_level);
+                CREATE INDEX IF NOT EXISTS idx_gale_windows_started 
+                    ON gale_windows(started_at);
+                CREATE INDEX IF NOT EXISTS idx_window_plays_window 
+                    ON window_plays(window_id);
             """)
             conn.commit()
     
@@ -466,3 +510,146 @@ class SQLiteDecisionRepository(DecisionRepository):
                     for row in by_confidence
                 }
             }
+    
+    # =========================================================================
+    # CRUD de Gale Windows (ML-Ready)
+    # =========================================================================
+    
+    def create_gale_window(self, window: "GaleWindow") -> int:
+        """Cria uma nova janela de gale."""
+        from .models import GaleWindow
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO gale_windows (
+                    direction, gale_level, started_at,
+                    sda17_rate_at_start, bet_rate_at_start, calibration_offset
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                window.direction,
+                window.gale_level,
+                window.started_at.isoformat(),
+                window.sda17_rate_at_start,
+                window.bet_rate_at_start,
+                window.calibration_offset
+            ))
+            conn.commit()
+            return cursor.lastrowid
+    
+    def add_window_play(self, play: "WindowPlay") -> int:
+        """Adiciona uma jogada a uma janela com transação atômica."""
+        from .models import WindowPlay
+        with self._get_connection() as conn:
+            try:
+                cursor = conn.execute("""
+                    INSERT INTO window_plays (
+                        window_id, play_number, timestamp,
+                        spin_number, spin_direction, spin_force, center_predicted,
+                        hit, actual_number, sda_score, tr_confidence, tr_reason
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    play.window_id,
+                    play.play_number,
+                    play.timestamp.isoformat(),
+                    play.spin_number,
+                    play.spin_direction,
+                    play.spin_force,
+                    play.center_predicted,
+                    play.hit,
+                    play.actual_number,
+                    play.sda_score,
+                    play.tr_confidence,
+                    play.tr_reason
+                ))
+                
+                # Atualizar contadores na janela
+                conn.execute("""
+                    UPDATE gale_windows 
+                    SET total_plays = total_plays + 1,
+                        total_hits = total_hits + ?
+                    WHERE id = ?
+                """, (1 if play.hit else 0, play.window_id))
+                
+                conn.commit()
+                return cursor.lastrowid
+            except Exception:
+                conn.rollback()
+                raise
+    
+    def close_gale_window(self, window_id: int, result: str, next_level: int) -> None:
+        """Fecha uma janela de gale com resultado."""
+        with self._get_connection() as conn:
+            conn.execute("""
+                UPDATE gale_windows 
+                SET ended_at = ?, result = ?, next_level = ?
+                WHERE id = ?
+            """, (datetime.utcnow().isoformat(), result, next_level, window_id))
+            conn.commit()
+    
+    def get_active_window(self, direction: str) -> Optional["GaleWindow"]:
+        """Retorna janela ativa (não fechada) para uma direção."""
+        from .models import GaleWindow
+        with self._get_connection() as conn:
+            row = conn.execute("""
+                SELECT * FROM gale_windows 
+                WHERE direction = ? AND ended_at IS NULL
+                ORDER BY started_at DESC LIMIT 1
+            """, (direction,)).fetchone()
+            
+            if row:
+                return GaleWindow(
+                    id=row["id"],
+                    direction=row["direction"],
+                    gale_level=row["gale_level"],
+                    started_at=datetime.fromisoformat(row["started_at"]) if row["started_at"] else None,
+                    total_hits=row["total_hits"] or 0,
+                    total_plays=row["total_plays"] or 0,
+                    sda17_rate_at_start=row["sda17_rate_at_start"] or 0.0,
+                    bet_rate_at_start=row["bet_rate_at_start"] or 0.0,
+                    calibration_offset=row["calibration_offset"] or 0
+                )
+            return None
+    
+    def get_window_history(self, direction: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Retorna histórico de janelas para uma direção com plays (otimizado com JOIN)."""
+        with self._get_connection() as conn:
+            # Query única com LEFT JOIN (evita N+1)
+            rows = conn.execute("""
+                SELECT 
+                    w.id, w.gale_level, w.total_hits, w.total_plays, 
+                    w.result, w.started_at,
+                    p.play_number, p.spin_number, p.hit, p.center_predicted
+                FROM gale_windows w
+                LEFT JOIN window_plays p ON p.window_id = w.id
+                WHERE w.direction = ?
+                ORDER BY w.started_at DESC, p.play_number ASC
+                LIMIT ?
+            """, (direction, limit * 6)).fetchall()  # limit * 6 para garantir plays
+            
+            # Agrupar por window no Python
+            windows_map = {}
+            for row in rows:
+                wid = row["id"]
+                if wid not in windows_map:
+                    windows_map[wid] = {
+                        "id": wid,
+                        "gale_level": row["gale_level"],
+                        "total_hits": row["total_hits"],
+                        "total_plays": row["total_plays"],
+                        "result": row["result"],
+                        "started_at": row["started_at"],
+                        "plays": []
+                    }
+                
+                # Adicionar play se existir (LEFT JOIN pode trazer NULL)
+                if row["play_number"] is not None:
+                    windows_map[wid]["plays"].append({
+                        "play_number": row["play_number"],
+                        "spin_number": row["spin_number"],
+                        "hit": bool(row["hit"]) if row["hit"] is not None else None,
+                        "center_predicted": row["center_predicted"]
+                    })
+            
+            # Retornar lista ordenada, limitada
+            result = list(windows_map.values())[:limit]
+            return result
+

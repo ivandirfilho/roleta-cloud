@@ -122,7 +122,8 @@ class MartingaleState:
             "window_count": self.window_count,
             "total_stops": self.total_stops,
             "current_bet": self.current_bet,
-            "multiplier": self.multiplier
+            "multiplier": self.multiplier,
+            "gale_display": self.gale_display
         }
     
     @classmethod
@@ -298,19 +299,26 @@ class GameState:
             cal.error_history.pop(0)
     
     def store_prediction(self, numbers: List[int], direction: str, center: int, 
-                         predicted_force: int = 0, bet_placed: bool = False) -> None:
+                         predicted_force: int = 0, bet_placed: bool = False,
+                         tr_confidence: str = "", tr_reason: str = "", sda_score: int = 0) -> None:
         """
         Armazena a predição atual para verificar no próximo spin.
         
         Args:
             bet_placed: True se realmente apostou, False se apenas registrando para Triple Rate
+            tr_confidence: Nível de confiança do Triple Rate (para tracking)
+            tr_reason: Razão do Triple Rate (para tracking)
+            sda_score: Score do SDA17 (para tracking)
         """
         self.pending_prediction = {
             "numbers": numbers,
             "direction": direction,
             "center": center,
             "predicted_force": predicted_force,
-            "bet_placed": bet_placed
+            "bet_placed": bet_placed,
+            "tr_confidence": tr_confidence,
+            "tr_reason": tr_reason,
+            "sda_score": sda_score
         }
     
     def get_performance_stats(self) -> Dict[str, Any]:
@@ -415,7 +423,10 @@ class GameState:
         return self.bet_advisor.analyze(self.target_performance)
     
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.4)."""
+        """Salva estado em arquivo JSON (v1.4) com escrita atômica."""
+        import os
+        import tempfile
+        
         path = path or config.STATE_FILE
         data = {
             "version": "1.4.0",
@@ -433,8 +444,18 @@ class GameState:
             "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction
         }
-        with open(path, "w", encoding="utf-8") as f:
+        
+        # Escrita atômica: escreve em temp, depois renomeia
+        dir_path = Path(path).parent
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.tmp', 
+                                          dir=dir_path, delete=False, 
+                                          encoding='utf-8') as f:
             json.dump(data, f, indent=2)
+            temp_path = f.name
+        
+        # os.replace é atômico na maioria dos sistemas de arquivos
+        os.replace(temp_path, path)
+
     
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "GameState":
