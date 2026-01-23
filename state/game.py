@@ -150,18 +150,24 @@ class GameState:
     timeline_cw: Timeline = field(default_factory=lambda: Timeline("cw"))
     timeline_ccw: Timeline = field(default_factory=lambda: Timeline("ccw"))
     
-    # Performance tracking (últimos 12 por direção)
-    performance_cw: List[bool] = field(default_factory=list)
-    performance_ccw: List[bool] = field(default_factory=list)
+    # Performance SDA17 - SEMPRE que SDA17 recomenda (base para Triple Rate)
+    performance_sda17_cw: List[bool] = field(default_factory=list)
+    performance_sda17_ccw: List[bool] = field(default_factory=list)
+    
+    # Performance Apostas - APENAS quando realmente aposta (base para Martingale)
+    performance_bet_cw: List[bool] = field(default_factory=list)
+    performance_bet_ccw: List[bool] = field(default_factory=list)
     
     # Calibração por direção (momentum)
     calibration_cw: CalibrationState = field(default_factory=CalibrationState)
     calibration_ccw: CalibrationState = field(default_factory=CalibrationState)
     
-    # Martingale inteligente (janela de 5 jogadas)
-    martingale: MartingaleState = field(default_factory=MartingaleState)
+    # Martingale por direção (janela de 5 jogadas cada)
+    martingale_cw: MartingaleState = field(default_factory=MartingaleState)
+    martingale_ccw: MartingaleState = field(default_factory=MartingaleState)
     
     # Pendente: última sugestão para verificar no próximo spin
+    # Inclui bet_placed=True/False para saber se realmente apostou
     pending_prediction: Dict[str, Any] = field(default_factory=dict)
     
     # Triple Rate Advisor
@@ -196,6 +202,11 @@ class GameState:
     def check_prediction(self, actual_number: int) -> Optional[bool]:
         """
         Verifica se a predição anterior foi acertada.
+        
+        SEPARAÇÃO DE HISTÓRICOS:
+        - performance_sda17: SEMPRE registra (usado pelo Triple Rate)
+        - performance_bet: APENAS se bet_placed=True (usado pelo Martingale)
+        
         Retorna True (hit), False (miss), ou None se não havia predição.
         """
         if not self.pending_prediction:
@@ -205,6 +216,7 @@ class GameState:
         numbers = pred.get("numbers", [])
         direction = pred.get("direction", "")
         predicted_force = pred.get("predicted_force", 0)
+        bet_placed = pred.get("bet_placed", False)  # Nova flag
         
         # Verificar se acertou
         hit = actual_number in numbers
@@ -221,15 +233,26 @@ class GameState:
             # Acertou - manter calibração atual
             pass
         
-        # Adicionar ao tracking da direção correspondente
+        # SEMPRE adicionar ao histórico SDA17 (base para Triple Rate)
         if direction in ("cw", "horario"):
-            self.performance_cw.insert(0, hit)
-            if len(self.performance_cw) > 12:
-                self.performance_cw.pop()
+            self.performance_sda17_cw.insert(0, hit)
+            if len(self.performance_sda17_cw) > 12:
+                self.performance_sda17_cw.pop()
         else:
-            self.performance_ccw.insert(0, hit)
-            if len(self.performance_ccw) > 12:
-                self.performance_ccw.pop()
+            self.performance_sda17_ccw.insert(0, hit)
+            if len(self.performance_sda17_ccw) > 12:
+                self.performance_sda17_ccw.pop()
+        
+        # APENAS adicionar ao histórico BET se realmente apostou
+        if bet_placed:
+            if direction in ("cw", "horario"):
+                self.performance_bet_cw.insert(0, hit)
+                if len(self.performance_bet_cw) > 12:
+                    self.performance_bet_cw.pop()
+            else:
+                self.performance_bet_ccw.insert(0, hit)
+                if len(self.performance_bet_ccw) > 12:
+                    self.performance_bet_ccw.pop()
         
         # Limpar predição pendente
         self.pending_prediction = {}
@@ -274,35 +297,50 @@ class GameState:
         if len(cal.error_history) > 5:
             cal.error_history.pop(0)
     
-    def store_prediction(self, numbers: List[int], direction: str, center: int, predicted_force: int = 0) -> None:
-        """Armazena a predição atual para verificar no próximo spin."""
+    def store_prediction(self, numbers: List[int], direction: str, center: int, 
+                         predicted_force: int = 0, bet_placed: bool = False) -> None:
+        """
+        Armazena a predição atual para verificar no próximo spin.
+        
+        Args:
+            bet_placed: True se realmente apostou, False se apenas registrando para Triple Rate
+        """
         self.pending_prediction = {
             "numbers": numbers,
             "direction": direction,
             "center": center,
-            "predicted_force": predicted_force
+            "predicted_force": predicted_force,
+            "bet_placed": bet_placed
         }
     
     def get_performance_stats(self) -> Dict[str, Any]:
-        """Retorna estatísticas de performance."""
-        cw_hits = sum(self.performance_cw) if self.performance_cw else 0
-        cw_total = len(self.performance_cw)
-        ccw_hits = sum(self.performance_ccw) if self.performance_ccw else 0
-        ccw_total = len(self.performance_ccw)
+        """
+        Retorna estatísticas de performance para todas as 4 listas.
+        
+        - performance_sda17: base para Triple Rate (todas recomendações SDA17)
+        - performance_bet: base para Martingale (apenas apostas reais)
+        """
+        def calc_stats(perf_list: List[bool]) -> Dict:
+            hits = sum(perf_list) if perf_list else 0
+            total = len(perf_list)
+            return {
+                "results": perf_list,
+                "hits": hits,
+                "total": total,
+                "rate": round(hits / total * 100) if total else 0
+            }
         
         return {
-            "cw": {
-                "results": self.performance_cw,
-                "hits": cw_hits,
-                "total": cw_total,
-                "rate": round(cw_hits / cw_total * 100) if cw_total else 0
+            "sda17": {
+                "cw": calc_stats(self.performance_sda17_cw),
+                "ccw": calc_stats(self.performance_sda17_ccw)
             },
-            "ccw": {
-                "results": self.performance_ccw,
-                "hits": ccw_hits,
-                "total": ccw_total,
-                "rate": round(ccw_hits / ccw_total * 100) if ccw_total else 0
-            }
+            "bet": {
+                "cw": calc_stats(self.performance_bet_cw),
+                "ccw": calc_stats(self.performance_bet_ccw)
+            },
+            "cw": calc_stats(self.performance_sda17_cw),
+            "ccw": calc_stats(self.performance_sda17_ccw)
         }
     
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
@@ -349,12 +387,22 @@ class GameState:
     @property
     def target_performance(self) -> List[bool]:
         """
-        Retorna performance da direção ALVO (oposta à última).
+        Retorna performance SDA17 da direção ALVO (oposta à última).
         Usado pelo Triple Rate Advisor para analisar tendência.
         """
         if self.last_direction == "horario":
-            return self.performance_ccw
-        return self.performance_cw
+            return self.performance_sda17_ccw
+        return self.performance_sda17_cw
+    
+    @property
+    def target_martingale(self) -> MartingaleState:
+        """
+        Retorna Martingale da direção ALVO (oposta à última).
+        Usado para atualizar após resultado de aposta.
+        """
+        if self.last_direction == "horario":
+            return self.martingale_ccw
+        return self.martingale_cw
     
     def get_bet_advice(self) -> BetAdvice:
         """
@@ -367,19 +415,22 @@ class GameState:
         return self.bet_advisor.analyze(self.target_performance)
     
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON."""
+        """Salva estado em arquivo JSON (v1.4)."""
         path = path or config.STATE_FILE
         data = {
-            "version": "1.3.0",
+            "version": "1.4.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
             "timeline_ccw": self.timeline_ccw.to_dict(),
-            "performance_cw": self.performance_cw,
-            "performance_ccw": self.performance_ccw,
+            "performance_sda17_cw": self.performance_sda17_cw,
+            "performance_sda17_ccw": self.performance_sda17_ccw,
+            "performance_bet_cw": self.performance_bet_cw,
+            "performance_bet_ccw": self.performance_bet_ccw,
             "calibration_cw": self.calibration_cw.to_dict(),
             "calibration_ccw": self.calibration_ccw.to_dict(),
-            "martingale": self.martingale.to_dict(),
+            "martingale_cw": self.martingale_cw.to_dict(),
+            "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction
         }
         with open(path, "w", encoding="utf-8") as f:
@@ -387,7 +438,13 @@ class GameState:
     
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "GameState":
-        """Carrega estado de arquivo JSON."""
+        """
+        Carrega estado de arquivo JSON.
+        
+        MIGRAÇÕES:
+        - v1.3 -> v1.4: performance_cw/ccw -> performance_sda17_cw/ccw
+        - v1.3 -> v1.4: martingale -> martingale_cw e martingale_ccw (copia para ambos)
+        """
         path = path or config.STATE_FILE
         if not path.exists():
             return cls()
@@ -396,16 +453,47 @@ class GameState:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
+            version = data.get("version", "1.0.0")
+            
+            # MIGRAÇÃO v1.3 -> v1.4
+            if version < "1.4.0":
+                # Migrar performance antigo para sda17
+                perf_cw = data.get("performance_cw", [])
+                perf_ccw = data.get("performance_ccw", [])
+                
+                # Migrar martingale único para ambos
+                old_martingale = data.get("martingale", {})
+                
+                return cls(
+                    last_number=data.get("last_number", 0),
+                    last_direction=data.get("last_direction", ""),
+                    timeline_cw=Timeline.from_dict(data.get("timeline_cw", {})),
+                    timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
+                    performance_sda17_cw=perf_cw,
+                    performance_sda17_ccw=perf_ccw,
+                    performance_bet_cw=[],  # Começa vazio (sem histórico de apostas reais)
+                    performance_bet_ccw=[],
+                    calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
+                    calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
+                    martingale_cw=MartingaleState.from_dict(old_martingale),  # Copia para CW
+                    martingale_ccw=MartingaleState.from_dict(old_martingale),  # Copia para CCW
+                    pending_prediction=data.get("pending_prediction", {})
+                )
+            
+            # v1.4+ - formato novo
             return cls(
                 last_number=data.get("last_number", 0),
                 last_direction=data.get("last_direction", ""),
                 timeline_cw=Timeline.from_dict(data.get("timeline_cw", {})),
                 timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
-                performance_cw=data.get("performance_cw", []),
-                performance_ccw=data.get("performance_ccw", []),
+                performance_sda17_cw=data.get("performance_sda17_cw", []),
+                performance_sda17_ccw=data.get("performance_sda17_ccw", []),
+                performance_bet_cw=data.get("performance_bet_cw", []),
+                performance_bet_ccw=data.get("performance_bet_ccw", []),
                 calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
                 calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
-                martingale=MartingaleState.from_dict(data.get("martingale", {})),
+                martingale_cw=MartingaleState.from_dict(data.get("martingale_cw", {})),
+                martingale_ccw=MartingaleState.from_dict(data.get("martingale_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})
             )
         except Exception:

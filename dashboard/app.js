@@ -59,7 +59,22 @@ const el = {
     perfCW: document.getElementById('perf-cw'),
     perfCCW: document.getElementById('perf-ccw'),
     perfRateCW: document.getElementById('perf-rate-cw'),
-    perfRateCCW: document.getElementById('perf-rate-ccw')
+    perfRateCCW: document.getElementById('perf-rate-ccw'),
+    // New: SDA17 Performance (4 lists)
+    perfSda17CW: document.getElementById('perf-sda17-cw'),
+    perfSda17CCW: document.getElementById('perf-sda17-ccw'),
+    perfRateSda17CW: document.getElementById('perf-rate-sda17-cw'),
+    perfRateSda17CCW: document.getElementById('perf-rate-sda17-ccw'),
+    // New: Bet Performance
+    perfBetCW: document.getElementById('perf-bet-cw'),
+    perfBetCCW: document.getElementById('perf-bet-ccw'),
+    perfRateBetCW: document.getElementById('perf-rate-bet-cw'),
+    perfRateBetCCW: document.getElementById('perf-rate-bet-ccw'),
+    // New: Martingale per direction
+    mgCWDisplay: document.getElementById('mg-cw-display'),
+    mgCWBet: document.getElementById('mg-cw-bet'),
+    mgCCWDisplay: document.getElementById('mg-ccw-display'),
+    mgCCWBet: document.getElementById('mg-ccw-bet')
 };
 
 // WebSocket
@@ -100,8 +115,25 @@ function handleMessage(data) {
         handleSuggestion(data.data);
     } else if (data.type === 'state') {
         handleState(data);
+    } else if (data.type === 'state_sync') {
+        handleStateSync(data.data);
     } else if (data.type === 'ack') {
         addLog('info', `✅ ${data.message}`);
+    }
+}
+
+// Handle heartbeat state_sync from server
+function handleStateSync(data) {
+    // Update Martingale per direction
+    if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
+    if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+
+    // Update Performance (4 lists: sda17 + bet per direction)
+    if (data.performance) updatePerformance4(data.performance);
+
+    // Update last number indicator
+    if (data.last_number !== undefined) {
+        el.spinNumber.textContent = data.last_number;
     }
 }
 
@@ -212,8 +244,9 @@ function updateStrategy(strategy, trend) {
     if (el.strategyTrend) el.strategyTrend.textContent = trend || '--';
 }
 
+// Legacy performance update (for backward compatibility)
 function updatePerformance(perf) {
-    // Update CW squares
+    // Update CW squares (legacy - maps to sda17)
     if (el.perfCW) {
         const squares = el.perfCW.querySelectorAll('.perf-square');
         squares.forEach((sq, i) => {
@@ -240,6 +273,58 @@ function updatePerformance(perf) {
         });
     }
     if (el.perfRateCCW) el.perfRateCCW.textContent = `${perf.ccw.rate || 0}%`;
+
+    // Also update new 4-list format if available
+    if (perf.sda17 || perf.bet) {
+        updatePerformance4(perf);
+    }
+}
+
+// Update Martingale display for a direction (cw or ccw)
+function updateMartingale(direction, mg) {
+    if (direction === 'cw') {
+        if (el.mgCWDisplay) {
+            el.mgCWDisplay.textContent = `G${mg.level} ${mg.window_hits}/${mg.window_count}`;
+            el.mgCWDisplay.className = `mg-gale level-${mg.level}`;
+        }
+        if (el.mgCWBet) el.mgCWBet.textContent = `R$${mg.current_bet}`;
+    } else {
+        if (el.mgCCWDisplay) {
+            el.mgCCWDisplay.textContent = `G${mg.level} ${mg.window_hits}/${mg.window_count}`;
+            el.mgCCWDisplay.className = `mg-gale level-${mg.level}`;
+        }
+        if (el.mgCCWBet) el.mgCCWBet.textContent = `R$${mg.current_bet}`;
+    }
+}
+
+// Update all 4 performance lists (sda17 and bet per direction)
+function updatePerformance4(perf) {
+    // Helper to update a set of squares
+    function updateSquares(container, rateEl, data) {
+        if (!container || !data) return;
+        const squares = container.querySelectorAll('.perf-square');
+        squares.forEach((sq, i) => {
+            sq.className = 'perf-square';
+            if (data.results && i < data.results.length) {
+                sq.classList.add(data.results[i] ? 'hit' : 'miss');
+            } else {
+                sq.classList.add('empty');
+            }
+        });
+        if (rateEl) rateEl.textContent = `${data.rate || 0}%`;
+    }
+
+    // SDA17 Performance (base for Triple Rate)
+    if (perf.sda17) {
+        updateSquares(el.perfSda17CW, el.perfRateSda17CW, perf.sda17.cw);
+        updateSquares(el.perfSda17CCW, el.perfRateSda17CCW, perf.sda17.ccw);
+    }
+
+    // Bet Performance (real bets - for Martingale)
+    if (perf.bet) {
+        updateSquares(el.perfBetCW, el.perfRateBetCW, perf.bet.cw);
+        updateSquares(el.perfBetCCW, el.perfRateBetCCW, perf.bet.ccw);
+    }
 }
 
 // Flow Animation

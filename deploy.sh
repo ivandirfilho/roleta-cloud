@@ -29,7 +29,7 @@ fi
 # 2. Copiar arquivos para servidor
 echo -e "${YELLOW}📦 Copiando arquivos...${NC}"
 scp -r config.py main.py requirements.txt $SERVER:$REMOTE_PATH/
-scp -r auth/ core/ models/ server/ state/ strategies/ $SERVER:$REMOTE_PATH/
+scp -r auth/ core/ models/ server/ state/ strategies/ dashboard/ $SERVER:$REMOTE_PATH/
 
 # 3. Reiniciar serviço
 echo -e "${YELLOW}🔄 Reiniciando serviço...${NC}"

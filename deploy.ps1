@@ -15,7 +15,8 @@ if ($CommitMessage) {
     git add -A
     git commit -m $CommitMessage
     git push origin main
-} else {
+}
+else {
     Write-Host "⚠️ Sem mensagem de commit, apenas deploy" -ForegroundColor Yellow
 }
 
@@ -32,9 +33,11 @@ foreach ($file in $files) {
     scp $file "${SERVER}:${REMOTE_PATH}/"
 }
 
-$folders = @("auth", "core", "models", "server", "state", "strategies")
+$folders = @("auth", "core", "models", "server", "state", "strategies", "database")
 
 foreach ($folder in $folders) {
+    # Criar pasta no servidor se não existir
+    ssh $SERVER "mkdir -p ${REMOTE_PATH}/${folder}"
     scp -r "$folder/*" "${SERVER}:${REMOTE_PATH}/${folder}/"
 }
 

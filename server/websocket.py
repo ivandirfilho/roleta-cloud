@@ -60,7 +60,8 @@ async def broadcast_heartbeat():
         try:
             # Snapshot do estado com lock para evitar race condition
             async with state_lock:
-                mg = game_state.martingale
+                # Martingale da direção ALVO (próxima aposta)
+                mg = game_state.target_martingale
                 state_sync = {
                     "type": "state_sync",
                     "data": {
@@ -71,6 +72,9 @@ async def broadcast_heartbeat():
                         "last_number": game_state.last_number,
                         "target_direction": game_state.target_direction,
                         "performance": game_state.get_performance_stats(),
+                        # Ambos Martingales para dashboard
+                        "martingale_cw": game_state.martingale_cw.to_dict(),
+                        "martingale_ccw": game_state.martingale_ccw.to_dict(),
                         "pending_prediction": game_state.pending_prediction,
                         "timestamp": now_ms()
                     }
@@ -123,12 +127,18 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             # Verificar predição anterior (performance tracking)
             hit_result = game_state.check_prediction(numero)
             
-            # Atualizar Martingale (se havia predição pendente)
+            # Atualizar Martingale da direção da predição (se havia predição E apostou)
             martingale_info = {}
-            if pending and hit_result is not None:
-                martingale_info = game_state.martingale.update(hit_result)
+            if pending and hit_result is not None and pending.get("bet_placed", False):
+                # Martingale da direção que FOI apostada
+                bet_direction = pending.get("direction", "")
+                if bet_direction in ("cw", "horario"):
+                    martingale_info = game_state.martingale_cw.update(hit_result)
+                else:
+                    martingale_info = game_state.martingale_ccw.update(hit_result)
+                    
                 if martingale_info.get("transition"):
-                    logger.info(f"  MARTINGALE: {martingale_info['transition']}")
+                    logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
                 logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
             
             # Processar spin
@@ -171,26 +181,37 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             
             # Decisão combinada: Triple Rate pode VETAR
             action_reason = ""
-            if not advice.should_bet:
-                acao = "PULAR"
-                action_reason = f"Triple Rate vetou: {advice.reason}"
-                # NÃO armazenar predição quando Triple Rate veta
-            elif result.should_bet:
-                acao = "APOSTAR"
-                action_reason = f"SDA17 + Triple Rate aprovaram ({advice.confidence})"
-                # Armazenar predição para verificar no próximo spin
-                game_state.store_prediction(
-                    result.numbers,
-                    game_state.target_direction,
-                    result.center,
-                    predicted_force=result.details.get("predicted_force", 0)
-                )
+            if result.should_bet:
+                # SDA17 recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
+                if advice.should_bet:
+                    acao = "APOSTAR"
+                    action_reason = f"SDA17 + Triple Rate aprovaram ({advice.confidence})"
+                    # Registrar com bet_placed=True (realmente apostou)
+                    game_state.store_prediction(
+                        result.numbers,
+                        game_state.target_direction,
+                        result.center,
+                        predicted_force=result.details.get("predicted_force", 0),
+                        bet_placed=True
+                    )
+                else:
+                    acao = "PULAR"
+                    action_reason = f"Triple Rate vetou: {advice.reason}"
+                    # SDA17 recomendou mas TR vetou - registrar para TR com bet_placed=False
+                    game_state.store_prediction(
+                        result.numbers,
+                        game_state.target_direction,
+                        result.center,
+                        predicted_force=result.details.get("predicted_force", 0),
+                        bet_placed=False  # Não apostou, mas registra para análise TR
+                    )
             else:
                 acao = "PULAR"
                 action_reason = "SDA17 não recomendou (forças insuficientes)"
+                # SDA17 não recomendou - não há predição para verificar
             
-            # Obter info do martingale atual
-            mg = game_state.martingale
+            # Obter info do martingale da direção ALVO (para overlay)
+            mg = game_state.target_martingale
             
             # ====================================================
             # LOGGING - Salvar decisão no banco de dados

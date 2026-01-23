@@ -118,19 +118,37 @@
                 </div>
             </section>
 
-            <!-- Strategy + Performance -->
+            <!-- Strategy + Martingale -->
             <section class="card strategy-card">
                 <h2>🧠 Estratégia</h2>
                 <div class="strategy-info">
                     <div class="strategy-name" id="strategy-name">SDA-17</div>
-                    <div class="strategy-desc" id="strategy-desc">Regressão linear em 5 forças</div>
+                    <div class="strategy-desc" id="strategy-desc">Regressão linear + Triple Rate Advisor</div>
                     <div class="strategy-trend" id="strategy-trend">--</div>
                 </div>
 
+                <!-- Martingale por Direção -->
+                <div class="martingale-section">
+                    <div class="martingale-row">
+                        <span class="mg-label">⬅️ CW</span>
+                        <span class="mg-gale" id="mg-cw-display">G1 0/0</span>
+                        <span class="mg-bet" id="mg-cw-bet">R$17</span>
+                    </div>
+                    <div class="martingale-row">
+                        <span class="mg-label">➡️ CCW</span>
+                        <span class="mg-gale" id="mg-ccw-display">G1 0/0</span>
+                        <span class="mg-bet" id="mg-ccw-bet">R$17</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SDA17 Performance (base para Triple Rate) -->
+            <section class="card perf-sda17-card">
+                <h2>📊 Performance SDA17 <small>(base Triple Rate)</small></h2>
                 <div class="performance-section">
                     <div class="performance-row">
                         <span class="perf-label">⬅️ CW</span>
-                        <div class="perf-squares" id="perf-cw">
+                        <div class="perf-squares" id="perf-sda17-cw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -144,11 +162,11 @@
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
                         </div>
-                        <span class="perf-rate" id="perf-rate-cw">0%</span>
+                        <span class="perf-rate" id="perf-rate-sda17-cw">0%</span>
                     </div>
                     <div class="performance-row">
                         <span class="perf-label">➡️ CCW</span>
-                        <div class="perf-squares" id="perf-ccw">
+                        <div class="perf-squares" id="perf-sda17-ccw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -162,7 +180,50 @@
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
                         </div>
-                        <span class="perf-rate" id="perf-rate-ccw">0%</span>
+                        <span class="perf-rate" id="perf-rate-sda17-ccw">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bet Performance (apostas reais) -->
+            <section class="card perf-bet-card">
+                <h2>💰 Performance Apostas <small>(Martingale)</small></h2>
+                <div class="performance-section">
+                    <div class="performance-row">
+                        <span class="perf-label">⬅️ CW</span>
+                        <div class="perf-squares" id="perf-bet-cw">
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                        </div>
+                        <span class="perf-rate" id="perf-rate-bet-cw">0%</span>
+                    </div>
+                    <div class="performance-row">
+                        <span class="perf-label">➡️ CCW</span>
+                        <div class="perf-squares" id="perf-bet-ccw">
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                            <div class="perf-square empty"></div>
+                        </div>
+                        <span class="perf-rate" id="perf-rate-bet-ccw">0%</span>
                     </div>
                 </div>
             </section>
