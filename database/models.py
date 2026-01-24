@@ -131,3 +131,89 @@ class Session:
             "max_gale_reached": self.max_gale_reached,
             "total_stops": self.total_stops
         }
+
+
+@dataclass
+class GaleWindow:
+    """
+    Representa uma janela de 5 jogadas do Martingale.
+    Cada vez que o gale inicia uma nova janela, cria-se um novo GaleWindow.
+    Usado para análise ML e visualização no dashboard.
+    """
+    id: Optional[int] = None
+    direction: str = ""  # "cw" ou "ccw"
+    gale_level: int = 1  # 1, 2 ou 3
+    started_at: datetime = field(default_factory=datetime.utcnow)
+    ended_at: Optional[datetime] = None
+    
+    # Resultados da janela
+    total_hits: int = 0
+    total_plays: int = 0
+    result: str = ""  # "success", "escalated", "stop"
+    next_level: Optional[int] = None
+    
+    # Features para ML (context at window start)
+    sda17_rate_at_start: float = 0.0
+    bet_rate_at_start: float = 0.0
+    calibration_offset: int = 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "direction": self.direction,
+            "gale_level": self.gale_level,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
+            "total_hits": self.total_hits,
+            "total_plays": self.total_plays,
+            "result": self.result,
+            "next_level": self.next_level,
+            "sda17_rate_at_start": self.sda17_rate_at_start,
+            "bet_rate_at_start": self.bet_rate_at_start,
+            "calibration_offset": self.calibration_offset
+        }
+
+
+@dataclass
+class WindowPlay:
+    """
+    Representa uma jogada individual dentro de uma janela de gale.
+    Cada GaleWindow tem no máximo 5 WindowPlays.
+    """
+    id: Optional[int] = None
+    window_id: int = 0  # FK para GaleWindow
+    play_number: int = 0  # 1 a 5
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    
+    # Contexto do spin
+    spin_number: int = 0
+    spin_direction: str = ""
+    spin_force: int = 0
+    center_predicted: int = 0
+    
+    # Resultado
+    hit: Optional[bool] = None
+    actual_number: Optional[int] = None
+    
+    # Decisão context
+    sda_score: int = 0
+    tr_confidence: str = ""
+    tr_reason: str = ""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "window_id": self.window_id,
+            "play_number": self.play_number,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "spin_number": self.spin_number,
+            "spin_direction": self.spin_direction,
+            "spin_force": self.spin_force,
+            "center_predicted": self.center_predicted,
+            "hit": self.hit,
+            "actual_number": self.actual_number,
+            "sda_score": self.sda_score,
+            "tr_confidence": self.tr_confidence,
+            "tr_reason": self.tr_reason
+        }
+

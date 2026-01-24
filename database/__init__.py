@@ -1,7 +1,7 @@
 # Roleta Cloud - Database Package
 # Sistema de logging de decisões para análise posterior
 
-from .models import Decision, Session
+from .models import Decision, Session, GaleWindow, WindowPlay
 from .repository import DecisionRepository
 from .sqlite_repo import SQLiteDecisionRepository
 
@@ -30,9 +30,12 @@ def init_database(db_path: str = None) -> None:
 
 __all__ = [
     "Decision",
-    "Session", 
+    "Session",
+    "GaleWindow",
+    "WindowPlay",
     "DecisionRepository",
     "SQLiteDecisionRepository",
     "get_repository",
     "init_database"
 ]
+

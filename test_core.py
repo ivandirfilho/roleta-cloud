@@ -6,9 +6,9 @@ Testa todos os cálculos do núcleo da roleta.
 """
 
 import sys
-sys.path.insert(0, '..')
+sys.path.insert(0, '.')
 
-from core import roulette, Direction, get_neighbors, calculate_target
+from core import roulette, Direction
 
 
 def test_wheel_sequence():

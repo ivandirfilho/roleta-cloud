@@ -135,6 +135,65 @@ function handleStateSync(data) {
     if (data.last_number !== undefined) {
         el.spinNumber.textContent = data.last_number;
     }
+
+    // Update window history visualization
+    if (data.window_history) {
+        renderWindowHistory(data.window_history);
+    }
+}
+
+// Render gale window history for both directions
+function renderWindowHistory(history) {
+    const container = document.getElementById('window-history-container');
+    if (!container) return;
+
+    let html = '';
+
+    ['cw', 'ccw'].forEach(dir => {
+        const windows = history[dir] || [];
+        const label = dir === 'cw' ? 'Horário ⬅️' : 'Anti-horário ➡️';
+
+        html += `<div class="window-direction">`;
+        html += `<h4>${label}</h4>`;
+
+        if (windows.length === 0) {
+            html += `<p class="no-data">Sem histórico</p>`;
+        } else {
+            windows.forEach(w => {
+                // Handle active windows (no result yet) vs closed windows
+                const isActive = !w.result;
+                const resultClass = isActive ? 'active' :
+                    w.result === 'success' ? 'success' :
+                        w.result === 'stop' ? 'stop' : 'escalated';
+                const resultIcon = isActive ? '⏳' :
+                    w.result === 'success' ? '✅' :
+                        w.result === 'stop' ? '🛑' : '⬆️';
+
+                html += `<div class="window-card ${resultClass}">`;
+                html += `<div class="window-header">`;
+                html += `<span class="gale-badge">G${w.gale_level || 1}</span>`;
+                html += `<span class="window-result">${resultIcon} ${w.total_hits || 0}/${w.total_plays || 0}</span>`;
+                html += `</div>`;
+
+                // Render plays as dots (handle null hit values)
+                if (w.plays && w.plays.length > 0) {
+                    html += `<div class="window-plays">`;
+                    w.plays.forEach(p => {
+                        // Handle null/undefined hit values (pending plays)
+                        const dotClass = p.hit === true ? 'hit' :
+                            p.hit === false ? 'miss' : 'pending';
+                        const tooltip = `#${p.spin_number || '?'} → ${p.center_predicted || '?'}`;
+                        html += `<span class="play-dot ${dotClass}" title="${tooltip}"></span>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+        }
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
 }
 
 function handleTrace(data) {
