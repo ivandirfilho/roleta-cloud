@@ -1,4 +1,8 @@
-# Python
+# ===================================================
+# Roleta Cloud - .gitignore
+# ===================================================
+
+# ----------------- Python -----------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,36 +12,58 @@ __pycache__/
 venv/
 ENV/
 env/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# IDE
+# ----------------- IDE --------------------
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
 
-# Logs e Estado
+# ----------------- Logs -------------------
 *.log
-state.json
+logs/
 
-# Secrets
+# ----------------- Estado Local -----------
+state.json
+data/
+*.db
+*.sqlite
+
+# ----------------- Secrets ----------------
 .env
+.env.*
 my_key.pub
 *.pem
 *.key
+secrets/
 
-# Data (banco de dados local)
-data/
-*.db
-
-# Temp
+# ----------------- Temp -------------------
 tunnel_output.txt
 *.tmp
 audit_result.txt
+*.bak
 
-# Debug/Analysis scripts (development only)
+# ----------------- OS ---------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ----------------- Agent/Gemini -----------
+.agent/
+
+# -----------------------------------------
+# Scripts de Desenvolvimento (excluídos)
+# Estes são scripts de análise one-off
+# -----------------------------------------
 analysis.py
 audit_*.py
-backtest_*.py
 compare_*.py
 simulation.py
 dashboard.py
@@ -45,9 +71,5 @@ database_proposal.py
 explicacao_triple_rate.py
 post_audit.py
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Agent/Gemini
-.agent/
+# Manter backtest_from_db.py (ferramenta oficial)
+# Manter backtest_gale.py e backtest_techniques.py (referência)
