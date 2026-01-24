@@ -174,6 +174,63 @@ class GameState:
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
     
+    def reset_session(self, keep_last_number: bool = False) -> Dict[str, Any]:
+        """
+        Reseta estado para nova sessão/dealer.
+        
+        Deve ser chamado quando:
+        - Muda o dealer
+        - Muda de mesa
+        - Usuário quer começar do zero
+        
+        Args:
+            keep_last_number: Se True, mantém last_number para continuidade
+        
+        Returns:
+            Dict com informações do reset
+        """
+        old_state = {
+            "timeline_cw_size": self.timeline_cw.size,
+            "timeline_ccw_size": self.timeline_ccw.size,
+            "martingale_cw_level": self.martingale_cw.level,
+            "martingale_ccw_level": self.martingale_ccw.level,
+            "performance_sda17_cw": len(self.performance_sda17_cw),
+            "performance_sda17_ccw": len(self.performance_sda17_ccw),
+        }
+        
+        # Reset Timelines
+        self.timeline_cw = Timeline("cw")
+        self.timeline_ccw = Timeline("ccw")
+        
+        # Reset Performance SDA17
+        self.performance_sda17_cw = []
+        self.performance_sda17_ccw = []
+        
+        # Reset Performance Apostas
+        self.performance_bet_cw = []
+        self.performance_bet_ccw = []
+        
+        # Reset Calibração
+        self.calibration_cw = CalibrationState()
+        self.calibration_ccw = CalibrationState()
+        
+        # Reset Martingale
+        self.martingale_cw = MartingaleState()
+        self.martingale_ccw = MartingaleState()
+        
+        # Reset Prediction pendente
+        self.pending_prediction = {}
+        
+        # Reset último número (opcional)
+        if not keep_last_number:
+            self.last_number = 0
+            self.last_direction = ""
+        
+        # Salvar estado limpo
+        self.save()
+        
+        return {"reset": True, "old_state": old_state}
+    
     def process_spin(self, numero: int, direcao: str) -> int:
         """
         Processa um novo spin:

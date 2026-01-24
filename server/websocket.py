@@ -231,6 +231,7 @@ async def broadcast_heartbeat():
 
 async def handle_message(websocket: WebSocketServerProtocol, message: str) -> None:
     """Processa uma mensagem recebida."""
+    global current_session_id
     trace = None
     
     try:
@@ -538,6 +539,38 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             }
             await websocket.send(json.dumps(ack_response))
             logger.info(f"Correção histórico: {count} spins reprocessados")
+        
+        # === NOVA SESSÃO (reset de dealer/mesa) ===
+        elif msg_type == "nova_sessao":
+            logger.info("🔄 RESET DE SESSÃO SOLICITADO")
+            
+            keep_last = data.get("manter_ultimo", False)
+            
+            async with state_lock:
+                reset_info = game_state.reset_session(keep_last_number=keep_last)
+                
+                # Criar nova sessão no DB
+                new_session_id = f"session_{now_ms()}"
+                try:
+                    repo = get_repository()
+                    from database.models import Session
+                    repo.create_session(Session(id=new_session_id))
+                    current_session_id = new_session_id
+                except Exception as e:
+                    logger.warning(f"Erro ao criar sessão no DB: {e}")
+            
+            # Resposta de confirmação
+            response = {
+                "type": "sessao_resetada",
+                "data": {
+                    "success": True,
+                    "new_session_id": current_session_id,
+                    "reset_info": reset_info,
+                    "t_server": now_ms()
+                }
+            }
+            await websocket.send(json.dumps(response))
+            logger.info(f"✅ Sessão resetada: {current_session_id}")
         
         # === GET STATE (para dashboard) ===
         elif msg_type == "get_state":
