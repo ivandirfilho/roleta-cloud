@@ -4,8 +4,10 @@ import asyncio
 import json
 import ssl
 import logging
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Set, Optional
+from typing import Set, Optional, Dict
 
 import websockets
 from websockets.server import WebSocketServerProtocol
@@ -37,8 +39,49 @@ logger = logging.getLogger(__name__)
 game_state: GameState = GameState.load()
 strategy = SDA17Strategy()  # SDA-17 com regressão linear
 
-# Conexões ativas
+
+# ===== SISTEMA MASTER/SLAVE =====
+@dataclass
+class ConnectionInfo:
+    """Informações de uma conexão WebSocket."""
+    id: str
+    websocket: WebSocketServerProtocol
+    role: str  # "master" | "slave"
+    connected_at: float  # timestamp
+    last_activity: float = 0.0
+
+
+# Dicionário de conexões ativas (substitui Set)
+connections: Dict[str, ConnectionInfo] = {}
+
+# ID do MASTER atual
+master_id: Optional[str] = None
+
+# Lock para operações de MASTER (promoção/rebaixamento)
+master_lock = asyncio.Lock()
+
+# Grace period antes de promover SLAVE (segundos)
+MASTER_GRACE_PERIOD = 5
+
+# Timestamp de quando MASTER desconectou (para grace period)
+master_disconnect_time: Optional[float] = None
+
+# Último spin hash para deduplicação
+last_spin_hash: str = ""
+
+
+# Propriedade para compatibilidade com código existente
+@property
+def active_connections_set() -> Set[WebSocketServerProtocol]:
+    """Retorna set de websockets para compatibilidade."""
+    return {c.websocket for c in connections.values()}
+
+
+# Manter active_connections como variável global para compatibilidade
+# Será atualizado dinamicamente
 active_connections: Set[WebSocketServerProtocol] = set()
+# ===== FIM MASTER/SLAVE =====
+
 
 # Lock para acesso thread-safe ao game_state
 state_lock = asyncio.Lock()
@@ -229,8 +272,29 @@ async def broadcast_heartbeat():
             logger.error(f"Erro no heartbeat: {e}")
 
 
-async def handle_message(websocket: WebSocketServerProtocol, message: str) -> None:
-    """Processa uma mensagem recebida."""
+def is_duplicate_spin(numero: int, timestamp: int) -> bool:
+    """Verifica se é um spin duplicado (mesmo número no mesmo segundo)."""
+    global last_spin_hash
+    current_hash = f"{numero}_{timestamp // 1000}"
+    if current_hash == last_spin_hash:
+        return True
+    last_spin_hash = current_hash
+    return False
+
+
+def get_connection_role(conn_id: str) -> str:
+    """Retorna o role de uma conexão."""
+    if conn_id in connections:
+        return connections[conn_id].role
+    return "unknown"
+
+
+async def handle_message(websocket: WebSocketServerProtocol, message: str, conn_id: str = "") -> None:
+    """
+    Processa uma mensagem recebida.
+    
+    Verifica se a conexão tem permissão para enviar dados (apenas MASTER).
+    """
     global current_session_id
     trace = None
     
@@ -241,6 +305,26 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
         trace_id = data.get("trace_id", str(timestamp))
         trace = TraceContext(trace_id=trace_id)
         trace.step("received", {"type": msg_type})
+        
+        # === VERIFICAÇÃO DE ROLE PARA MENSAGENS DE DADOS ===
+        data_messages = ["novo_resultado", "historico_inicial", "correcao_historico"]
+        if msg_type in data_messages:
+            role = get_connection_role(conn_id)
+            if role != "master":
+                logger.warning(f"⚠️ SLAVE {conn_id} tentou enviar {msg_type} - ignorando")
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Apenas MASTER pode enviar {msg_type}. Seu role: {role}",
+                    "code": "NOT_MASTER"
+                }))
+                return
+            
+            # Deduplicação para novo_resultado
+            if msg_type == "novo_resultado":
+                numero = data.get("numero")
+                if is_duplicate_spin(numero, timestamp):
+                    logger.info(f"🔄 Spin duplicado ignorado: {numero}")
+                    return
         
         # === NOVO RESULTADO (spin único) ===
         if msg_type == "novo_resultado":
@@ -640,26 +724,128 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
 
 
 async def handler(websocket: WebSocketServerProtocol, path: str = "") -> None:
-    """Handler principal de conexões WebSocket."""
+    """
+    Handler principal de conexões WebSocket.
+    
+    Sistema MASTER/SLAVE:
+    - Nova conexão SEMPRE vira MASTER
+    - MASTER anterior vira SLAVE
+    - Se MASTER desconectar, último SLAVE é promovido após grace period
+    """
+    global master_id, master_disconnect_time
+    
     client_ip = websocket.remote_address[0] if websocket.remote_address else "unknown"
-    logger.info(f"Nova conexão de {client_ip}")
+    conn_id = str(uuid.uuid4())[:8]
+    logger.info(f"Nova conexão de {client_ip} (ID: {conn_id})")
     
     # Verificar auth (bypass mode por padrão)
-    # Em produção, o token viria no primeiro frame ou query param
     if not await verify_auth(None):
         logger.warning(f"Conexão rejeitada de {client_ip}: não autorizado")
         await websocket.close(4001, "Unauthorized")
         return
     
-    active_connections.add(websocket)
+    # === ATRIBUIR ROLE ===
+    async with master_lock:
+        # Nova conexão SEMPRE vira MASTER
+        if master_id and master_id in connections:
+            # Rebaixar MASTER atual para SLAVE
+            old_master = connections[master_id]
+            old_master.role = "slave"
+            try:
+                await old_master.websocket.send(json.dumps({
+                    "type": "role_changed",
+                    "role": "slave",
+                    "reason": "Novo dispositivo conectou"
+                }))
+                logger.info(f"👑→📱 {master_id} rebaixado para SLAVE")
+            except:
+                pass  # Conexão pode ter fechado
+        
+        # Nova conexão é MASTER
+        master_id = conn_id
+        master_disconnect_time = None  # Cancelar grace period se houver
+        
+        connections[conn_id] = ConnectionInfo(
+            id=conn_id,
+            websocket=websocket,
+            role="master",
+            connected_at=time.time(),
+            last_activity=time.time()
+        )
+        
+        # Atualizar set de compatibilidade
+        active_connections.add(websocket)
+    
+    # Notificar nova conexão sobre seu role
+    await websocket.send(json.dumps({
+        "type": "role_assigned",
+        "role": "master",
+        "connection_id": conn_id
+    }))
+    logger.info(f"👑 {conn_id} atribuído como MASTER")
     
     try:
         async for message in websocket:
-            await handle_message(websocket, message)
+            # Atualizar last_activity
+            if conn_id in connections:
+                connections[conn_id].last_activity = time.time()
+            await handle_message(websocket, message, conn_id)
     except websockets.ConnectionClosed:
-        logger.info(f"Conexão fechada de {client_ip}")
+        logger.info(f"Conexão fechada de {client_ip} (ID: {conn_id})")
     finally:
+        await handle_disconnect(conn_id, websocket)
+
+
+async def handle_disconnect(conn_id: str, websocket: WebSocketServerProtocol) -> None:
+    """
+    Gerencia desconexão de um cliente.
+    Se for MASTER, inicia grace period e depois promove SLAVE.
+    """
+    global master_id, master_disconnect_time
+    
+    async with master_lock:
+        # Remover da lista de conexões
+        if conn_id in connections:
+            del connections[conn_id]
+        
+        # Remover do set de compatibilidade
         active_connections.discard(websocket)
+        
+        # Se era o MASTER, precisamos promover alguém
+        if conn_id == master_id:
+            logger.info(f"👑 MASTER {conn_id} desconectou - iniciando grace period de {MASTER_GRACE_PERIOD}s")
+            master_disconnect_time = time.time()
+            master_id = None
+    
+    # Grace period (fora do lock para não bloquear)
+    if master_disconnect_time:
+        await asyncio.sleep(MASTER_GRACE_PERIOD)
+        
+        # Verificar se ainda precisa promover (pode ter reconectado)
+        async with master_lock:
+            if master_id is None and connections:
+                # Promover último SLAVE (mais recente = LIFO)
+                slaves = sorted(
+                    connections.values(),
+                    key=lambda c: c.connected_at,
+                    reverse=True  # Mais recente primeiro
+                )
+                
+                if slaves:
+                    new_master = slaves[0]
+                    new_master.role = "master"
+                    master_id = new_master.id
+                    master_disconnect_time = None
+                    
+                    try:
+                        await new_master.websocket.send(json.dumps({
+                            "type": "role_changed",
+                            "role": "master",
+                            "reason": "MASTER anterior desconectou"
+                        }))
+                        logger.info(f"📱→👑 {new_master.id} promovido a MASTER")
+                    except:
+                        pass
 
 
 def get_ssl_context() -> Optional[ssl.SSLContext]:
