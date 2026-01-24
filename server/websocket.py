@@ -18,8 +18,9 @@ from models.trace import TraceContext, now_ms
 from state.game import GameState
 from strategies.sda17 import SDA17Strategy
 from database import get_repository
-from database.models import Decision, Session
+from database.models import Decision, Session, GaleWindow, WindowPlay
 import uuid
+from datetime import datetime
 
 # Logging
 logging.basicConfig(
@@ -48,6 +49,117 @@ current_session_id: str = str(uuid.uuid4())[:8]
 # Última decisão ID para atualizar resultado
 last_decision_id: int = None
 
+# IDs das janelas ativas por direção
+active_window_ids: dict = {"cw": None, "ccw": None}
+
+
+def _init_active_window_ids():
+    """
+    Restaura active_window_ids do banco de dados após restart do servidor.
+    Chamado na inicialização para evitar janelas órfãs.
+    """
+    global active_window_ids
+    try:
+        repo = get_repository()
+        for dir_key in ["cw", "ccw"]:
+            window = repo.get_active_window(dir_key)
+            if window:
+                active_window_ids[dir_key] = window.id
+                logger.info(f"[GALE_WINDOW] Restaurada janela ativa ID={window.id} dir={dir_key}")
+    except Exception as e:
+        logger.warning(f"Erro ao restaurar janelas ativas: {e}")
+
+
+# Inicializar janelas ativas do DB
+_init_active_window_ids()
+
+
+def track_gale_window(
+    direction: str,
+    hit: bool,
+    martingale_info: dict,
+    pending: dict,
+    force: int,
+    numero: int,
+    advice_confidence: str = "",
+    advice_reason: str = "",
+    sda_score: int = 0
+) -> None:
+    """
+    Gerencia o tracking de janelas de Martingale no banco de dados.
+    Chamado após cada atualização do martingale.
+    """
+    global active_window_ids
+    repo = get_repository()
+    
+    # Normalizar direção
+    dir_key = "cw" if direction in ("cw", "horario") else "ccw"
+    
+    # Obter ou criar janela ativa
+    window_id = active_window_ids.get(dir_key)
+    
+    # Se é a primeira jogada da janela (window_count == 1), criar nova janela
+    if martingale_info.get("window_count", 0) == 1:
+        # Se tinha janela ativa anterior, fechar primeiro (caso edge)
+        if window_id is not None:
+            logger.warning(f"Fechando janela órfã {window_id} para {dir_key}")
+            repo.close_gale_window(window_id, "orphan", 1)
+        
+        # Obter taxas atuais para ML features
+        stats = game_state.get_performance_stats()
+        sda_rate = stats.get(f"sda17_{dir_key}", {}).get("rate", 0)
+        bet_rate = stats.get(f"bet_{dir_key}", {}).get("rate", 0)
+        calibration = game_state.calibration_cw if dir_key == "cw" else game_state.calibration_ccw
+        
+        # Criar nova janela
+        new_window = GaleWindow(
+            direction=dir_key,
+            gale_level=martingale_info.get("level_before", 1),
+            sda17_rate_at_start=sda_rate,
+            bet_rate_at_start=bet_rate,
+            calibration_offset=calibration.offset if calibration else 0
+        )
+        window_id = repo.create_gale_window(new_window)
+        active_window_ids[dir_key] = window_id
+        logger.info(f"[GALE_WINDOW] Nova janela criada ID={window_id} dir={dir_key} level={new_window.gale_level}")
+    
+    # Adicionar play à janela ativa
+    if window_id is not None:
+        play = WindowPlay(
+            window_id=window_id,
+            play_number=martingale_info.get("window_count", 0),
+            spin_number=numero,
+            spin_direction=direction,
+            spin_force=force,
+            center_predicted=pending.get("center", 0),
+            hit=hit,
+            actual_number=numero,
+            sda_score=sda_score,
+            tr_confidence=advice_confidence,
+            tr_reason=advice_reason
+        )
+        repo.add_window_play(play)
+        logger.debug(f"[GALE_WINDOW] Play adicionado: window={window_id} play={play.play_number} hit={hit}")
+    
+    # Se teve transição de janela (5 plays completos), fechar
+    transition = martingale_info.get("transition", "")
+    if transition:
+        if window_id is not None:
+            # Determinar resultado
+            if "SUCESSO" in transition:
+                result = "success"
+            elif "SUBINDO" in transition:
+                result = "escalated"
+            else:  # STOP
+                result = "stop"
+            
+            next_level = martingale_info.get("level_after", 1)
+            repo.close_gale_window(window_id, result, next_level)
+            logger.info(f"[GALE_WINDOW] Janela fechada ID={window_id} result={result} next_level={next_level}")
+        
+        # Limpar referência para nova janela
+        active_window_ids[dir_key] = None
+
 
 async def broadcast_heartbeat():
     """Envia estado atual para todos os clientes a cada 1 segundo."""
@@ -58,10 +170,25 @@ async def broadcast_heartbeat():
             continue
         
         try:
+            # Obter histórico de janelas FORA do lock (I/O não deve bloquear)
+            try:
+                repo = get_repository()
+                window_history = {
+                    "cw": repo.get_window_history("cw", limit=5),
+                    "ccw": repo.get_window_history("ccw", limit=5)
+                }
+            except Exception as db_err:
+                logger.warning(f"Erro ao obter window_history: {db_err}")
+                window_history = {"cw": [], "ccw": []}
+            
             # Snapshot do estado com lock para evitar race condition
             async with state_lock:
                 # Martingale da direção ALVO (próxima aposta)
                 mg = game_state.target_martingale
+                
+                # Verificar se a última predição foi uma aposta real
+                last_bet_placed = game_state.pending_prediction.get("bet_placed", False)
+                
                 state_sync = {
                     "type": "state_sync",
                     "data": {
@@ -76,6 +203,10 @@ async def broadcast_heartbeat():
                         "martingale_cw": game_state.martingale_cw.to_dict(),
                         "martingale_ccw": game_state.martingale_ccw.to_dict(),
                         "pending_prediction": game_state.pending_prediction,
+                        # Histórico de janelas para visualização
+                        "window_history": window_history,
+                        # Flag para overlay saber se deve sincronizar Gale
+                        "bet_placed": last_bet_placed,
                         "timestamp": now_ms()
                     }
                 }
@@ -118,6 +249,10 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
             if numero is None:
                 raise ValueError("Campo 'numero' obrigatório")
             
+            # Validar range da roleta (0-36)
+            if not isinstance(numero, int) or not 0 <= numero <= 36:
+                raise ValueError(f"Número inválido: {numero} (deve ser 0-36)")
+            
             # Log da predição pendente antes de verificar
             pending = game_state.pending_prediction
             if pending:
@@ -140,6 +275,22 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                 if martingale_info.get("transition"):
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
                 logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
+                
+                # Tracking de janelas para ML/Dashboard
+                try:
+                    track_gale_window(
+                        direction=bet_direction,
+                        hit=hit_result,
+                        martingale_info=martingale_info,
+                        pending=pending,
+                        force=pending.get("predicted_force", 0),
+                        numero=numero,
+                        advice_confidence=pending.get("tr_confidence", ""),
+                        advice_reason=pending.get("tr_reason", ""),
+                        sda_score=pending.get("sda_score", 0)
+                    )
+                except Exception as e:
+                    logger.error(f"Erro ao trackear gale window: {e}")
             
             # Processar spin
             force = game_state.process_spin(numero, direcao)
@@ -192,7 +343,10 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                         game_state.target_direction,
                         result.center,
                         predicted_force=result.details.get("predicted_force", 0),
-                        bet_placed=True
+                        bet_placed=True,
+                        tr_confidence=advice.confidence,
+                        tr_reason=advice.reason,
+                        sda_score=result.score
                     )
                 else:
                     acao = "PULAR"
@@ -203,7 +357,10 @@ async def handle_message(websocket: WebSocketServerProtocol, message: str) -> No
                         game_state.target_direction,
                         result.center,
                         predicted_force=result.details.get("predicted_force", 0),
-                        bet_placed=False  # Não apostou, mas registra para análise TR
+                        bet_placed=False,  # Não apostou, mas registra para análise TR
+                        tr_confidence=advice.confidence,
+                        tr_reason=advice.reason,
+                        sda_score=result.score
                     )
             else:
                 acao = "PULAR"
