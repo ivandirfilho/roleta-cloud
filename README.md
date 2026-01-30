@@ -26,16 +26,16 @@ python main.py
 ## 📁 Estrutura
 
 ```
-├── config.py       # Configurações
+├── app_config/     # Configurações (Pydantic Settings)
 ├── main.py         # Entry point
 ├── auth/           # Middleware de autenticação
 ├── core/           # Física da roleta
 ├── models/         # Modelos Pydantic
-├── server/         # WebSocket handler
+├── server/         # WebSocket handler & Logic
 ├── state/          # GameState, Timeline, BetAdvisor
 ├── strategies/     # SDA17 Strategy
-├── database/       # SQLite repository
-└── dashboard/      # Dashboard web
+├── database/       # SQLite repository & Service
+└── tools/          # Scripts e Ferramentas (Dashboard, Backtest, Analysis)
 ```
 
 ## 🔧 Deploy

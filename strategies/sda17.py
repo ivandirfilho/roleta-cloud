@@ -4,7 +4,6 @@ from typing import List, Tuple, Dict, Any
 from statistics import mean
 from state.timeline import Timeline
 from .base import StrategyBase, StrategyResult
-import config
 
 
 class SDA17Strategy(StrategyBase):

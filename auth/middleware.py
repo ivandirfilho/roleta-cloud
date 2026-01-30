@@ -1,6 +1,6 @@
 # Roleta Cloud - Auth Middleware
 
-import config
+from app_config.settings import settings
 
 
 async def verify_auth(token: str | None) -> bool:
@@ -17,7 +17,7 @@ async def verify_auth(token: str | None) -> bool:
         True se autorizado, False caso contrário
     """
     # Bypass mode - sempre autorizado
-    if not config.AUTH_ENABLED:
+    if not settings.auth.enabled:
         return True
     
     # Token obrigatório quando auth está ativo
@@ -36,7 +36,7 @@ def get_user_from_token(token: str) -> dict:
     Returns:
         Dict com user_id, username, roles, etc.
     """
-    if not config.AUTH_ENABLED:
+    if not settings.auth.enabled:
         return {
             "user_id": "anonymous",
             "username": "anonymous",
