@@ -326,18 +326,3 @@ class RouletteCore:
 roulette = RouletteCore()
 
 
-# ========== FUNÇÕES DE CONVENIÊNCIA ==========
-
-def get_neighbors(center: int, radius: int) -> List[int]:
-    """Wrapper para roulette.get_neighbors()"""
-    return roulette.get_neighbors(center, radius)
-
-def calculate_target(from_num: int, force: int, direction: str) -> int:
-    """Wrapper para roulette.calculate_target()"""
-    dir_enum = Direction.from_string(direction)
-    return roulette.calculate_target(from_num, force, dir_enum)
-
-def calculate_distance(from_num: int, to_num: int, direction: str) -> int:
-    """Wrapper para roulette.calculate_distance()"""
-    dir_enum = Direction.from_string(direction)
-    return roulette.calculate_distance(from_num, to_num, dir_enum)

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
-import config
+from app_config.settings import settings
 from .timeline import Timeline
 from .bet_advisor import TripleRateAdvisor, BetAdvice
 
@@ -411,9 +411,9 @@ class GameState:
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
         """Calcula a distância (força) entre dois números."""
         try:
-            from_pos = config.WHEEL_SEQUENCE.index(from_num)
-            to_pos = config.WHEEL_SEQUENCE.index(to_num)
-            wheel_size = len(config.WHEEL_SEQUENCE)
+            from_pos = settings.game.wheel_sequence.index(from_num)
+            to_pos = settings.game.wheel_sequence.index(to_num)
+            wheel_size = len(settings.game.wheel_sequence)
             
             if direction == "horario":
                 force = (to_pos - from_pos) % wheel_size
@@ -484,7 +484,7 @@ class GameState:
         import os
         import tempfile
         
-        path = path or config.STATE_FILE
+        path = path or settings.state_file
         data = {
             "version": "1.4.0",
             "last_number": self.last_number,
@@ -523,7 +523,7 @@ class GameState:
         - v1.3 -> v1.4: performance_cw/ccw -> performance_sda17_cw/ccw
         - v1.3 -> v1.4: martingale -> martingale_cw e martingale_ccw (copia para ambos)
         """
-        path = path or config.STATE_FILE
+        path = path or settings.state_file
         if not path.exists():
             return cls()
         

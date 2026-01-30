@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List
-import config
+from app_config.settings import settings
 
 
 @dataclass
@@ -21,7 +21,7 @@ class Timeline:
         Remove a mais antiga se ultrapassar o limite.
         """
         self.forces.insert(0, force)
-        if len(self.forces) > config.MAX_TIMELINE_SIZE:
+        if len(self.forces) > settings.game.max_timeline_size:
             self.forces.pop()
     
     def get_last_n(self, n: int) -> List[int]:
@@ -36,7 +36,7 @@ class Timeline:
     @property
     def is_ready(self) -> bool:
         """Tem forças suficientes para análise?"""
-        return self.size >= config.SDA_FORCES_ANALYZED
+        return self.size >= settings.game.sda_forces_analyzed
     
     def clear(self) -> None:
         """Limpa todas as forças da timeline."""
