@@ -47,7 +47,7 @@ async def broadcast_heartbeat():
         
         try:
             # Obter histórico de janelas FORA do lock (I/O não deve bloquear)
-            window_history = db_service.get_window_history()
+            window_history = await asyncio.to_thread(db_service.get_window_history)
             
             # Snapshot do estado com lock para evitar race condition
             async with state_lock:
