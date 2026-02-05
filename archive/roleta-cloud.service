@@ -1,0 +1,18 @@
+[Unit]
+Description=Roleta Cloud WebSocket Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/roleta-cloud
+Environment=SSL_ENABLED=true
+Environment=SSL_CERT=/etc/letsencrypt/live/roleta.xma-ia.com/fullchain.pem
+Environment=SSL_KEY=/etc/letsencrypt/live/roleta.xma-ia.com/privkey.pem
+ExecStart=/usr/bin/python3 /root/roleta-cloud/main.py
+Restart=always
+StandardOutput=append:/root/roleta-cloud/server.log
+StandardError=append:/root/roleta-cloud/server.log
+
+[Install]
+WantedBy=multi-user.target

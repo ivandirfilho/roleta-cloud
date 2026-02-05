@@ -29,12 +29,6 @@ htmlcov/
 *.log
 logs/
 
-# ----------------- Estado Local -----------
-state.json
-data/
-*.db
-*.sqlite
-
 # ----------------- Secrets ----------------
 .env
 .env.*
@@ -42,6 +36,16 @@ my_key.pub
 *.pem
 *.key
 secrets/
+firebase-credentials.json
+*.credentials.json
+
+# ----------------- Dados de Produção (Danger Zone) -
+*.db
+*.sqlite
+*.sqlite3
+log_de_apostas*.txt
+roleta_dados_salvos.json
+*-datalake.db
 
 # ----------------- Temp -------------------
 tunnel_output.txt

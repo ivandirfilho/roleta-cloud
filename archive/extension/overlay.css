@@ -1,0 +1,354 @@
+/* Escuta Beat - Overlay de Sugestões v3.0 */
+/* Otimizado para Android/Mobile */
+
+/* Container principal do overlay */
+#escuta-beat-overlay {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 2147483647;
+  /* Máximo z-index possível */
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  pointer-events: none;
+  /* Permite clicar através quando minimizado */
+  transition: all 0.3s ease;
+}
+
+/* Painel de sugestão */
+.eb-panel {
+  background: rgba(0, 0, 0, 0.92);
+  border-radius: 16px;
+  padding: 16px;
+  min-width: 180px;
+  max-width: 220px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* Estado: Apostar (verde) */
+.eb-panel.apostar {
+  border: 2px solid #00ff88;
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+
+/* Estado: Pular (vermelho/laranja) */
+.eb-panel.pular {
+  border: 2px solid #ff6b35;
+  opacity: 0.8;
+}
+
+/* Estado: Aguardando (cinza) */
+.eb-panel.aguardando {
+  border: 2px solid #666;
+  opacity: 0.7;
+}
+
+/* Header do painel */
+.eb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.eb-status {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.eb-status.apostar {
+  color: #00ff88;
+}
+
+.eb-status.pular {
+  color: #ff6b35;
+}
+
+.eb-status.aguardando {
+  color: #888;
+}
+
+/* Cores do gale no status (quando minimizado) */
+.eb-status.g1 {
+  color: #00ff88;
+}
+
+.eb-status.g2 {
+  color: #ffd700;
+}
+
+.eb-status.g3 {
+  color: #4169e1;
+}
+
+
+/* 🆕 v3.4: Indicador de Role (MASTER/SLAVE) */
+.eb-role {
+  font-size: 14px;
+  margin-left: 8px;
+  cursor: help;
+  transition: all 0.3s ease;
+}
+
+.eb-role:hover {
+  transform: scale(1.2);
+}
+
+
+/* Container para botões do header */
+.eb-header-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Botão Nova Sessão */
+.eb-new-session {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #ffd700;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.eb-new-session:hover {
+  background: rgba(255, 215, 0, 0.4);
+  transform: rotate(90deg);
+}
+
+.eb-new-session:active {
+  transform: rotate(180deg);
+}
+
+/* Ícone de minimizar */
+.eb-minimize {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Corpo do painel */
+.eb-body {
+  color: #fff;
+}
+
+/* Linha de informação */
+.eb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.eb-row:last-child {
+  border-bottom: none;
+}
+
+.eb-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.eb-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Região destacada */
+.eb-region {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  color: #000;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 8px 0;
+  text-shadow: none;
+}
+
+.eb-region.pular {
+  background: linear-gradient(135deg, #ff6b35 0%, #cc4400 100%);
+  color: #fff;
+}
+
+/* Martingale badge */
+.eb-martingale {
+  display: inline-block;
+  background: #ffd700;
+  color: #000;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.eb-martingale.high {
+  background: #ff4444;
+  color: #fff;
+  animation: pulse-red 0.5s ease-in-out infinite;
+}
+
+/* ===== GALE DISPLAY STYLES ===== */
+/* Texto do gale com cores por nível - borda do painel permanece verde */
+
+.eb-gale-display {
+  font-size: 16px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* G1 - Verde */
+.eb-gale-display.g1 {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.15);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+/* G2 - Dourado */
+.eb-gale-display.g2 {
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* G3 - Azul Escuro */
+.eb-gale-display.g3 {
+  color: #4169e1;
+  background: rgba(65, 105, 225, 0.15);
+  border: 1px solid rgba(65, 105, 225, 0.3);
+}
+
+/* Confiança */
+.eb-confidence {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.eb-confidence-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff88, #00cc6a);
+  transition: width 0.3s ease;
+}
+
+/* Timer */
+.eb-timer {
+  text-align: center;
+  font-size: 11px;
+  color: #666;
+  margin-top: 8px;
+}
+
+/* Modo minimizado */
+#escuta-beat-overlay.minimized .eb-panel {
+  min-width: auto;
+  padding: 8px 12px;
+}
+
+#escuta-beat-overlay.minimized .eb-body,
+#escuta-beat-overlay.minimized .eb-confidence,
+#escuta-beat-overlay.minimized .eb-timer {
+  display: none;
+}
+
+#escuta-beat-overlay.minimized .eb-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Animações */
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(0, 255, 136, 0.3),
+      0 0 20px rgba(0, 255, 136, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 3px rgba(0, 255, 136, 0.6),
+      0 0 40px rgba(0, 255, 136, 0.4);
+  }
+}
+
+@keyframes pulse-red {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Responsivo Mobile */
+@media (max-width: 768px) {
+  #escuta-beat-overlay {
+    top: 5px;
+    right: 5px;
+  }
+
+  .eb-panel {
+    padding: 12px;
+    min-width: 160px;
+    max-width: 180px;
+  }
+
+  .eb-status {
+    font-size: 14px;
+  }
+
+  .eb-value {
+    font-size: 14px;
+  }
+
+  .eb-region {
+    font-size: 16px;
+    padding: 6px 10px;
+  }
+}
+
+/* Touch-friendly */
+@media (hover: none) {
+  .eb-minimize {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+}

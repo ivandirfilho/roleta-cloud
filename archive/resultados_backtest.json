@@ -1,0 +1,4878 @@
+{
+  "modelos": {
+    "roi_medio_4": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "roi_medio_6": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "roi_medio_9": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "roi_medio_12": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "ensemble": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "sharpe_ratio": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ],
+    "momentum": [
+      {
+        "jogada": 1,
+        "pos_temporal": 1,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 2,
+        "pos_temporal": 2,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 3,
+        "pos_temporal": 3,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": 4.5
+      },
+      {
+        "jogada": 4,
+        "pos_temporal": 4,
+        "estrategia_escolhida": "Estrategia_21",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": 0.0
+      },
+      {
+        "jogada": 5,
+        "pos_temporal": 13,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 6,
+        "pos_temporal": 14,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 7,
+        "pos_temporal": 15,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 8,
+        "pos_temporal": 16,
+        "estrategia_escolhida": "Estrategia_20",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 9,
+        "pos_temporal": 25,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -22.5
+      },
+      {
+        "jogada": 10,
+        "pos_temporal": 26,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 11,
+        "pos_temporal": 27,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 12,
+        "pos_temporal": 28,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 13,
+        "pos_temporal": 29,
+        "estrategia_escolhida": "Estrategia_19",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -4.5
+      },
+      {
+        "jogada": 14,
+        "pos_temporal": 37,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -9.0
+      },
+      {
+        "jogada": 15,
+        "pos_temporal": 38,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -13.5
+      },
+      {
+        "jogada": 16,
+        "pos_temporal": 39,
+        "estrategia_escolhida": "Estrategia_18",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -18.0
+      },
+      {
+        "jogada": 17,
+        "pos_temporal": 49,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -21.5
+      },
+      {
+        "jogada": 18,
+        "pos_temporal": 50,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -25.0
+      },
+      {
+        "jogada": 19,
+        "pos_temporal": 51,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -28.5
+      },
+      {
+        "jogada": 20,
+        "pos_temporal": 52,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -32.0
+      },
+      {
+        "jogada": 21,
+        "pos_temporal": 53,
+        "estrategia_escolhida": "Estrategia_17",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -35.5
+      },
+      {
+        "jogada": 22,
+        "pos_temporal": 61,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -40.0
+      },
+      {
+        "jogada": 23,
+        "pos_temporal": 62,
+        "estrategia_escolhida": "Estrategia_16",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -44.5
+      },
+      {
+        "jogada": 24,
+        "pos_temporal": 73,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -49.0
+      },
+      {
+        "jogada": 25,
+        "pos_temporal": 74,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -53.5
+      },
+      {
+        "jogada": 26,
+        "pos_temporal": 75,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -58.0
+      },
+      {
+        "jogada": 27,
+        "pos_temporal": 76,
+        "estrategia_escolhida": "Estrategia_15",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -62.5
+      },
+      {
+        "jogada": 28,
+        "pos_temporal": 85,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 29,
+        "pos_temporal": 86,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 30,
+        "pos_temporal": 87,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 31,
+        "pos_temporal": 88,
+        "estrategia_escolhida": "Estrategia_14",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 32,
+        "pos_temporal": 97,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": true,
+        "roi": 13.5,
+        "roi_acumulado": -67.0
+      },
+      {
+        "jogada": 33,
+        "pos_temporal": 98,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -71.5
+      },
+      {
+        "jogada": 34,
+        "pos_temporal": 99,
+        "estrategia_escolhida": "Estrategia_13",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -76.0
+      },
+      {
+        "jogada": 35,
+        "pos_temporal": 109,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -80.5
+      },
+      {
+        "jogada": 36,
+        "pos_temporal": 110,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -85.0
+      },
+      {
+        "jogada": 37,
+        "pos_temporal": 111,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -89.5
+      },
+      {
+        "jogada": 38,
+        "pos_temporal": 112,
+        "estrategia_escolhida": "Estrategia_12",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -94.0
+      },
+      {
+        "jogada": 39,
+        "pos_temporal": 121,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -99.5
+      },
+      {
+        "jogada": 40,
+        "pos_temporal": 122,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -105.0
+      },
+      {
+        "jogada": 41,
+        "pos_temporal": 123,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -110.5
+      },
+      {
+        "jogada": 42,
+        "pos_temporal": 124,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -116.0
+      },
+      {
+        "jogada": 43,
+        "pos_temporal": 125,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -121.5
+      },
+      {
+        "jogada": 44,
+        "pos_temporal": 126,
+        "estrategia_escolhida": "Estrategia_11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -127.0
+      },
+      {
+        "jogada": 45,
+        "pos_temporal": 133,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -131.5
+      },
+      {
+        "jogada": 46,
+        "pos_temporal": 134,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -136.0
+      },
+      {
+        "jogada": 47,
+        "pos_temporal": 135,
+        "estrategia_escolhida": "Estrategia_10",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -140.5
+      },
+      {
+        "jogada": 48,
+        "pos_temporal": 145,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -146.0
+      },
+      {
+        "jogada": 49,
+        "pos_temporal": 146,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -151.5
+      },
+      {
+        "jogada": 50,
+        "pos_temporal": 147,
+        "estrategia_escolhida": "SDA-11_Filter_3",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -157.0
+      },
+      {
+        "jogada": 51,
+        "pos_temporal": 157,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -162.5
+      },
+      {
+        "jogada": 52,
+        "pos_temporal": 158,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -168.0
+      },
+      {
+        "jogada": 53,
+        "pos_temporal": 159,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -173.5
+      },
+      {
+        "jogada": 54,
+        "pos_temporal": 160,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -179.0
+      },
+      {
+        "jogada": 55,
+        "pos_temporal": 161,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -184.5
+      },
+      {
+        "jogada": 56,
+        "pos_temporal": 162,
+        "estrategia_escolhida": "SDA-11_Filter_2",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -190.0
+      },
+      {
+        "jogada": 57,
+        "pos_temporal": 169,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -194.5
+      },
+      {
+        "jogada": 58,
+        "pos_temporal": 170,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -199.0
+      },
+      {
+        "jogada": 59,
+        "pos_temporal": 171,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -203.5
+      },
+      {
+        "jogada": 60,
+        "pos_temporal": 172,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -208.0
+      },
+      {
+        "jogada": 61,
+        "pos_temporal": 173,
+        "estrategia_escolhida": "SDA-9_Filter_3",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -212.5
+      },
+      {
+        "jogada": 62,
+        "pos_temporal": 181,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -217.0
+      },
+      {
+        "jogada": 63,
+        "pos_temporal": 182,
+        "estrategia_escolhida": "SDA-9_Filter_2",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -221.5
+      },
+      {
+        "jogada": 64,
+        "pos_temporal": 193,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -225.0
+      },
+      {
+        "jogada": 65,
+        "pos_temporal": 194,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -228.5
+      },
+      {
+        "jogada": 66,
+        "pos_temporal": 195,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -232.0
+      },
+      {
+        "jogada": 67,
+        "pos_temporal": 196,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -235.5
+      },
+      {
+        "jogada": 68,
+        "pos_temporal": 197,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -239.0
+      },
+      {
+        "jogada": 69,
+        "pos_temporal": 198,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -242.5
+      },
+      {
+        "jogada": 70,
+        "pos_temporal": 199,
+        "estrategia_escolhida": "SDA-7_Filter_3",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -246.0
+      },
+      {
+        "jogada": 71,
+        "pos_temporal": 205,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -249.5
+      },
+      {
+        "jogada": 72,
+        "pos_temporal": 206,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -253.0
+      },
+      {
+        "jogada": 73,
+        "pos_temporal": 207,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -256.5
+      },
+      {
+        "jogada": 74,
+        "pos_temporal": 208,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -260.0
+      },
+      {
+        "jogada": 75,
+        "pos_temporal": 209,
+        "estrategia_escolhida": "SDA-7_Filter_2",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -263.5
+      },
+      {
+        "jogada": 76,
+        "pos_temporal": 217,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -269.0
+      },
+      {
+        "jogada": 77,
+        "pos_temporal": 218,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -274.5
+      },
+      {
+        "jogada": 78,
+        "pos_temporal": 219,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -280.0
+      },
+      {
+        "jogada": 79,
+        "pos_temporal": 220,
+        "estrategia_escolhida": "SDA-11",
+        "acertou": false,
+        "roi": -5.5,
+        "roi_acumulado": -285.5
+      },
+      {
+        "jogada": 80,
+        "pos_temporal": 229,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -290.0
+      },
+      {
+        "jogada": 81,
+        "pos_temporal": 230,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -294.5
+      },
+      {
+        "jogada": 82,
+        "pos_temporal": 231,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -299.0
+      },
+      {
+        "jogada": 83,
+        "pos_temporal": 232,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -303.5
+      },
+      {
+        "jogada": 84,
+        "pos_temporal": 233,
+        "estrategia_escolhida": "SDA-9",
+        "acertou": false,
+        "roi": -4.5,
+        "roi_acumulado": -308.0
+      },
+      {
+        "jogada": 85,
+        "pos_temporal": 241,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -311.5
+      },
+      {
+        "jogada": 86,
+        "pos_temporal": 242,
+        "estrategia_escolhida": "SDA-7",
+        "acertou": false,
+        "roi": -3.5,
+        "roi_acumulado": -315.0
+      }
+    ]
+  },
+  "estatisticas": {
+    "roi_medio_4": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "roi_medio_6": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "roi_medio_9": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "roi_medio_12": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "ensemble": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "sharpe_ratio": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    },
+    "momentum": {
+      "total": 86,
+      "acertos": 4,
+      "roi_total": -315.0,
+      "roi_medio": -3.6627906976744184
+    }
+  }
+}

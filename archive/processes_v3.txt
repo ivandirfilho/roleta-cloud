@@ -1,0 +1,5 @@
+﻿node C:/Users/Windows/AppData/Roaming/npm/node_modules/@modelcontextprotocol/server-brave-search/dist/index.js
+node C:/Users/Windows/AppData/Roaming/npm/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js C:/Users/Windows/Desktop
+node C:/mcp-servers/github/node_modules/@modelcontextprotocol/server-github/dist/index.js
+node C:/Users/Windows/AppData/Roaming/npm/node_modules/@modelcontextprotocol/server-memory/dist/index.js
+node C:/Users/Windows/AppData/Roaming/npm/node_modules/@modelcontextprotocol/server-sequential-thinking/dist/index.js

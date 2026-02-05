@@ -1,0 +1,408 @@
+{
+  "roi_medio_4": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "roi_medio_6": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "roi_medio_9": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "roi_medio_12": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "ensemble": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "sharpe_ratio": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  },
+  "momentum": {
+    "0": {
+      "jogadas": "1-12",
+      "acertos": 2,
+      "total": 12,
+      "taxa_acerto": 16.666666666666664,
+      "roi_total": -18.0,
+      "roi_medio": -1.5
+    },
+    "1": {
+      "jogadas": "13-24",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -31.0,
+      "roi_medio": -2.5833333333333335
+    },
+    "2": {
+      "jogadas": "25-36",
+      "acertos": 1,
+      "total": 12,
+      "taxa_acerto": 8.333333333333332,
+      "roi_total": -36.0,
+      "roi_medio": -3.0
+    },
+    "3": {
+      "jogadas": "37-48",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -61.0,
+      "roi_medio": -5.083333333333333
+    },
+    "4": {
+      "jogadas": "49-60",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -62.0,
+      "roi_medio": -5.166666666666667
+    },
+    "5": {
+      "jogadas": "61-72",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -45.0,
+      "roi_medio": -3.75
+    },
+    "6": {
+      "jogadas": "73-84",
+      "acertos": 0,
+      "total": 12,
+      "taxa_acerto": 0.0,
+      "roi_total": -55.0,
+      "roi_medio": -4.583333333333333
+    }
+  }
+}
