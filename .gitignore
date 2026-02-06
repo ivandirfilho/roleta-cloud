@@ -47,6 +47,11 @@ log_de_apostas*.txt
 roleta_dados_salvos.json
 *-datalake.db
 
+# ----------------- Agent Context Logs (Secrets Risk) -
+[CONTEX]*
+[ARCH]*
+[BRIDGE]*
+
 # ----------------- Temp -------------------
 tunnel_output.txt
 *.tmp

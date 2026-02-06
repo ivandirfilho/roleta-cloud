@@ -82,6 +82,11 @@ class MessageHandler:
                 await self.handle_new_session(websocket, data)
             elif msg_type == "get_state":
                 await self.handle_get_state(websocket)
+            elif msg_type == "register":
+                device_id = data.get("device_id")
+                connection_manager.update_device_id(conn_id, device_id)
+            elif msg_type == "force_master":
+                await connection_manager.force_master(conn_id)
             else:
                 # Compatibilidade legado
                 await self.handle_legacy_spin(websocket, data, trace)

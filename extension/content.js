@@ -29,6 +29,7 @@ function createOverlay() {
         <span class="eb-role" id="eb-role" title="Modo de conexão">⚡</span>
         <div class="eb-header-buttons">
           <button class="eb-new-session" title="Nova Sessão (Novo Dealer)">🔄</button>
+          <button class="eb-force-master" id="eb-force-master" title="Forçar MASTER" style="display:none">🎯</button>
           <button class="eb-minimize" title="Minimizar">−</button>
         </div>
       </div>
@@ -67,6 +68,10 @@ function createOverlay() {
   // Botão Nova Sessão (reset de dealer)
   const newSessionBtn = overlay.querySelector('.eb-new-session');
   newSessionBtn.addEventListener('click', handleNewSession);
+
+  // 🎯 Botão Forçar MASTER
+  const forceMasterBtn = overlay.querySelector('.eb-force-master');
+  forceMasterBtn.addEventListener('click', handleForceMaster);
 
   // Touch para arrastar (mobile)
   setupDrag(overlay);
@@ -190,11 +195,26 @@ function updateOverlay(sugestao) {
   // Atualizar status - SEMPRE mostrar [centro] + gale
   status.classList.remove('apostar', 'pular', 'aguardando', 'g1', 'g2', 'g3');
 
-  // Sempre mostrar formato [centro] G1 2/5
+  // Sempre mostrar formato [centro] G1 2/5 no status se minimizado
+  // Se expandido, mostrar a Ação (APOSTAR/PULAR)
   const centro = sugestao.centro ?? '--';
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
-  status.textContent = `[${centro}] ${galeText}`;
+
+  if (overlayState.isMinimized) {
+    status.textContent = `[${centro}] ${galeText}`;
+  } else {
+    if (acao === 'APOSTAR') {
+      status.classList.add('apostar');
+      status.textContent = '🎯 APOSTAR';
+    } else if (acao === 'PULAR') {
+      status.classList.add('pular');
+      status.textContent = '⏸️ PULAR';
+    } else {
+      status.classList.add('aguardando');
+      status.textContent = '⏳ AGUARDANDO';
+    }
+  }
 
   // Aplicar cor do gale
   if (level === 1) status.classList.add('g1');
@@ -301,6 +321,16 @@ function handleNewSession() {
   }
 }
 
+// ===== FORÇAR MASTER =====
+function handleForceMaster() {
+  if (!confirm('🎯 Tomar controle?\n\nIsso vai rebaixar o MASTER atual para que VOCÊ possa enviar os dados.')) return;
+
+  chrome.runtime.sendMessage({
+    action: 'sendToServer',
+    data: { type: 'force_master' }
+  });
+}
+
 // ===== HANDLER PARA RESPOSTA DE RESET =====
 function handleSessionReset(data) {
   const overlay = document.getElementById('escuta-beat-overlay');
@@ -402,6 +432,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // 🆕 v3.4: Atualiza indicador de role no overlay
 function updateRoleIndicator(role, reason) {
   const indicator = document.getElementById('eb-role');
+  const forceBtn = document.getElementById('eb-force-master');
   if (!indicator) return;
 
   overlayState.deviceRole = role;
@@ -410,14 +441,17 @@ function updateRoleIndicator(role, reason) {
     indicator.textContent = '👑';
     indicator.title = 'MASTER - Enviando dados';
     indicator.style.color = '#ffd700';
+    if (forceBtn) forceBtn.style.display = 'none';
   } else if (role === 'slave') {
-    indicator.textContent = '📱';
-    indicator.title = 'SLAVE - Apenas recebendo';
+    indicator.textContent = '👁️';
+    indicator.title = 'VIEWER - Apenas recebendo';
     indicator.style.color = '#888';
+    if (forceBtn) forceBtn.style.display = 'block';
   } else {
     indicator.textContent = '⚡';
     indicator.title = 'Conectando...';
     indicator.style.color = '#fff';
+    if (forceBtn) forceBtn.style.display = 'none';
   }
 
   console.log(`🔄 Role atualizado: ${role} (${reason})`);

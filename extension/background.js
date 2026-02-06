@@ -84,6 +84,18 @@ let wsConnected = false;
 let deviceRole = 'unknown';  // 'master' | 'slave' | 'unknown'
 let connectionId = null;     // ID atribuído pelo servidor
 
+// 🆕 v3.5: Gera ou recupera device_id persistente
+async function getDeviceId() {
+  const data = await chrome.storage.local.get(['deviceId']);
+  if (data.deviceId) return data.deviceId;
+
+  const newId = 'dev-' + crypto.randomUUID().slice(0, 8);
+  await chrome.storage.local.set({ deviceId: newId });
+  console.log('🆔 Device ID gerado:', newId);
+  return newId;
+}
+
+
 function connectWebSocket() {
   if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
     return; // Já conectado
@@ -93,11 +105,19 @@ function connectWebSocket() {
     console.log('🔌 Conectando ao servidor WebSocket...');
     wsConnection = new WebSocket(WS_CONFIG.url);
 
-    wsConnection.onopen = () => {
+    wsConnection.onopen = async () => {
       console.log('✅ WebSocket conectado ao servidor Python');
       wsConnected = true;
       wsReconnectAttempts = 0;
-      addLog('success', 'WebSocket conectado', { url: WS_CONFIG.url });
+
+      // 🆕 v3.5: Enviar registro com device_id
+      const deviceId = await getDeviceId();
+      wsConnection.send(JSON.stringify({
+        type: 'register',
+        device_id: deviceId
+      }));
+
+      addLog('success', 'WebSocket conectado', { url: WS_CONFIG.url, device_id: deviceId });
       notifyConnectionStatus(true); // 🆕 v3.0: Notificar overlay
     };
 
