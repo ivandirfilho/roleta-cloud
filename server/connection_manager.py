@@ -217,7 +217,8 @@ class ConnectionManager:
     async def broadcast(self, message: str, exclude_disconnected: bool = True):
         """Envia mensagem para todas as conexões."""
         disconnected = set()
-        for conn in self.connections.values():
+        # Usar list() para criar cópia e evitar "dictionary changed size during iteration"
+        for conn in list(self.connections.values()):
             try:
                 await conn.websocket.send(message)
             except:
