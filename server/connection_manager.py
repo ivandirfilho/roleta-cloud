@@ -197,11 +197,63 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"Erro ao notificar promoção de {conn_id}: {e}")
 
-    def update_device_id(self, conn_id: str, device_id: str):
-        """Atualiza o device_id de uma conexão existente."""
-        if conn_id in self.connections:
-            self.connections[conn_id].device_id = device_id
+    async def update_device_id(self, conn_id: str, device_id: str):
+        """
+        Atualiza o device_id de uma conexão existente e reavalia roles.
+        Chamado quando mensagem 'register' é recebida.
+        """
+        async with self.master_lock:
+            if conn_id not in self.connections:
+                return
+
+            info = self.connections[conn_id]
+            old_device_id = info.device_id
+            info.device_id = device_id
             logger.info(f"📝 Device ID atualizado para {conn_id}: {device_id}")
+
+            # Se ainda não tem MASTER, ou se este era o master anterior reconectando
+            if self.master_id is None:
+                # Verificar se é reconexão do último MASTER
+                is_master_reconnecting = (
+                    self.last_master_device_id and
+                    device_id == self.last_master_device_id and
+                    self.master_disconnect_time is not None and
+                    (time.time() - self.master_disconnect_time) < self.MASTER_GRACE_PERIOD
+                )
+
+                if is_master_reconnecting:
+                    # Restaurar MASTER
+                    info.role = "master"
+                    self.master_id = conn_id
+                    self.master_device_id = device_id
+                    self.master_disconnect_time = None
+                    
+                    try:
+                        await info.websocket.send(json.dumps({
+                            "type": "role_assigned",
+                            "role": "master",
+                            "reason": "MASTER reconectou (grace period)"
+                        }))
+                        logger.info(f"👑 MASTER {device_id} restaurado após registro")
+                    except Exception:
+                        pass
+                
+                # Se não tem master nenhum, o primeiro registrado assume
+                # (A menos que estejamos no grace period esperando o antigo voltar)
+                elif not self.last_master_device_id and len(self.connections) == 1:
+                    info.role = "master"
+                    self.master_id = conn_id
+                    self.master_device_id = device_id
+                    
+                    try:
+                        await info.websocket.send(json.dumps({
+                            "type": "role_assigned",
+                            "role": "master",
+                            "reason": "Primeiro dispositivo registrado"
+                        }))
+                        logger.info(f"👑 Novo MASTER assumiu após registro: {device_id}")
+                    except Exception:
+                        pass
 
     def get_role(self, conn_id: str) -> str:
         """Retorna o role de uma conexão."""

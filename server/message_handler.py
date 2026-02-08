@@ -86,7 +86,8 @@ class MessageHandler:
                 await self.handle_get_state(websocket)
             elif msg_type == "register":
                 device_id = data.get("device_id")
-                connection_manager.update_device_id(conn_id, device_id)
+                logger.info(f"📩 Recebido REGISTER de {conn_id} com device_id={device_id}")
+                await connection_manager.update_device_id(conn_id, device_id)
             elif msg_type == "force_master":
                 await connection_manager.force_master(conn_id)
             elif msg_type == "extrair_mesa":
