@@ -194,7 +194,7 @@ class MessageHandler:
             "should_bet": result.should_bet,
             "score": result.score,
             "trend": result.details.get("trend", ""),
-            "calibration": self.game_state.target_calibration
+            "calibration": 0
         })
 
         # ====================================================
@@ -279,7 +279,7 @@ class MessageHandler:
                 gale_window_hits=mg.window_hits,
                 gale_window_count=mg.window_count,
                 gale_bet_value=mg.current_bet,
-                calibration_offset=self.game_state.target_calibration,
+                calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12]
             )
 
