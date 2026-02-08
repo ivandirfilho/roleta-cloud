@@ -20,7 +20,7 @@ class SDA17Strategy(StrategyBase):
     
     def __init__(self):
         super().__init__(name="SDA-17", num_neighbors=8)
-        self.min_forces = 5
+        self.min_forces = 3  # Reduzido de 5 para início mais rápido
         self.description = "Cluster + Momentum, 17 números"
         self.cluster_proximity = 5  # Agrupa forças dentro de ±5
     

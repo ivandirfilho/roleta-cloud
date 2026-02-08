@@ -10,25 +10,6 @@ from .timeline import Timeline
 from .bet_advisor import TripleRateAdvisor, BetAdvice
 
 
-@dataclass
-class CalibrationState:
-    """Estado de calibração usando Momentum (otimizado após auditoria)."""
-    offset: int = 0  # Offset atual aplicado
-    error_history: List[int] = field(default_factory=list)  # Histórico de erros para momentum
-    
-    def to_dict(self) -> Dict:
-        return {
-            "offset": self.offset,
-            "error_history": self.error_history[-5:]  # Guarda últimos 5
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "CalibrationState":
-        return cls(
-            offset=data.get("offset", 0),
-            error_history=data.get("error_history", [])
-        )
-
 
 @dataclass
 class MartingaleState:
@@ -159,9 +140,7 @@ class GameState:
     performance_bet_cw: List[bool] = field(default_factory=list)
     performance_bet_ccw: List[bool] = field(default_factory=list)
     
-    # Calibração por direção (momentum)
-    calibration_cw: CalibrationState = field(default_factory=CalibrationState)
-    calibration_ccw: CalibrationState = field(default_factory=CalibrationState)
+    # Calibração removida (momentum desabilitado)
     
     # Martingale por direção (janela de 5 jogadas cada)
     martingale_cw: MartingaleState = field(default_factory=MartingaleState)
@@ -210,9 +189,7 @@ class GameState:
         self.performance_bet_cw = []
         self.performance_bet_ccw = []
         
-        # Reset Calibração
-        self.calibration_cw = CalibrationState()
-        self.calibration_ccw = CalibrationState()
+        # Calibração removida (momentum desabilitado)
         
         # Reset Martingale
         self.martingale_cw = MartingaleState()
@@ -279,17 +256,7 @@ class GameState:
         # Verificar se acertou
         hit = actual_number in numbers
         
-        # Calcular erro para calibração (se errou)
-        if not hit and predicted_force > 0:
-            actual_force = self._calculate_force(
-                self.last_number, actual_number, 
-                "horario" if direction in ("cw", "horario") else "anti-horario"
-            )
-            error = self._circular_diff(actual_force, predicted_force)
-            self._update_calibration(direction, error)
-        elif hit:
-            # Acertou - manter calibração atual
-            pass
+        # Calibração removida (momentum desabilitado)
         
         # SEMPRE adicionar ao histórico SDA17 (base para Triple Rate)
         if direction in ("cw", "horario"):
@@ -317,43 +284,7 @@ class GameState:
         
         return hit
     
-    def _circular_diff(self, a: int, b: int, universe: int = 37) -> int:
-        """Diferença circular com sinal (a - b) no universo circular."""
-        diff = a - b
-        if diff > universe // 2:
-            diff -= universe
-        elif diff < -universe // 2:
-            diff += universe
-        return diff
-    
-    def _update_calibration(self, direction: str, error: int) -> None:
-        """
-        Atualiza calibração usando MOMENTUM.
-        
-        Calcula offset considerando:
-        - 30% do erro atual
-        - 20% da aceleração (mudança no erro)
-        
-        Baseado em auditoria de 90 estratégias que mostrou +80% de melhoria.
-        """
-        cal = self.calibration_cw if direction in ("cw", "horario") else self.calibration_ccw
-        
-        # Calcular aceleração (mudança no erro)
-        if cal.error_history and len(cal.error_history) > 0:
-            accel = error - cal.error_history[-1]
-        else:
-            accel = 0
-        
-        # Novo offset = offset atual + (30% do erro) + (20% da aceleração)
-        new_offset = cal.offset + int(error * 0.3 + accel * 0.2)
-        
-        # Limitar a ±8
-        cal.offset = max(-8, min(8, new_offset))
-        
-        # Guardar erro no histórico (máximo 5)
-        cal.error_history.append(error)
-        if len(cal.error_history) > 5:
-            cal.error_history.pop(0)
+    # _circular_diff e _update_calibration removidos (momentum desabilitado)
     
     def store_prediction(self, numbers: List[int], direction: str, center: int, 
                          predicted_force: int = 0, bet_placed: bool = False,
@@ -442,12 +373,7 @@ class GameState:
             return self.timeline_ccw
         return self.timeline_cw
     
-    @property
-    def target_calibration(self) -> int:
-        """Offset de calibração para a direção alvo."""
-        if self.last_direction == "horario":
-            return self.calibration_ccw.offset
-        return self.calibration_cw.offset
+    # target_calibration removido (momentum desabilitado)
     
     @property
     def target_performance(self) -> List[bool]:
@@ -480,13 +406,13 @@ class GameState:
         return self.bet_advisor.analyze(self.target_performance)
     
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.4) com escrita atômica."""
+        """Salva estado em arquivo JSON (v1.5 - sem calibração) com escrita atômica."""
         import os
         import tempfile
         
         path = path or settings.state_file
         data = {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
@@ -495,8 +421,6 @@ class GameState:
             "performance_sda17_ccw": self.performance_sda17_ccw,
             "performance_bet_cw": self.performance_bet_cw,
             "performance_bet_ccw": self.performance_bet_ccw,
-            "calibration_cw": self.calibration_cw.to_dict(),
-            "calibration_ccw": self.calibration_ccw.to_dict(),
             "martingale_cw": self.martingale_cw.to_dict(),
             "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction
@@ -533,7 +457,7 @@ class GameState:
             
             version = data.get("version", "1.0.0")
             
-            # MIGRAÇÃO v1.3 -> v1.4
+            # MIGRAÇÃO v1.3 -> v1.4 (legado)
             if version < "1.4.0":
                 # Migrar performance antigo para sda17
                 perf_cw = data.get("performance_cw", [])
@@ -549,16 +473,14 @@ class GameState:
                     timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
                     performance_sda17_cw=perf_cw,
                     performance_sda17_ccw=perf_ccw,
-                    performance_bet_cw=[],  # Começa vazio (sem histórico de apostas reais)
+                    performance_bet_cw=[],
                     performance_bet_ccw=[],
-                    calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
-                    calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
-                    martingale_cw=MartingaleState.from_dict(old_martingale),  # Copia para CW
-                    martingale_ccw=MartingaleState.from_dict(old_martingale),  # Copia para CCW
+                    martingale_cw=MartingaleState.from_dict(old_martingale),
+                    martingale_ccw=MartingaleState.from_dict(old_martingale),
                     pending_prediction=data.get("pending_prediction", {})
                 )
             
-            # v1.4+ - formato novo
+            # v1.4+ / v1.5+ - formato atual (ignora calibração se presente)
             return cls(
                 last_number=data.get("last_number", 0),
                 last_direction=data.get("last_direction", ""),
@@ -568,8 +490,6 @@ class GameState:
                 performance_sda17_ccw=data.get("performance_sda17_ccw", []),
                 performance_bet_cw=data.get("performance_bet_cw", []),
                 performance_bet_ccw=data.get("performance_bet_ccw", []),
-                calibration_cw=CalibrationState.from_dict(data.get("calibration_cw", {})),
-                calibration_ccw=CalibrationState.from_dict(data.get("calibration_ccw", {})),
                 martingale_cw=MartingaleState.from_dict(data.get("martingale_cw", {})),
                 martingale_ccw=MartingaleState.from_dict(data.get("martingale_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})

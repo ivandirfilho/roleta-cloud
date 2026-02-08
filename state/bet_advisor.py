@@ -48,7 +48,7 @@ class TripleRateAdvisor:
     - Máximo perdas consecutivas: 4 (melhor resultado)
     """
     
-    MIN_DATA = 4  # Mínimo de dados para análise
+    MIN_DATA = 2  # Reduzido de 4 para início mais rápido
     
     def __init__(self):
         """Inicializa o advisor."""

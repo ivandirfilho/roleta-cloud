@@ -17,19 +17,21 @@ from models.trace import TraceContext, now_ms
 from server.connection_manager import connection_manager
 from state.game import GameState
 from strategies.base import StrategyBase
+from server.extractor_service import ExtractorService
 
 logger = logging.getLogger(__name__)
 
 class MessageHandler:
     """Manipulador de mensagens WebSocket."""
 
-    def __init__(self, game_state: GameState, strategy: StrategyBase, state_lock: asyncio.Lock):
+    def __init__(self, game_state: GameState, strategy: StrategyBase, state_lock: asyncio.Lock, configs_path: str):
         self.game_state = game_state
         self.strategy = strategy
         self.state_lock = state_lock
         self.current_session_id: str = str(uuid.uuid4())[:8]
         self.last_decision_id: Optional[int] = None
         self.last_spin_hash: str = ""
+        self.extractor_service = ExtractorService(configs_path)
 
     def is_duplicate_spin(self, numero: int, timestamp: int) -> bool:
         """Verifica se é um spin duplicado (mesmo número no mesmo segundo)."""
@@ -87,6 +89,12 @@ class MessageHandler:
                 connection_manager.update_device_id(conn_id, device_id)
             elif msg_type == "force_master":
                 await connection_manager.force_master(conn_id)
+            elif msg_type == "extrair_mesa":
+                await self.handle_extrair_mesa(websocket, data, trace)
+            elif msg_type == "listar_mesas":
+                await self.handle_listar_mesas(websocket)
+            elif msg_type == "obter_config_mesa":
+                await self.handle_get_mesa_config(websocket, data)
             else:
                 # Compatibilidade legado
                 await self.handle_legacy_spin(websocket, data, trace)
@@ -174,12 +182,12 @@ class MessageHandler:
         self.game_state.save()
         trace.step("saved")
 
-        # Analisar com estratégia (incluindo calibração)
+        # Analisar com estratégia (sem calibração momentum - removido)
         result = self.strategy.analyze(
             self.game_state.target_timeline,
             self.game_state.last_number,
             settings.game.wheel_sequence,
-            calibration=self.game_state.target_calibration
+            calibration=0  # Momentum desabilitado
         )
         trace.step("analyzed", {
             "should_bet": result.should_bet,
@@ -468,3 +476,42 @@ class MessageHandler:
         await websocket.send(json.dumps(overlay_response))
         if trace:
             logger.info(trace.to_log_line())
+
+    async def handle_extrair_mesa(self, websocket: WebSocketServerProtocol, data: Dict, trace: TraceContext):
+        """Processa extração de mesa e salva config."""
+        logger.info(f"📥 Recebida solicitação de extração: {data.get('url')}")
+        result = self.extractor_service.process_mesa(data)
+        
+        response = {
+            "type": "mesa_configurada",
+            "auto_start": True,
+            **result
+        }
+        await websocket.send(json.dumps(response))
+        if trace:
+            trace.step("mesa_extraida", {"mesa_id": result.get("mesa_id")})
+
+    async def handle_listar_mesas(self, websocket: WebSocketServerProtocol):
+        """Retorna lista de mesas configuradas."""
+        mesas = self.extractor_service.list_mesas()
+        await websocket.send(json.dumps({
+            "type": "mesas_disponiveis",
+            "mesas": mesas
+        }))
+
+    async def handle_get_mesa_config(self, websocket: WebSocketServerProtocol, data: Dict):
+        """Retorna config de uma mesa específica."""
+        mesa_id = data.get("mesa_id")
+        config = self.extractor_service.get_mesa_config(mesa_id)
+        if config:
+            await websocket.send(json.dumps({
+                "type": "config_mesa",
+                "mesa_id": mesa_id,
+                "config": config
+            }))
+        else:
+            await websocket.send(json.dumps({
+                "type": "error",
+                "message": f"Mesa {mesa_id} não encontrada",
+                "code": "MESA_NOT_FOUND"
+            }))
