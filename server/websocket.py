@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import ssl
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -34,7 +35,8 @@ logger = logging.getLogger(__name__)
 state_lock = asyncio.Lock()
 game_state: GameState = GameState.load()
 strategy = SDA17Strategy()  # SDA-17 com regressão linear
-message_handler = MessageHandler(game_state, strategy, state_lock)
+configs_path = os.path.join(os.path.dirname(__file__), "configs")
+message_handler = MessageHandler(game_state, strategy, state_lock, configs_path)
 
 
 async def broadcast_heartbeat():

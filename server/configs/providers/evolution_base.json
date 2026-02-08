@@ -1,0 +1,87 @@
+{
+  "provider": "evolution",
+  "version": "1.0",
+  "selectors": {
+    "results": "[data-role='recent-number']",
+    "betSpots": "[data-bet-spot-id]",
+    "gameStatus": "[class*='trafficLightText']",
+    "balance": "[data-role='balance-label-value']",
+    "totalBet": "[data-role='total-bet-label-value']",
+    "chips": "[data-role='chip']",
+    "chipWrapper": "[data-role='chip-stack-wrapper']"
+  },
+  "data": {
+    "monitoring": {
+      "gameStatusSelectors": [
+        "[class*='trafficLightText']",
+        "[class*='statusMessage']",
+        "[class*='betting-status']",
+        "[data-role='game-message']"
+      ],
+      "balanceSelector": "[data-role='balance-label-value']",
+      "betSelector": "[data-role='total-bet-label-value']",
+      "chipSelectors": {
+        "active": "[data-role='selected-chip'] [data-role='chip']",
+        "wrapper": "[data-role='chip-stack-wrapper']"
+      },
+      "timerSelectors": [
+        "[data-role='circle-timer']",
+        "[class*='circle-timer']",
+        "[class*='betting-timer']"
+      ]
+    }
+  },
+  "detection": {
+    "urlPatterns": [
+      "evo-games.com",
+      "evolution"
+    ],
+    "gameStatusOpen": [
+      "FAÇAM SUAS APOSTAS",
+      "PLACE YOUR BETS"
+    ],
+    "gameStatusClosed": [
+      "NÃO ACEITAMOS MAIS APOSTAS",
+      "NO MORE BETS"
+    ]
+  },
+  "numberColors": {
+    "0": "green",
+    "1": "red",
+    "2": "black",
+    "3": "red",
+    "4": "black",
+    "5": "red",
+    "6": "black",
+    "7": "red",
+    "8": "black",
+    "9": "red",
+    "10": "black",
+    "11": "black",
+    "12": "red",
+    "13": "black",
+    "14": "red",
+    "15": "black",
+    "16": "red",
+    "17": "black",
+    "18": "red",
+    "19": "red",
+    "20": "black",
+    "21": "red",
+    "22": "black",
+    "23": "red",
+    "24": "black",
+    "25": "red",
+    "26": "black",
+    "27": "red",
+    "28": "black",
+    "29": "black",
+    "30": "red",
+    "31": "black",
+    "32": "red",
+    "33": "black",
+    "34": "red",
+    "35": "black",
+    "36": "red"
+  }
+}

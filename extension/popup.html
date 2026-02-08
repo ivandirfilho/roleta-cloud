@@ -436,6 +436,57 @@
       color: #00aaff;
       text-shadow: 0 0 10px rgba(0, 170, 255, 0.4);
     }
+
+    /* Mesa Selector */
+    .mesa-container {
+      background: #111;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 12px;
+      border: 1px solid #333;
+    }
+
+    .mesa-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .mesa-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .mesa-select {
+      flex: 1;
+      background: #000;
+      color: #00aaff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .btn-capture {
+      background: #333;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 0 15px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-capture:hover:not(:disabled) {
+      background: #444;
+      border-color: #00aaff;
+      color: #00aaff;
+    }
   </style>
 </head>
 
@@ -454,10 +505,28 @@
     </div>
   </div>
 
-  <!-- Botões -->
-  <button id="btnLoad" class="btn btn-load">
-    📂 CARREGAR ARQUIVO DO EXTRATOR BEAT
-  </button>
+  <!-- Seleção de Mesa (Novo Microserviço) -->
+  <div class="mesa-container">
+    <div class="mesa-label">🎰 MESA CONFIGURADA NO SERVIDOR</div>
+    <div class="mesa-controls">
+      <select id="mesaDropdown" class="mesa-select">
+        <option value="">Carregando mesas...</option>
+      </select>
+      <button id="btnCapturar" class="btn-capture" title="Capturar novos elementos desta mesa">
+        📸
+      </button>
+    </div>
+  </div>
+
+  <!-- Fallback Manual: Carregar JSON do Extrator Beat -->
+  <div class="fallback-container" style="margin-bottom: 12px; border-top: 1px dashed #333; padding-top: 10px;">
+    <div style="font-size: 10px; color: #666; text-align: center; margin-bottom: 6px;">
+      ⚠️ SERVIDOR OFFLINE? USE O MODO MANUAL:
+    </div>
+    <button id="btnLoad" class="btn btn-load">
+      📂 CARREGAR ARQUIVO DO EXTRATOR BEAT
+    </button>
+  </div>
 
   <button id="btnStart" class="btn btn-start" disabled>
     ▶️ INICIAR ESCUTA
@@ -550,8 +619,8 @@
   <!-- Info -->
   <div class="info-box">
     <div class="info-row">
-      <span class="info-label">Arquivo carregado:</span>
-      <span id="infoFile" class="info-value">Nenhum</span>
+      <span class="info-label">Mesa ativa:</span>
+      <span id="infoFile" class="info-value">Nenhuma</span>
     </div>
     <div class="info-row">
       <span class="info-label">Último resultado:</span>

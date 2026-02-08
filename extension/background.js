@@ -59,7 +59,9 @@ const DEFAULT_STATE = {
     balance: 0,
     currentBet: 0,
     activeChip: 0
-  }
+  },
+  currentMesa: null,
+  mesaConfig: null
 };
 
 // 🆕 v2.6: Removido readIntervalId - não persiste em MV3 Service Workers
@@ -136,7 +138,7 @@ function connectWebSocket() {
       wsConnected = false;
     };
 
-    wsConnection.onmessage = (event) => {
+    wsConnection.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
 
@@ -183,6 +185,55 @@ function connectWebSocket() {
           // Tentamos enviar dados como SLAVE
           console.warn(`⚠️ Erro: ${data.message}`);
           addLog('warning', 'Não é MASTER', { message: data.message });
+        }
+        // 🆕 v3.0: Microserviço Extrator
+        else if (data.type === 'mesas_disponiveis') {
+          console.log('📋 Mesas disponíveis:', data.mesas);
+          broadcastToTabs({ action: 'updateMesas', mesas: data.mesas });
+        }
+        else if (data.type === 'mesa_configurada' || data.type === 'config_mesa') {
+          console.log(`✅ Configuração recebida para: ${data.mesa_id}`);
+          const state = await getState();
+          state.currentMesa = data.mesa_id;
+          state.mesaConfig = data.config;
+          state.extractorData = data.config; // Retrocompatibilidade
+
+          if (data.config && data.config.data && data.config.data.results) {
+            state.results = data.config.data.results.lastNumbers?.slice(0, 12) || [];
+          }
+
+          // 🆕 v3.1: CORREÇÃO BUG #3 - Obter tabId da aba ativa se não tiver
+          if (!state.tabId) {
+            try {
+              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (tab && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+                state.tabId = tab.id;
+                console.log('📍 tabId obtido da aba ativa:', state.tabId);
+                addLog('info', `Aba detectada: ${tab.title?.substring(0, 30)}`);
+              }
+            } catch (e) {
+              console.warn('⚠️ Não foi possível obter tabId:', e.message);
+            }
+          }
+
+          await chrome.storage.local.set({ escutaState: state });
+          addLog('success', `Mesa ${data.mesa_id} configurada`);
+
+          // Se auto_start, iniciar escuta
+          if (data.auto_start && !state.isListening && state.tabId) {
+            console.log('🚀 Auto-start ativado!');
+            startReadLoopAlarm();
+            startKeepAliveAlarm();
+            state.isListening = true;
+            await chrome.storage.local.set({ escutaState: state });
+            addLog('success', 'Escuta iniciada automaticamente');
+          } else if (data.auto_start && !state.tabId) {
+            console.warn('⚠️ Auto-start solicitado mas tabId não disponível');
+            addLog('warning', 'Não foi possível iniciar automaticamente - abra a página da roleta');
+          }
+
+          chrome.runtime.sendMessage({ action: 'mesaConfigurada', data: data });
+          broadcastToTabs({ action: 'mesaConfigurada', data: data });
         }
       } catch (e) {
         console.warn('⚠️ Erro ao processar mensagem WS:', e);
@@ -375,6 +426,64 @@ async function sendRoleToContentScript(role, reason) {
     console.warn('⚠️ Erro ao enviar role para content:', error);
   }
 }
+// 🆕 v3.0: Captura DOM via microserviço
+async function capturarMesaRemota() {
+  try {
+    const state = await getState();
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) throw new Error('Nenhuma aba ativa para capturar');
+
+    addLog('info', 'Iniciando captura DOM remota...');
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: () => {
+        // Esta função roda no contexto de cada frame
+        function getCleanDOM() {
+          const betSpots = Array.from(document.querySelectorAll('[data-bet-spot-id]')).map(el => {
+            const rect = el.getBoundingClientRect();
+            return {
+              id: el.getAttribute('data-bet-spot-id'),
+              rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+            };
+          });
+
+          const chips = Array.from(document.querySelectorAll("[data-role='chip']")).map(el => ({
+            value: el.getAttribute('data-value'),
+            label: el.innerText
+          }));
+
+          return {
+            url: window.location.href,
+            betSpots: betSpots,
+            chips: chips,
+            html: document.body.innerText.substring(0, 1000) // Amostra de texto para status
+          };
+        }
+        return getCleanDOM();
+      }
+    });
+
+    // Enviar resultado para o servidor
+    const snapshot = {
+      url: tab.url,
+      frames: results.map(r => r.result),
+      timestamp: Date.now()
+    };
+
+    sendToWebSocket({
+      type: 'extrair_mesa',
+      url: tab.url,
+      dom_snapshot: snapshot
+    });
+
+    return { success: true };
+  } catch (e) {
+    addLog('error', `Falha na captura remota: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
 // ===== FIM WEBSOCKET =====
 
 // ===== INICIALIZAÇÃO =====
@@ -398,10 +507,61 @@ chrome.storage.local.get(['escutaState'], (data) => {
   if (!data.escutaState) {
     chrome.storage.local.set({ escutaState: DEFAULT_STATE });
   } else if (data.escutaState.isListening && data.escutaState.tabId) {
-    console.log('🔁 Worker acordou - retomando escuta para tab:', data.escutaState.tabId);
+    console.log('🔄 Worker reiniciado - retomando escuta ativa');
     startReadLoopAlarm();
+    connectWebSocket(); // Garantir que WS está conectado
   }
 });
+
+// Listener para mensagens do popup e content scripts
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const action = request.action;
+
+  if (action === 'getState') {
+    getState().then(sendResponse);
+    return true; // Assíncrono
+  }
+
+  // 🆕 v3.0: Microserviço - Listar mesas
+  if (action === 'listarMesas') {
+    if (!wsConnected) connectWebSocket();
+    sendToWebSocket({ type: 'listar_mesas' });
+
+    // Como o retorno do WS é assíncrono, o popup deve ouvir 'updateMesas'
+    // Mas para facilitar o sendMessage inicial, vamos apenas confirmar o disparo
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // 🆕 v3.0: Microserviço - Obter config
+  if (action === 'obterConfigMesa') {
+    sendToWebSocket({ type: 'obter_config_mesa', mesa_id: request.mesa_id });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // 🆕 v3.0: Microserviço - Capturar DOM remoto
+  if (action === 'capturarMesa') {
+    capturarMesaRemota().then(sendResponse);
+    return true;
+  }
+});
+
+// 🆕 v4.0: Broadcast para todas as abas (Overlay e Control Panel)
+async function broadcastToTabs(message) {
+  try {
+    const tabs = await chrome.tabs.query({});
+    tabs.forEach(tab => {
+      chrome.tabs.sendMessage(tab.id, message).catch(() => {
+        // Ignora abas que não têm o content script injetado
+      });
+    });
+    // Também envia para o popup se estiver aberto
+    chrome.runtime.sendMessage(message).catch(() => { });
+  } catch (e) {
+    console.warn('⚠️ Erro no broadcast:', e);
+  }
+}
 
 // ===== ALARM HANDLERS - PERSISTÊNCIA MV3 =====
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -441,9 +601,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // ===== MENSAGENS DO POPUP =====
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('📩 Mensagem:', message.action);
+  console.log('📩 Mensagem:', message.action, 'de:', sender.tab?.id || 'popup');
 
-  handleMessage(message).then(response => {
+  handleMessage(message, sender).then(response => {
     sendResponse(response);
   }).catch(err => {
     console.error('Erro ao processar mensagem:', err);
@@ -453,7 +613,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-async function handleMessage(message) {
+async function handleMessage(message, sender = null) {
   const { action } = message;
 
   if (action === 'setExtractorData') {
@@ -474,12 +634,30 @@ async function handleMessage(message) {
   if (action === 'startListening') {
     const state = await getState();
 
+    // 🆕 v3.1: CORREÇÃO BUG #2 - Se não tem extractorData, usa template base automaticamente
     if (!state.extractorData) {
-      return { success: false, error: 'Carregue o arquivo do Extrator primeiro' };
+      console.log('⚠️ Sem extractorData - usando template base do Evolution');
+
+      // Template base mínimo para funcionar
+      state.extractorData = {
+        provider: 'evolution',
+        version: '1.0',
+        selectors: {
+          results: "[data-role='recent-number']",
+          gameStatus: "[class*='trafficLightText']",
+          balance: "[data-role='balance-label-value']",
+          totalBet: "[data-role='total-bet-label-value']",
+          chips: "[data-role='chip']",
+          chipWrapper: "[data-role='chip-stack-wrapper']"
+        }
+      };
+
+      addLog('info', 'Template base Evolution carregado automaticamente');
     }
 
     state.isListening = true;
-    state.tabId = message.tabId;
+    // 🆕 v4.0: Usar sender.tab.id como fallback se tabId não for passado (ex: control_panel.js)
+    state.tabId = message.tabId || sender?.tab?.id || state.tabId;
     state.error = null;
     state.lastUpdate = Date.now();
     readCount = 0;
@@ -493,7 +671,10 @@ async function handleMessage(message) {
     // 🆕 v2.7: Conectar ao servidor WebSocket
     connectWebSocket();
 
-    console.log('✅ Escuta iniciada para tab:', message.tabId);
+    // 🆕 v4.0: Broadcast para atualizar UIs
+    broadcastToTabs({ action: 'stateSync', data: { isListening: true } });
+
+    console.log('✅ Escuta iniciada para tab:', state.tabId);
     return { success: true };
   }
 
@@ -509,6 +690,9 @@ async function handleMessage(message) {
 
     // 🆕 v2.7: Desconectar WebSocket
     closeWebSocket();
+
+    // 🆕 v4.0: Broadcast para atualizar UIs
+    broadcastToTabs({ action: 'stateSync', data: { isListening: false } });
 
     console.log('⏹️ Escuta parada');
     return { success: true };
@@ -595,7 +779,13 @@ async function handleMessage(message) {
 // ===== FUNÇÕES DE ESTADO =====
 async function getState() {
   const data = await chrome.storage.local.get(['escutaState']);
-  return data.escutaState || { ...DEFAULT_STATE };
+  const state = data.escutaState || { ...DEFAULT_STATE };
+  return {
+    ...state,
+    isConnected: wsConnected,
+    deviceRole: deviceRole,
+    wsUrl: WS_CONFIG.url  // 🆕 v5.0: URL para exibir no painel de controle
+  };
 }
 
 async function saveState(state) {

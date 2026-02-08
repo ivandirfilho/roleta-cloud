@@ -4,7 +4,8 @@
 /* Container principal do overlay */
 #escuta-beat-overlay {
   position: fixed;
-  top: 10px;
+  top: 70px;
+  /* 🆕 v4.0: Espaço para o botão 🎛️ */
   right: 10px;
   z-index: 2147483647;
   /* Máximo z-index possível */
@@ -320,7 +321,8 @@
 /* Responsivo Mobile */
 @media (max-width: 768px) {
   #escuta-beat-overlay {
-    top: 5px;
+    top: 65px;
+    /* 🆕 v4.0: Manter espaço para control_panel mesmo em mobile */
     right: 5px;
   }
 
@@ -351,4 +353,579 @@
     height: 32px;
     font-size: 18px;
   }
+}
+
+/* ===== ESTADO MINIMIZADO DO OVERLAY =====*/
+#escuta-beat-overlay.minimized .eb-panel {
+  padding: 8px 12px;
+  min-width: auto;
+  max-width: 200px;
+}
+
+#escuta-beat-overlay.minimized .eb-body {
+  display: none;
+}
+
+#escuta-beat-overlay.minimized .eb-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+#escuta-beat-overlay.minimized .eb-status {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+#escuta-beat-overlay.minimized .eb-header-buttons {
+  margin-left: 8px;
+}
+
+#escuta-beat-overlay.minimized .eb-new-session,
+#escuta-beat-overlay.minimized .eb-force-master {
+  display: none;
+}
+
+#escuta-beat-overlay.minimized .eb-minimize {
+  transform: rotate(180deg);
+}
+
+/* ===== OLD CONTROL PANEL v4.0 - DISABLED =====
+   This section was for the separate control_panel.js which is now removed.
+   The unified dashboard uses .eb-control-section instead.
+
+#eb-control-panel {
+  position: fixed !important;
+  top: 10px !important;
+  left: 10px !important;
+  z-index: 2147483647 !important;
+  font-family: 'Segoe UI', Roboto, sans-serif !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+*/
+
+/* Hide any remnants of old control panel */
+#eb-control-panel {
+  display: none !important;
+}
+
+/* Botão toggle do control panel */
+#eb-ctrl-toggle {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+  font-size: 22px !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#eb-ctrl-toggle:hover {
+  transform: scale(1.1);
+}
+
+#eb-ctrl-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Corpo/body do painel de controle - escondido por padrão */
+#eb-ctrl-body {
+  display: none;
+  position: fixed;
+  top: 380px;
+  /* Abaixo do overlay de sugestões (~70 + ~300 + 10) */
+  right: 10px;
+  background: linear-gradient(180deg, #0a0a14 0%, #0f1a2a 100%);
+  border-radius: 12px;
+  width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  color: #fff;
+  z-index: 2147483647;
+}
+
+/* Quando expandido, mostrar o body */
+#eb-control-panel.expanded #eb-ctrl-body {
+  display: block;
+}
+
+/* Botão continua visível mesmo quando expandido */
+#eb-control-panel.expanded #eb-ctrl-toggle {
+  background: linear-gradient(135deg, #764ba2, #667eea) !important;
+  /* Cor invertida */
+}
+
+.ebcp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #00aaff;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.ebcp-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.ebcp-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.ebcp-section {
+  margin-bottom: 16px;
+}
+
+.ebcp-label {
+  font-size: 10px;
+  color: #666;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.ebcp-connection {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.ebcp-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #444;
+}
+
+.ebcp-indicator.connected {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.ebcp-indicator.listening {
+  background: #00aaff;
+  box-shadow: 0 0 8px #00aaff;
+  animation: ebcp-pulse 1s infinite;
+}
+
+@keyframes ebcp-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.ebcp-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ebcp-text-group span {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.ebcp-text-group small {
+  font-size: 9px;
+  color: #555;
+}
+
+.ebcp-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ebcp-select {
+  flex: 1;
+  background: #000;
+  color: #00aaff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.ebcp-icon-btn {
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ebcp-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.ebcp-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ebcp-btn.primary {
+  background: linear-gradient(135deg, #00ff88, #00aa55);
+  color: #000;
+}
+
+.ebcp-btn.danger {
+  background: #cc2222;
+  color: #fff;
+}
+
+.ebcp-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ebcp-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.ebcp-num {
+  text-align: center;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.ebcp-num.red {
+  background: #ff4444;
+}
+
+.ebcp-num.black {
+  background: #111;
+  border: 1px solid #333;
+}
+
+.ebcp-num.green {
+  background: #00aa55;
+}
+
+.ebcp-info-footer {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ebcp-info-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ebcp-info-item .lbl {
+  font-size: 9px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.ebcp-info-item span:not(.lbl) {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+/* Mobile Adaptability */
+@media (max-width: 480px) {
+  .ebcp-container {
+    width: 280px;
+    right: 0;
+  }
+}
+
+/* ===== CONTROLES INTEGRADOS v4.0 ===== */
+
+/* Esconder botão de controle e seção quando minimizado */
+#escuta-beat-overlay.minimized .eb-control-toggle,
+#escuta-beat-overlay.minimized .eb-control-section {
+  display: none !important;
+}
+
+/* Botão de Controles no footer do overlay */
+.eb-control-toggle {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.eb-control-toggle:hover {
+  background: linear-gradient(135deg, #764ba2, #667eea);
+  transform: scale(1.02);
+}
+
+/* Seção de Controles - escondida por padrão */
+.eb-control-section {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.eb-control-section.expanded {
+  display: block;
+}
+
+.eb-control-header {
+  color: #00aaff;
+  font-weight: bold;
+  font-size: 12px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.eb-control-row {
+  margin-bottom: 10px;
+}
+
+.eb-control-label {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.eb-control-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.eb-control-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff4444;
+}
+
+.eb-control-select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+}
+
+.eb-control-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.eb-ctrl-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.eb-ctrl-btn.start {
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #000;
+}
+
+.eb-ctrl-btn.stop {
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: #fff;
+}
+
+.eb-ctrl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eb-control-time {
+  font-size: 10px;
+  color: #666;
+  text-align: center;
+}
+
+/* ===== v5.0: Estilos Adicionais para Controles ===== */
+
+/* Conexão com LED */
+.eb-ctrl-connection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.eb-ctrl-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff4444;
+  flex-shrink: 0;
+}
+
+.eb-ctrl-led.connected {
+  background: #ffcc00;
+  box-shadow: 0 0 8px #ffcc00;
+}
+
+.eb-ctrl-led.listening {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+  animation: eb-pulse 1s infinite;
+}
+
+@keyframes eb-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px #00ff88;
+  }
+
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 16px #00ff88;
+  }
+}
+
+.eb-ctrl-conn-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eb-ctrl-conn-info span {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.eb-ctrl-conn-info small {
+  font-size: 9px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Linha da Mesa com botão capturar */
+.eb-ctrl-mesa-row {
+  display: flex;
+  gap: 8px;
+}
+
+.eb-ctrl-mesa-row .eb-control-select {
+  flex: 1;
+}
+
+.eb-ctrl-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #00aaff, #0066cc);
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eb-ctrl-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Grid de Resultados */
+.eb-ctrl-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  min-height: 30px;
+}
+
+.eb-result-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.eb-result-num.red {
+  background: linear-gradient(135deg, #c62828, #ff4444);
+  color: #fff;
+}
+
+.eb-result-num.black {
+  background: linear-gradient(135deg, #1a1a1a, #3a3a3a);
+  color: #fff;
+}
+
+.eb-result-num.green {
+  background: linear-gradient(135deg, #2e7d32, #4caf50);
+  color: #fff;
 }

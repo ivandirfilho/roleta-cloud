@@ -13,7 +13,28 @@ let overlayState = {
   deviceRole: 'unknown'  // 🆕 v3.4: 'master' | 'slave' | 'unknown'
 };
 
-// ===== CRIAR OVERLAY =====
+// 🆕 v4.0: Carregar estado salvo de UI
+async function loadUIState() {
+  try {
+    const data = await chrome.storage.local.get(['overlayUIState']);
+    if (data.overlayUIState) {
+      overlayState.isMinimized = data.overlayUIState.isMinimized || false;
+      console.log('📦 Estado de UI carregado:', overlayState.isMinimized ? 'minimizado' : 'expandido');
+    }
+  } catch (e) {
+    console.warn('⚠️ Não foi possível carregar estado de UI');
+  }
+}
+
+async function saveUIState() {
+  try {
+    await chrome.storage.local.set({ overlayUIState: { isMinimized: overlayState.isMinimized } });
+  } catch (e) {
+    // Ignora erro
+  }
+}
+
+// ===== CRIAR OVERLAY UNIFICADO =====
 function createOverlay() {
   // Verificar se já existe
   if (document.getElementById('escuta-beat-overlay')) {
@@ -56,6 +77,58 @@ function createOverlay() {
         </div>
         <div class="eb-timer" id="eb-timer">Conectando...</div>
       </div>
+      
+      <!-- 🆕 v4.0: Botão de Controle Integrado -->
+      <button class="eb-control-toggle" id="eb-control-toggle" title="Abrir Painel de Controle">
+        🎛️ Controles
+      </button>
+      
+      <!-- 🆕 v5.0: Seção de Controles (igual ao popup) -->
+      <div class="eb-control-section" id="eb-control-section">
+        <div class="eb-control-header">
+          <span>⚙️ PAINEL DE CONTROLE</span>
+        </div>
+        
+        <!-- Status de Conexão -->
+        <div class="eb-ctrl-connection">
+          <div class="eb-ctrl-led" id="eb-ctrl-indicator"></div>
+          <div class="eb-ctrl-conn-info">
+            <span id="eb-ctrl-status-text">Desconectado</span>
+            <small id="eb-ctrl-url">ws://servidor:8765</small>
+          </div>
+        </div>
+        
+        <!-- Seleção de Mesa -->
+        <div class="eb-control-row">
+          <div class="eb-control-label">MESA</div>
+          <div class="eb-ctrl-mesa-row">
+            <select id="eb-ctrl-mesa" class="eb-control-select">
+              <option value="">-- Selecione --</option>
+            </select>
+            <button id="eb-ctrl-capture" class="eb-ctrl-icon-btn" title="Capturar Mesa">📸</button>
+          </div>
+        </div>
+        
+        <!-- Botões de Ação -->
+        <div class="eb-control-actions">
+          <button id="eb-ctrl-start" class="eb-ctrl-btn start">▶️ INICIAR</button>
+          <button id="eb-ctrl-stop" class="eb-ctrl-btn stop" disabled>⏹️ PARAR</button>
+        </div>
+        
+        <!-- Grid de Resultados -->
+        <div class="eb-control-row">
+          <div class="eb-control-label">ÚLTIMOS RESULTADOS</div>
+          <div class="eb-ctrl-results" id="eb-ctrl-results">
+            <!-- Preenchido dinamicamente -->
+          </div>
+        </div>
+        
+        <!-- Timestamp -->
+        <div class="eb-control-time">
+          Última leitura: <span id="eb-ctrl-time">--</span>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -73,19 +146,225 @@ function createOverlay() {
   const forceMasterBtn = overlay.querySelector('.eb-force-master');
   forceMasterBtn.addEventListener('click', handleForceMaster);
 
+  // 🆕 v4.0: Botão de Controles
+  const controlToggleBtn = overlay.querySelector('#eb-control-toggle');
+  controlToggleBtn.addEventListener('click', toggleControlSection);
+
+  // 🆕 v4.0: Eventos do painel de controle
+  document.getElementById('eb-ctrl-start').addEventListener('click', async () => {
+    const btn = document.getElementById('eb-ctrl-start');
+    const btnStop = document.getElementById('eb-ctrl-stop');
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ Iniciando...';
+
+    try {
+      // 🆕 v3.1: CORREÇÃO BUG #7 - Verificar se já tem configuração
+      const stateResponse = await chrome.runtime.sendMessage({ action: 'getState' });
+
+      if (!stateResponse?.extractorData) {
+        // Precisa capturar primeiro
+        console.log('📸 Sem config - iniciando captura automática');
+        btn.textContent = '📸 Capturando mesa...';
+
+        const captureResponse = await chrome.runtime.sendMessage({ action: 'capturarMesa' });
+
+        if (!captureResponse?.success) {
+          throw new Error('Falha na captura da mesa');
+        }
+
+        // Aguardar resposta do servidor (mesa_configurada vai iniciar automaticamente via auto_start)
+        btn.textContent = '⏳ Aguardando servidor...';
+        console.log('✅ Captura enviada - aguardando mesa_configurada');
+
+        // Timeout de segurança - atualizar UI após 3s
+        setTimeout(() => {
+          chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+            updateControlUI(state);
+            if (state?.isListening) {
+              btn.style.display = 'none';
+              btnStop.style.display = 'block';
+              btnStop.disabled = false;
+            } else {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
+          });
+        }, 3000);
+
+        return;
+      }
+
+      // Já tem config, apenas iniciar
+      console.log('▶️ Iniciando escuta com config existente');
+      chrome.runtime.sendMessage({ action: 'startListening' }, (response) => {
+        updateControlUI(response);
+        if (response?.success) {
+          btn.style.display = 'none';
+          btnStop.style.display = 'block';
+          btnStop.disabled = false;
+        } else {
+          btn.disabled = false;
+          btn.textContent = '❌ ERRO';
+          setTimeout(() => { btn.textContent = originalText; }, 2000);
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao iniciar:', error);
+      btn.disabled = false;
+      btn.textContent = '❌ ERRO';
+      setTimeout(() => { btn.textContent = originalText; }, 2000);
+    }
+  });
+
+  document.getElementById('eb-ctrl-stop').addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'stopListening' }, updateControlUI);
+  });
+
+  document.getElementById('eb-ctrl-mesa').addEventListener('change', (e) => {
+    if (e.target.value) {
+      chrome.runtime.sendMessage({ action: 'obterConfigMesa', mesa_id: e.target.value });
+    }
+  });
+
+  // 🆕 v5.0: Botão Capturar Mesa
+  document.getElementById('eb-ctrl-capture').addEventListener('click', () => {
+    const btn = document.getElementById('eb-ctrl-capture');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    chrome.runtime.sendMessage({ action: 'capturarMesa' }, (response) => {
+      btn.disabled = false;
+      btn.textContent = '📸';
+      if (response?.success) {
+        console.log('✅ Mesa capturada');
+      }
+    });
+  });
+
+  // Carregar estado inicial dos controles
+  chrome.runtime.sendMessage({ action: 'getState' }, updateControlUI);
+  chrome.runtime.sendMessage({ action: 'listarMesas' });
+
+
   // Touch para arrastar (mobile)
   setupDrag(overlay);
 
-  console.log('✅ Overlay criado');
+  console.log('✅ Overlay unificado criado');
   return overlay;
+}
+
+// 🆕 v4.0: Toggle da seção de controles
+let controlSectionExpanded = false;
+
+function toggleControlSection() {
+  const section = document.getElementById('eb-control-section');
+  const btn = document.getElementById('eb-control-toggle');
+  if (!section || !btn) return;
+
+  controlSectionExpanded = !controlSectionExpanded;
+
+  if (controlSectionExpanded) {
+    section.classList.add('expanded');
+    btn.textContent = '🎛️ Fechar Controles';
+    chrome.runtime.sendMessage({ action: 'getState' }, updateControlUI);
+  } else {
+    section.classList.remove('expanded');
+    btn.textContent = '🎛️ Controles';
+  }
+}
+
+function updateControlUI(state) {
+  if (!state) return;
+
+  const indicator = document.getElementById('eb-ctrl-indicator');
+  const statusText = document.getElementById('eb-ctrl-status-text');
+  const urlEl = document.getElementById('eb-ctrl-url');
+  const btnStart = document.getElementById('eb-ctrl-start');
+  const btnStop = document.getElementById('eb-ctrl-stop');
+  const timeEl = document.getElementById('eb-ctrl-time');
+  const resultsEl = document.getElementById('eb-ctrl-results');
+
+  // Status LED
+  if (indicator) {
+    indicator.className = 'eb-ctrl-led';
+    if (state.isListening) {
+      indicator.classList.add('listening');
+    } else if (state.isConnected) {
+      indicator.classList.add('connected');
+    }
+  }
+
+  // Status text
+  if (statusText) {
+    statusText.textContent = state.isListening ? 'ESCUTANDO' : (state.isConnected ? 'CONECTADO' : 'DESCONECTADO');
+  }
+
+  // URL do servidor
+  if (urlEl && state.wsUrl) {
+    urlEl.textContent = state.wsUrl;
+  }
+
+  // Botões
+  if (btnStart) {
+    btnStart.disabled = state.isListening;
+    btnStart.style.opacity = state.isListening ? '0.5' : '1';
+  }
+  if (btnStop) {
+    btnStop.disabled = !state.isListening;
+    btnStop.style.opacity = state.isListening ? '1' : '0.5';
+  }
+
+  // Timestamp
+  if (timeEl && state.lastUpdate) {
+    timeEl.textContent = new Date(state.lastUpdate).toLocaleTimeString();
+  } else if (timeEl) {
+    timeEl.textContent = new Date().toLocaleTimeString();
+  }
+
+  // Grid de resultados
+  if (resultsEl && state.results && state.results.length > 0) {
+    const last10 = state.results.slice(-10);
+    resultsEl.innerHTML = last10.map(num => {
+      const color = getNumberColor(num);
+      return `<span class="eb-result-num ${color}">${num}</span>`;
+    }).join('');
+  }
+}
+
+// Mapa de cores da roleta
+function getNumberColor(num) {
+  const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+  if (num === 0) return 'green';
+  return reds.includes(num) ? 'red' : 'black';
+}
+
+
+function updateControlMesas(mesas) {
+  const select = document.getElementById('eb-ctrl-mesa');
+  if (!select || !mesas) return;
+
+  const current = select.value;
+  select.innerHTML = '<option value="">-- Selecione --</option>';
+  mesas.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.name;
+    select.appendChild(opt);
+  });
+  select.value = current;
 }
 
 // ===== TOGGLE MINIMIZAR =====
 function toggleMinimize() {
+  console.log('🔽 toggleMinimize chamado');
   const overlay = document.getElementById('escuta-beat-overlay');
   if (!overlay) return;
 
   overlayState.isMinimized = !overlayState.isMinimized;
+  saveUIState(); // 🆕 v4.0: Persistir estado
+
   const status = overlay.querySelector('.eb-status');
   const galeDisplay = overlay.querySelector('#eb-gale-display');
 
@@ -425,8 +704,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     updateRoleIndicator(message.role, message.reason);
     sendResponse({ success: true });
   }
+  // 🆕 v4.0: Handlers para controles integrados
+  else if (message.action === 'updateMesas') {
+    updateControlMesas(message.mesas);
+    sendResponse({ success: true });
+  }
+  else if (message.action === 'mesaConfigurada') {
+    chrome.runtime.sendMessage({ action: 'getState' }, updateControlUI);
+    sendResponse({ success: true });
+  }
 
   return true;
+
 });
 
 // 🆕 v3.4: Atualiza indicador de role no overlay
@@ -502,9 +791,18 @@ function handleStateSync(data) {
 }
 
 // ===== INICIALIZAÇÃO =====
-function init() {
+async function init() {
+  // 🆕 v4.0: Carregar estado salvo de UI primeiro
+  await loadUIState();
+
   // Criar overlay se ainda não existe
-  createOverlay();
+  const overlay = createOverlay();
+
+  // 🆕 v4.0: Aplicar estado salvo
+  if (overlayState.isMinimized && overlay) {
+    overlay.classList.add('minimized');
+    console.log('📦 Overlay iniciado minimizado');
+  }
 
   // Notificar background que estamos prontos
   try {

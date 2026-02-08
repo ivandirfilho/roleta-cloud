@@ -29,23 +29,24 @@ function formatCurrency(value) {
 
 // Elementos DOM
 let indicator, connectionStatus, connectionUrl;
-let btnLoad, btnStart, btnStop;
+let btnStart, btnStop;
 let resultsGrid, listeningIndicator;
 let infoFile, infoLast, infoTotal, logEl;
 let painelStatus, statusLight, statusText;
 let saldoValue, apostaValue, fichaValue;
+let mesaDropdown, btnCapturar;
 
 // 🆕 v2.7: Direção do giro
 let currentDirection = 'horario';
 let btnDirHorario, btnDirAntiHorario;
+let btnLoad; // Manual fallback
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded', async () => {
-  // Pegar elementos
+  // Pegar elementos DOM
   indicator = document.getElementById('indicator');
   connectionStatus = document.getElementById('connectionStatus');
   connectionUrl = document.getElementById('connectionUrl');
-  btnLoad = document.getElementById('btnLoad');
   btnStart = document.getElementById('btnStart');
   btnStop = document.getElementById('btnStop');
   resultsGrid = document.getElementById('resultsGrid');
@@ -63,10 +64,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   apostaValue = document.getElementById('apostaValue');
   fichaValue = document.getElementById('fichaValue');
 
+  // Elementos da mesa
+  mesaDropdown = document.getElementById('mesaDropdown');
+  btnCapturar = document.getElementById('btnCapturar');
+
   // Event listeners
-  btnLoad.addEventListener('click', loadExtractorFile);
+  if (btnCapturar) btnCapturar.addEventListener('click', captureMesa);
+  if (mesaDropdown) mesaDropdown.addEventListener('change', onMesaSelected);
+
+  // Fallback Manual
+  btnLoad = document.getElementById('btnLoad');
+  if (btnLoad) btnLoad.addEventListener('click', loadExtractorFile);
+
   btnStart.addEventListener('click', startListening);
   btnStop.addEventListener('click', stopListening);
+
+  // Carregar mesas do servidor
+  carregarMesas();
 
   // 🆕 v2.4: Botão exportar logs
   const btnExportLogs = document.getElementById('btnExportLogs');
@@ -109,8 +123,109 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  log('Sistema pronto v2.8 (Auto-Alterna)', 'info');
+  // Escutar mensagens do background
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'updateMesas') {
+      atualizarDropdownMesas(message.mesas);
+    }
+    else if (message.action === 'mesaConfigurada') {
+      log(`✅ Mesa configurada: ${message.data.mesa_id}`, 'success');
+      btnCapturar.disabled = false;
+      btnCapturar.textContent = '📸';
+      btnStart.disabled = false;
+      infoFile.textContent = message.data.mesa_id;
+    }
+  });
+
+  log('Sistema pronto v3.0 (Microserviço)', 'info');
 });
+
+
+// ===== FALLBACK: CARREGAR ARQUIVO DO EXTRATOR =====
+async function loadExtractorFile() {
+  if (!btnLoad) return;
+
+  btnLoad.disabled = true;
+  const originalText = btnLoad.textContent;
+  btnLoad.textContent = '⏳ Carregando...';
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+
+  input.onchange = async (e) => {
+    // Restaurar botão se cancelar
+    if (!e.target.files.length) {
+      btnLoad.disabled = false;
+      btnLoad.textContent = originalText;
+      return;
+    }
+
+    const file = e.target.files[0];
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validação Flexível (Extrator Beat v15+ ou config genérica)
+      const isValidExtractor = data._meta && data._meta.service === 'ExtractorBeat';
+      const isValidBase = data.selectors || (data.data?.results);
+
+      if (!isValidExtractor && !isValidBase) {
+        throw new Error('Arquivo JSON inválido (use Extrator Beat v15+)');
+      }
+
+      // Preparar novo estado COM LIMPEZA DA MESA SERVIDOR (PRIORIDADE MANUAL)
+      const currentData = await chrome.storage.local.get(['escutaState']);
+      const state = currentData.escutaState || {};
+
+      state.currentMesa = null; // Remove seleção de mesa do servidor
+      if (mesaDropdown) mesaDropdown.value = "";
+
+      state.extractorData = data;
+      state.error = null;
+
+      // Importar histórico se disponível
+      if (data.data?.results?.lastNumbers) {
+        state.results = data.data.results.lastNumbers.slice(0, 12);
+        state.lastHash = state.results.slice(0, 5).join(',');
+      }
+
+      await chrome.storage.local.set({ escutaState: state });
+
+      // Atualizar UI
+      infoFile.textContent = file.name;
+      btnStart.disabled = false;
+      log(`✅ Arquivo carregado: ${file.name}`, 'success');
+
+      // Feedback visual imediato
+      if (state.results && state.results.length > 0) {
+        updateResultsDisplay(state.results);
+        infoLast.textContent = state.results[0];
+      }
+
+    } catch (err) {
+      log(`❌ Erro: ${err.message}`, 'error');
+    } finally {
+      btnLoad.disabled = false;
+      btnLoad.textContent = originalText;
+    }
+  };
+
+  input.click();
+}
+
+// Funções auxiliares
+function atualizarDropdownMesas(mesas) {
+  if (!mesaDropdown || !mesas) return;
+  mesaDropdown.innerHTML = '<option value="">-- Selecione Mesa Salva --</option>';
+  mesas.forEach(mesa => {
+    const option = document.createElement('option');
+    option.value = mesa.id;
+    option.textContent = mesa.name;
+    mesaDropdown.appendChild(option);
+  });
+}
 
 // ===== LOG =====
 function log(message, type = 'info') {
@@ -222,14 +337,21 @@ function updateUIFromState(state) {
     indicator.className = 'indicator listening';
     connectionStatus.textContent = '👂 ESCUTANDO...';
     listeningIndicator.classList.add('active');
-    btnStart.style.display = 'none';
     btnStop.style.display = 'block';
-    btnLoad.disabled = true;
+    if (btnCapturar) btnCapturar.disabled = true;
+    if (mesaDropdown) mesaDropdown.disabled = true;
+    if (btnLoad) btnLoad.disabled = true; // 🔒 Bloquear upload durante escuta
   } else {
     listeningIndicator.classList.remove('active');
     btnStart.style.display = 'block';
     btnStop.style.display = 'none';
-    btnLoad.disabled = false;
+    if (btnCapturar) btnCapturar.disabled = false;
+    if (mesaDropdown) mesaDropdown.disabled = false;
+
+    // Habilitar upload apenas se não estiver carregando
+    if (btnLoad && btnLoad.textContent !== '⏳ Carregando...') {
+      btnLoad.disabled = false;
+    }
 
     if (isConnected) {
       indicator.className = 'indicator connected';
@@ -237,10 +359,22 @@ function updateUIFromState(state) {
     }
   }
 
-  // Habilitar botão iniciar se tem dados
-  if (state.extractorData) {
+  // Habilitar botão iniciar se tem dados (manual ou servidor)
+  if (state.extractorData || state.currentMesa) {
     btnStart.disabled = false;
-    infoFile.textContent = 'Carregado ✓';
+
+    // Mostrar fonte de dados
+    if (state.isListening) {
+      infoFile.textContent = state.currentMesa || 'Arquivo Manual';
+    } else {
+      if (state.currentMesa) {
+        infoFile.textContent = `Mesa: ${state.currentMesa}`;
+      } else if (state.extractorData) {
+        infoFile.textContent = 'Arquivo Manual Carregado';
+      } else {
+        infoFile.textContent = 'Nenhum';
+      }
+    }
   }
 
   // Atualizar resultados - preferir resultsWithDir para mostrar setas
@@ -313,72 +447,75 @@ function updateUIFromState(state) {
 }
 
 
-// ===== CARREGAR ARQUIVO DO EXTRATOR =====
-async function loadExtractorFile() {
-  btnLoad.disabled = true;
-  btnLoad.textContent = '⏳ Carregando...';
+// ===== MESA SELECTION & CAPTURE (v3.0) =====
 
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
+async function carregarMesas() {
+  if (!mesaDropdown) return;
 
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      btnLoad.disabled = false;
-      btnLoad.textContent = '📂 CARREGAR ARQUIVO DO EXTRATOR BEAT';
-      return;
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'listarMesas' });
+    if (response && response.mesas) {
+      mesaDropdown.innerHTML = '<option value="">-- Selecione Mesa Salva --</option>';
+      response.mesas.forEach(mesa => {
+        const option = document.createElement('option');
+        option.value = mesa.id;
+        option.textContent = mesa.name;
+        mesaDropdown.appendChild(option);
+      });
+
+      // Tentar selecionar a mesa atual do storage
+      const data = await chrome.storage.local.get(['escutaState']);
+      if (data.escutaState && data.escutaState.currentMesa) {
+        mesaDropdown.value = data.escutaState.currentMesa;
+      }
+    } else {
+      mesaDropdown.innerHTML = '<option value="">Sem mesas (servidor offline?)</option>';
     }
+  } catch (e) {
+    console.warn('Erro ao listar mesas:', e);
+    mesaDropdown.innerHTML = '<option value="">Erro ao carregar</option>';
+  }
+}
 
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+async function onMesaSelected() {
+  const mesaId = mesaDropdown.value;
+  if (!mesaId) {
+    // Se selecionou vazio, resetar
+    infoFile.textContent = 'Nenhum';
+    btnStart.disabled = true;
+    return;
+  }
 
-      // Validar arquivo
-      if (!data._meta || data._meta.service !== 'ExtractorBeat') {
-        throw new Error('Arquivo não é do Extrator Beat');
-      }
+  log(`Mesa selecionada: ${mesaId}`, 'info');
 
-      if (!data.data || !data.data.results) {
-        throw new Error('Arquivo não contém dados de resultados');
-      }
+  // Limpar indicador de arquivo manual
+  infoFile.textContent = "Carregando configuração...";
 
-      // Salvar direto no storage (mais confiável)
-      const currentState = (await chrome.storage.local.get(['escutaState'])).escutaState || {};
-      currentState.extractorData = data;
-      currentState.error = null;
+  // Solicitar config da mesa para o servidor
+  btnStart.disabled = true;
+  chrome.runtime.sendMessage({ action: 'obterConfigMesa', mesa_id: mesaId });
+}
 
-      if (data.data.results.lastNumbers) {
-        currentState.results = data.data.results.lastNumbers.slice(0, 12);
-        currentState.lastHash = currentState.results.slice(0, 5).join(',');
-      }
+async function captureMesa() {
+  if (!isConnected || !currentTab) {
+    log('Conecte a uma aba primeiro', 'error');
+    return;
+  }
 
-      await chrome.storage.local.set({ escutaState: currentState });
+  log('Iniciando captura remota...', 'info');
+  btnCapturar.disabled = true;
+  btnCapturar.textContent = '⏳';
 
-      infoFile.textContent = file.name;
-      btnStart.disabled = false;
-      log(`✅ Arquivo carregado: ${file.name}`, 'success');
-
-      if (data.data.results.lastNumbers) {
-        updateResultsDisplay(data.data.results.lastNumbers.slice(0, 12));
-      }
-
-      // Notificar background (opcional, pode falhar)
-      try {
-        await chrome.runtime.sendMessage({ action: 'setExtractorData', data: data });
-      } catch (e) {
-        // Background pode estar dormindo, não é problema
-      }
-
-    } catch (err) {
-      log(`❌ Erro: ${err.message}`, 'error');
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'capturarMesa' });
+    if (response && response.success) {
+      log('✅ Captura enviada para o servidor!', 'success');
     }
-
-    btnLoad.disabled = false;
-    btnLoad.textContent = '📂 CARREGAR ARQUIVO DO EXTRATOR BEAT';
-  };
-
-  input.click();
+  } catch (e) {
+    log(`❌ Erro ao capturar: ${e.message}`, 'error');
+    btnCapturar.disabled = false;
+    btnCapturar.textContent = '📸';
+  }
 }
 
 // ===== INICIAR ESCUTA =====
@@ -391,12 +528,13 @@ async function startListening() {
   log('Iniciando escuta...', 'info');
   btnStart.disabled = true;
 
-  // Verificar se tem dados do extrator
+  // Verificar se tem dados (Manual ou Servidor)
   const data = await chrome.storage.local.get(['escutaState']);
   const state = data.escutaState || {};
 
-  if (!state.extractorData) {
-    log('❌ Carregue o arquivo do Extrator primeiro', 'error');
+  // HÍBRIDO: Aceita extractorData (Manual) OU currentMesa (Servidor)
+  if (!state.extractorData && !state.currentMesa) {
+    log('❌ Selecione uma mesa OU carregue um arquivo', 'error');
     btnStart.disabled = false;
     return;
   }
