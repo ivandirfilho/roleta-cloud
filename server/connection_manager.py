@@ -66,15 +66,16 @@ class ConnectionManager:
             # CASO 2: Novo dispositivo conectando (ou device diferente do MASTER atual)
             # Se for um novo dispositivo ou o MASTER atual for diferente
             elif device_id and device_id not in self._get_active_device_ids():
-                # Se já existe um MASTER, rebaixá-lo (Política: Último NOVO assume)
+                # Proteção do Master Atual: Novas conexões entram como SLAVE se já existe master
                 if self.master_id and self.master_id in self.connections:
-                    await self._demote_master("Novo dispositivo conectou")
-                
-                role = "master"
-                self.master_id = conn_id
-                self.master_device_id = device_id
-                self.master_disconnect_time = None
-                logger.info(f"👑 Novo MASTER atribuído: {device_id}")
+                     role = "slave"
+                     logger.info(f"🛡️ Master ativo protegido. {device_id} entra como SLAVE.")
+                else:
+                     role = "master"
+                     self.master_id = conn_id
+                     self.master_device_id = device_id
+                     self.master_disconnect_time = None
+                     logger.info(f"👑 Novo MASTER atribuído (sem master prévio): {device_id}")
             
             # CASO 3: Dispositivo que já é SLAVE reconectando ou sem device_id
             else:

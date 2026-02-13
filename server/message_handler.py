@@ -137,59 +137,60 @@ class MessageHandler:
             logger.info(f"VERIFICANDO: numero={numero}, centro_previsto={pending.get('center')}, numeros={pending.get('numbers', [])[:5]}...")
 
         # Verificar predição anterior (performance tracking)
-        hit_result = self.game_state.check_prediction(numero)
+        async with self.state_lock:
+            hit_result = self.game_state.check_prediction(numero)
 
-        # Atualizar Martingale da direção da predição (se havia predição E apostou)
-        martingale_info = {}
-        if pending and hit_result is not None and pending.get("bet_placed", False):
-            # Martingale da direção que FOI apostada
-            bet_direction = pending.get("direction", "")
-            if bet_direction in ("cw", "horario"):
-                martingale_info = self.game_state.martingale_cw.update(hit_result)
-            else:
-                martingale_info = self.game_state.martingale_ccw.update(hit_result)
+            # Atualizar Martingale da direção da predição (se havia predição E apostou)
+            martingale_info = {}
+            if pending and hit_result is not None and pending.get("bet_placed", False):
+                # Martingale da direção que FOI apostada
+                bet_direction = pending.get("direction", "")
+                if bet_direction in ("cw", "horario"):
+                    martingale_info = self.game_state.martingale_cw.update(hit_result)
+                else:
+                    martingale_info = self.game_state.martingale_ccw.update(hit_result)
 
-            if martingale_info.get("transition"):
-                logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
-            logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
+                if martingale_info.get("transition"):
+                    logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
+                logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
 
-            # Tracking de janelas para ML/Dashboard
-            try:
-                db_service.track_gale_window(
-                    game_state=self.game_state,
-                    direction=bet_direction,
-                    hit=hit_result,
-                    martingale_info=martingale_info,
-                    pending=pending,
-                    force=pending.get("predicted_force", 0),
-                    numero=numero,
-                    advice_confidence=pending.get("tr_confidence", ""),
-                    advice_reason=pending.get("tr_reason", ""),
-                    sda_score=pending.get("sda_score", 0)
-                )
-            except Exception as e:
-                logger.error(f"Erro ao trackear gale window: {e}")
+                # Tracking de janelas para ML/Dashboard
+                try:
+                    db_service.track_gale_window(
+                        game_state=self.game_state,
+                        direction=bet_direction,
+                        hit=hit_result,
+                        martingale_info=martingale_info,
+                        pending=pending,
+                        force=pending.get("predicted_force", 0),
+                        numero=numero,
+                        advice_confidence=pending.get("tr_confidence", ""),
+                        advice_reason=pending.get("tr_reason", ""),
+                        sda_score=pending.get("sda_score", 0)
+                    )
+                except Exception as e:
+                    logger.error(f"Erro ao trackear gale window: {e}")
 
-        # Processar spin
-        force = self.game_state.process_spin(numero, direcao)
-        trace.step("processed", {
-            "numero": numero,
-            "direcao": direcao,
-            "force": force,
-            "prediction_hit": hit_result
-        })
+            # Processar spin
+            force = self.game_state.process_spin(numero, direcao)
+            trace.step("processed", {
+                "numero": numero,
+                "direcao": direcao,
+                "force": force,
+                "prediction_hit": hit_result
+            })
 
-        # Salvar estado
-        self.game_state.save()
-        trace.step("saved")
+            # Salvar estado
+            self.game_state.save()
+            trace.step("saved")
 
-        # Analisar com estratégia (sem calibração momentum - removido)
-        result = self.strategy.analyze(
-            self.game_state.target_timeline,
-            self.game_state.last_number,
-            settings.game.wheel_sequence,
-            calibration=0  # Momentum desabilitado
-        )
+            # Analisar com estratégia (sem calibração momentum - removido)
+            result = self.strategy.analyze(
+                self.game_state.target_timeline,
+                self.game_state.last_number,
+                settings.game.wheel_sequence,
+                calibration=0  # Momentum desabilitado
+            )
         trace.step("analyzed", {
             "should_bet": result.should_bet,
             "score": result.score,
