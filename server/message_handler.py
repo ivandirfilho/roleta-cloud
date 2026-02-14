@@ -201,7 +201,7 @@ class MessageHandler:
         # ====================================================
         # TRIPLE RATE ADVISOR - Pode vetar a aposta
         # ====================================================
-        advice = self.game_state.get_bet_advice()
+        advice = self.game_state.get_bet_advice(sda_score=result.score)
         trace.step("triple_rate", {
             "should_bet": advice.should_bet,
             "confidence": advice.confidence,

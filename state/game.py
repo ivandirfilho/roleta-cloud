@@ -17,17 +17,17 @@ class MartingaleState:
     Sistema de Martingale Inteligente com janela de 5 jogadas.
     
     Lógica:
-    - GALE 1 = R$17 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
-    - GALE 2 = R$34 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
-    - GALE 3 = R$68 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
+    - GALE 1 = R$19 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
+    - GALE 2 = R$38 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
+    - GALE 3 = R$76 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
     """
     level: int = 1                    # Nível atual (1, 2 ou 3)
     window_hits: int = 0              # Acertos na janela atual
     window_count: int = 0             # Jogadas na janela atual
     total_stops: int = 0              # Total de stops desde início
     
-    # Valores de aposta por nível
-    BET_VALUES = {1: 17, 2: 34, 3: 68}
+    # Valores de aposta por nível (19 números × R$1/R$2/R$4)
+    BET_VALUES = {1: 19, 2: 38, 3: 76}
     WINDOW_SIZE = 5                   # Tamanho da janela
     MIN_HITS_TO_PASS = 3              # Mínimo de acertos para passar/manter
     
@@ -395,15 +395,18 @@ class GameState:
             return self.martingale_ccw
         return self.martingale_cw
     
-    def get_bet_advice(self) -> BetAdvice:
+    def get_bet_advice(self, sda_score: int = 3) -> BetAdvice:
         """
-        Retorna recomendação de aposta baseada no Triple Rate Advisor.
-        Analisa a performance da direção alvo (próxima aposta).
+        Retorna recomendação de aposta baseada no Kill Switch Advisor.
+        Analisa a performance da direção alvo + qualidade dos dados SDA.
+        
+        Args:
+            sda_score: Score de confiança do SDA17-R (1-6)
         
         Returns:
             BetAdvice com should_bet, confidence, reason e rates
         """
-        return self.bet_advisor.analyze(self.target_performance)
+        return self.bet_advisor.analyze(self.target_performance, sda_score=sda_score)
     
     def save(self, path: Optional[Path] = None) -> None:
         """Salva estado em arquivo JSON (v1.5 - sem calibração) com escrita atômica."""
