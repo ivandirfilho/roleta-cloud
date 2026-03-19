@@ -14,6 +14,10 @@ structlog>=24.0
 # Para futuro migration para SurrealDB:
 # surrealdb>=0.3.0
 
+# Similarity search (opcional, ativar quando volume > 5k decisões)
+# lancedb>=0.5.0
+# pyarrow>=14.0
+
 # Dev / Test
 # pytest>=8.0
 # pytest-asyncio>=0.23.0

@@ -19,6 +19,7 @@ from server.connection_manager import connection_manager
 from state.game import GameState
 from strategies.base import StrategyBase
 from server.extractor_service import ExtractorService
+from server.analytics_handler import analytics_handler
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,12 @@ class MessageHandler:
                 await self.handle_listar_mesas(websocket)
             elif msg_type == "obter_config_mesa":
                 await self.handle_get_mesa_config(websocket, data)
+            elif msg_type.startswith("get_analytics") or msg_type in (
+                "get_sessions_list", "get_gale_history",
+                "get_performance_timeline", "get_decision_log"
+            ):
+                response = await analytics_handler.handle_analytics(msg_type, data)
+                await websocket.send(json.dumps(response))
             else:
                 # Compatibilidade legado
                 await self.handle_legacy_spin(websocket, data, trace)

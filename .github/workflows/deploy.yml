@@ -1,0 +1,117 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  IMAGE_NAME: roleta-cloud
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --tb=short
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME:${{ steps.version.outputs.version }} .
+          docker save $IMAGE_NAME:${{ steps.version.outputs.version }} | gzip > image.tar.gz
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd /opt/roleta-cloud
+            
+            # Backup do banco
+            cp data/decisions.db data/decisions.db.bak.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+            
+            # Pull latest code
+            git fetch --all --tags
+            git checkout ${{ steps.version.outputs.version }} 2>/dev/null || git pull origin main
+            
+            # Rebuild e restart
+            docker compose down
+            docker compose build --no-cache
+            docker compose up -d
+            
+            # Aguardar health check
+            echo "Aguardando health check..."
+            sleep 10
+            docker compose ps
+            
+            # Verificar se está saudável
+            if docker compose ps | grep -q "healthy"; then
+              echo "✅ Deploy concluído com sucesso!"
+            else
+              echo "⚠️ Container não está healthy, verificar logs:"
+              docker compose logs --tail=20
+            fi
+
+      - name: Post-deploy verification
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Teste de conectividade WebSocket
+            python3 -c "
+            import socket
+            try:
+                s = socket.socket()
+                s.settimeout(5)
+                s.connect(('localhost', 8765))
+                s.close()
+                print('✅ WebSocket acessível na porta 8765')
+            except Exception as e:
+                print(f'❌ WebSocket não acessível: {e}')
+                exit(1)
+            "

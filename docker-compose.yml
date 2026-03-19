@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  roleta-cloud:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roleta-cloud
+    restart: unless-stopped
+    ports:
+      - "${WS_PORT:-8765}:8765"
+    volumes:
+      - roleta-data:/app/data
+      - ./state.json:/app/state.json
+      - ./server/configs:/app/server/configs:ro
+    environment:
+      - WS_HOST=0.0.0.0
+      - WS_PORT=8765
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      - SSL_CERT=${SSL_CERT:-}
+      - SSL_KEY=${SSL_KEY:-}
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - ROLETA_API_KEY=${ROLETA_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8765)); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  roleta-data:
+    driver: local
