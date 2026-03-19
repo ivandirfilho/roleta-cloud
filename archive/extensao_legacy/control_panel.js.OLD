@@ -1,0 +1,269 @@
+// Escuta Beat - Control Panel v4.0
+// Este script injeta um painel de controle idêntico ao popup diretamente na página
+
+(function () {
+  console.log('🎛️ Control Panel v4.0 Iniciando em:', window.location.hostname);
+
+  let panelContainer = null;
+  let mesaSelect = null;
+  let statusIndicator = null;
+  let statusText = null;
+  let resultsGrid = null;
+
+  function createControlPanel() {
+    try {
+      if (document.getElementById('eb-control-panel')) {
+        console.log('🎛️ Control Panel já existe, pulando criação');
+        return;
+      }
+
+      if (!document.body) {
+        console.warn('⚠️ document.body não existe ainda, tentando novamente em 100ms');
+        setTimeout(createControlPanel, 100);
+        return;
+      }
+
+      panelContainer = document.createElement('div');
+      panelContainer.id = 'eb-control-panel';
+
+      // 🆕 v4.0: Estilos inline para garantir visibilidade mesmo se CSS externo falhar
+      panelContainer.style.cssText = `
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        z-index: 2147483645 !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+      `;
+
+      panelContainer.innerHTML = `
+      <button class="ebcp-toggle" id="ebcp-toggle" title="Abrir Painel de Controle" style="
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        border: 2px solid rgba(255,255,255,0.2) !important;
+        color: #fff !important;
+        font-size: 22px !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      ">🎛️</button>
+      <div class="ebcp-container">
+        <div class="ebcp-header">
+          <span>👂 ESCUTA BEAT CONTROLE</span>
+          <button class="ebcp-close" id="ebcp-close">✕</button>
+        </div>
+        <div class="ebcp-body">
+          <!-- Status de Conexão -->
+          <div class="ebcp-section connection-status">
+            <div class="ebcp-indicator" id="ebcp-indicator"></div>
+            <div class="ebcp-text-group">
+              <span id="ebcp-status-text">Desconectado</span>
+              <small id="ebcp-url">ws://servidor-offline</small>
+            </div>
+          </div>
+
+          <!-- Seleção de Mesa -->
+          <div class="ebcp-section">
+            <div class="ebcp-label">ESCOLHA A MESA:</div>
+            <div class="ebcp-row">
+              <select id="ebcp-mesa-select" class="ebcp-select">
+                <option value="">-- Selecione --</option>
+              </select>
+              <button id="ebcp-capture" class="ebcp-icon-btn" title="Capturar Mesa">📸</button>
+            </div>
+          </div>
+
+          <!-- Ações Principais -->
+          <div class="ebcp-section ebcp-actions">
+            <button id="ebcp-start" class="ebcp-btn primary">▶️ INICIAR ESCUTA</button>
+            <button id="ebcp-stop" class="ebcp-btn danger" disabled>⏹️ PARAR</button>
+          </div>
+
+          <!-- Grade de Resultados (Mini) -->
+          <div class="ebcp-section">
+            <div class="ebcp-label">ÚLTIMOS RESULTADOS:</div>
+            <div id="ebcp-results-grid" class="ebcp-grid"></div>
+          </div>
+
+          <!-- Informações Financeiras & Info -->
+          <div class="ebcp-info-footer">
+            <div class="ebcp-info-item">
+              <span class="lbl">Saldo:</span>
+              <span id="ebcp-saldo">R$ 0,00</span>
+            </div>
+            <div class="ebcp-info-item">
+              <span class="lbl">Última:</span>
+              <span id="ebcp-ultima">--</span>
+            </div>
+            <div class="ebcp-info-item">
+              <span class="lbl">Total:</span>
+              <span id="ebcp-total">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+      document.body.appendChild(panelContainer);
+      console.log('✅ Control Panel criado e anexado ao body');
+
+      // Mapear elementos
+      mesaSelect = document.getElementById('ebcp-mesa-select');
+      statusIndicator = document.getElementById('ebcp-indicator');
+      statusText = document.getElementById('ebcp-status-text');
+      resultsGrid = document.getElementById('ebcp-results-grid');
+
+      // Eventos
+      document.getElementById('ebcp-toggle').onclick = () => {
+        panelContainer.classList.add('expanded');
+        saveControlPanelState(true);
+      };
+      document.getElementById('ebcp-close').onclick = () => {
+        panelContainer.classList.remove('expanded');
+        saveControlPanelState(false);
+      };
+
+      document.getElementById('ebcp-start').onclick = () => {
+        chrome.runtime.sendMessage({ action: 'startListening' });
+      };
+
+      document.getElementById('ebcp-stop').onclick = () => {
+        chrome.runtime.sendMessage({ action: 'stopListening' });
+      };
+
+      document.getElementById('ebcp-capture').onclick = () => {
+        chrome.runtime.sendMessage({ action: 'capturarMesa' });
+      };
+
+      mesaSelect.onchange = (e) => {
+        if (e.target.value) {
+          chrome.runtime.sendMessage({ action: 'obterConfigMesa', mesa_id: e.target.value });
+        }
+      };
+
+      // 🆕 v4.0: Carregar estado salvo e aplicar
+      loadControlPanelState();
+
+      // Solicitar estado inicial do servidor
+      requestUpdate();
+    } catch (err) {
+      console.error('❌ Erro ao criar Control Panel:', err);
+    }
+  }
+
+  // 🆕 v4.0: Persistência de estado de UI do control panel
+  async function saveControlPanelState(isExpanded) {
+    try {
+      await chrome.storage.local.set({ controlPanelUIState: { isExpanded } });
+    } catch (e) { /* ignora */ }
+  }
+
+  async function loadControlPanelState() {
+    try {
+      const data = await chrome.storage.local.get(['controlPanelUIState']);
+      if (data.controlPanelUIState?.isExpanded && panelContainer) {
+        panelContainer.classList.add('expanded');
+        console.log('📦 Control Panel carregado expandido');
+      }
+    } catch (e) { /* ignora */ }
+  }
+
+  function requestUpdate() {
+    chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+      if (state) updateUI(state);
+    });
+    chrome.runtime.sendMessage({ action: 'listarMesas' });
+  }
+
+  function updateUI(state) {
+    if (!state) return;
+
+    // Status
+    if (statusIndicator) {
+      statusIndicator.className = 'ebcp-indicator';
+      if (state.isListening) statusIndicator.classList.add('listening');
+      else if (state.isConnected) statusIndicator.classList.add('connected');
+    }
+
+    if (statusText) {
+      statusText.textContent = state.isListening ? 'ESCUTANDO' : (state.isConnected ? 'CONECTADO' : 'DESCONECTADO');
+    }
+
+    // Botões
+    const btnStart = document.getElementById('ebcp-start');
+    const btnStop = document.getElementById('ebcp-stop');
+    if (btnStart) btnStart.disabled = state.isListening;
+    if (btnStop) btnStop.disabled = !state.isListening;
+
+    // Financeiro
+    const saldoEl = document.getElementById('ebcp-saldo');
+    const ultimaEl = document.getElementById('ebcp-ultima');
+    const totalEl = document.getElementById('ebcp-total');
+
+    if (saldoEl) saldoEl.textContent = formatCurrency(state.monitoringData?.balance);
+    if (ultimaEl) ultimaEl.textContent = state.results?.[0] || '--';
+    if (totalEl) totalEl.textContent = state.results?.length || 0;
+
+    // Resultados
+    if (resultsGrid && state.results) {
+      resultsGrid.innerHTML = '';
+      state.results.slice(0, 10).forEach(num => {
+        const div = document.createElement('div');
+        div.className = `ebcp-num ${getNumberColor(num)}`;
+        div.textContent = num;
+        resultsGrid.appendChild(div);
+      });
+    }
+
+    // Mesa selecionada
+    if (mesaSelect && state.currentMesa) {
+      mesaSelect.value = state.currentMesa;
+    }
+  }
+
+  function getNumberColor(num) {
+    const reds = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+    const n = parseInt(num, 10);
+    if (n === 0) return 'green';
+    return reds.includes(n) ? 'red' : 'black';
+  }
+
+  function formatCurrency(val) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+  }
+
+  function updateMesaDropdown(mesas) {
+    if (!mesaSelect) return;
+    const current = mesaSelect.value;
+    mesaSelect.innerHTML = '<option value="">-- Selecione --</option>';
+    mesas.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.name;
+      mesaSelect.appendChild(opt);
+    });
+    mesaSelect.value = current;
+  }
+
+  // Listener de mensagens
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'updateMesas') updateMesaDropdown(msg.mesas);
+    if (msg.action === 'stateSync' || msg.action === 'mesaConfigurada') requestUpdate();
+  });
+
+  // Init
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createControlPanel);
+  } else {
+    createControlPanel();
+  }
+
+})();

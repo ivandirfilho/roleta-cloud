@@ -1,0 +1,70 @@
+
+// ===== FALLBACK: CARREGAR ARQUIVO DO EXTRATOR =====
+async function loadExtractorFile() {
+  if (!btnLoad) return;
+  
+  btnLoad.disabled = true;
+  const originalText = btnLoad.textContent;
+  btnLoad.textContent = '⏳ Carregando...';
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      btnLoad.disabled = false;
+      btnLoad.textContent = originalText;
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validação Flexível (Extrator Beat v15+ ou config genérica)
+      const isValidExtractor = data._meta && data._meta.service === 'ExtractorBeat';
+      const isValidBase = data.selectors || (data.data && data.data.results);
+      
+      if (!isValidExtractor && !isValidBase) {
+        throw new Error('Arquivo não reconhecido (use JSON do Extrator Beat v15+)');
+      }
+
+      // Preparar novo estado COM LIMPEZA DA MESA SERVIDOR
+      const state = (await chrome.storage.local.get(['escutaState'])).escutaState || {};
+      
+      state.currentMesa = null; // Remove seleção de mesa do servidor
+      if (mesaDropdown) mesaDropdown.value = ""; 
+
+      state.extractorData = data;
+      state.error = null;
+
+      // Importar histórico se disponível
+      if (data.data?.results?.lastNumbers) {
+        state.results = data.data.results.lastNumbers.slice(0, 12);
+        state.lastHash = state.results.slice(0, 5).join(',');
+      }
+
+      await chrome.storage.local.set({ escutaState: state });
+
+      // Atualizar UI
+      infoFile.textContent = file.name;
+      btnStart.disabled = false;
+      log(`✅ Arquivo carregado: ${file.name}`, 'success');
+
+      // Feedback visual imediato
+      if (state.results && state.results.length > 0) {
+        updateResultsDisplay(state.results);
+      }
+
+    } catch (err) {
+      log(`❌ Erro: ${err.message}`, 'error');
+    } finally {
+      btnLoad.disabled = false;
+      btnLoad.textContent = originalText;
+    }
+  };
+
+  input.click();
+}

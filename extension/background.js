@@ -82,6 +82,11 @@ let wsConnection = null;
 let wsReconnectAttempts = 0;
 let wsConnected = false;
 
+// 🔧 MEL-005: restaurar contador de reconexões (sobrevive restart do Service Worker)
+chrome.storage.session?.get('wsReconnectAttempts', (data) => {
+  if (data?.wsReconnectAttempts) wsReconnectAttempts = data.wsReconnectAttempts;
+});
+
 // 🆕 v3.4: Sistema MASTER/SLAVE
 let deviceRole = 'unknown';  // 'master' | 'slave' | 'unknown'
 let connectionId = null;     // ID atribuído pelo servidor
@@ -111,6 +116,7 @@ function connectWebSocket() {
       console.log('✅ WebSocket conectado ao servidor Python');
       wsConnected = true;
       wsReconnectAttempts = 0;
+      chrome.storage.session?.set({ wsReconnectAttempts: 0 });
 
       // 🆕 v3.5: Enviar registro com device_id
       const deviceId = await getDeviceId();
@@ -254,6 +260,7 @@ function scheduleReconnect() {
   }
 
   wsReconnectAttempts++;
+  chrome.storage.session?.set({ wsReconnectAttempts });
   setTimeout(() => {
     getState().then(state => {
       if (state.isListening) {
@@ -513,38 +520,39 @@ chrome.storage.local.get(['escutaState'], (data) => {
   }
 });
 
-// Listener para mensagens do popup e content scripts
+// Listener ÚNICO para mensagens do popup e content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const action = request.action;
 
-  if (action === 'getState') {
-    getState().then(sendResponse);
-    return true; // Assíncrono
-  }
-
-  // 🆕 v3.0: Microserviço - Listar mesas
+  // Ações síncronas rápidas (microserviço WS)
   if (action === 'listarMesas') {
     if (!wsConnected) connectWebSocket();
     sendToWebSocket({ type: 'listar_mesas' });
-
-    // Como o retorno do WS é assíncrono, o popup deve ouvir 'updateMesas'
-    // Mas para facilitar o sendMessage inicial, vamos apenas confirmar o disparo
     sendResponse({ success: true });
     return true;
   }
 
-  // 🆕 v3.0: Microserviço - Obter config
   if (action === 'obterConfigMesa') {
     sendToWebSocket({ type: 'obter_config_mesa', mesa_id: request.mesa_id });
     sendResponse({ success: true });
     return true;
   }
 
-  // 🆕 v3.0: Microserviço - Capturar DOM remoto
   if (action === 'capturarMesa') {
     capturarMesaRemota().then(sendResponse);
     return true;
   }
+
+  // Todas as demais ações: delegar ao handleMessage
+  console.log('📩 Mensagem:', action, 'de:', sender.tab?.id || 'popup');
+  handleMessage(request, sender).then(response => {
+    sendResponse(response);
+  }).catch(err => {
+    console.error('Erro ao processar mensagem:', err);
+    sendResponse({ success: false, error: err.message });
+  });
+
+  return true;
 });
 
 // 🆕 v4.0: Broadcast para todas as abas (Overlay e Control Panel)
@@ -565,25 +573,21 @@ async function broadcastToTabs(message) {
 
 // ===== ALARM HANDLERS - PERSISTÊNCIA MV3 =====
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  // 🆕 v2.6: Alarm principal para leitura (substitui setInterval)
   if (alarm.name === 'readLoop') {
     const state = await getState();
     if (state.isListening && state.tabId) {
       readResults();
     } else {
-      // Parar se não está mais escutando
       stopReadLoopAlarm();
     }
     return;
   }
 
-  // Keep-alive para garantir que worker não durma
   if (alarm.name === 'keepAlive') {
     const state = await getState();
     console.log('⏰ Keep-alive - isListening:', state.isListening, 'tabId:', state.tabId);
 
     if (state.isListening && state.tabId) {
-      // Garantir que o alarm de leitura existe
       const alarms = await chrome.alarms.getAll();
       const hasReadLoop = alarms.some(a => a.name === 'readLoop');
       if (!hasReadLoop) {
@@ -594,23 +598,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       stopAllAlarms();
     }
   }
-});
-
-// 🆕 v2.6: Removido setInterval - não persiste em MV3
-// A verificação agora é feita pelo alarm keepAlive
-
-// ===== MENSAGENS DO POPUP =====
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('📩 Mensagem:', message.action, 'de:', sender.tab?.id || 'popup');
-
-  handleMessage(message, sender).then(response => {
-    sendResponse(response);
-  }).catch(err => {
-    console.error('Erro ao processar mensagem:', err);
-    sendResponse({ success: false, error: err.message });
-  });
-
-  return true;
 });
 
 async function handleMessage(message, sender = null) {

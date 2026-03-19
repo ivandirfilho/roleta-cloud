@@ -537,21 +537,30 @@ function updateOverlay(sugestao) {
 }
 
 // ===== BEEP DE ALERTA =====
+let _sharedAudioContext = null; // 🔧 BUG-012: reutilizar AudioContext
+
 function playBeep() {
   try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    if (!_sharedAudioContext || _sharedAudioContext.state === 'closed') {
+      _sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Resumir se estiver suspenso (política de autoplay)
+    if (_sharedAudioContext.state === 'suspended') {
+      _sharedAudioContext.resume();
+    }
+
+    const oscillator = _sharedAudioContext.createOscillator();
+    const gainNode = _sharedAudioContext.createGain();
 
     oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(_sharedAudioContext.destination);
 
     oscillator.frequency.value = 880; // Hz
     oscillator.type = 'sine';
     gainNode.gain.value = 0.3;
 
     oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.15);
+    oscillator.stop(_sharedAudioContext.currentTime + 0.15);
   } catch (e) {
     // Ignora se não suportado
   }

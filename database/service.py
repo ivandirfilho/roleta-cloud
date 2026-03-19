@@ -72,9 +72,8 @@ class DatabaseService:
 
             # Obter taxas atuais para ML features
             stats = game_state.get_performance_stats()
-            sda_rate = stats.get(f"sda17_{dir_key}", {}).get("rate", 0)
-            bet_rate = stats.get(f"bet_{dir_key}", {}).get("rate", 0)
-            calibration = game_state.calibration_cw if dir_key == "cw" else game_state.calibration_ccw
+            sda_rate = stats.get("sda17", {}).get(dir_key, {}).get("rate", 0)
+            bet_rate = stats.get("bet", {}).get(dir_key, {}).get("rate", 0)
 
             # Criar nova janela
             new_window = GaleWindow(
@@ -82,7 +81,7 @@ class DatabaseService:
                 gale_level=martingale_info.get("level_before", 1),
                 sda17_rate_at_start=sda_rate,
                 bet_rate_at_start=bet_rate,
-                calibration_offset=calibration.offset if calibration else 0
+                calibration_offset=0  # Calibração removida na v1.5
             )
             window_id = repo.create_gale_window(new_window)
             self.active_window_ids[dir_key] = window_id

@@ -42,8 +42,10 @@ class SQLiteDecisionRepository(DecisionRepository):
         logger.info(f"SQLite repository initialized: {self.db_path}")
     
     def _get_connection(self) -> sqlite3.Connection:
-        """Retorna nova conexão com SQLite."""
+        """Retorna nova conexão com SQLite (WAL mode + busy timeout)."""
         conn = sqlite3.connect(str(self.db_path))
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
     
@@ -167,6 +169,10 @@ class SQLiteDecisionRepository(DecisionRepository):
                     ON gale_windows(started_at);
                 CREATE INDEX IF NOT EXISTS idx_window_plays_window 
                     ON window_plays(window_id);
+                
+                -- 🔧 MEL-006: apenas 1 janela ativa (não-fechada) por direção
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_gale_windows_active 
+                    ON gale_windows(direction) WHERE ended_at IS NULL;
             """)
             conn.commit()
     
