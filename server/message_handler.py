@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any
 from websockets.server import WebSocketServerProtocol
 
 from app_config.settings import settings
+from core.roulette import roulette
 from database.models import Decision
 from database.service import db_service
 from models.input import SpinInput
@@ -141,6 +142,8 @@ class MessageHandler:
             hit_result = self.game_state.check_prediction(numero)
 
             # Atualizar Martingale da direção da predição (se havia predição E apostou)
+            # NOTA: bet_direction vem de pending_prediction["direction"] que é target_direction
+            #        (oposto de last_direction), ou seja, a direção que FOI predita/apostada.
             martingale_info = {}
             if pending and hit_result is not None and pending.get("bet_placed", False):
                 # Martingale da direção que FOI apostada
@@ -188,7 +191,7 @@ class MessageHandler:
             result = self.strategy.analyze(
                 self.game_state.target_timeline,
                 self.game_state.last_number,
-                settings.game.wheel_sequence,
+                roulette.WHEEL_SEQUENCE,
                 calibration=0  # Momentum desabilitado
             )
         trace.step("analyzed", {
@@ -284,12 +287,14 @@ class MessageHandler:
                 performance_snapshot=self.game_state.target_performance[:12]
             )
 
-            # Atualizar last_decision_id apenas se apostou
-            if acao == "APOSTAR":
-                self.last_decision_id = db_service.save_decision(decision)
+            # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
+            decision_id = db_service.save_decision(decision)
+            if result.should_bet:
+                # SDA17 gerou predição → rastrear para verificar no próximo spin
+                self.last_decision_id = decision_id
             else:
-                db_service.save_decision(decision)
-                self.last_decision_id = None  # Não há predição para verificar
+                # SDA17 não recomendou → sem predição para verificar
+                self.last_decision_id = None
 
         except Exception as db_error:
             logger.warning(f"Erro ao salvar decisão no DB: {db_error}")
@@ -303,7 +308,7 @@ class MessageHandler:
                 "centro": result.center,
                 "regiao": result.visual,
                 "ultimo_numero": self.game_state.last_number,
-                "confianca": int(result.score / 6 * 100),
+                "confianca": {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50),
                 "martingale": mg.multiplier,
                 "aposta": mg.current_bet,
                 "gale_level": mg.level,
@@ -455,7 +460,7 @@ class MessageHandler:
         result = self.strategy.analyze(
             self.game_state.target_timeline,
             self.game_state.last_number,
-            settings.game.wheel_sequence
+            roulette.WHEEL_SEQUENCE
         )
 
         acao = "APOSTAR" if result.should_bet else "PULAR"
@@ -468,7 +473,7 @@ class MessageHandler:
                 "centro": result.center,
                 "regiao": result.visual,
                 "ultimo_numero": self.game_state.last_number,
-                "confianca": int(result.score / 6 * 100),
+                "confianca": int(result.score / 6 * 100),  # Legacy: sem Triple Rate
                 "martingale": "1x",
                 "estrategia": self.strategy.name,
                 "trace_id": spin.trace_id,

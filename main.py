@@ -23,14 +23,17 @@ import asyncio
 import signal
 import sys
 
+from core.logging_config import setup_logging
 from server.websocket import start_server, game_state
+
+logger = setup_logging()
 
 
 def handle_shutdown(signum, frame):
     """Handler para shutdown graceful."""
-    print("\n🛑 Encerrando servidor...")
+    logger.info("shutdown_requested", signal=signum)
     game_state.save()
-    print("💾 Estado salvo.")
+    logger.info("state_saved")
     sys.exit(0)
 
 

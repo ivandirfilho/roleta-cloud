@@ -106,19 +106,23 @@ class SDA17Strategy(StrategyBase):
         n = len(forces)
         
         # === PASSO 1: IQR Outlier Rejection ===
-        sorted_f = sorted(forces)
-        q1 = sorted_f[max(0, n // 4)]
-        q3 = sorted_f[min(n - 1, 3 * n // 4)]
-        iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
-        
-        # Mantém posição original (idx) para peso temporal correto
-        clean = [(f, idx) for idx, f in enumerate(forces) if lower_bound <= f <= upper_bound]
-        
-        # Fallback: se filtro removeu demais, usa todos
-        if len(clean) < 2:
+        # 🔧 BUG-009: com N < 4, quartis são irrelevantes — pular filtragem
+        if n < 4:
             clean = [(f, idx) for idx, f in enumerate(forces)]
+        else:
+            sorted_f = sorted(forces)
+            q1 = sorted_f[n // 4]
+            q3 = sorted_f[min(n - 1, 3 * n // 4)]
+            iqr = q3 - q1
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+            
+            # Mantém posição original (idx) para peso temporal correto
+            clean = [(f, idx) for idx, f in enumerate(forces) if lower_bound <= f <= upper_bound]
+            
+            # Fallback: se filtro removeu demais, usa todos
+            if len(clean) < 2:
+                clean = [(f, idx) for idx, f in enumerate(forces)]
         
         # === PASSO 2: Weighted Median (peso exponencial por recência) ===
         expanded = []
@@ -137,9 +141,9 @@ class SDA17Strategy(StrategyBase):
             diffs = [last3[i] - last3[i + 1] for i in range(2)]
             # Só extrapola se AMBAS as diferenças têm mesmo sinal (tendência consistente)
             if all(d > 0 for d in diffs):
-                drift_adj = int(sum(diffs) / 2 * 0.5)
+                drift_adj = int(sum(diffs) * 0.5)
             elif all(d < 0 for d in diffs):
-                drift_adj = int(sum(diffs) / 2 * 0.5)
+                drift_adj = int(sum(diffs) * 0.5)
         
         pred = max(1, min(37, pred + drift_adj))
         

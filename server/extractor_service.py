@@ -34,6 +34,7 @@ class ExtractorService:
             patterns = config.get("detection", {}).get("urlPatterns", [])
             if any(pattern in url for pattern in patterns):
                 return provider
+        logger.warning(f"[EXTRACTOR] URL não reconhecida por nenhum provider: {url[:80]}. Usando fallback 'evolution'.")
         return "evolution"  # Fallback padrão
 
     def _generate_mesa_id(self, url: str, provider: str) -> str:

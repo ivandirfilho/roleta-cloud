@@ -1,6 +1,16 @@
 # Roleta Cloud - Auth Middleware
 
+import hashlib
+import hmac
+import logging
+import os
+
 from app_config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+# API key carregada de variável de ambiente (nunca hardcoded)
+_API_KEY = os.environ.get("ROLETA_API_KEY", "")
 
 
 async def verify_auth(token: str | None) -> bool:
@@ -8,25 +18,30 @@ async def verify_auth(token: str | None) -> bool:
     Verifica autenticação.
     
     Se AUTH_ENABLED=False (padrão), sempre retorna True (bypass).
-    Se AUTH_ENABLED=True, valida o token JWT com Keycloak.
+    Se AUTH_ENABLED=True, valida o token via API key (HMAC-safe).
     
     Args:
-        token: Token JWT ou None
+        token: API key ou None
         
     Returns:
         True se autorizado, False caso contrário
     """
-    # Bypass mode - sempre autorizado
     if not settings.auth.enabled:
         return True
     
-    # Token obrigatório quando auth está ativo
     if not token:
+        logger.warning("🔒 Conexão rejeitada: token ausente")
         return False
     
-    # TODO: Implementar validação JWT com Keycloak
-    # Por enquanto, aceita qualquer token não vazio
-    return len(token) > 0
+    if not _API_KEY:
+        logger.error("🔒 ROLETA_API_KEY não configurada! Defina a variável de ambiente.")
+        return False
+    
+    # Comparação segura contra timing attacks
+    is_valid = hmac.compare_digest(token, _API_KEY)
+    if not is_valid:
+        logger.warning("🔒 Conexão rejeitada: token inválido")
+    return is_valid
 
 
 def get_user_from_token(token: str) -> dict:
@@ -43,9 +58,9 @@ def get_user_from_token(token: str) -> dict:
             "roles": ["user"]
         }
     
-    # TODO: Decodificar JWT e extrair claims
+    # Com API key, todos os dispositivos autenticados são "operator"
     return {
-        "user_id": "unknown",
-        "username": "unknown",
-        "roles": []
+        "user_id": "operator",
+        "username": "operator",
+        "roles": ["user", "operator"]
     }

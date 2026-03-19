@@ -32,7 +32,9 @@ class ConnectionManager:
         self.last_master_device_id: Optional[str] = None  # 🆕 Para reconexão no grace period
         self.master_lock = asyncio.Lock()
         self.master_disconnect_time: Optional[float] = None
+        self._grace_period_task: Optional[asyncio.Task] = None  # 🔧 BUG-007: cancelável
         self.MASTER_GRACE_PERIOD = 10  # 🆕 Aumentado para 10s para estabilidade
+        self.MAX_CONNECTIONS = 50  # Limite de conexões simultâneas
 
     @property
     def active_connections_set(self) -> Set[WebSocketServerProtocol]:
@@ -47,6 +49,12 @@ class ConnectionManager:
         conn_id = str(uuid.uuid4())[:8]
 
         async with self.master_lock:
+            # Verificar limite de conexões
+            if len(self.connections) >= self.MAX_CONNECTIONS:
+                logger.warning(f"⚠️ Limite de conexões atingido ({self.MAX_CONNECTIONS}). Rejeitando {device_id or 'unknown'}.")
+                await websocket.close(1013, "Servidor lotado")
+                return ""
+
             # CASO 1: Reconexão do MASTER (mesmo device_id dentro do grace period)
             is_master_reconnecting = (
                 device_id and 
@@ -60,6 +68,10 @@ class ConnectionManager:
                 self.master_id = conn_id
                 self.master_device_id = device_id
                 self.master_disconnect_time = None
+                # 🔧 BUG-007: cancelar grace period pendente
+                if self._grace_period_task and not self._grace_period_task.done():
+                    self._grace_period_task.cancel()
+                    self._grace_period_task = None
                 role = "master"
                 logger.info(f"👑 MASTER {device_id} reconectou - role restaurado")
             
@@ -138,13 +150,19 @@ class ConnectionManager:
                 self.master_id = None
                 self.master_device_id = None
 
-        # Grace period (fora do lock)
+        # Grace period (fora do lock) — BUG-007: usar task cancelável
         if self.master_disconnect_time:
-            await self.handle_grace_period()
+            if self._grace_period_task and not self._grace_period_task.done():
+                self._grace_period_task.cancel()
+            self._grace_period_task = asyncio.create_task(self.handle_grace_period())
 
     async def handle_grace_period(self):
         """Aguarda grace period e promove novo MASTER se necessário."""
-        await asyncio.sleep(self.MASTER_GRACE_PERIOD)
+        try:
+            await asyncio.sleep(self.MASTER_GRACE_PERIOD)
+        except asyncio.CancelledError:
+            logger.info("⏱️ Grace period cancelado — MASTER reconectou")
+            return
 
         async with self.master_lock:
             # Verificar se ainda precisa promover (pode ter reconectado)
@@ -169,8 +187,8 @@ class ConnectionManager:
                             "reason": "MASTER anterior desconectou"
                         }))
                         logger.info(f"📱→👑 {new_master.id} promovido a MASTER")
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Erro ao notificar promoção de MASTER: {e}")
 
     async def force_master(self, conn_id: str):
         """Força uma conexão a virar MASTER."""
@@ -228,6 +246,10 @@ class ConnectionManager:
                     self.master_id = conn_id
                     self.master_device_id = device_id
                     self.master_disconnect_time = None
+                    # 🔧 BUG-007: cancelar grace period pendente
+                    if self._grace_period_task and not self._grace_period_task.done():
+                        self._grace_period_task.cancel()
+                        self._grace_period_task = None
                     
                     try:
                         await info.websocket.send(json.dumps({
@@ -274,7 +296,7 @@ class ConnectionManager:
         for conn in list(self.connections.values()):
             try:
                 await conn.websocket.send(message)
-            except:
+            except Exception:
                 disconnected.add(conn.id)
 
         if exclude_disconnected:

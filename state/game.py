@@ -1,11 +1,16 @@
 # Roleta Cloud - Estado do Jogo
 
 import json
+import logging
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, ClassVar
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 from app_config.settings import settings
+from core.roulette import roulette
 from .timeline import Timeline
 from .bet_advisor import TripleRateAdvisor, BetAdvice
 
@@ -27,14 +32,14 @@ class MartingaleState:
     total_stops: int = 0              # Total de stops desde início
     
     # Valores de aposta por nível (19 números × R$1/R$2/R$4)
-    BET_VALUES = {1: 19, 2: 38, 3: 76}
-    WINDOW_SIZE = 5                   # Tamanho da janela
-    MIN_HITS_TO_PASS = 3              # Mínimo de acertos para passar/manter
+    BET_VALUES: ClassVar[Dict[int, int]] = {1: 19, 2: 38, 3: 76}
+    WINDOW_SIZE: ClassVar[int] = 5                   # Tamanho da janela
+    MIN_HITS_TO_PASS: ClassVar[int] = 3              # Mínimo de acertos para passar/manter
     
     @property
     def current_bet(self) -> int:
         """Retorna valor da aposta atual."""
-        return self.BET_VALUES.get(self.level, 17)
+        return self.BET_VALUES.get(self.level, 19)
     
     @property
     def multiplier(self) -> str:
@@ -133,12 +138,12 @@ class GameState:
     timeline_ccw: Timeline = field(default_factory=lambda: Timeline("ccw"))
     
     # Performance SDA17 - SEMPRE que SDA17 recomenda (base para Triple Rate)
-    performance_sda17_cw: List[bool] = field(default_factory=list)
-    performance_sda17_ccw: List[bool] = field(default_factory=list)
+    performance_sda17_cw: deque = field(default_factory=lambda: deque(maxlen=12))
+    performance_sda17_ccw: deque = field(default_factory=lambda: deque(maxlen=12))
     
     # Performance Apostas - APENAS quando realmente aposta (base para Martingale)
-    performance_bet_cw: List[bool] = field(default_factory=list)
-    performance_bet_ccw: List[bool] = field(default_factory=list)
+    performance_bet_cw: deque = field(default_factory=lambda: deque(maxlen=12))
+    performance_bet_ccw: deque = field(default_factory=lambda: deque(maxlen=12))
     
     # Calibração removida (momentum desabilitado)
     
@@ -182,12 +187,12 @@ class GameState:
         self.timeline_ccw = Timeline("ccw")
         
         # Reset Performance SDA17
-        self.performance_sda17_cw = []
-        self.performance_sda17_ccw = []
+        self.performance_sda17_cw = deque(maxlen=12)
+        self.performance_sda17_ccw = deque(maxlen=12)
         
         # Reset Performance Apostas
-        self.performance_bet_cw = []
-        self.performance_bet_ccw = []
+        self.performance_bet_cw = deque(maxlen=12)
+        self.performance_bet_ccw = deque(maxlen=12)
         
         # Calibração removida (momentum desabilitado)
         
@@ -217,9 +222,15 @@ class GameState:
         
         Retorna: força calculada
         """
+        # 🔧 BUG-011: validar direcao
+        _VALID_DIRECTIONS = {"horario", "anti-horario"}
+        if direcao not in _VALID_DIRECTIONS:
+            logger.warning(f"⚠️ Direção inválida ignorada: '{direcao}' (esperado: {_VALID_DIRECTIONS})")
+            return 0
+        
         force = 0
         
-        if self.last_number > 0 or self.last_number == 0:  # Tem número anterior
+        if self.last_direction:  # Tem spin anterior válido
             force = self._calculate_force(self.last_number, numero, direcao)
             
             # Adiciona à timeline correta
@@ -260,24 +271,16 @@ class GameState:
         
         # SEMPRE adicionar ao histórico SDA17 (base para Triple Rate)
         if direction in ("cw", "horario"):
-            self.performance_sda17_cw.insert(0, hit)
-            if len(self.performance_sda17_cw) > 12:
-                self.performance_sda17_cw.pop()
+            self.performance_sda17_cw.appendleft(hit)
         else:
-            self.performance_sda17_ccw.insert(0, hit)
-            if len(self.performance_sda17_ccw) > 12:
-                self.performance_sda17_ccw.pop()
+            self.performance_sda17_ccw.appendleft(hit)
         
         # APENAS adicionar ao histórico BET se realmente apostou
         if bet_placed:
             if direction in ("cw", "horario"):
-                self.performance_bet_cw.insert(0, hit)
-                if len(self.performance_bet_cw) > 12:
-                    self.performance_bet_cw.pop()
+                self.performance_bet_cw.appendleft(hit)
             else:
-                self.performance_bet_ccw.insert(0, hit)
-                if len(self.performance_bet_ccw) > 12:
-                    self.performance_bet_ccw.pop()
+                self.performance_bet_ccw.appendleft(hit)
         
         # Limpar predição pendente
         self.pending_prediction = {}
@@ -334,17 +337,15 @@ class GameState:
             "bet": {
                 "cw": calc_stats(self.performance_bet_cw),
                 "ccw": calc_stats(self.performance_bet_ccw)
-            },
-            "cw": calc_stats(self.performance_sda17_cw),
-            "ccw": calc_stats(self.performance_sda17_ccw)
+            }
         }
     
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
         """Calcula a distância (força) entre dois números."""
         try:
-            from_pos = settings.game.wheel_sequence.index(from_num)
-            to_pos = settings.game.wheel_sequence.index(to_num)
-            wheel_size = len(settings.game.wheel_sequence)
+            from_pos = roulette.WHEEL_SEQUENCE.index(from_num)
+            to_pos = roulette.WHEEL_SEQUENCE.index(to_num)
+            wheel_size = len(roulette.WHEEL_SEQUENCE)
             
             if direction == "horario":
                 force = (to_pos - from_pos) % wheel_size
@@ -420,10 +421,10 @@ class GameState:
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
             "timeline_ccw": self.timeline_ccw.to_dict(),
-            "performance_sda17_cw": self.performance_sda17_cw,
-            "performance_sda17_ccw": self.performance_sda17_ccw,
-            "performance_bet_cw": self.performance_bet_cw,
-            "performance_bet_ccw": self.performance_bet_ccw,
+            "performance_sda17_cw": list(self.performance_sda17_cw),
+            "performance_sda17_ccw": list(self.performance_sda17_ccw),
+            "performance_bet_cw": list(self.performance_bet_cw),
+            "performance_bet_ccw": list(self.performance_bet_ccw),
             "martingale_cw": self.martingale_cw.to_dict(),
             "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction
@@ -461,7 +462,7 @@ class GameState:
             version = data.get("version", "1.0.0")
             
             # MIGRAÇÃO v1.3 -> v1.4 (legado)
-            if version < "1.4.0":
+            if tuple(map(int, version.split("."))) < (1, 4, 0):
                 # Migrar performance antigo para sda17
                 perf_cw = data.get("performance_cw", [])
                 perf_ccw = data.get("performance_ccw", [])
@@ -474,10 +475,10 @@ class GameState:
                     last_direction=data.get("last_direction", ""),
                     timeline_cw=Timeline.from_dict(data.get("timeline_cw", {})),
                     timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
-                    performance_sda17_cw=perf_cw,
-                    performance_sda17_ccw=perf_ccw,
-                    performance_bet_cw=[],
-                    performance_bet_ccw=[],
+                    performance_sda17_cw=deque(perf_cw, maxlen=12),
+                    performance_sda17_ccw=deque(perf_ccw, maxlen=12),
+                    performance_bet_cw=deque(maxlen=12),
+                    performance_bet_ccw=deque(maxlen=12),
                     martingale_cw=MartingaleState.from_dict(old_martingale),
                     martingale_ccw=MartingaleState.from_dict(old_martingale),
                     pending_prediction=data.get("pending_prediction", {})
@@ -489,10 +490,10 @@ class GameState:
                 last_direction=data.get("last_direction", ""),
                 timeline_cw=Timeline.from_dict(data.get("timeline_cw", {})),
                 timeline_ccw=Timeline.from_dict(data.get("timeline_ccw", {})),
-                performance_sda17_cw=data.get("performance_sda17_cw", []),
-                performance_sda17_ccw=data.get("performance_sda17_ccw", []),
-                performance_bet_cw=data.get("performance_bet_cw", []),
-                performance_bet_ccw=data.get("performance_bet_ccw", []),
+                performance_sda17_cw=deque(data.get("performance_sda17_cw", []), maxlen=12),
+                performance_sda17_ccw=deque(data.get("performance_sda17_ccw", []), maxlen=12),
+                performance_bet_cw=deque(data.get("performance_bet_cw", []), maxlen=12),
+                performance_bet_ccw=deque(data.get("performance_bet_ccw", []), maxlen=12),
                 martingale_cw=MartingaleState.from_dict(data.get("martingale_cw", {})),
                 martingale_ccw=MartingaleState.from_dict(data.get("martingale_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})
