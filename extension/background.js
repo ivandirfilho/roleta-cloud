@@ -73,7 +73,7 @@ let currentDirection = 'horario';
 
 // ===== 🆕 v2.7: WEBSOCKET CLIENT PARA INTEGRAÇÃO =====
 const WS_CONFIG = {
-  url: 'wss://roleta.xma-ia.com:8765',
+  url: 'wss://roleta.xma-ia.com/ws',
   reconnectInterval: 5000,  // 5 segundos entre reconexões
   maxReconnectAttempts: 10
 };
