@@ -319,11 +319,11 @@ class GameState:
         - performance_sda17: base para Triple Rate (todas recomendações SDA17)
         - performance_bet: base para Martingale (apenas apostas reais)
         """
-        def calc_stats(perf_list: List[bool]) -> Dict:
+        def calc_stats(perf_list) -> Dict:
             hits = sum(perf_list) if perf_list else 0
             total = len(perf_list)
             return {
-                "results": perf_list,
+                "results": list(perf_list),
                 "hits": hits,
                 "total": total,
                 "rate": round(hits / total * 100) if total else 0
