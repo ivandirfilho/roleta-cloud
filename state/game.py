@@ -381,10 +381,11 @@ class GameState:
         """
         Retorna performance SDA17 da direção ALVO (oposta à última).
         Usado pelo Triple Rate Advisor para analisar tendência.
+        Retorna list (não deque) para compatibilidade com slicing.
         """
         if self.last_direction == "horario":
-            return self.performance_sda17_ccw
-        return self.performance_sda17_cw
+            return list(self.performance_sda17_ccw)
+        return list(self.performance_sda17_cw)
     
     @property
     def target_martingale(self) -> MartingaleState:
