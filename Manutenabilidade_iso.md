@@ -93,8 +93,7 @@ Roleta Cloud/
 │   ├── models.py                    # Decision, Session, GaleWindow, WindowPlay
 │   ├── repository.py                # Interface abstrata (ABC)
 │   ├── sqlite_repo.py               # Implementação SQLite (~850 LOC)
-│   ├── service.py                   # DatabaseService (negócio)
-│   └── repository.py                # Interface abstrata (ABC, 250 LOC)
+│   └── service.py                   # DatabaseService (negócio)
 │
 ├── extension/                       # ── Extensão Chrome ──
 │   ├── manifest.json                # Manifest V3
@@ -191,7 +190,7 @@ Roleta Cloud/
            │  └──────────┬───────────────────────┘   │
            │             │ implementa                 │
            │  ┌──────────▼───────────────────────┐   │
-           │  │ sqlite_repo.py (655 LOC)          │   │
+           │  │ sqlite_repo.py (~850 LOC)         │   │
            │  │ • WAL mode + busy_timeout         │   │
            │  │ • 4 tabelas: sessions, decisions, │   │
            │  │   gale_windows, window_plays       │   │
@@ -683,7 +682,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 |----|:----------:|-----------|
 | SEC-001 | ⚠️ Média | `ErrorOutput` com `message=str(e)` pode expor stack traces e caminhos internos ao cliente |
 | SEC-002 | ⚠️ Média | Device ID sem assinatura criptográfica — cliente pode enviar qualquer `device_id` |
-| SEC-003 | 🔵 Baixa | Banner mostra versão do software (`v1.0.0`) — information disclosure (menor) |
+| SEC-003 | ~~🔵 Baixa~~ ✅ CORRIGIDO | Banner agora lê versão dinamicamente do arquivo `VERSION` (não mais hardcoded) |
 
 ---
 
@@ -754,7 +753,7 @@ server/msg_handler   ──► Quase todos os módulos                [5] ❌ Al
 | `strategies/sda17.py` | 213 | `test_sda17.py` (56) | ⚠️ Parcial |
 | `state/bet_advisor.py` | 163 | `test_bet_advisor.py` (69) | ⚠️ Parcial |
 | `state/game.py` | 493 | `test_game_state.py` (116) | ⚠️ Parcial |
-| `database/sqlite_repo.py` | 655 | `test_db_query.py` (32) | ❌ Mínima |
+| `database/sqlite_repo.py` | ~850 | `test_db_query.py` (32) | ❌ Mínima |
 | `server/message_handler.py` | 473 | — | ❌ Zero |
 | `server/connection_manager.py` | 272 | — | ❌ Zero |
 | `core/engine.py` | 130 | — | ❌ Zero |
@@ -888,9 +887,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
 | **Adequação Funcional** | Pipeline SDA-19, Kill Switch, Martingale, DB logging, Analytics handler | Colunas mortas no schema |
-| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS | Sem connection pooling SQLite |
+| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally | ✅ Conexões SQLite corrigidas (try/finally close) |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
-| **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome | Banner versão errada, sem docs API |
+| **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | Sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
 | **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog | CI vazio, cobertura testes ~40%, sem migrations |
@@ -912,10 +911,10 @@ O **Roleta Cloud v3.5.0** apresenta uma arquitetura madura com bons padrões de 
 
 ### Áreas Prioritárias de Melhoria (Ordenadas por Impacto)
 
-1. **Segurança (6.0/10)** — Sanitizar erros, ativar auth em produção, assinar device_id
-2. **Manutenibilidade (7.0/10)** — CI/CD automatizado, expandir testes, Alembic migrations
+1. **Segurança (6.5/10)** — Sanitizar erros, ativar auth em produção, assinar device_id
+2. **Manutenibilidade (7.5/10)** — CI/CD automatizado, expandir testes, Alembic migrations
 3. **Compatibilidade (7.0/10)** — REST API, documentação AsyncAPI
-4. **Usabilidade (7.0/10)** — Corrigir versão no banner, documentar protocolo WS
+4. **Usabilidade (8.0/10)** — ~~Corrigir versão no banner~~ ✅ Feito; documentar protocolo WS
 
 ### Conformidade ISO/IEC 25010
 

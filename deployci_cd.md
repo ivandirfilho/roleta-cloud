@@ -65,8 +65,10 @@ EOF
 # Criar state.json inicial (se não existe)
 [ ! -f state.json ] && echo '{}' > state.json
 
-# Abrir porta no firewall
-ufw allow 8765/tcp
+# Porta 8765 está restrita a 127.0.0.1 (localhost) via docker-compose.yml
+# O acesso externo é feito via nginx reverse proxy (porta 443 com SSL)
+# NÃO abrir porta 8765 no firewall — ela deve permanecer inacessível externamente
+# ufw allow 443/tcp  ← já configurado para nginx (HTTPS + WSS)
 ```
 
 ---
@@ -241,7 +243,7 @@ Start-Sleep -Seconds 10
 ssh root@187.45.181.75 "docker ps --filter name=roleta-cloud --format 'table {{.Status}}\t{{.Ports}}'"
 
 # Deve mostrar algo como:
-# Up X seconds (healthy)    0.0.0.0:8765->8765/tcp
+# Up X seconds (healthy)    127.0.0.1:8765->8765/tcp
 ```
 
 ### 4.5 Verificar logs do container
@@ -566,10 +568,11 @@ DEPLOY:
 
 PÓS-DEPLOY:
   [ ] Container status: healthy
-  [ ] WebSocket respondendo (porta 8765)
+  [ ] Porta 8765 restrita a 127.0.0.1 (NÃO 0.0.0.0)
+  [ ] WSS respondendo via nginx (wss://roleta.xma-ia.com/ws)
   [ ] Logs sem erros
   [ ] Versão correta em produção
-  [ ] Teste funcional (conexão WS)
+  [ ] Teste funcional (conexão WS via localhost)
 ```
 
 ---
