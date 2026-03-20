@@ -438,8 +438,14 @@ class GameState:
             json.dump(data, f, indent=2)
             temp_path = f.name
         
-        # os.replace é atômico na maioria dos sistemas de arquivos
-        os.replace(temp_path, path)
+        try:
+            os.replace(temp_path, path)
+        except OSError:
+            # Fallback para Docker bind mounts (os.replace falha com Errno 16)
+            with open(path, 'w', encoding='utf-8') as target:
+                with open(temp_path, 'r', encoding='utf-8') as source:
+                    target.write(source.read())
+            os.unlink(temp_path)
 
     
     @classmethod
