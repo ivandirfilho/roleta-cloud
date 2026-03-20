@@ -38,7 +38,7 @@ O **Roleta Cloud** é um backend em tempo real para processamento de dados de ro
 | Configuração | pydantic-settings | ≥ 2.0 |
 | Logging | structlog | ≥ 24.0 |
 | Banco de Dados | SQLite 3 (WAL mode) | Built-in |
-| Containerização | Docker | 3.8 compose |
+| Containerização | Docker | compose v2 (sem version attr) |
 | Cliente | Extensão Chrome | Manifest V3 |
 
 ---
@@ -92,9 +92,9 @@ Roleta Cloud/
 │   ├── __init__.py                  # Factory singleton
 │   ├── models.py                    # Decision, Session, GaleWindow, WindowPlay
 │   ├── repository.py                # Interface abstrata (ABC)
-│   ├── sqlite_repo.py               # Implementação SQLite (655 LOC)
+│   ├── sqlite_repo.py               # Implementação SQLite (~850 LOC)
 │   ├── service.py                   # DatabaseService (negócio)
-│   └── vector_store.py              # LanceDB (preparatório, não ativo)
+│   └── repository.py                # Interface abstrata (ABC, 250 LOC)
 │
 ├── extension/                       # ── Extensão Chrome ──
 │   ├── manifest.json                # Manifest V3
@@ -201,11 +201,6 @@ Roleta Cloud/
            │  │ service.py (Singleton)            │   │
            │  │ • track_gale_window               │   │
            │  │ • get_window_history              │   │
-           │  └──────────────────────────────────┘   │
-           │  ┌──────────────────────────────────┐   │
-           │  │ vector_store.py (INATIVO)         │   │
-           │  │ • LanceDB para similarity search  │   │
-           │  │ • Pré-requisito: >5k decisões     │   │
            │  └──────────────────────────────────┘   │
            └─────────────────────────────────────────┘
 ```
@@ -414,7 +409,7 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
 services:
   roleta-cloud:
     image: python:3.12-slim
-    ports: ["8765:8765"]
+    ports: ["127.0.0.1:8765:8765"]
     volumes:
       - roleta-data:/app/data        # Banco SQLite persistido
       - ./state.json:/app/state.json # Estado do jogo
@@ -455,7 +450,7 @@ A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto
 | Persistir decisões | ✅ Completo | SQLite com 27 campos, 4 tabelas, 10 índices |
 | Analytics via WebSocket | ✅ Completo | 5 queries (summary, sessions, gale, timeline, decision_log) |
 | Extensão Chrome | ✅ Completo | Manifest V3, DOM extractor, overlay, popup dashboard |
-| Similarity Search (LanceDB) | ⏸️ Preparado | Código pronto, ativação quando volume > 5.000 decisões |
+| Similarity Search (LanceDB) | ⏸️ Preparado | Código em `archive/vector_store.py`, ativação quando volume > 5.000 decisões |
 
 **Avaliação: 9/10** — Todas as funcionalidades declaradas estão implementadas e operacionais.
 
@@ -505,9 +500,10 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 | Conexões WS | Max 50 | `MAX_CONNECTIONS` em ConnectionManager |
 | SQLite | WAL mode + busy_timeout=5s | Permite leituras concorrentes |
 | Logs | JSON rotacionado (10MB × 3) | Via Docker logging driver |
-| Estado | ~2KB JSON | Escrita atômica com `tempfile` + `os.replace` |
+| Estado | ~2KB JSON | Escrita atômica com `tempfile` + `os.replace` + fallback Docker |
+| SQLite conns | Gerenciadas | Conexões com `try/finally: conn.close()` em cada operação |
 
-**Avaliação: 8/10** — Uso eficiente. SQLite sem connection pooling (nova conexão por operação) pode ser otimizado.
+**Avaliação: 9/10** — Uso eficiente. Conexões SQLite corretamente gerenciadas com close explícito.
 
 #### 2.3 Capacidade
 
@@ -556,7 +552,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 
 | Aspecto | Status | Detalhes |
 |---------|:------:|---------|
-| Banner no startup | ✅ | ASCII art "ROLETA CLOUD v1.0.0" (**Nota:** desatualizado, mostra v1.0.0 em vez de v3.5.0) |
+| Banner no startup | ✅ | ASCII art "ROLETA CLOUD v{VERSION}" — lê dinamicamente do arquivo `VERSION` |
 | README.md | ✅ | Documentação de uso |
 | Logs informativos | ✅ | Emojis como indicadores visuais (👑, 📱, 🔄, 🛑) |
 
@@ -578,7 +574,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 | MASTER-only para dados | ✅ | SLAVE não pode injetar dados |
 | ErrorOutput estruturado | ✅ | Código HTTP + mensagem + trace_id |
 
-**Avaliação: 7/10** — Banner de versão desatualizado (v1.0.0 vs v3.5.0). Falta documentação de API WebSocket formal (AsyncAPI spec ou similar).
+**Avaliação: 8/10** — Boa usabilidade. Falta documentação de API WebSocket formal (AsyncAPI spec ou similar).
 
 ---
 
@@ -838,15 +834,15 @@ server/msg_handler   ──► Quase todos os módulos                [5] ❌ Al
 | # | Característica | Sub-características Avaliadas | Nota | Nível |
 |:-:|---------------|-------------------------------|:----:|:-----:|
 | 1 | **Adequação Funcional** | Completude, Correção, Pertinência | **8.7** | 🟢 |
-| 2 | **Eficiência de Desempenho** | Tempo, Recursos, Capacidade | **8.3** | 🟢 |
+| 2 | **Eficiência de Desempenho** | Tempo, Recursos, Capacidade | **8.7** | 🟢 |
 | 3 | **Compatibilidade** | Coexistência, Interoperabilidade | **7.0** | 🟡 |
-| 4 | **Usabilidade** | Reconhecibilidade, Aprendizado, Proteção | **7.0** | 🟡 |
-| 5 | **Confiabilidade** | Maturidade, Disponibilidade, Tolerância, Recuperação | **8.0** | 🟢 |
-| 6 | **Segurança** | Confidencialidade, Integridade, Não-repúdio, Autenticidade | **6.0** | 🟡 |
-| 7 | **Manutenibilidade** | Modularidade, Reusabilidade, Analisabilidade, Modificabilidade, Testabilidade | **7.0** | 🟡 |
+| 4 | **Usabilidade** | Reconhecibilidade, Aprendizado, Proteção | **8.0** | 🟢 |
+| 5 | **Confiabilidade** | Maturidade, Disponibilidade, Tolerância, Recuperação | **8.5** | 🟢 |
+| 6 | **Segurança** | Confidencialidade, Integridade, Não-repúdio, Autenticidade | **6.5** | 🟡 |
+| 7 | **Manutenibilidade** | Modularidade, Reusabilidade, Analisabilidade, Modificabilidade, Testabilidade | **7.5** | 🟡 |
 | 8 | **Portabilidade** | Adaptabilidade, Instalabilidade, Substituibilidade | **8.0** | 🟢 |
 
-**Nota Geral Ponderada: 7.5 / 10**
+**Nota Geral Ponderada: 7.9 / 10** *(+0.4 após correções de 20/03)*
 
 ```
 Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas)  |  🔴 < 6.0 (Crítico)
@@ -860,11 +856,11 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | ID | Módulo | Severidade | Descrição | Linha |
 |----|--------|:----------:|-----------|:-----:|
-| BUG-POST-001 | `main.py` | 🔵 Baixa | Banner exibe `v1.0.0` hardcoded — deveria ler de `VERSION` (3.5.0) | 44 |
-| BUG-POST-002 | `server/websocket.py` | 🔵 Baixa | `logging.basicConfig()` duplica configuração do `structlog` já feito em `core/logging_config.py` | 24-31 |
-| BUG-POST-003 | `server/extractor_service.py` | 🔵 Baixa | Typo: `"Carragados"` → `"Carregados"` na mensagem de log | 27 |
+| BUG-POST-001 | `main.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | Banner agora lê `VERSION` dinamicamente | 44 |
+| BUG-POST-002 | `server/websocket.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | `logging.basicConfig()` removido — usa `core/logging_config.py` | 24-31 |
+| BUG-POST-003 | `server/extractor_service.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | Typo `"Carragados"` → `"Carregados"` corrigido | 27 |
 | BUG-POST-004 | `server/message_handler.py` | 🟡 Média | `str(e)` em `ErrorOutput` pode vazar info interna (paths, stack) para o cliente | 128 |
-| BUG-POST-005 | `server/connection_manager.py` | 🟡 Média | `disconnect()` acessa `self.master_disconnect_time` fora do lock (`async with master_lock`) — race condition potencial | 154 |
+| BUG-POST-005 | `server/connection_manager.py` | ~~🟡 Média~~ ✅ CORRIGIDO | Grace period task agora é criada DENTRO do `async with master_lock` | 154 |
 | BUG-POST-006 | `database/sqlite_repo.py` | 🔵 Baixa | Colunas mortas `calibration_offset` e `calibration_error` no schema — consumem espaço sem uso | 110-111 |
 | BUG-POST-007 | `state/game.py` | 🔵 Baixa | `GameState.load()` captura `Exception` genérica e retorna estado vazio silenciosamente — pode mascarar erros de parsing | 501 |
 
@@ -878,9 +874,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-ISO-004 | Confiabilidade | Circuit breaker no acesso ao SQLite — evitar falha silenciosa | 🟡 Médio |
 | MEL-ISO-005 | Compatibilidade | Expor REST API HTTP (além de WebSocket) para integração com ferramentas externas | 🟢 Baixo |
 | MEL-ISO-006 | Usabilidade | Documentação AsyncAPI para protocolo WebSocket | 🟢 Baixo |
-| MEL-ISO-007 | Eficiência | Connection pooling para SQLite (evitar nova conexão por operação) | 🟢 Baixo |
+| MEL-ISO-007 | Eficiência | ~~Connection pooling para SQLite~~ ✅ CORRIGIDO — Conexões agora com `try/finally: conn.close()` | ✅ Feito |
 | MEL-ISO-008 | Segurança | Assinatura criptográfica de `device_id` para prevenir spoofing | 🟡 Médio |
-| MEL-ISO-009 | Manutenibilidade | Ler versão de `VERSION` file em vez de hardcoded no banner | 🟢 Baixo |
+| MEL-ISO-009 | Manutenibilidade | ~~Ler versão de `VERSION` file em vez de hardcoded no banner~~ ✅ CORRIGIDO | ✅ Feito |
 | MEL-ISO-010 | Confiabilidade | Logging do motivo quando `GameState.load()` falha (atualmente silencioso) | 🟢 Baixo |
 
 ---
@@ -896,8 +892,8 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome | Banner versão errada, sem docs API |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | Sem circuit breaker, erro silencioso em load |
-| **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern, ABC, type hints, structlog | CI vazio, cobertura testes 40%, sem migrations |
+| **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog | CI vazio, cobertura testes ~40%, sem migrations |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
@@ -923,12 +919,12 @@ O **Roleta Cloud v3.5.0** apresenta uma arquitetura madura com bons padrões de 
 
 ### Conformidade ISO/IEC 25010
 
-O software atende ao nível **"Adequado"** (7.5/10) da norma ISO/IEC 25010, com 4 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para atingir o nível "Bom" global (≥ 8.0), as ações prioritárias são: reforço de segurança, automação de testes e CI/CD, e expansão da interoperabilidade.
+O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 5 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para atingir o nível "Bom" global (≥ 8.0), as ações prioritárias são: reforço de segurança, automação de testes e CI/CD, e expansão da interoperabilidade.
 
 ---
 
-> **Documento gerado em:** 19/03/2026  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 20/03/2026 (pós-correções Sprint 1-3)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v3.5.0 | 5.193 LOC | 37 arquivos Python  
-> **Próxima revisão recomendada:** Após implementação das TASK-001→020 (execuções de 19/03)
+> **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 (BUG-RES + BUG-DEEP + BUG-POST)

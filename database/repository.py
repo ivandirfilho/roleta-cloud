@@ -198,3 +198,51 @@ class DecisionRepository(ABC):
             Análise do Triple Rate
         """
         pass
+
+    # =========================================================================
+    # Gale Windows (ML-Ready)
+    # =========================================================================
+
+    @abstractmethod
+    def create_gale_window(self, window) -> int:
+        """Cria nova janela de gale. Retorna ID."""
+        pass
+
+    @abstractmethod
+    def add_window_play(self, play) -> int:
+        """Adiciona jogada a uma janela. Retorna ID."""
+        pass
+
+    @abstractmethod
+    def close_gale_window(self, window_id: int, result: str, next_level: int) -> None:
+        """Fecha janela de gale com resultado."""
+        pass
+
+    @abstractmethod
+    def get_active_window(self, direction: str):
+        """Retorna janela ativa (não fechada) para uma direção."""
+        pass
+
+    @abstractmethod
+    def get_window_history(self, direction: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Retorna histórico de janelas para uma direção."""
+        pass
+
+    # =========================================================================
+    # Analytics Avançado (para AnalyticsHandler)
+    # =========================================================================
+
+    @abstractmethod
+    def get_sessions_list(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Lista sessões com estatísticas individuais."""
+        pass
+
+    @abstractmethod
+    def get_gale_window_history(self, direction: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Histórico de janelas Martingale finalizadas com plays."""
+        pass
+
+    @abstractmethod
+    def get_performance_timeline(self, period: str = "hour", limit: int = 48) -> List[Dict[str, Any]]:
+        """Performance agrupada por hora/dia para gráficos de tendência."""
+        pass
