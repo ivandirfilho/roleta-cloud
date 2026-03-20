@@ -48,6 +48,14 @@ class SQLiteDecisionRepository(DecisionRepository):
         conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
+
+    def _execute_with_connection(self, func):
+        """Executa função com conexão gerenciada (auto-close)."""
+        conn = self._get_connection()
+        try:
+            return func(conn)
+        finally:
+            conn.close()
     
     def _init_schema(self) -> None:
         """Cria tabelas se não existirem."""
@@ -182,7 +190,8 @@ class SQLiteDecisionRepository(DecisionRepository):
     
     def save_decision(self, decision: Decision) -> int:
         """Salva uma nova decisão."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             cursor = conn.execute("""
                 INSERT INTO decisions (
                     timestamp, session_id,
@@ -228,20 +237,26 @@ class SQLiteDecisionRepository(DecisionRepository):
             ))
             conn.commit()
             return cursor.lastrowid
+        finally:
+            conn.close()
     
     def update_result(self, decision_id: int, hit: bool, actual_number: int) -> None:
         """Atualiza o resultado de uma decisão."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.execute("""
                 UPDATE decisions 
                 SET result_hit = ?, result_actual = ?
                 WHERE id = ?
             """, (hit, actual_number, decision_id))
             conn.commit()
+        finally:
+            conn.close()
     
     def get_decision(self, decision_id: int) -> Optional[Decision]:
         """Busca uma decisão por ID."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             row = conn.execute(
                 "SELECT * FROM decisions WHERE id = ?",
                 (decision_id,)
@@ -250,6 +265,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             if row:
                 return self._row_to_decision(row)
             return None
+        finally:
+            conn.close()
     
     def get_decisions(
         self,
@@ -282,13 +299,17 @@ class SQLiteDecisionRepository(DecisionRepository):
         query += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
         
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             rows = conn.execute(query, params).fetchall()
             return [self._row_to_decision(row) for row in rows]
+        finally:
+            conn.close()
     
     def get_last_decision_id(self, session_id: str) -> Optional[int]:
         """Retorna o ID da última decisão da sessão."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             row = conn.execute("""
                 SELECT id FROM decisions 
                 WHERE session_id = ? AND final_action = 'APOSTAR'
@@ -296,6 +317,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             """, (session_id,)).fetchone()
             
             return row["id"] if row else None
+        finally:
+            conn.close()
     
     def _row_to_decision(self, row: sqlite3.Row) -> Decision:
         """Converte row do SQLite para objeto Decision."""
@@ -336,17 +359,21 @@ class SQLiteDecisionRepository(DecisionRepository):
     
     def create_session(self, session: Session) -> str:
         """Cria uma nova sessão."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.execute("""
                 INSERT INTO sessions (id, start_time)
                 VALUES (?, ?)
             """, (session.id, session.start_time.isoformat()))
             conn.commit()
             return session.id
+        finally:
+            conn.close()
     
     def update_session(self, session: Session) -> None:
         """Atualiza estatísticas da sessão."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.execute("""
                 UPDATE sessions SET
                     total_spins = ?,
@@ -366,10 +393,13 @@ class SQLiteDecisionRepository(DecisionRepository):
                 session.id
             ))
             conn.commit()
+        finally:
+            conn.close()
     
     def get_session(self, session_id: str) -> Optional[Session]:
         """Busca sessão por ID."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             row = conn.execute(
                 "SELECT * FROM sessions WHERE id = ?",
                 (session_id,)
@@ -388,15 +418,20 @@ class SQLiteDecisionRepository(DecisionRepository):
                     total_stops=row["total_stops"] or 0
                 )
             return None
+        finally:
+            conn.close()
     
     def end_session(self, session_id: str) -> None:
         """Marca sessão como finalizada."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.execute("""
                 UPDATE sessions SET end_time = ?
                 WHERE id = ?
             """, (datetime.utcnow().isoformat(), session_id))
             conn.commit()
+        finally:
+            conn.close()
     
     # =========================================================================
     # Analytics
@@ -432,7 +467,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             query += " AND timestamp <= ?"
             params.append(end_time.isoformat())
         
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             row = conn.execute(query, params).fetchone()
             
             return {
@@ -441,6 +477,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                 "total_hits": row["total_hits"] or 0,
                 "hit_rate": round(row["hit_rate"] * 100, 1) if row["hit_rate"] else 0
             }
+        finally:
+            conn.close()
     
     def get_gale_stats(self, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Retorna estatísticas por nível de gale."""
@@ -462,7 +500,8 @@ class SQLiteDecisionRepository(DecisionRepository):
         
         query += " GROUP BY gale_level ORDER BY gale_level"
         
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             rows = conn.execute(query, params).fetchall()
             
             return {
@@ -473,6 +512,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                 }
                 for row in rows
             }
+        finally:
+            conn.close()
     
     def get_triple_rate_analysis(self, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Analisa eficácia do Triple Rate Advisor."""
@@ -483,7 +524,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             base_query += " AND session_id = ?"
             params.append(session_id)
         
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             # Vezes que Triple Rate recomendou pular
             skipped = conn.execute(f"""
                 SELECT 
@@ -516,6 +558,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                     for row in by_confidence
                 }
             }
+        finally:
+            conn.close()
     
     # =========================================================================
     # CRUD de Gale Windows (ML-Ready)
@@ -524,7 +568,8 @@ class SQLiteDecisionRepository(DecisionRepository):
     def create_gale_window(self, window: "GaleWindow") -> int:
         """Cria uma nova janela de gale."""
         from .models import GaleWindow
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             cursor = conn.execute("""
                 INSERT INTO gale_windows (
                     direction, gale_level, started_at,
@@ -540,61 +585,68 @@ class SQLiteDecisionRepository(DecisionRepository):
             ))
             conn.commit()
             return cursor.lastrowid
+        finally:
+            conn.close()
     
     def add_window_play(self, play: "WindowPlay") -> int:
         """Adiciona uma jogada a uma janela com transação atômica."""
         from .models import WindowPlay
-        with self._get_connection() as conn:
-            try:
-                cursor = conn.execute("""
-                    INSERT INTO window_plays (
-                        window_id, play_number, timestamp,
-                        spin_number, spin_direction, spin_force, center_predicted,
-                        hit, actual_number, sda_score, tr_confidence, tr_reason
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    play.window_id,
-                    play.play_number,
-                    play.timestamp.isoformat(),
-                    play.spin_number,
-                    play.spin_direction,
-                    play.spin_force,
-                    play.center_predicted,
-                    play.hit,
-                    play.actual_number,
-                    play.sda_score,
-                    play.tr_confidence,
-                    play.tr_reason
-                ))
-                
-                # Atualizar contadores na janela
-                conn.execute("""
-                    UPDATE gale_windows 
-                    SET total_plays = total_plays + 1,
-                        total_hits = total_hits + ?
-                    WHERE id = ?
-                """, (1 if play.hit else 0, play.window_id))
-                
-                conn.commit()
-                return cursor.lastrowid
-            except Exception:
-                conn.rollback()
-                raise
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute("""
+                INSERT INTO window_plays (
+                    window_id, play_number, timestamp,
+                    spin_number, spin_direction, spin_force, center_predicted,
+                    hit, actual_number, sda_score, tr_confidence, tr_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                play.window_id,
+                play.play_number,
+                play.timestamp.isoformat(),
+                play.spin_number,
+                play.spin_direction,
+                play.spin_force,
+                play.center_predicted,
+                play.hit,
+                play.actual_number,
+                play.sda_score,
+                play.tr_confidence,
+                play.tr_reason
+            ))
+            
+            conn.execute("""
+                UPDATE gale_windows 
+                SET total_plays = total_plays + 1,
+                    total_hits = total_hits + ?
+                WHERE id = ?
+            """, (1 if play.hit else 0, play.window_id))
+            
+            conn.commit()
+            return cursor.lastrowid
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
     
     def close_gale_window(self, window_id: int, result: str, next_level: int) -> None:
         """Fecha uma janela de gale com resultado."""
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             conn.execute("""
                 UPDATE gale_windows 
                 SET ended_at = ?, result = ?, next_level = ?
                 WHERE id = ?
             """, (datetime.utcnow().isoformat(), result, next_level, window_id))
             conn.commit()
+        finally:
+            conn.close()
     
     def get_active_window(self, direction: str) -> Optional["GaleWindow"]:
         """Retorna janela ativa (não fechada) para uma direção."""
         from .models import GaleWindow
-        with self._get_connection() as conn:
+        conn = self._get_connection()
+        try:
             row = conn.execute("""
                 SELECT * FROM gale_windows 
                 WHERE direction = ? AND ended_at IS NULL
@@ -614,11 +666,13 @@ class SQLiteDecisionRepository(DecisionRepository):
                     calibration_offset=row["calibration_offset"] or 0
                 )
             return None
+        finally:
+            conn.close()
     
     def get_window_history(self, direction: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Retorna histórico de janelas para uma direção com plays (otimizado com JOIN)."""
-        with self._get_connection() as conn:
-            # Query única com LEFT JOIN (evita N+1)
+        conn = self._get_connection()
+        try:
             rows = conn.execute("""
                 SELECT 
                     w.id, w.gale_level, w.total_hits, w.total_plays, 
@@ -629,9 +683,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                 WHERE w.direction = ?
                 ORDER BY w.started_at DESC, p.play_number ASC
                 LIMIT ?
-            """, (direction, limit * 6)).fetchall()  # limit * 6 para garantir plays
+            """, (direction, limit * 6)).fetchall()
             
-            # Agrupar por window no Python
             windows_map = {}
             for row in rows:
                 wid = row["id"]
@@ -646,7 +699,6 @@ class SQLiteDecisionRepository(DecisionRepository):
                         "plays": []
                     }
                 
-                # Adicionar play se existir (LEFT JOIN pode trazer NULL)
                 if row["play_number"] is not None:
                     windows_map[wid]["plays"].append({
                         "play_number": row["play_number"],
@@ -655,7 +707,145 @@ class SQLiteDecisionRepository(DecisionRepository):
                         "center_predicted": row["center_predicted"]
                     })
             
-            # Retornar lista ordenada, limitada
             result = list(windows_map.values())[:limit]
             return result
+        finally:
+            conn.close()
+
+    # =========================================================================
+    # Analytics Queries (para AnalyticsHandler)
+    # =========================================================================
+
+    def get_sessions_list(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Lista sessões com estatísticas individuais."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute("""
+                SELECT 
+                    s.id,
+                    s.start_time,
+                    s.end_time,
+                    COUNT(d.id) as total_decisions,
+                    SUM(CASE WHEN d.final_action = 'APOSTAR' THEN 1 ELSE 0 END) as total_bets,
+                    SUM(CASE WHEN d.result_hit = 1 THEN 1 ELSE 0 END) as total_hits,
+                    MAX(d.gale_level) as max_gale,
+                    AVG(CASE WHEN d.final_action = 'APOSTAR' AND d.result_hit IS NOT NULL
+                        THEN CAST(d.result_hit AS REAL) ELSE NULL END) as hit_rate
+                FROM sessions s
+                LEFT JOIN decisions d ON d.session_id = s.id
+                GROUP BY s.id
+                ORDER BY s.start_time DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+
+            return [
+                {
+                    "id": row["id"],
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "total_decisions": row["total_decisions"] or 0,
+                    "total_bets": row["total_bets"] or 0,
+                    "total_hits": row["total_hits"] or 0,
+                    "max_gale": row["max_gale"] or 1,
+                    "hit_rate": round(row["hit_rate"] * 100, 1) if row["hit_rate"] else 0,
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_gale_window_history(self, direction: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Histórico de janelas Martingale finalizadas com plays."""
+        conn = self._get_connection()
+        try:
+            query = """
+                SELECT 
+                    gw.id, gw.direction, gw.gale_level,
+                    gw.started_at, gw.ended_at,
+                    gw.total_hits, gw.total_plays, gw.result,
+                    gw.next_level,
+                    gw.sda17_rate_at_start, gw.bet_rate_at_start
+                FROM gale_windows gw
+                WHERE gw.ended_at IS NOT NULL
+            """
+            params = []
+            if direction:
+                query += " AND gw.direction = ?"
+                params.append(direction)
+            query += " ORDER BY gw.started_at DESC LIMIT ?"
+            params.append(limit)
+
+            rows = conn.execute(query, params).fetchall()
+            windows = []
+            for row in rows:
+                plays = conn.execute("""
+                    SELECT play_number, hit, spin_number, spin_force, 
+                           sda_score, tr_confidence
+                    FROM window_plays 
+                    WHERE window_id = ?
+                    ORDER BY play_number
+                """, (row["id"],)).fetchall()
+
+                windows.append({
+                    "id": row["id"],
+                    "direction": row["direction"],
+                    "gale_level": row["gale_level"],
+                    "started_at": row["started_at"],
+                    "ended_at": row["ended_at"],
+                    "total_hits": row["total_hits"],
+                    "total_plays": row["total_plays"],
+                    "result": row["result"],
+                    "next_level": row["next_level"],
+                    "sda17_rate_at_start": row["sda17_rate_at_start"],
+                    "bet_rate_at_start": row["bet_rate_at_start"],
+                    "plays": [
+                        {
+                            "play_number": p["play_number"],
+                            "hit": bool(p["hit"]),
+                            "spin_number": p["spin_number"],
+                            "spin_force": p["spin_force"],
+                            "sda_score": p["sda_score"],
+                            "tr_confidence": p["tr_confidence"],
+                        }
+                        for p in plays
+                    ],
+                })
+            return windows
+        finally:
+            conn.close()
+
+    def get_performance_timeline(self, period: str = "hour", limit: int = 48) -> List[Dict[str, Any]]:
+        """Performance agrupada por hora/dia para gráficos de tendência."""
+        fmt = "%Y-%m-%d %H:00:00" if period == "hour" else "%Y-%m-%d"
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(f"""
+                SELECT 
+                    strftime('{fmt}', timestamp) as period,
+                    COUNT(*) as total_decisions,
+                    SUM(CASE WHEN final_action = 'APOSTAR' THEN 1 ELSE 0 END) as bets,
+                    SUM(CASE WHEN result_hit = 1 THEN 1 ELSE 0 END) as hits,
+                    AVG(CASE WHEN final_action = 'APOSTAR' AND result_hit IS NOT NULL
+                        THEN CAST(result_hit AS REAL) ELSE NULL END) as hit_rate,
+                    AVG(sda_score) as avg_sda_score
+                FROM decisions
+                WHERE timestamp IS NOT NULL
+                GROUP BY strftime('{fmt}', timestamp)
+                ORDER BY period DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+
+            return [
+                {
+                    "period": row["period"],
+                    "total": row["total_decisions"],
+                    "bets": row["bets"] or 0,
+                    "hits": row["hits"] or 0,
+                    "hit_rate": round(row["hit_rate"] * 100, 1) if row["hit_rate"] else 0,
+                    "avg_sda_score": round(row["avg_sda_score"], 1) if row["avg_sda_score"] else 0,
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
 

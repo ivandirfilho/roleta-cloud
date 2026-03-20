@@ -43,9 +43,17 @@ def main():
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
     
-    print("""
+    # Ler versão do arquivo VERSION
+    version = "unknown"
+    try:
+        with open("VERSION", "r") as f:
+            version = f.read().strip()
+    except FileNotFoundError:
+        pass
+    
+    print(f"""
     ╔═══════════════════════════════════════════════════════════╗
-    ║              🎰 ROLETA CLOUD v1.0.0                       ║
+    ║              🎰 ROLETA CLOUD v{version:<24s}  ║
     ║                                                           ║
     ║  Backend para processamento de roleta em tempo real       ║
     ╚═══════════════════════════════════════════════════════════╝

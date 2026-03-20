@@ -129,15 +129,18 @@ class MessageHandler:
             await websocket.send(error.model_dump_json())
 
     async def handle_new_result(self, websocket: WebSocketServerProtocol, data: Dict, trace: TraceContext):
-        numero = data.get("numero")
-        direcao = data.get("direcao", "horario")
-
-        if numero is None:
-            raise ValueError("Campo 'numero' obrigatório")
-
-        # Validar range da roleta (0-36)
-        if not isinstance(numero, int) or not 0 <= numero <= 36:
-            raise ValueError(f"Número inválido: {numero} (deve ser 0-36)")
+        # Validação via Pydantic (campos obrigatórios de entrada)
+        try:
+            spin = SpinInput(
+                numero=data.get("numero", -1),
+                direcao=data.get("direcao", "horario"),
+                trace_id=trace.trace_id if trace else "auto",
+                t_client=data.get("t_client", 0)
+            )
+            numero = spin.numero
+            direcao = spin.direcao
+        except Exception as e:
+            raise ValueError(f"Entrada inválida: {e}")
 
         # Log da predição pendente antes de verificar
         pending = self.game_state.pending_prediction

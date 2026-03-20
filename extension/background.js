@@ -262,12 +262,8 @@ function scheduleReconnect() {
   wsReconnectAttempts++;
   chrome.storage.session?.set({ wsReconnectAttempts });
   setTimeout(() => {
-    getState().then(state => {
-      if (state.isListening) {
-        console.log(`🔄 Tentativa de reconexão ${wsReconnectAttempts}/${WS_CONFIG.maxReconnectAttempts}`);
-        connectWebSocket();
-      }
-    });
+    console.log(`🔄 Tentativa de reconexão ${wsReconnectAttempts}/${WS_CONFIG.maxReconnectAttempts}`);
+    connectWebSocket();
   }, WS_CONFIG.reconnectInterval);
 }
 
@@ -362,8 +358,9 @@ async function injectContentScriptIfNeeded(tabId, sugestao) {
 let lastStateSyncHash = '';
 async function sendStateSyncToContentScript(stateData) {
   try {
-    // Throttle: só envia se mudou algo
-    const hash = JSON.stringify(stateData);
+    // Throttle: só envia se mudou (excluindo timestamp para comparação estável)
+    const { timestamp, ...stableData } = stateData;
+    const hash = JSON.stringify(stableData);
     if (hash === lastStateSyncHash) return;
     lastStateSyncHash = hash;
 

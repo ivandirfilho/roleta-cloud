@@ -94,7 +94,7 @@ function createOverlay() {
           <div class="eb-ctrl-led" id="eb-ctrl-indicator"></div>
           <div class="eb-ctrl-conn-info">
             <span id="eb-ctrl-status-text">Desconectado</span>
-            <small id="eb-ctrl-url">ws://servidor:8765</small>
+            <small id="eb-ctrl-url">wss://roleta.xma-ia.com/ws</small>
           </div>
         </div>
         
@@ -437,7 +437,8 @@ function updateOverlay(sugestao) {
   const overlay = document.getElementById('escuta-beat-overlay');
   if (!overlay) {
     createOverlay();
-    return updateOverlay(sugestao);
+    const retryOverlay = document.getElementById('escuta-beat-overlay');
+    if (!retryOverlay) return;
   }
 
   overlayState.lastSugestao = sugestao;

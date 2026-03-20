@@ -87,19 +87,19 @@ function connect() {
         ws.onopen = () => {
             reconnectAttempts = 0;
             updateStatus(true);
-            addLog('info', '✅ Conectado');
+            addLog('info', 'Ô£à Conectado');
             animateFlow('escuta', true);
             ws.send(JSON.stringify({ type: 'get_state' }));
         };
 
         ws.onclose = () => {
             updateStatus(false);
-            addLog('error', '🔌 Desconectado');
+            addLog('error', '­ƒöî Desconectado');
             resetFlow();
             setTimeout(connect, RECONNECT_INTERVAL);
         };
 
-        ws.onerror = () => addLog('error', '❌ Erro de conexão');
+        ws.onerror = () => addLog('error', 'ÔØî Erro de conex├úo');
         ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 
     } catch (err) {
@@ -118,7 +118,7 @@ function handleMessage(data) {
     } else if (data.type === 'state_sync') {
         handleStateSync(data.data);
     } else if (data.type === 'ack') {
-        addLog('info', `✅ ${data.message}`);
+        addLog('info', `Ô£à ${data.message}`);
     }
 }
 
@@ -151,13 +151,13 @@ function renderWindowHistory(history) {
 
     ['cw', 'ccw'].forEach(dir => {
         const windows = history[dir] || [];
-        const label = dir === 'cw' ? 'Horário ⬅️' : 'Anti-horário ➡️';
+        const label = dir === 'cw' ? 'Hor├írio Ô¼à´©Å' : 'Anti-hor├írio Ô×í´©Å';
 
         html += `<div class="window-direction">`;
         html += `<h4>${label}</h4>`;
 
         if (windows.length === 0) {
-            html += `<p class="no-data">Sem histórico</p>`;
+            html += `<p class="no-data">Sem hist├│rico</p>`;
         } else {
             windows.forEach(w => {
                 // Handle active windows (no result yet) vs closed windows
@@ -165,9 +165,9 @@ function renderWindowHistory(history) {
                 const resultClass = isActive ? 'active' :
                     w.result === 'success' ? 'success' :
                         w.result === 'stop' ? 'stop' : 'escalated';
-                const resultIcon = isActive ? '⏳' :
-                    w.result === 'success' ? '✅' :
-                        w.result === 'stop' ? '🛑' : '⬆️';
+                const resultIcon = isActive ? 'ÔÅ│' :
+                    w.result === 'success' ? 'Ô£à' :
+                        w.result === 'stop' ? '­ƒøæ' : 'Ô¼å´©Å';
 
                 html += `<div class="window-card ${resultClass}">`;
                 html += `<div class="window-header">`;
@@ -182,7 +182,7 @@ function renderWindowHistory(history) {
                         // Handle null/undefined hit values (pending plays)
                         const dotClass = p.hit === true ? 'hit' :
                             p.hit === false ? 'miss' : 'pending';
-                        const tooltip = `#${p.spin_number || '?'} → ${p.center_predicted || '?'}`;
+                        const tooltip = `#${p.spin_number || '?'} ÔåÆ ${p.center_predicted || '?'}`;
                         html += `<span class="play-dot ${dotClass}" title="${tooltip}"></span>`;
                     });
                     html += `</div>`;
@@ -224,8 +224,8 @@ function handleTrace(data) {
     if (data.performance) updatePerformance(data.performance);
 
     // Log
-    const dir = data.spin.direcao === 'horario' ? '⬅️' : '➡️';
-    addLog('spin', `${data.spin.numero} ${dir} → força ${data.spin.force}`);
+    const dir = data.spin.direcao === 'horario' ? 'Ô¼à´©Å' : 'Ô×í´©Å';
+    addLog('spin', `${data.spin.numero} ${dir} ÔåÆ for├ºa ${data.spin.force}`);
     addLog('result', `${data.result.acao} centro ${data.result.centro} (score: ${data.result.score})`);
 
     el.latency.textContent = `${data.total_ms}ms`;
@@ -251,12 +251,12 @@ function handleState(data) {
 // UI Updates
 function updateStatus(online) {
     el.status.className = `status ${online ? 'online' : 'offline'}`;
-    el.status.textContent = online ? '● ONLINE' : '● OFFLINE';
+    el.status.textContent = online ? 'ÔùÅ ONLINE' : 'ÔùÅ OFFLINE';
 }
 
 function updateSpinDisplay(spin, ms) {
     el.spinNumber.textContent = spin.numero;
-    el.spinDirection.textContent = spin.direcao === 'horario' ? '⬅️' : '➡️';
+    el.spinDirection.textContent = spin.direcao === 'horario' ? 'Ô¼à´©Å' : 'Ô×í´©Å';
     el.spinForce.textContent = spin.force;
     el.spinLatency.textContent = `${ms}ms`;
 }
@@ -455,6 +455,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-    addLog('info', '🎰 Dashboard Glass Box iniciado');
+    addLog('info', '­ƒÄ░ Dashboard Glass Box iniciado');
     connect();
 });

@@ -21,14 +21,6 @@ from state.game import GameState
 from strategies.sda17 import SDA17Strategy
 
 # Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(settings.log_file),
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
 
 # Estado global

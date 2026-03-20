@@ -150,11 +150,10 @@ class ConnectionManager:
                 self.master_id = None
                 self.master_device_id = None
 
-        # Grace period (fora do lock) — BUG-007: usar task cancelável
-        if self.master_disconnect_time:
-            if self._grace_period_task and not self._grace_period_task.done():
-                self._grace_period_task.cancel()
-            self._grace_period_task = asyncio.create_task(self.handle_grace_period())
+                # Grace period dentro do lock para evitar race condition
+                if self._grace_period_task and not self._grace_period_task.done():
+                    self._grace_period_task.cancel()
+                self._grace_period_task = asyncio.create_task(self.handle_grace_period())
 
     async def handle_grace_period(self):
         """Aguarda grace period e promove novo MASTER se necessário."""
@@ -290,14 +289,20 @@ class ConnectionManager:
             self.connections[conn_id].last_activity = time.time()
 
     async def broadcast(self, message: str, exclude_disconnected: bool = True):
-        """Envia mensagem para todas as conexões."""
-        disconnected = set()
-        # Usar list() para criar cópia e evitar "dictionary changed size during iteration"
-        for conn in list(self.connections.values()):
+        """Envia mensagem para todas as conexões em paralelo."""
+        conns = list(self.connections.values())
+        if not conns:
+            return
+
+        async def _safe_send(conn):
             try:
                 await conn.websocket.send(message)
+                return None
             except Exception:
-                disconnected.add(conn.id)
+                return conn.id
+
+        results = await asyncio.gather(*[_safe_send(c) for c in conns], return_exceptions=True)
+        disconnected = {r for r in results if isinstance(r, str)}
 
         if exclude_disconnected:
             for conn_id in disconnected:

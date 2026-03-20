@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import time
@@ -11,6 +12,7 @@ class ExtractorService:
         self.root_path = root_path
         self.providers_path = os.path.join(root_path, "providers")
         self.mesas_path = os.path.join(root_path, "mesas")
+        os.makedirs(self.mesas_path, exist_ok=True)
         self.providers = self._load_providers()
         
     def _load_providers(self) -> Dict[str, dict]:
@@ -23,7 +25,7 @@ class ExtractorService:
                         provider_name = config.get("provider")
                         if provider_name:
                             providers[provider_name] = config
-            logger.info(f"Carragados {len(providers)} templates de providers")
+            logger.info(f"Carregados {len(providers)} templates de providers")
         except Exception as e:
             logger.error(f"Erro ao carregar templates de providers: {e}")
         return providers
@@ -55,7 +57,7 @@ class ExtractorService:
         dom_snapshot = data.get("dom_snapshot", {})
         
         # Mesclagem básica (por enquanto apenas replica o base, no futuro pode ser dinâmico)
-        mesa_config = base_config.copy()
+        mesa_config = copy.deepcopy(base_config)
         mesa_config["mesa_info"] = {
             "url": url,
             "captured_at": time.time(),

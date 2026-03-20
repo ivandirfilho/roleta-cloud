@@ -1,6 +1,5 @@
 # Roleta Cloud - Auth Middleware
 
-import hashlib
 import hmac
 import logging
 import os
