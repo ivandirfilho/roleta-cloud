@@ -260,9 +260,8 @@ class ConnectionManager:
                     except Exception:
                         pass
                 
-                # Se não tem master nenhum, o primeiro registrado assume
-                # (A menos que estejamos no grace period esperando o antigo voltar)
-                elif not self.last_master_device_id and len(self.connections) == 1:
+                # Se não tem master nenhum e não há grace period ativo, o primeiro registrado assume
+                elif not self.last_master_device_id:
                     info.role = "master"
                     self.master_id = conn_id
                     self.master_device_id = device_id
