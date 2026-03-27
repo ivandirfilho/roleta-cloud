@@ -31,10 +31,11 @@ class Decision:
     tr_m6_rate: float = 0.0
     tr_l12_rate: float = 0.0
     
-    # SDA17 Strategy
+    # SDA Strategy
     sda_should_bet: bool = True
     sda_score: int = 0
-    sda_center: int = 0
+    sda_center: int = 0                                        # C1 (compatibilidade)
+    sda_centers: List[int] = field(default_factory=list)       # [C1, C2, C3] — SDA-21
     sda_numbers: List[int] = field(default_factory=list)
     sda_predicted_force: int = 0
     
@@ -77,6 +78,7 @@ class Decision:
             "sda_should_bet": self.sda_should_bet,
             "sda_score": self.sda_score,
             "sda_center": self.sda_center,
+            "sda_centers": self.sda_centers,
             "sda_numbers": self.sda_numbers,
             "sda_predicted_force": self.sda_predicted_force,
             "final_action": self.final_action,

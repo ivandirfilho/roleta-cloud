@@ -1,31 +1,32 @@
-# Roleta Cloud - SDA-19 Strategy (IQR + Weighted Median + Drift)
+# Roleta Cloud - SDA-21 Strategy (IQR + Weighted Median + Drift + Triple Focus)
 
 from typing import List, Tuple, Dict, Any
-from statistics import median
+from statistics import median, quantiles
 from state.timeline import Timeline
 from .base import StrategyBase, StrategyResult
 
 
 class SDA17Strategy(StrategyBase):
     """
-    Estratégia SDA-19: Sinergia Direcional Avançada — Robust.
+    Estratégia SDA-21: Sinergia Direcional Avançada — Triple Focus.
     
-    Pipeline otimizado (v2):
+    Pipeline otimizado (v3):
     1. Janela Adaptativa (7→5→3 forças)
-    2. IQR Outlier Rejection (remove forças anômalas)
+    2. IQR Outlier Rejection (statistics.quantiles)
     3. Weighted Median (peso exponencial nas mais recentes)
-    4. Drift Detection (extrapola tendência se monotônica)
+    4. Drift Detection (sobre dados limpos pós-IQR)
     5. Smart Score (survival_rate × tightness)
+    6. Triple Focus: 3 centros (mediana, max, min) com diversificação
     
-    Cobertura: 19 números (1 centro + 9 de cada lado) = 51.4% da roda
+    Cobertura: até 21 números (3 centros × 3 vizinhos cada) = até 56.8% da roda
     """
     
     def __init__(self):
-        super().__init__(name="SDA-19", num_neighbors=9)
+        super().__init__(name="SDA-21", num_neighbors=3)
         self.min_forces = 3
         self.default_window = 7
-        self.decay = 0.8  # Fator de decaimento temporal
-        self.description = "IQR + Weighted Median + Drift, 19 números"
+        self.decay = 0.8
+        self.description = "IQR + Weighted Median + Drift, Triple Focus 21 números"
     
     def analyze(
         self,
@@ -61,29 +62,49 @@ class SDA17Strategy(StrategyBase):
         if calibration != 0:
             predicted_force = max(1, min(37, predicted_force + calibration))
         
-        # Aplicar força predita ao último número
-        center_number = self._apply_force(
-            last_number,
-            predicted_force,
-            timeline.direction,
-            wheel_sequence
-        )
+        # === TRIPLE FOCUS: 3 centros ===
+        # Centro 1: Mediana Ponderada (pipeline SDA)
+        c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
         
-        # Pegar 19 vizinhos (9 + centro + 9)
-        numbers = self.get_neighbors(center_number, self.num_neighbors, wheel_sequence)
-        visual = self.get_visual_region(center_number, numbers)
+        # Filtrar forças válidas (>0) para max/min — BUG-T02 fix
+        valid_forces = [f for f in forces if f > 0]
+        if len(valid_forces) < 2:
+            valid_forces = forces  # Fallback: usar todas se poucas válidas
+        
+        # Centro 2: Força Máxima da timeline
+        max_force = max(valid_forces)
+        c2 = self._apply_force(last_number, max_force, timeline.direction, wheel_sequence)
+        
+        # Centro 3: Força Mínima da timeline
+        min_force = min(valid_forces)
+        c3 = self._apply_force(last_number, min_force, timeline.direction, wheel_sequence)
+        
+        # Garantir diversificação mínima entre centros
+        c1, c2, c3 = self._ensure_diversity(c1, c2, c3, wheel_sequence)
+        
+        # Agregar números dos 3 clusters
+        nums = set()
+        for center in [c1, c2, c3]:
+            nums |= set(self.get_neighbors(center, self.num_neighbors, wheel_sequence))
+        numbers = sorted(nums)
+        
+        visual = f"[{c1}] [{c2}] [{c3}]"
         
         return StrategyResult(
             should_bet=True,
             numbers=numbers,
-            center=center_number,
+            center=c1,  # Centro primário para compatibilidade
             score=pred_info.get("score", 3),
             visual=visual,
             details={
                 "forces": forces,
                 "predicted_force": predicted_force,
                 "original_prediction": original_force,
-                "method": pred_info.get("method", "iqr_weighted_median"),
+                "method": "triple_focus_iqr_weighted_median",
+                "centers": [c1, c2, c3],
+                "forces_used": {"median": predicted_force, "max": max_force, "min": min_force},
+                "unique_count": len(numbers),
+                "overlap": (7 * 3) - len(numbers),
                 "clean_count": pred_info.get("clean_count", 0),
                 "outliers_removed": pred_info.get("outliers_removed", 0),
                 "spread": pred_info.get("spread", 0),
@@ -110,9 +131,9 @@ class SDA17Strategy(StrategyBase):
         if n < 4:
             clean = [(f, idx) for idx, f in enumerate(forces)]
         else:
+            # MEL-01: IQR com statistics.quantiles() para precisão
             sorted_f = sorted(forces)
-            q1 = sorted_f[n // 4]
-            q3 = sorted_f[min(n - 1, 3 * n // 4)]
+            q1, _, q3 = quantiles(sorted_f, n=4)
             iqr = q3 - q1
             lower_bound = q1 - 1.5 * iqr
             upper_bound = q3 + 1.5 * iqr
@@ -134,16 +155,18 @@ class SDA17Strategy(StrategyBase):
         
         pred = int(median(expanded))
         
-        # === PASSO 3: Drift Detection (sobre dados CRONOLÓGICOS originais) ===
+        # === PASSO 3: Drift Detection (MEL-05: sobre dados LIMPOS pós-IQR) ===
         drift_adj = 0
-        if n >= 3:
-            last3 = forces[:3]  # As 3 mais recentes na ordem original
-            diffs = [last3[i] - last3[i + 1] for i in range(2)]
-            # Só extrapola se AMBAS as diferenças têm mesmo sinal (tendência consistente)
-            if all(d > 0 for d in diffs):
-                drift_adj = int(sum(diffs) * 0.5)
-            elif all(d < 0 for d in diffs):
-                drift_adj = int(sum(diffs) * 0.5)
+        if len(clean) >= 3:
+            # Ordenar clean por posição original (mais recente primeiro)
+            clean_by_recency = sorted(clean, key=lambda x: x[1])[:3]
+            last3_clean = [f for f, _ in clean_by_recency]
+            diffs = [last3_clean[i] - last3_clean[i + 1] for i in range(min(2, len(last3_clean) - 1))]
+            if len(diffs) >= 2:
+                if all(d > 0 for d in diffs):
+                    drift_adj = int(sum(diffs) * 0.5)
+                elif all(d < 0 for d in diffs):
+                    drift_adj = int(sum(diffs) * 0.5)
         
         pred = max(1, min(37, pred + drift_adj))
         
@@ -151,7 +174,8 @@ class SDA17Strategy(StrategyBase):
         survival = len(clean) / n
         clean_values = [f for f, _ in clean]
         spread = max(clean_values) - min(clean_values) if len(clean_values) > 1 else 0
-        tightness = max(0, 1 - spread / 15)
+        # MEL-13: Spread normalizado por MAX_FORCE=18 (metade da roda)
+        tightness = max(0, 1 - spread / 18)
         stable_bonus = 1 if drift_adj == 0 else 0
         score = min(6, max(1, int(survival * 3 + tightness * 3 + stable_bonus)))
         
@@ -214,3 +238,33 @@ class SDA17Strategy(StrategyBase):
             return wheel_sequence[target_idx]
         except ValueError:
             return from_number
+    
+    def _ensure_diversity(
+        self,
+        c1: int,
+        c2: int,
+        c3: int,
+        wheel_sequence: List[int]
+    ) -> Tuple[int, int, int]:
+        """Garante separação mínima de 4 posições entre quaisquer 2 centros."""
+        wheel_size = len(wheel_sequence)
+        
+        def circ_dist(a: int, b: int) -> int:
+            try:
+                a_pos = wheel_sequence.index(a)
+                b_pos = wheel_sequence.index(b)
+                return min((a_pos - b_pos) % wheel_size, (b_pos - a_pos) % wheel_size)
+            except ValueError:
+                return 0
+        
+        c1_pos = wheel_sequence.index(c1)
+        
+        # Se C2 muito perto de C1, deslocar C2 por +7
+        if circ_dist(c1, c2) < 4:
+            c2 = wheel_sequence[(c1_pos + 7) % wheel_size]
+        
+        # Se C3 muito perto de C1 ou C2, deslocar C3 por -7
+        if circ_dist(c1, c3) < 4 or circ_dist(c2, c3) < 4:
+            c3 = wheel_sequence[(c1_pos - 7) % wheel_size]
+        
+        return c1, c2, c3

@@ -1,7 +1,7 @@
 # Roleta Cloud - Modelos de Saída (Pydantic)
 
 from pydantic import BaseModel, Field
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 
 class SuggestionOutput(BaseModel):
@@ -11,7 +11,8 @@ class SuggestionOutput(BaseModel):
     trace_id: str = Field(description="ID de rastreamento (mesmo do input)")
     acao: Literal["APOSTAR", "PULAR", "AGUARDAR"] = Field(description="Ação recomendada")
     numeros: List[int] = Field(default_factory=list, description="Números para apostar")
-    centro: int = Field(default=0, description="Número central da aposta")
+    centro: int = Field(default=0, description="Centro primário da aposta (C1)")
+    centros: List[int] = Field(default_factory=list, description="Centros [C1, C2, C3] — SDA-21")
     regiao_visual: str = Field(default="", description="Representação visual ex: '4, [2], 17'")
     estrategia: str = Field(default="", description="Nome da estratégia usada")
     score: int = Field(default=0, ge=0, le=6, description="Score de confiança 0-6")

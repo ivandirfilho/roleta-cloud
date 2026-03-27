@@ -81,7 +81,7 @@ class TestGameState:
     def test_check_prediction_updates_performance(self):
         gs = GameState()
         gs.process_spin(17, "horario")
-        gs.store_prediction([17, 32, 15], "anti-horario", 17)
+        gs.store_prediction([17, 32, 15], "anti-horario", 17, sda_centers=[17, 32, 15])
         hit = gs.check_prediction(17)
         assert hit is True
         assert len(gs.performance_sda17_ccw) == 1
@@ -89,7 +89,7 @@ class TestGameState:
     def test_check_prediction_miss(self):
         gs = GameState()
         gs.process_spin(17, "horario")
-        gs.store_prediction([32, 15, 19], "anti-horario", 32)
+        gs.store_prediction([32, 15, 19], "anti-horario", 32, sda_centers=[32])
         hit = gs.check_prediction(5)
         assert hit is False
 
@@ -98,7 +98,7 @@ class TestGameState:
         gs = GameState()
         for i in range(20):
             gs.process_spin(i % 37, "horario")
-            gs.store_prediction([i % 37], "anti-horario", i % 37)
+            gs.store_prediction([i % 37], "anti-horario", i % 37, sda_centers=[i % 37])
             gs.check_prediction(i % 37)
         assert len(gs.performance_sda17_ccw) == 12
 
@@ -106,7 +106,7 @@ class TestGameState:
         """Salvar e carregar preserva estado."""
         gs = GameState()
         gs.process_spin(17, "horario")
-        gs.store_prediction([17, 32], "anti-horario", 17)
+        gs.store_prediction([17, 32], "anti-horario", 17, sda_centers=[17, 32])
         gs.check_prediction(17)
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
@@ -124,7 +124,7 @@ class TestGameState:
     def test_reset_session(self):
         gs = GameState()
         gs.process_spin(17, "horario")
-        gs.store_prediction([17], "anti-horario", 17)
+        gs.store_prediction([17], "anti-horario", 17, sda_centers=[17])
         gs.check_prediction(17)
         gs.reset_session()
         assert gs.last_number == 0
@@ -137,3 +137,18 @@ class TestGameState:
         assert "sda17" in stats
         assert "bet" in stats
         assert "cw" in stats["sda17"]
+
+    def test_store_prediction_with_centers(self):
+        """SDA-21: store_prediction armazena lista de centros."""
+        gs = GameState()
+        gs.process_spin(17, "horario")
+        gs.store_prediction([17, 32, 15, 19, 4], "anti-horario", 17, sda_centers=[17, 32, 15])
+        assert gs.pending_prediction["center"] == 17
+        assert gs.pending_prediction["centers"] == [17, 32, 15]
+
+    def test_store_prediction_defaults_centers(self):
+        """Sem sda_centers, deve usar [center] como fallback."""
+        gs = GameState()
+        gs.process_spin(17, "horario")
+        gs.store_prediction([17, 32], "anti-horario", 17)
+        assert gs.pending_prediction["centers"] == [17]

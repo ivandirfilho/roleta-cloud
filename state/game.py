@@ -22,24 +22,24 @@ class MartingaleState:
     Sistema de Martingale Inteligente com janela de 5 jogadas.
     
     Lógica:
-    - GALE 1 = R$19 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
-    - GALE 2 = R$38 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
-    - GALE 3 = R$76 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
+    - GALE 1 = R$21 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
+    - GALE 2 = R$42 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
+    - GALE 3 = R$84 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
     """
     level: int = 1                    # Nível atual (1, 2 ou 3)
     window_hits: int = 0              # Acertos na janela atual
     window_count: int = 0             # Jogadas na janela atual
     total_stops: int = 0              # Total de stops desde início
     
-    # Valores de aposta por nível (19 números × R$1/R$2/R$4)
-    BET_VALUES: ClassVar[Dict[int, int]] = {1: 19, 2: 38, 3: 76}
+    # Valores de aposta por nível (até 21 números × R$1/R$2/R$4)
+    BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 84}
     WINDOW_SIZE: ClassVar[int] = 5                   # Tamanho da janela
     MIN_HITS_TO_PASS: ClassVar[int] = 3              # Mínimo de acertos para passar/manter
     
     @property
     def current_bet(self) -> int:
         """Retorna valor da aposta atual."""
-        return self.BET_VALUES.get(self.level, 19)
+        return self.BET_VALUES.get(self.level, 21)
     
     @property
     def multiplier(self) -> str:
@@ -291,7 +291,8 @@ class GameState:
     
     def store_prediction(self, numbers: List[int], direction: str, center: int, 
                          predicted_force: int = 0, bet_placed: bool = False,
-                         tr_confidence: str = "", tr_reason: str = "", sda_score: int = 0) -> None:
+                         tr_confidence: str = "", tr_reason: str = "", sda_score: int = 0,
+                         sda_centers: List[int] = None) -> None:
         """
         Armazena a predição atual para verificar no próximo spin.
         
@@ -299,12 +300,14 @@ class GameState:
             bet_placed: True se realmente apostou, False se apenas registrando para Triple Rate
             tr_confidence: Nível de confiança do Triple Rate (para tracking)
             tr_reason: Razão do Triple Rate (para tracking)
-            sda_score: Score do SDA17 (para tracking)
+            sda_score: Score do SDA (para tracking)
+            sda_centers: Lista de centros [C1, C2, C3] — SDA-21
         """
         self.pending_prediction = {
             "numbers": numbers,
             "direction": direction,
             "center": center,
+            "centers": sda_centers or [center],
             "predicted_force": predicted_force,
             "bet_placed": bet_placed,
             "tr_confidence": tr_confidence,

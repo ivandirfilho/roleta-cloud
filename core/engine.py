@@ -82,7 +82,7 @@ class GameEngine:
         force = self.game_state.process_spin(numero, direcao)
         self.game_state.save()
 
-        # 4. Analisar com SDA-17
+        # 4. Analisar com SDA-21
         result = self.strategy.analyze(
             self.game_state.target_timeline,
             self.game_state.last_number,
@@ -97,14 +97,15 @@ class GameEngine:
         if result.should_bet:
             if advice.should_bet:
                 acao = "APOSTAR"
-                action_reason = f"SDA17 + Triple Rate aprovaram ({advice.confidence})"
+                action_reason = f"SDA + Triple Rate aprovaram ({advice.confidence})"
                 self.game_state.store_prediction(
                     result.numbers, self.game_state.target_direction, result.center,
                     predicted_force=result.details.get("predicted_force", 0),
                     bet_placed=True,
                     tr_confidence=advice.confidence,
                     tr_reason=advice.reason,
-                    sda_score=result.score
+                    sda_score=result.score,
+                    sda_centers=result.details.get("centers", [result.center])
                 )
             else:
                 acao = "PULAR"
@@ -115,11 +116,12 @@ class GameEngine:
                     bet_placed=False,
                     tr_confidence=advice.confidence,
                     tr_reason=advice.reason,
-                    sda_score=result.score
+                    sda_score=result.score,
+                    sda_centers=result.details.get("centers", [result.center])
                 )
         else:
             acao = "PULAR"
-            action_reason = "SDA17 não recomendou (forças insuficientes)"
+            action_reason = "SDA não recomendou (forças insuficientes)"
 
         mg = self.game_state.target_martingale
         confidence = {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50)

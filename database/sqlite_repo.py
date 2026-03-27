@@ -93,10 +93,11 @@ class SQLiteDecisionRepository(DecisionRepository):
                     tr_m6_rate REAL,
                     tr_l12_rate REAL,
                     
-                    -- SDA17 Strategy
+                    -- SDA Strategy
                     sda_should_bet BOOLEAN,
                     sda_score INTEGER,
                     sda_center INTEGER,
+                    sda_centers TEXT,  -- JSON array [C1, C2, C3] — SDA-21
                     sda_numbers TEXT,  -- JSON array
                     sda_predicted_force INTEGER,
                     
@@ -183,10 +184,15 @@ class SQLiteDecisionRepository(DecisionRepository):
                     ON gale_windows(direction) WHERE ended_at IS NULL;
             """)
             conn.commit()
-    
-    # =========================================================================
-    # CRUD de Decisões
-    # =========================================================================
+            
+            # Auto-migration: add sda_centers column for existing databases
+            try:
+                conn.execute("SELECT sda_centers FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN sda_centers TEXT")
+                conn.execute("UPDATE decisions SET sda_centers = json_array(sda_center) WHERE sda_centers IS NULL")
+                conn.commit()
+                logger.info("Migration: added sda_centers column to decisions")
     
     def save_decision(self, decision: Decision) -> int:
         """Salva uma nova decisão."""
@@ -198,14 +204,14 @@ class SQLiteDecisionRepository(DecisionRepository):
                     spin_number, spin_direction, spin_force,
                     tr_should_bet, tr_confidence, tr_reason,
                     tr_c4_rate, tr_m6_rate, tr_l12_rate,
-                    sda_should_bet, sda_score, sda_center,
+                    sda_should_bet, sda_score, sda_center, sda_centers,
                     sda_numbers, sda_predicted_force,
                     final_action, action_reason,
                     gale_level, gale_window_hits, gale_window_count, gale_bet_value,
                     result_hit, result_actual,
                     calibration_offset, calibration_error,
                     performance_snapshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -221,6 +227,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                 decision.sda_should_bet,
                 decision.sda_score,
                 decision.sda_center,
+                json.dumps(decision.sda_centers) if decision.sda_centers else json.dumps([decision.sda_center]),
                 json.dumps(decision.sda_numbers),
                 decision.sda_predicted_force,
                 decision.final_action,
@@ -338,6 +345,7 @@ class SQLiteDecisionRepository(DecisionRepository):
             sda_should_bet=bool(row["sda_should_bet"]) if row["sda_should_bet"] is not None else True,
             sda_score=row["sda_score"] or 0,
             sda_center=row["sda_center"] or 0,
+            sda_centers=json.loads(row["sda_centers"]) if row["sda_centers"] else [row["sda_center"] or 0],
             sda_numbers=json.loads(row["sda_numbers"]) if row["sda_numbers"] else [],
             sda_predicted_force=row["sda_predicted_force"] or 0,
             final_action=row["final_action"] or "",

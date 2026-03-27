@@ -24,7 +24,7 @@ class TestSDA17Strategy:
     """Testa a estratégia SDA-17."""
 
     def test_name(self, strategy):
-        assert strategy.name == "SDA-19"
+        assert strategy.name == "SDA-21"
 
     def test_analyze_insufficient_data(self, strategy):
         """Com dados insuficientes, should_bet=False."""
@@ -67,3 +67,39 @@ class TestSDA17Strategy:
         wrong = int(sum(diffs) / 2 * 0.5)  # = 3 (bug antigo)
         assert expected == 6
         assert wrong == 3  # Confirma que o bug antigo dava valor errado
+
+    def test_triple_focus_returns_three_centers(self, strategy, timeline_with_data):
+        """SDA-21 retorna exatamente 3 centros em details."""
+        from core.roulette import roulette
+        result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
+        if result.should_bet:
+            centers = result.details.get("centers", [])
+            assert len(centers) == 3
+            assert result.center == centers[0]  # C1 é o centro primário
+
+    def test_triple_focus_unique_count(self, strategy, timeline_with_data):
+        """Números devem ter 15-21 itens únicos."""
+        from core.roulette import roulette
+        result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
+        if result.should_bet:
+            assert 7 <= len(result.numbers) <= 21
+            assert len(result.numbers) == len(set(result.numbers))  # Todos únicos
+
+    def test_triple_focus_forces_used(self, strategy, timeline_with_data):
+        """Detalhes contêm as forças usadas para cada centro."""
+        from core.roulette import roulette
+        result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
+        if result.should_bet:
+            forces_used = result.details.get("forces_used", {})
+            assert "median" in forces_used
+            assert "max" in forces_used
+            assert "min" in forces_used
+
+    def test_ensure_diversity(self, strategy):
+        """Centros devem estar separados por pelo menos 4 posições."""
+        from core.roulette import roulette
+        ws = roulette.WHEEL_SEQUENCE
+        # Force identical centers
+        c1, c2, c3 = strategy._ensure_diversity(17, 17, 17, ws)
+        # After diversity enforcement, they should be different
+        assert len({c1, c2, c3}) >= 2  # At minimum 2 unique

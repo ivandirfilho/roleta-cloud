@@ -370,11 +370,12 @@ function toggleMinimize() {
 
   if (overlayState.isMinimized) {
     overlay.classList.add('minimized');
-    // Quando minimizado, mostrar [centro] + gale no status
+    // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
     if (status && galeDisplay && overlayState.lastSugestao) {
-      const centro = overlayState.lastSugestao.centro ?? '--';
+      const centros = overlayState.lastSugestao.centros || [overlayState.lastSugestao.centro];
+      const centroDisplay = centros.filter(c => c).map(c => `[${c}]`).join(' ') || '--';
       const galeText = galeDisplay.textContent;
-      status.textContent = `[${centro}] ${galeText}`;
+      status.textContent = `${centroDisplay} ${galeText}`;
       // Copiar classe de cor
       status.classList.remove('g1', 'g2', 'g3', 'apostar', 'pular', 'aguardando');
       if (galeDisplay.classList.contains('g1')) status.classList.add('g1');
@@ -462,7 +463,7 @@ function updateOverlay(sugestao) {
   if (acao === 'APOSTAR') {
     panel.classList.add('apostar');
     regiao.classList.remove('pular');
-    regiao.textContent = sugestao.regiao || `Centro ${sugestao.centro}`;
+    regiao.textContent = sugestao.regiao || `Centros: ${(sugestao.centros || [sugestao.centro]).join(', ')}`;
   } else if (acao === 'PULAR') {
     panel.classList.add('pular');
     regiao.classList.add('pular');
@@ -472,17 +473,18 @@ function updateOverlay(sugestao) {
     regiao.textContent = 'Aguardando...';
   }
 
-  // Atualizar status - SEMPRE mostrar [centro] + gale
+  // Atualizar status - SEMPRE mostrar [centros] + gale
   status.classList.remove('apostar', 'pular', 'aguardando', 'g1', 'g2', 'g3');
 
-  // Sempre mostrar formato [centro] G1 2/5 no status se minimizado
+  // Sempre mostrar formato [C1] [C2] [C3] G1 2/5 no status se minimizado
   // Se expandido, mostrar a Ação (APOSTAR/PULAR)
-  const centro = sugestao.centro ?? '--';
+  const centros = sugestao.centros || [sugestao.centro];
+  const centroDisplay = centros.filter(c => c != null).map(c => `[${c}]`).join(' ') || '--';
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
 
   if (overlayState.isMinimized) {
-    status.textContent = `[${centro}] ${galeText}`;
+    status.textContent = `${centroDisplay} ${galeText}`;
   } else {
     if (acao === 'APOSTAR') {
       status.classList.add('apostar');
@@ -784,8 +786,9 @@ function handleStateSync(data) {
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
       if (status && data.pending_prediction) {
-        const centro = data.pending_prediction.center || '--';
-        status.textContent = `[${centro}] ${data.gale_display || 'G1 0/0'}`;
+        const centros = data.pending_prediction.centers || [data.pending_prediction.center || '--'];
+        const centroDisplay = centros.map(c => `[${c}]`).join(' ');
+        status.textContent = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
         status.className = `eb-status g${data.gale_level || 1}`;
       }
     }

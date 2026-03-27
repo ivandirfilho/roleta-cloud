@@ -225,10 +225,10 @@ class MessageHandler:
         # Decisão combinada: Triple Rate pode VETAR
         action_reason = ""
         if result.should_bet:
-            # SDA17 recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
+            # SDA recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
             if advice.should_bet:
                 acao = "APOSTAR"
-                action_reason = f"SDA17 + Triple Rate aprovaram ({advice.confidence})"
+                action_reason = f"SDA + Triple Rate aprovaram ({advice.confidence})"
                 # Registrar com bet_placed=True (realmente apostou)
                 self.game_state.store_prediction(
                     result.numbers,
@@ -238,12 +238,13 @@ class MessageHandler:
                     bet_placed=True,
                     tr_confidence=advice.confidence,
                     tr_reason=advice.reason,
-                    sda_score=result.score
+                    sda_score=result.score,
+                    sda_centers=result.details.get("centers", [result.center])
                 )
             else:
                 acao = "PULAR"
                 action_reason = f"Triple Rate vetou: {advice.reason}"
-                # SDA17 recomendou mas TR vetou - registrar para TR com bet_placed=False
+                # SDA recomendou mas TR vetou - registrar para TR com bet_placed=False
                 self.game_state.store_prediction(
                     result.numbers,
                     self.game_state.target_direction,
@@ -252,12 +253,13 @@ class MessageHandler:
                     bet_placed=False,  # Não apostou, mas registra para análise TR
                     tr_confidence=advice.confidence,
                     tr_reason=advice.reason,
-                    sda_score=result.score
+                    sda_score=result.score,
+                    sda_centers=result.details.get("centers", [result.center])
                 )
         else:
             acao = "PULAR"
-            action_reason = "SDA17 não recomendou (forças insuficientes)"
-            # SDA17 não recomendou - não há predição para verificar
+            action_reason = "SDA não recomendou (forças insuficientes)"
+            # SDA não recomendou - não há predição para verificar
 
         # Obter info do martingale da direção ALVO (para overlay)
         mg = self.game_state.target_martingale
@@ -285,6 +287,7 @@ class MessageHandler:
                 sda_should_bet=result.should_bet,
                 sda_score=result.score,
                 sda_center=result.center,
+                sda_centers=result.details.get("centers", [result.center]),
                 sda_numbers=result.numbers,
                 sda_predicted_force=result.details.get("predicted_force", 0),
                 final_action=acao,
@@ -300,10 +303,10 @@ class MessageHandler:
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
             decision_id = db_service.save_decision(decision)
             if result.should_bet:
-                # SDA17 gerou predição → rastrear para verificar no próximo spin
+                # SDA gerou predição → rastrear para verificar no próximo spin
                 self.last_decision_id = decision_id
             else:
-                # SDA17 não recomendou → sem predição para verificar
+                # SDA não recomendou → sem predição para verificar
                 self.last_decision_id = None
 
         except Exception as db_error:
@@ -316,6 +319,7 @@ class MessageHandler:
                 "acao": acao,
                 "numeros": result.numbers,
                 "centro": result.center,
+                "centros": result.details.get("centers", [result.center]),
                 "regiao": result.visual,
                 "ultimo_numero": self.game_state.last_number,
                 "confianca": {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50),
@@ -349,8 +353,10 @@ class MessageHandler:
             "result": {
                 "acao": acao,
                 "centro": result.center,
+                "centros": result.details.get("centers", [result.center]),
                 "score": result.score,
                 "numeros": result.numbers,
+                "unique_count": result.details.get("unique_count", len(result.numbers)),
                 "trend": result.details.get("trend", "")
             },
             "strategy": {
@@ -481,6 +487,7 @@ class MessageHandler:
                 "acao": acao,
                 "numeros": result.numbers,
                 "centro": result.center,
+                "centros": result.details.get("centers", [result.center]),
                 "regiao": result.visual,
                 "ultimo_numero": self.game_state.last_number,
                 "confianca": int(result.score / 6 * 100),  # Legacy: sem Triple Rate

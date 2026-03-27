@@ -111,6 +111,7 @@ class AnalyticsHandler:
                     "action_reason": d.action_reason,
                     "sda_score": d.sda_score,
                     "sda_center": d.sda_center,
+                    "sda_centers": d.sda_centers,
                     "tr_confidence": d.tr_confidence,
                     "gale_level": d.gale_level,
                     "result_hit": d.result_hit,

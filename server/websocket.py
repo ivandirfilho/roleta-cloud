@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Estado global
 state_lock = asyncio.Lock()
 game_state: GameState = GameState.load()
-strategy = SDA17Strategy()  # SDA-17 com regressão linear
+strategy = SDA17Strategy()  # SDA-21 Triple Focus
 configs_path = os.path.join(os.path.dirname(__file__), "configs")
 message_handler = MessageHandler(game_state, strategy, state_lock, configs_path)
 
