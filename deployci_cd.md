@@ -360,11 +360,12 @@ ssh root@187.45.181.75 "cd /root/roleta-cloud && git reset --hard origin/main~1 
 ### 6.4 Backup do banco antes de deploy
 
 ```powershell
-# Criar backup do SQLite ANTES de qualquer deploy
-ssh root@187.45.181.75 "cp /root/roleta-cloud/data/decisions.db /root/roleta-cloud/data/decisions_backup_$(date +%Y%m%d_%H%M%S).db"
-
-# Ou via Docker volume
+# ⚠️ O banco de produção está no Docker Named Volume (NÃO no host path)
+# Backup via Docker exec (método correto):
 ssh root@187.45.181.75 "docker exec roleta-cloud cp /app/data/decisions.db /app/data/decisions_backup_$(date +%Y%m%d_%H%M%S).db"
+
+# Copiar backup para o host (opcional):
+ssh root@187.45.181.75 "docker cp roleta-cloud:/app/data/decisions_backup_*.db /root/backups/ 2>/dev/null"
 ```
 
 ---
@@ -467,12 +468,12 @@ ssh root@187.45.181.75 "cd /root/roleta-cloud && git fetch origin && git reset -
 ### Banco de dados corrompido
 
 ```powershell
-# Verificar integridade do SQLite
-ssh root@187.45.181.75 "docker exec roleta-cloud python -c \"import sqlite3; conn = sqlite3.connect('/app/data/decisions.db'); print(conn.execute('PRAGMA integrity_check').fetchone())\""
+# Verificar integridade do SQLite (via Docker exec)
+ssh root@187.45.181.75 "docker exec roleta-cloud python3 -c ""import sqlite3; conn = sqlite3.connect('/app/data/decisions.db'); print(conn.execute('PRAGMA integrity_check').fetchone())"""
 
-# Se corrompido, restaurar backup
-ssh root@187.45.181.75 "ls -la /root/roleta-cloud/data/decisions_backup_*.db"
-ssh root@187.45.181.75 "cp /root/roleta-cloud/data/decisions_backup_YYYYMMDD.db /root/roleta-cloud/data/decisions.db"
+# Se corrompido, restaurar backup dentro do volume Docker
+ssh root@187.45.181.75 "docker exec roleta-cloud ls /app/data/decisions_backup_*.db"
+ssh root@187.45.181.75 "docker exec roleta-cloud cp /app/data/decisions_backup_YYYYMMDD.db /app/data/decisions.db"
 ```
 
 ### Container fica em "unhealthy"

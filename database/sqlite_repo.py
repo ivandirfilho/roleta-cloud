@@ -71,7 +71,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                     total_hits INTEGER DEFAULT 0,
                     total_profit REAL DEFAULT 0.0,
                     max_gale_reached INTEGER DEFAULT 1,
-                    total_stops INTEGER DEFAULT 0
+                    total_stops INTEGER DEFAULT 0,  -- DEPRECATED: Smart Gale v4 não tem stop
+                    total_resets INTEGER DEFAULT 0   -- Smart Gale v4: vezes que voltou a G1 após miss
                 );
                 
                 -- Tabela de decisões
@@ -115,7 +116,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                     result_hit BOOLEAN,
                     result_actual INTEGER,
                     
-                    -- Calibração
+                    -- DEPRECATED: calibração removida na v1.5.0 (sempre 0/NULL para dados novos)
                     calibration_offset INTEGER,
                     calibration_error INTEGER,
                     
@@ -193,6 +194,14 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.execute("UPDATE decisions SET sda_centers = json_array(sda_center) WHERE sda_centers IS NULL")
                 conn.commit()
                 logger.info("Migration: added sda_centers column to decisions")
+            
+            # Auto-migration: add total_resets column for Smart Gale v4
+            try:
+                conn.execute("SELECT total_resets FROM sessions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE sessions ADD COLUMN total_resets INTEGER DEFAULT 0")
+                conn.commit()
+                logger.info("Migration: added total_resets column to sessions")
     
     def save_decision(self, decision: Decision) -> int:
         """Salva uma nova decisão."""
@@ -389,7 +398,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                     total_hits = ?,
                     total_profit = ?,
                     max_gale_reached = ?,
-                    total_stops = ?
+                    total_stops = ?,
+                    total_resets = ?
                 WHERE id = ?
             """, (
                 session.total_spins,
@@ -398,6 +408,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                 session.total_profit,
                 session.max_gale_reached,
                 session.total_stops,
+                session.total_resets,
                 session.id
             ))
             conn.commit()
@@ -423,7 +434,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                     total_hits=row["total_hits"] or 0,
                     total_profit=row["total_profit"] or 0.0,
                     max_gale_reached=row["max_gale_reached"] or 1,
-                    total_stops=row["total_stops"] or 0
+                    total_stops=row["total_stops"] or 0,
+                    total_resets=row["total_resets"] or 0 if "total_resets" in row.keys() else 0
                 )
             return None
         finally:

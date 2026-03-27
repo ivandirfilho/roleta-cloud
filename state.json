@@ -16,21 +16,13 @@
   "performance_bet_ccw": [],
   "martingale_cw": {
     "level": 1,
-    "window_hits": 0,
-    "window_count": 0,
-    "total_stops": 0,
-    "current_bet": 21,
-    "multiplier": "1x",
-    "gale_display": "G1 0/0"
+    "consecutive_hits": 0,
+    "total_bets": 0
   },
   "martingale_ccw": {
     "level": 1,
-    "window_hits": 0,
-    "window_count": 0,
-    "total_stops": 0,
-    "current_bet": 21,
-    "multiplier": "1x",
-    "gale_display": "G1 0/0"
+    "consecutive_hits": 0,
+    "total_bets": 0
   },
   "pending_prediction": {}
 }

@@ -104,10 +104,7 @@ class MartingaleState:
         return {
             "level": self.level,
             "consecutive_hits": self.consecutive_hits,
-            "total_bets": self.total_bets,
-            "current_bet": self.current_bet,
-            "multiplier": self.multiplier,
-            "gale_display": self.gale_display
+            "total_bets": self.total_bets
         }
     
     @classmethod
@@ -467,9 +464,13 @@ class GameState:
                 data = json.load(f)
             
             version = data.get("version", "1.0.0")
+            try:
+                version_tuple = tuple(map(int, str(version).split(".")))
+            except (ValueError, AttributeError):
+                version_tuple = (1, 0, 0)
             
             # MIGRAÇÃO v1.3 -> v1.4 (legado)
-            if tuple(map(int, version.split("."))) < (1, 4, 0):
+            if version_tuple < (1, 4, 0):
                 # Migrar performance antigo para sda17
                 perf_cw = data.get("performance_cw", [])
                 perf_ccw = data.get("performance_ccw", [])

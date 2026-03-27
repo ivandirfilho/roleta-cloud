@@ -118,7 +118,8 @@ class Session:
     total_hits: int = 0
     total_profit: float = 0.0
     max_gale_reached: int = 1
-    total_stops: int = 0
+    total_stops: int = 0       # DEPRECATED: Smart Gale v4 não tem stop
+    total_resets: int = 0      # Smart Gale v4: vezes que voltou a G1 após miss
     
     def to_dict(self) -> Dict[str, Any]:
         """Converte para dicionário."""
@@ -131,7 +132,8 @@ class Session:
             "total_hits": self.total_hits,
             "total_profit": self.total_profit,
             "max_gale_reached": self.max_gale_reached,
-            "total_stops": self.total_stops
+            "total_stops": self.total_stops,
+            "total_resets": self.total_resets
         }
 
 

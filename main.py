@@ -33,6 +33,14 @@ def handle_shutdown(signum, frame):
     """Handler para shutdown graceful."""
     logger.info("shutdown_requested", signal=signum)
     game_state.save()
+    # Finalizar sessão ativa no DB (atualiza stats + end_time)
+    try:
+        from database.service import db_service
+        from server.websocket import message_handler
+        if hasattr(message_handler, 'current_session_id') and message_handler.current_session_id:
+            db_service.end_session(message_handler.current_session_id)
+    except Exception as e:
+        logger.warning(f"Erro ao finalizar sessão no shutdown: {e}")
     logger.info("state_saved")
     sys.exit(0)
 

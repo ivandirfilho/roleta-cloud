@@ -464,6 +464,120 @@ docker exec roleta-cloud cp /app/data/decisions.db /app/data/decisions_backup_$(
 
 ---
 
+### 9. Banco de Dados — Inventário e Fluxo Completo
+
+> **Atualizado em:** 27/Mar/2026 (pós-refatoração)
+
+#### 9.1 Bancos de Produção Ativos
+
+| # | Localização | Tipo | Função | Acesso |
+|:-:|-------------|------|--------|--------|
+| 1 | Docker Volume `roleta-data` | SQLite (WAL) | Banco principal: decisions, sessions, gale_windows, window_plays | `docker exec roleta-cloud python3 -c "..."` |
+| 2 | Host `state.json` (bind mount) | JSON | Estado do jogo: timelines, martingale, pending_prediction | Leitura direta no host ou container |
+| 3 | Chrome Extension | `chrome.storage.local/session` | Estado da extensão: escutaState, currentDirection, overlayUIState | DevTools → Application → Storage |
+
+#### 9.2 Bancos Legado (somente leitura/referência)
+
+| # | Localização | Tamanho | Conteúdo |
+|:-:|-------------|:-------:|----------|
+| 1 | `archive/legado_bancos/sda_datalake.db` | 4.76 MB | 15.109 rows de performance_log (18 preditores antigos) |
+| 2 | `archive/legado_bancos/microservico_datalake.db` | 40 KB | 90 rows de previsões v2 |
+
+#### 9.3 Schema do Banco de Produção (SQLite)
+
+```sql
+-- sessions: metadados de cada sessão de jogo
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,               -- Preenchido ao finalizar (shutdown/reset)
+    total_spins INTEGER DEFAULT 0,   -- Atualizado a cada 10 decisões e no shutdown
+    total_bets INTEGER DEFAULT 0,
+    total_hits INTEGER DEFAULT 0,
+    total_profit REAL DEFAULT 0.0,
+    max_gale_reached INTEGER DEFAULT 1,
+    total_stops INTEGER DEFAULT 0,   -- DEPRECATED (Smart Gale v4 não para)
+    total_resets INTEGER DEFAULT 0   -- Smart Gale v4: resets a G1 após miss
+);
+
+-- decisions: cada spin processado pelo sistema
+CREATE TABLE decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    session_id TEXT REFERENCES sessions(id),
+    spin_number INTEGER, spin_direction TEXT, spin_force INTEGER,
+    tr_should_bet BOOLEAN, tr_confidence TEXT, tr_reason TEXT,
+    tr_c4_rate REAL, tr_m6_rate REAL, tr_l12_rate REAL,
+    sda_should_bet BOOLEAN, sda_score INTEGER, sda_center INTEGER,
+    sda_centers TEXT,  -- JSON array [C1, C2, C3] — SDA-21
+    sda_numbers TEXT, sda_predicted_force INTEGER,
+    final_action TEXT, action_reason TEXT,
+    gale_level INTEGER, gale_window_hits INTEGER,
+    gale_window_count INTEGER, gale_bet_value INTEGER,
+    result_hit BOOLEAN, result_actual INTEGER,
+    calibration_offset INTEGER,  -- DEPRECATED (sempre 0 desde v1.5)
+    calibration_error INTEGER,   -- DEPRECATED
+    performance_snapshot TEXT
+);
+
+-- gale_windows: janelas de Martingale para ML/analytics
+CREATE TABLE gale_windows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    direction TEXT NOT NULL, gale_level INTEGER NOT NULL,
+    started_at DATETIME NOT NULL, ended_at DATETIME,
+    total_hits INTEGER DEFAULT 0, total_plays INTEGER DEFAULT 0,
+    result TEXT,  -- 'streak', 'reset', 'info', 'orphan'
+    next_level INTEGER,
+    sda17_rate_at_start REAL, bet_rate_at_start REAL,
+    calibration_offset INTEGER
+);
+-- CONSTRAINT: apenas 1 janela ativa por direção
+CREATE UNIQUE INDEX idx_gale_windows_active ON gale_windows(direction) WHERE ended_at IS NULL;
+
+-- window_plays: jogadas individuais dentro de cada janela
+CREATE TABLE window_plays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    window_id INTEGER REFERENCES gale_windows(id),
+    play_number INTEGER NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    spin_number INTEGER, spin_direction TEXT, spin_force INTEGER,
+    center_predicted INTEGER, hit BOOLEAN, actual_number INTEGER,
+    sda_score INTEGER, tr_confidence TEXT, tr_reason TEXT
+);
+```
+
+#### 9.4 Fluxo de Dados Completo
+
+```
+Chrome Extension (chrome.storage)
+    │ WebSocket (wss://roleta.xma-ia.com/ws)
+    ▼
+message_handler.py
+    ├─ check_prediction(numero)        → Verifica predição anterior
+    ├─ SmartGaleV4.update(hit)         → Atualiza gale da direção
+    ├─ db_service.track_gale_window()  → Grava em gale_windows + window_plays
+    ├─ GameState.process_spin()        → Atualiza timeline + forças
+    ├─ GameState.save()                → Grava state.json (bind mount)
+    ├─ sda17.analyze()                 → SDA-21 Triple Focus → predição
+    ├─ bet_advisor.analyze()           → Kill Switch Advisor → c4_rate
+    ├─ SmartGaleV4.get_gale()          → Nível de aposta (1×/2×/3×)
+    ├─ db_service.save_decision()      → Grava em decisions (Named Volume)
+    ├─ db_service.update_session_stats() → A cada 10 decisões
+    └─ WebSocket.send(overlay)         → Envia sugestão para Chrome
+```
+
+#### 9.5 Ciclo de Vida da Sessão
+
+| Evento | Ação no DB |
+|--------|-----------|
+| Extensão envia `nova_sessao` | `create_session()` → nova row em sessions |
+| A cada spin | `save_decision()` → nova row em decisions |
+| A cada 10 decisões | `update_session_stats()` → atualiza totais em sessions |
+| Reset de sessão | `end_session()` → define end_time + stats finais → `create_session()` nova |
+| Shutdown (SIGTERM/SIGINT) | `end_session()` → finaliza sessão + `game_state.save()` |
+
+---
+
 ## PARTE II — ANÁLISE ISO/IEC 25010
 
 A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto de software, cada uma com sub-características. A seguir, cada uma é avaliada contra o estado atual do Roleta Cloud v3.5.0.

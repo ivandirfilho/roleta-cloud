@@ -33,6 +33,7 @@ class MessageHandler:
         self.current_session_id: str = str(uuid.uuid4())[:8]
         self.last_decision_id: Optional[int] = None
         self.last_spin_hash: str = ""
+        self._decision_count: int = 0
         self.extractor_service = ExtractorService(configs_path)
 
     def is_duplicate_spin(self, numero: int, timestamp: int) -> bool:
@@ -309,6 +310,11 @@ class MessageHandler:
                 # SDA não recomendou → sem predição para verificar
                 self.last_decision_id = None
 
+            # Atualizar stats da sessão a cada 10 decisões
+            self._decision_count += 1
+            if self._decision_count % 10 == 0:
+                db_service.update_session_stats(self.current_session_id)
+
         except Exception as db_error:
             logger.warning(f"Erro ao salvar decisão no DB: {db_error}")
 
@@ -437,6 +443,10 @@ class MessageHandler:
         keep_last = data.get("manter_ultimo", False)
 
         async with self.state_lock:
+            # Finalizar sessão anterior (atualiza stats + end_time)
+            if self.current_session_id:
+                db_service.end_session(self.current_session_id)
+
             reset_info = self.game_state.reset_session(keep_last_number=keep_last)
 
             # Criar nova sessão no DB

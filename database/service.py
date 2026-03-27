@@ -143,5 +143,29 @@ class DatabaseService:
         """Atualiza resultado de uma decisão."""
         self.repository.update_result(decision_id, hit, actual_number)
 
+    def update_session_stats(self, session_id: str):
+        """Recalcula stats da sessão a partir das decisions."""
+        try:
+            repo = self.repository
+            stats = repo.get_stats(session_id=session_id)
+            session = repo.get_session(session_id)
+            if session:
+                session.total_spins = stats.get("total_decisions", 0)
+                session.total_bets = stats.get("total_bets", 0)
+                session.total_hits = stats.get("total_hits", 0)
+                repo.update_session(session)
+                logger.debug(f"[SESSION] Stats atualizados: {session_id} spins={session.total_spins} bets={session.total_bets} hits={session.total_hits}")
+        except Exception as e:
+            logger.warning(f"Erro ao atualizar stats da sessão: {e}")
+
+    def end_session(self, session_id: str):
+        """Finaliza sessão com end_time + stats atualizados."""
+        try:
+            self.update_session_stats(session_id)
+            self.repository.end_session(session_id)
+            logger.info(f"[SESSION] Sessão finalizada: {session_id}")
+        except Exception as e:
+            logger.warning(f"Erro ao finalizar sessão: {e}")
+
 # Singleton
 db_service = DatabaseService()
