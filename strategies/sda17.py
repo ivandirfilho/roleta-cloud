@@ -21,6 +21,13 @@ class SDA17Strategy(StrategyBase):
     Cobertura: até 21 números (3 centros × 3 vizinhos cada) = até 56.8% da roda
     """
     
+    # Separação mínima = 2×raio+1 para zero overlap entre clusters
+    MIN_SEPARATION = 7
+    # Offset de redistribuição (~1/3 da roda)
+    SPREAD_OFFSET = 12
+    # Forças acima deste limiar são sinalizadas como anômalas
+    MAX_FORCE_THRESHOLD = 30
+    
     def __init__(self):
         super().__init__(name="SDA-21", num_neighbors=3)
         self.min_forces = 3
@@ -62,24 +69,57 @@ class SDA17Strategy(StrategyBase):
         if calibration != 0:
             predicted_force = max(1, min(37, predicted_force + calibration))
         
-        # === TRIPLE FOCUS: 3 centros ===
-        # Centro 1: Mediana Ponderada (pipeline SDA)
-        c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
-        
         # Filtrar forças válidas (>0) para max/min — BUG-T02 fix
         valid_forces = [f for f in forces if f > 0]
         if len(valid_forces) < 2:
-            valid_forces = forces  # Fallback: usar todas se poucas válidas
+            valid_forces = forces
         
-        # Centro 2: Força Máxima da timeline
+        # BUG-E4: Flag forças anômalas (>30) — possível erro de captura
+        flagged = []
+        for i, f in enumerate(valid_forces):
+            if f > self.MAX_FORCE_THRESHOLD:
+                flagged.append(f)
+                valid_forces[i] = max(1, 37 - f)  # Inversão suave
+        
+        # BUG-E5: Fallback SDA-19 quando <5 forças válidas (early-session)
+        if len(valid_forces) < 5:
+            c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
+            numbers = sorted(self.get_neighbors(c1, 9, wheel_sequence))
+            return StrategyResult(
+                should_bet=True,
+                numbers=numbers,
+                center=c1,
+                score=pred_info.get("score", 3),
+                visual=f"[{c1}] (SDA-19)",
+                details={
+                    "forces": forces,
+                    "predicted_force": predicted_force,
+                    "original_prediction": original_force,
+                    "method": "fallback_sda19",
+                    "centers": [c1],
+                    "forces_used": {"median": predicted_force},
+                    "unique_count": len(numbers),
+                    "overlap": 0,
+                    "clean_count": pred_info.get("clean_count", 0),
+                    "outliers_removed": pred_info.get("outliers_removed", 0),
+                    "spread": pred_info.get("spread", 0),
+                    "drift": pred_info.get("drift", 0),
+                    "survival_rate": pred_info.get("survival_rate", 1.0),
+                    "calibration": calibration,
+                    "flagged_forces": flagged
+                }
+            )
+        
+        # === TRIPLE FOCUS: 3 centros ===
+        c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
+        
         max_force = max(valid_forces)
         c2 = self._apply_force(last_number, max_force, timeline.direction, wheel_sequence)
         
-        # Centro 3: Força Mínima da timeline
         min_force = min(valid_forces)
         c3 = self._apply_force(last_number, min_force, timeline.direction, wheel_sequence)
         
-        # Garantir diversificação mínima entre centros
+        # BUG-E1: Diversificação com separação mínima 7 posições
         c1, c2, c3 = self._ensure_diversity(c1, c2, c3, wheel_sequence)
         
         # Agregar números dos 3 clusters
@@ -87,6 +127,14 @@ class SDA17Strategy(StrategyBase):
         for center in [c1, c2, c3]:
             nums |= set(self.get_neighbors(center, self.num_neighbors, wheel_sequence))
         numbers = sorted(nums)
+        
+        # BUG-E2: Forçar cobertura mínima ≥ 18 redistribuindo centros
+        if len(numbers) < 18:
+            c1, c2, c3 = self._force_spread(c1, c2, c3, wheel_sequence)
+            nums = set()
+            for center in [c1, c2, c3]:
+                nums |= set(self.get_neighbors(center, self.num_neighbors, wheel_sequence))
+            numbers = sorted(nums)
         
         visual = f"[{c1}] [{c2}] [{c3}]"
         
@@ -110,7 +158,8 @@ class SDA17Strategy(StrategyBase):
                 "spread": pred_info.get("spread", 0),
                 "drift": pred_info.get("drift", 0),
                 "survival_rate": pred_info.get("survival_rate", 1.0),
-                "calibration": calibration
+                "calibration": calibration,
+                "flagged_forces": flagged
             }
         )
     
@@ -246,7 +295,7 @@ class SDA17Strategy(StrategyBase):
         c3: int,
         wheel_sequence: List[int]
     ) -> Tuple[int, int, int]:
-        """Garante separação mínima de 4 posições entre quaisquer 2 centros."""
+        """Garante separação mínima de 7 posições (zero overlap) entre centros."""
         wheel_size = len(wheel_sequence)
         
         def circ_dist(a: int, b: int) -> int:
@@ -259,12 +308,28 @@ class SDA17Strategy(StrategyBase):
         
         c1_pos = wheel_sequence.index(c1)
         
-        # Se C2 muito perto de C1, deslocar C2 por +7
-        if circ_dist(c1, c2) < 4:
-            c2 = wheel_sequence[(c1_pos + 7) % wheel_size]
+        if circ_dist(c1, c2) < self.MIN_SEPARATION:
+            c2 = wheel_sequence[(c1_pos + self.SPREAD_OFFSET) % wheel_size]
         
-        # Se C3 muito perto de C1 ou C2, deslocar C3 por -7
-        if circ_dist(c1, c3) < 4 or circ_dist(c2, c3) < 4:
-            c3 = wheel_sequence[(c1_pos - 7) % wheel_size]
+        c2_pos = wheel_sequence.index(c2)
+        if circ_dist(c1, c3) < self.MIN_SEPARATION or circ_dist(c2, c3) < self.MIN_SEPARATION:
+            c3 = wheel_sequence[(c1_pos - self.SPREAD_OFFSET) % wheel_size]
         
+        if circ_dist(c2, c3) < self.MIN_SEPARATION:
+            c3 = wheel_sequence[(c2_pos + self.SPREAD_OFFSET) % wheel_size]
+        
+        return c1, c2, c3
+    
+    def _force_spread(
+        self,
+        c1: int,
+        c2: int,
+        c3: int,
+        wheel_sequence: List[int]
+    ) -> Tuple[int, int, int]:
+        """Forçar centros a ~120° de separação para garantir cobertura ≥ 18."""
+        wheel_size = len(wheel_sequence)
+        c1_pos = wheel_sequence.index(c1)
+        c2 = wheel_sequence[(c1_pos + self.SPREAD_OFFSET) % wheel_size]
+        c3 = wheel_sequence[(c1_pos - self.SPREAD_OFFSET) % wheel_size]
         return c1, c2, c3

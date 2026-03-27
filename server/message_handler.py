@@ -165,7 +165,7 @@ class MessageHandler:
 
                 if martingale_info.get("transition"):
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
-                logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} ({martingale_info.get('window_hits', 0)}/{martingale_info.get('window_count', 0)})")
+                logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} | Streak {martingale_info.get('consecutive_hits', 0)}")
 
                 # Tracking de janelas para ML/Dashboard
                 try:
@@ -293,8 +293,8 @@ class MessageHandler:
                 final_action=acao,
                 action_reason=action_reason,
                 gale_level=mg.level,
-                gale_window_hits=mg.window_hits,
-                gale_window_count=mg.window_count,
+                gale_window_hits=mg.consecutive_hits,
+                gale_window_count=mg.total_bets,
                 gale_bet_value=mg.current_bet,
                 calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12]
@@ -327,6 +327,8 @@ class MessageHandler:
                 "aposta": mg.current_bet,
                 "gale_level": mg.level,
                 "gale_display": mg.gale_display,
+                "gale_reasoning": action_reason,
+                "consecutive_hits": mg.consecutive_hits,
                 "estrategia": self.strategy.name,
                 "trace_id": trace.trace_id,
                 "t_server": now_ms(),

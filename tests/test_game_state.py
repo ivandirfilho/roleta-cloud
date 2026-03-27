@@ -1,4 +1,4 @@
-"""Testes para o estado do jogo (GameState, MartingaleState)."""
+"""Testes para o estado do jogo (GameState, MartingaleState / Smart Gale v4)."""
 
 import pytest
 import tempfile
@@ -9,45 +9,123 @@ from collections import deque
 from state.game import GameState, MartingaleState
 
 
-class TestMartingaleState:
-    """Testa o sistema de Martingale inteligente."""
+class TestSmartGaleV4:
+    """Testa o Smart Gale v4 (Hybrid Score-Streak)."""
 
     def test_initial_state(self):
         mg = MartingaleState()
         assert mg.level == 1
-        assert mg.window_count == 0
-        assert mg.window_hits == 0
+        assert mg.consecutive_hits == 0
+        assert mg.total_bets == 0
+        assert mg.current_bet == 21
 
-    def test_hit_increments(self):
+    def test_hit_increments_streak(self):
         mg = MartingaleState()
         info = mg.update(True)
-        assert mg.window_count == 1
-        assert mg.window_hits == 1
+        assert mg.consecutive_hits == 1
         assert info["hit"] is True
+        assert mg.total_bets == 1
 
-    def test_miss_increments(self):
+    def test_miss_resets_streak(self):
         mg = MartingaleState()
+        mg.update(True)
+        mg.update(True)
+        assert mg.consecutive_hits == 2
         info = mg.update(False)
-        assert mg.window_count == 1
-        assert mg.window_hits == 0
+        assert mg.consecutive_hits == 0
+        assert mg.level == 1
         assert info["hit"] is False
 
-    def test_window_completes_after_5(self):
+    def test_miss_resets_to_g1(self):
         mg = MartingaleState()
-        for i in range(4):
-            mg.update(False)
-        info = mg.update(False)  # 5th play
-        assert info.get("transition") is not None or mg.window_count == 0
+        mg.level = 3
+        mg.consecutive_hits = 3
+        mg.update(False)
+        assert mg.level == 1
+        assert mg.consecutive_hits == 0
+
+    def test_get_gale_score_ceiling(self):
+        mg = MartingaleState()
+        mg.consecutive_hits = 5  # wants to raise
+        assert mg.get_gale(score=1) == 1  # ceiling 1 for low score
+        assert mg.get_gale(score=3) == 2  # ceiling 2 for mid score
+        assert mg.get_gale(score=5) == 3  # ceiling 3 for high score
+
+    def test_get_gale_c4_rate_override(self):
+        mg = MartingaleState()
+        mg.consecutive_hits = 5
+        assert mg.get_gale(score=6, c4_rate=0.10) == 1  # c4_rate < 25% forces ceiling 1
+
+    def test_get_gale_streak_raises(self):
+        mg = MartingaleState()
+        mg.level = 1
+        mg.consecutive_hits = 2  # streak >= 2 → raise
+        result = mg.get_gale(score=5, c4_rate=0.5)
+        assert result == 2  # raised from 1 to 2
+
+    def test_bet_values(self):
+        mg = MartingaleState()
+        mg.level = 1
+        assert mg.current_bet == 21
+        mg.level = 2
+        assert mg.current_bet == 42
+        mg.level = 3
+        assert mg.current_bet == 63
+
+    def test_multiplier_display(self):
+        mg = MartingaleState()
+        assert mg.multiplier == "1x"
+        mg.level = 2
+        assert mg.multiplier == "2x"
+        mg.level = 3
+        assert mg.multiplier == "3x"
+
+    def test_gale_display(self):
+        mg = MartingaleState()
+        assert mg.gale_display == "G1 S0"
+        mg.update(True)
+        assert mg.gale_display == "G1 S1"
 
     def test_to_dict_from_dict(self):
         mg = MartingaleState()
         mg.update(True)
-        mg.update(False)
+        mg.update(True)
         d = mg.to_dict()
         mg2 = MartingaleState.from_dict(d)
         assert mg2.level == mg.level
-        assert mg2.window_count == mg.window_count
-        assert mg2.window_hits == mg.window_hits
+        assert mg2.consecutive_hits == mg.consecutive_hits
+        assert mg2.total_bets == mg.total_bets
+
+    def test_from_dict_migration(self):
+        """Legacy data with window_count/total_stops migrates gracefully."""
+        old_data = {"level": 2, "window_count": 3, "total_stops": 1}
+        mg = MartingaleState.from_dict(old_data)
+        assert mg.level == 2
+        assert mg.total_bets == 8  # 3 + 1*5
+
+    def test_transition_message_on_streak(self):
+        mg = MartingaleState()
+        mg.update(True)
+        info = mg.update(True)
+        assert info.get("transition") is not None
+        assert "STREAK" in info["transition"]
+
+    def test_transition_message_on_reset(self):
+        mg = MartingaleState()
+        mg.level = 2
+        mg.consecutive_hits = 2
+        info = mg.update(False)
+        assert "RESET" in info["transition"]
+
+    def test_always_returns_valid_gale(self):
+        """get_gale always returns 1, 2, or 3."""
+        mg = MartingaleState()
+        for score in range(0, 8):
+            for c4 in [0.0, 0.1, 0.24, 0.25, 0.5, 1.0]:
+                for streak in range(0, 5):
+                    mg.consecutive_hits = streak
+                    result = mg.get_gale(score=score, c4_rate=c4)
+                    assert result in (1, 2, 3), f"Invalid gale {result} for score={score}, c4={c4}, streak={streak}"
 
 
 class TestGameState:

@@ -92,33 +92,24 @@ class GameEngine:
 
         # 5. Triple Rate Advisor
         advice = self.game_state.get_bet_advice(sda_score=result.score)
+        c4_rate = getattr(advice, 'c4_rate', 0.5)
 
-        # 6. Decisão combinada
+        # 6. Decisão combinada — Smart Gale v4: SEMPRE aposta
         if result.should_bet:
-            if advice.should_bet:
-                acao = "APOSTAR"
-                action_reason = f"SDA + Triple Rate aprovaram ({advice.confidence})"
-                self.game_state.store_prediction(
-                    result.numbers, self.game_state.target_direction, result.center,
-                    predicted_force=result.details.get("predicted_force", 0),
-                    bet_placed=True,
-                    tr_confidence=advice.confidence,
-                    tr_reason=advice.reason,
-                    sda_score=result.score,
-                    sda_centers=result.details.get("centers", [result.center])
-                )
-            else:
-                acao = "PULAR"
-                action_reason = f"Triple Rate vetou: {advice.reason}"
-                self.game_state.store_prediction(
-                    result.numbers, self.game_state.target_direction, result.center,
-                    predicted_force=result.details.get("predicted_force", 0),
-                    bet_placed=False,
-                    tr_confidence=advice.confidence,
-                    tr_reason=advice.reason,
-                    sda_score=result.score,
-                    sda_centers=result.details.get("centers", [result.center])
-                )
+            mg = self.game_state.target_martingale
+            mg.get_gale(score=result.score, c4_rate=c4_rate)
+            
+            acao = "APOSTAR"
+            action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={c4_rate:.0%}"
+            self.game_state.store_prediction(
+                result.numbers, self.game_state.target_direction, result.center,
+                predicted_force=result.details.get("predicted_force", 0),
+                bet_placed=True,
+                tr_confidence=advice.confidence,
+                tr_reason=advice.reason,
+                sda_score=result.score,
+                sda_centers=result.details.get("centers", [result.center])
+            )
         else:
             acao = "PULAR"
             action_reason = "SDA não recomendou (forças insuficientes)"

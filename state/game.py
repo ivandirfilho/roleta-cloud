@@ -19,94 +19,92 @@ from .bet_advisor import TripleRateAdvisor, BetAdvice
 @dataclass
 class MartingaleState:
     """
-    Sistema de Martingale Inteligente com janela de 5 jogadas.
+    Smart Gale v4 — Hybrid Score-Streak.
     
-    Lógica:
-    - GALE 1 = R$21 (5 jogadas): 3+ acertos → mantém | 2- → GALE 2
-    - GALE 2 = R$42 (5 jogadas): 3+ acertos → GALE 1 | 2- → GALE 3
-    - GALE 3 = R$84 (5 jogadas): 3+ acertos → GALE 1 | 2- → STOP + reinicia GALE 1
+    Gales: 1× (R$21), 2× (R$42), 3× (R$63). SEMPRE aposta.
+    
+    Regra 1 — Teto por Score SDA:
+      Score 1-2 → max 1× | Score 3-4 → max 2× | Score 5-6 → max 3×
+    Regra 2 — Gale por Streak de acertos consecutivos:
+      0 consec → 1× | 1 consec → mantém | 2+ consec → sobe 1 (até teto)
+    Regra 3 — Reset após MISS: qualquer miss → volta 1× imediatamente
+    Regra 4 — Gale Advisor: C4 rate < 25% → forçar teto 1×
     """
-    level: int = 1                    # Nível atual (1, 2 ou 3)
-    window_hits: int = 0              # Acertos na janela atual
-    window_count: int = 0             # Jogadas na janela atual
-    total_stops: int = 0              # Total de stops desde início
+    level: int = 1
+    consecutive_hits: int = 0
+    total_bets: int = 0
     
-    # Valores de aposta por nível (até 21 números × R$1/R$2/R$4)
-    BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 84}
-    WINDOW_SIZE: ClassVar[int] = 5                   # Tamanho da janela
-    MIN_HITS_TO_PASS: ClassVar[int] = 3              # Mínimo de acertos para passar/manter
+    BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 63}
     
     @property
     def current_bet(self) -> int:
-        """Retorna valor da aposta atual."""
         return self.BET_VALUES.get(self.level, 21)
     
     @property
     def multiplier(self) -> str:
-        """Retorna multiplicador como string (ex: '1x', '2x', '4x')."""
-        multipliers = {1: "1x", 2: "2x", 3: "4x"}
+        multipliers = {1: "1x", 2: "2x", 3: "3x"}
         return multipliers.get(self.level, "1x")
     
     @property
     def gale_display(self) -> str:
-        """Retorna status no formato 'G1 2/5' (nível + hits/window_count)."""
-        return f"G{self.level} {self.window_hits}/{self.window_count}"
+        return f"G{self.level} S{self.consecutive_hits}"
+    
+    def get_gale(self, score: int = 3, c4_rate: float = 0.5) -> int:
+        """Determina o gale ideal. SEMPRE retorna 1, 2 ou 3."""
+        if score <= 2:
+            max_gale = 1
+        elif score <= 4:
+            max_gale = 2
+        else:
+            max_gale = 3
+        
+        if c4_rate < 0.25:
+            max_gale = 1
+        
+        if self.consecutive_hits >= 2:
+            desired = min(self.level + 1, 3)
+        elif self.consecutive_hits == 1:
+            desired = self.level
+        else:
+            desired = 1
+        
+        self.level = min(desired, max_gale)
+        return self.level
     
     def update(self, hit: bool) -> Dict[str, Any]:
-        """
-        Atualiza estado do martingale após um resultado.
+        """Atualiza estado após resultado."""
+        level_before = self.level
+        self.total_bets += 1
         
-        Returns:
-            Dict com informações da transição
-        """
-        self.window_count += 1
         if hit:
-            self.window_hits += 1
+            self.consecutive_hits += 1
+        else:
+            self.consecutive_hits = 0
+            self.level = 1
         
-        result = {
+        transition = None
+        if hit and self.consecutive_hits == 2:
+            transition = f"🔥 STREAK 2: pronto para subir gale"
+        elif hit and self.consecutive_hits >= 3:
+            transition = f"🔥 STREAK {self.consecutive_hits}: gale máximo pelo teto"
+        elif not hit and level_before > 1:
+            transition = f"↩️ RESET: G{level_before} → G1"
+        
+        return {
             "hit": hit,
-            "window_count": self.window_count,
-            "window_hits": self.window_hits,
-            "level_before": self.level,
-            "transition": None
+            "consecutive_hits": self.consecutive_hits,
+            "level_before": level_before,
+            "level_after": self.level,
+            "current_bet": self.current_bet,
+            "multiplier": self.multiplier,
+            "transition": transition
         }
-        
-        # Verificar se completou janela de 5
-        if self.window_count >= self.WINDOW_SIZE:
-            if self.window_hits >= self.MIN_HITS_TO_PASS:
-                # Sucesso! Volta para GALE 1
-                if self.level > 1:
-                    result["transition"] = f"SUCESSO: Voltando para GALE 1"
-                else:
-                    result["transition"] = f"SUCESSO: Mantém GALE 1"
-                self.level = 1
-            else:
-                # Falha! Próximo nível ou STOP
-                if self.level < 3:
-                    self.level += 1
-                    result["transition"] = f"SUBINDO: Vai para GALE {self.level}"
-                else:
-                    # STOP e reinicia
-                    self.total_stops += 1
-                    result["transition"] = f"STOP #{self.total_stops}: Reiniciando GALE 1"
-                    self.level = 1
-            
-            # Reset da janela
-            self.window_hits = 0
-            self.window_count = 0
-        
-        result["level_after"] = self.level
-        result["current_bet"] = self.current_bet
-        result["multiplier"] = self.multiplier
-        
-        return result
     
     def to_dict(self) -> Dict:
         return {
             "level": self.level,
-            "window_hits": self.window_hits,
-            "window_count": self.window_count,
-            "total_stops": self.total_stops,
+            "consecutive_hits": self.consecutive_hits,
+            "total_bets": self.total_bets,
             "current_bet": self.current_bet,
             "multiplier": self.multiplier,
             "gale_display": self.gale_display
@@ -116,9 +114,8 @@ class MartingaleState:
     def from_dict(cls, data: Dict) -> "MartingaleState":
         return cls(
             level=data.get("level", 1),
-            window_hits=data.get("window_hits", 0),
-            window_count=data.get("window_count", 0),
-            total_stops=data.get("total_stops", 0)
+            consecutive_hits=data.get("consecutive_hits", 0),
+            total_bets=data.get("total_bets", data.get("window_count", 0) + data.get("total_stops", 0) * 5)
         )
 
 

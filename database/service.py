@@ -63,35 +63,28 @@ class DatabaseService:
         # Obter ou criar janela ativa
         window_id = self.active_window_ids.get(dir_key)
 
-        # Se é a primeira jogada da janela (window_count == 1), criar nova janela
-        if martingale_info.get("window_count", 0) == 1:
-            # Se tinha janela ativa anterior, fechar primeiro (caso edge)
-            if window_id is not None:
-                logger.warning(f"Fechando janela órfã {window_id} para {dir_key}")
-                repo.close_gale_window(window_id, "orphan", 1)
-
-            # Obter taxas atuais para ML features
+        # Se é a primeira jogada (total_bets incrementou) e não há janela ativa, criar
+        if window_id is None:
             stats = game_state.get_performance_stats()
             sda_rate = stats.get("sda17", {}).get(dir_key, {}).get("rate", 0)
             bet_rate = stats.get("bet", {}).get(dir_key, {}).get("rate", 0)
 
-            # Criar nova janela
             new_window = GaleWindow(
                 direction=dir_key,
                 gale_level=martingale_info.get("level_before", 1),
                 sda17_rate_at_start=sda_rate,
                 bet_rate_at_start=bet_rate,
-                calibration_offset=0  # Calibração removida na v1.5
+                calibration_offset=0
             )
             window_id = repo.create_gale_window(new_window)
             self.active_window_ids[dir_key] = window_id
-            logger.info(f"[GALE_WINDOW] Nova janela criada ID={window_id} dir={dir_key} level={new_window.gale_level}")
+            logger.info(f"[GALE_WINDOW] Nova janela ID={window_id} dir={dir_key} level={new_window.gale_level}")
 
         # Adicionar play à janela ativa
         if window_id is not None:
             play = WindowPlay(
                 window_id=window_id,
-                play_number=martingale_info.get("window_count", 0),
+                play_number=martingale_info.get("consecutive_hits", 0),
                 spin_number=numero,
                 spin_direction=direction,
                 spin_force=force,
@@ -109,13 +102,12 @@ class DatabaseService:
         transition = martingale_info.get("transition", "")
         if transition:
             if window_id is not None:
-                # Determinar resultado
-                if "SUCESSO" in transition:
-                    result = "success"
-                elif "SUBINDO" in transition:
-                    result = "escalated"
-                else:  # STOP
-                    result = "stop"
+                if "STREAK" in transition:
+                    result = "streak"
+                elif "RESET" in transition:
+                    result = "reset"
+                else:
+                    result = "info"
 
                 next_level = martingale_info.get("level_after", 1)
                 repo.close_gale_window(window_id, result, next_level)
