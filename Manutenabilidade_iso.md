@@ -117,7 +117,9 @@ Roleta Cloud/
 │   └── setup_server.sh              # Setup do servidor Debian
 │
 ├── data/                            # ── Dados Persistentes ──
-│   └── decisions.db                 # Banco SQLite de produção
+│   └── decisions.db                 # ⚠️ CÓPIA LOCAL (NÃO é o banco de produção)
+│                                    # O banco real está no Docker Named Volume
+│                                    # Ver seção "Acesso ao Banco de Dados"
 │
 └── archive/                         # ── Código legado arquivado ──
 ```
@@ -426,6 +428,40 @@ services:
       max-size: 10m, max-file: 3
 ```
 
+#### ⚠️ Acesso ao Banco de Dados de Produção
+
+O banco SQLite de produção **NÃO** está em `/root/roleta-cloud/data/decisions.db`.
+Ele reside no **Docker Named Volume** `roleta-data`:
+
+| Caminho | Tipo | Status |
+|---------|------|:------:|
+| `/root/roleta-cloud/data/decisions.db` | Arquivo host | ❌ **STALE** — cópia antiga, não é atualizado |
+| `/app/data/decisions.db` (container) | Named Volume | ✅ **PRODUÇÃO** — banco real e atual |
+| `/var/lib/docker/volumes/roleta-cloud_roleta-data/_data/decisions.db` | Volume no disco | ✅ Mesmo arquivo que o container usa |
+
+**Como acessar os dados reais:**
+
+```bash
+# ✅ CORRETO — via docker exec
+docker exec -i roleta-cloud python3 -c "
+import sqlite3
+conn = sqlite3.connect('/app/data/decisions.db')
+print(conn.execute('SELECT COUNT(*) FROM decisions').fetchone()[0])
+"
+
+# ✅ CORRETO — acesso direto ao volume no host
+sqlite3 /var/lib/docker/volumes/roleta-cloud_roleta-data/_data/decisions.db "SELECT COUNT(*) FROM decisions;"
+
+# ❌ ERRADO — arquivo host desatualizado (NÃO usar para análise)
+sqlite3 /root/roleta-cloud/data/decisions.db
+```
+
+**Backup do banco de produção:**
+
+```bash
+docker exec roleta-cloud cp /app/data/decisions.db /app/data/decisions_backup_$(date +%Y%m%d_%H%M%S).db
+```
+
 ---
 
 ## PARTE II — ANÁLISE ISO/IEC 25010
@@ -528,7 +564,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 |---------|:------:|---------|
 | Docker isolado | ✅ | Container independente, não interfere com outros serviços |
 | Porta configurável | ✅ | `WS_PORT` via variável de ambiente |
-| Volume dedicado | ✅ | `roleta-data` para SQLite |
+| Volume dedicado | ✅ | `roleta-data` para SQLite — **acessar via `docker exec` ou path do volume** |
 
 #### 3.2 Interoperabilidade
 
