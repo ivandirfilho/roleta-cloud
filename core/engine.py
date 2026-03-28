@@ -71,9 +71,11 @@ class GameEngine:
         if pending and hit_result is not None and pending.get("bet_placed", False):
             bet_direction = pending.get("direction", "")
             if bet_direction in ("cw", "horario"):
-                martingale_info = self.game_state.martingale_cw.update(hit_result)
+                martingale_info = self.game_state.martingale_cw.update(hit_result, global_hit=hit_result)
+                self.game_state.martingale_ccw.sync_global(hit_result)
             else:
-                martingale_info = self.game_state.martingale_ccw.update(hit_result)
+                martingale_info = self.game_state.martingale_ccw.update(hit_result, global_hit=hit_result)
+                self.game_state.martingale_cw.sync_global(hit_result)
 
             if martingale_info.get("transition"):
                 logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")

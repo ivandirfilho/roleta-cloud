@@ -1013,6 +1013,8 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-POST-006 | `database/sqlite_repo.py` | 🔵 Baixa | Colunas mortas `calibration_offset` e `calibration_error` no schema — consumem espaço sem uso | 110-111 |
 | BUG-POST-007 | `state/game.py` | 🔵 Baixa | `GameState.load()` captura `Exception` genérica e retorna estado vazio silenciosamente — pode mascarar erros de parsing | 501 |
 | BUG-POST-008 | `server/connection_manager.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Grace period não cancelado no CASO 2 — race condition podia causar duplo master (28/03 TASK-01) | 85-90 |
+| BUG-MG-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | SmartGale v4 ignorava streaks reais — separação por direção impedia detecção de sequências cross-direction (28/03 SmartGale v5) | 52-72 |
+| BUG-MG-002 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | c4_rate threshold 0.25 excessivamente agressivo — bloqueava 40% das escalações sem justificativa (ajustado para 0.15) | 61 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1031,6 +1033,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-ISO-011 | Eficiência | ~~N+1 query em `get_gale_window_history()`~~ ✅ CORRIGIDO — Batch IN() query (28/03 TASK-02) | ✅ Feito |
 | MEL-ISO-012 | Eficiência | ~~I/O síncrono no event loop async~~ ✅ CORRIGIDO — `asyncio.to_thread()` em ExtractorService + heartbeat (28/03 TASK-03) | ✅ Feito |
 | MEL-ISO-013 | Manutenibilidade | ~~`_VALID_DIRECTIONS` local em `process_spin()`~~ ✅ CORRIGIDO — Movido para `ClassVar` (28/03 TASK-04) | ✅ Feito |
+| MEL-MG-001 | Eficiência | ~~SmartGale v4 travado em G1~~ ✅ CORRIGIDO — Anti-Martingale com streak global cross-direction (SmartGale v5) | ✅ Feito |
+| MEL-MG-002 | Eficiência | ~~Sem take-profit em G3~~ ✅ CORRIGIDO — G3+HIT reseta G1, preserva lucro (SmartGale v5) | ✅ Feito |
+| MEL-MG-003 | Confiabilidade | ~~global_hit não sincronizado~~ ✅ CORRIGIDO — sync_global() sincroniza ambos martingales em engine.py | ✅ Feito |
 
 ---
 
@@ -1040,8 +1045,8 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
-| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, Martingale, DB logging, Analytics handler | Colunas mortas no schema |
-| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally | ✅ Conexões SQLite corrigidas (try/finally close); ✅ N+1 batch query; ✅ asyncio.to_thread() |
+| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v5 (Anti-Martingale), DB logging, Analytics handler | Colunas mortas no schema |
+| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v5 streak global | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
@@ -1076,8 +1081,8 @@ O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (TASK-01~04 Jules: grace period, batch query, async to_thread, ClassVar)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (SmartGale v5: anti-martingale, take-profit, streak global, c4 0.15)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
 > **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03

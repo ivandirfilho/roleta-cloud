@@ -19,19 +19,21 @@ from .bet_advisor import TripleRateAdvisor, BetAdvice
 @dataclass
 class MartingaleState:
     """
-    Smart Gale v4 — Hybrid Score-Streak.
+    Smart Gale v5 — Anti-Martingale com Take-Profit.
     
     Gales: 1× (R$21), 2× (R$42), 3× (R$63). SEMPRE aposta.
     
     Regra 1 — Teto por Score SDA:
       Score 1-2 → max 1× | Score 3-4 → max 2× | Score 5-6 → max 3×
-    Regra 2 — Gale por Streak de acertos consecutivos:
-      0 consec → 1× | 1 consec → mantém | 2+ consec → sobe 1 (até teto)
+    Regra 2 — Anti-Martingale com Streak Global:
+      0-1 global streak → 1× | 2 global streak → 2× | 3+ global streak → 3×
     Regra 3 — Reset após MISS: qualquer miss → volta 1× imediatamente
-    Regra 4 — Gale Advisor: C4 rate < 25% → forçar teto 1×
+    Regra 4 — Gale Advisor: C4 rate < 15% → forçar teto 1×
+    Regra 5 — Take-Profit: G3 + HIT → lock profit, reset G1
     """
     level: int = 1
     consecutive_hits: int = 0
+    global_consecutive_hits: int = 0
     total_bets: int = 0
     
     BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 63}
@@ -47,10 +49,11 @@ class MartingaleState:
     
     @property
     def gale_display(self) -> str:
-        return f"G{self.level} S{self.consecutive_hits}"
+        return f"G{self.level} S{self.consecutive_hits} GS{self.global_consecutive_hits}"
     
     def get_gale(self, score: int = 3, c4_rate: float = 0.5) -> int:
-        """Determina o gale ideal. SEMPRE retorna 1, 2 ou 3."""
+        """SmartGale v5: Anti-Martingale com streak global. Retorna 1, 2 ou 3."""
+        # Regra 1 — Teto por Score (mantida)
         if score <= 2:
             max_gale = 1
         elif score <= 4:
@@ -58,41 +61,56 @@ class MartingaleState:
         else:
             max_gale = 3
         
-        if c4_rate < 0.25:
+        # Regra 4 — C4 advisor (threshold ajustado 0.25→0.15)
+        if c4_rate < 0.15:
             max_gale = 1
         
-        if self.consecutive_hits >= 2:
-            desired = min(self.level + 1, 3)
-        elif self.consecutive_hits == 1:
-            desired = self.level
+        # Regra 2 — Anti-Martingale: streak global decide escalação
+        streak = self.global_consecutive_hits
+        if streak >= 3:
+            desired = 3
+        elif streak >= 2:
+            desired = 2
         else:
             desired = 1
         
         self.level = min(desired, max_gale)
         return self.level
     
-    def update(self, hit: bool) -> Dict[str, Any]:
-        """Atualiza estado após resultado."""
+    def update(self, hit: bool, global_hit: bool = None) -> Dict[str, Any]:
+        """Atualiza estado após resultado. Inclui take-profit em G3."""
         level_before = self.level
         self.total_bets += 1
         
         if hit:
             self.consecutive_hits += 1
+            # Regra 5 — Take-Profit: G3 + HIT → lock profit, reset
+            if level_before == 3:
+                self.level = 1
+                self.consecutive_hits = 0
         else:
             self.consecutive_hits = 0
             self.level = 1
         
+        # Streak global (cross-direction)
+        if global_hit is not None:
+            if global_hit:
+                self.global_consecutive_hits += 1
+            else:
+                self.global_consecutive_hits = 0
+        
         transition = None
-        if hit and self.consecutive_hits == 2:
-            transition = f"🔥 STREAK 2: pronto para subir gale"
-        elif hit and self.consecutive_hits >= 3:
-            transition = f"🔥 STREAK {self.consecutive_hits}: gale máximo pelo teto"
+        if hit and level_before == 3:
+            transition = f"💰 TAKE-PROFIT: G3 HIT → lock, reset G1"
+        elif hit and self.global_consecutive_hits >= 2:
+            transition = f"🔥 GLOBAL STREAK {self.global_consecutive_hits}: escalação liberada"
         elif not hit and level_before > 1:
             transition = f"↩️ RESET: G{level_before} → G1"
         
         return {
             "hit": hit,
             "consecutive_hits": self.consecutive_hits,
+            "global_consecutive_hits": self.global_consecutive_hits,
             "level_before": level_before,
             "level_after": self.level,
             "current_bet": self.current_bet,
@@ -100,20 +118,30 @@ class MartingaleState:
             "transition": transition
         }
     
+    def sync_global(self, global_hit: bool):
+        """Sincroniza streak global sem alterar estado local da direção."""
+        if global_hit:
+            self.global_consecutive_hits += 1
+        else:
+            self.global_consecutive_hits = 0
+    
     def to_dict(self) -> Dict:
         return {
             "level": self.level,
             "consecutive_hits": self.consecutive_hits,
+            "global_consecutive_hits": self.global_consecutive_hits,
             "total_bets": self.total_bets
         }
     
     @classmethod
     def from_dict(cls, data: Dict) -> "MartingaleState":
-        return cls(
+        obj = cls(
             level=data.get("level", 1),
             consecutive_hits=data.get("consecutive_hits", 0),
             total_bets=data.get("total_bets", data.get("window_count", 0) + data.get("total_stops", 0) * 5)
         )
+        obj.global_consecutive_hits = data.get("global_consecutive_hits", 0)
+        return obj
 
 
 @dataclass

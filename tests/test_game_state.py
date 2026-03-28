@@ -46,22 +46,22 @@ class TestSmartGaleV4:
 
     def test_get_gale_score_ceiling(self):
         mg = MartingaleState()
-        mg.consecutive_hits = 5  # wants to raise
+        mg.global_consecutive_hits = 5  # wants to raise via global streak
         assert mg.get_gale(score=1) == 1  # ceiling 1 for low score
         assert mg.get_gale(score=3) == 2  # ceiling 2 for mid score
         assert mg.get_gale(score=5) == 3  # ceiling 3 for high score
 
     def test_get_gale_c4_rate_override(self):
         mg = MartingaleState()
-        mg.consecutive_hits = 5
-        assert mg.get_gale(score=6, c4_rate=0.10) == 1  # c4_rate < 25% forces ceiling 1
+        mg.global_consecutive_hits = 5
+        assert mg.get_gale(score=6, c4_rate=0.10) == 1  # c4_rate < 15% forces ceiling 1
 
     def test_get_gale_streak_raises(self):
         mg = MartingaleState()
         mg.level = 1
-        mg.consecutive_hits = 2  # streak >= 2 → raise
+        mg.global_consecutive_hits = 3  # global streak >= 3 → G3
         result = mg.get_gale(score=5, c4_rate=0.5)
-        assert result == 2  # raised from 1 to 2
+        assert result == 3  # raised to 3 via global streak
 
     def test_bet_values(self):
         mg = MartingaleState()
@@ -82,9 +82,9 @@ class TestSmartGaleV4:
 
     def test_gale_display(self):
         mg = MartingaleState()
-        assert mg.gale_display == "G1 S0"
-        mg.update(True)
-        assert mg.gale_display == "G1 S1"
+        assert mg.gale_display == "G1 S0 GS0"
+        mg.update(True, global_hit=True)
+        assert mg.gale_display == "G1 S1 GS1"
 
     def test_to_dict_from_dict(self):
         mg = MartingaleState()
@@ -105,8 +105,8 @@ class TestSmartGaleV4:
 
     def test_transition_message_on_streak(self):
         mg = MartingaleState()
-        mg.update(True)
-        info = mg.update(True)
+        mg.update(True, global_hit=True)
+        info = mg.update(True, global_hit=True)
         assert info.get("transition") is not None
         assert "STREAK" in info["transition"]
 
