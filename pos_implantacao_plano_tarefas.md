@@ -1,9 +1,10 @@
 # Pós-Implantação — Plano de Tarefas Sessão 13
 
 > **Data:** 28/Mar/2026  
-> **Commit:** `898b429` (push main)  
+> **Commit:** `c4bbd67` (push main + deploy produção)  
 > **Base:** `plano_tarefas_sessao13.md`  
-> **Testes:** 96/96 passando (15 novos testes de integração)
+> **Testes:** 96/96 passando (15 novos testes de integração)  
+> **Deploy:** ✅ Container healthy em `187.45.181.75`
 
 ---
 
@@ -272,6 +273,6 @@ score = min(6, max(1, int(real_accuracy * 6 + drift_bonus)))
 
 ---
 
-> **Status:** ✅ Implantação concluída | 96/96 testes passando  
-> **Próximo passo:** Deploy para servidor Debian (`187.45.181.75`)  
-> **Commit:** `898b429` em `main`
+> **Status:** ✅ Implantação concluída e DEPLOY realizado | 96/96 testes passando  
+> **Deploy:** Container `healthy` em `187.45.181.75` | Commit `c4bbd67`  
+> **Commits:** `898b429` (código) + `c4bbd67` (docs)
