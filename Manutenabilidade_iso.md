@@ -1015,6 +1015,13 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-POST-008 | `server/connection_manager.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Grace period não cancelado no CASO 2 — race condition podia causar duplo master (28/03 TASK-01) | 85-90 |
 | BUG-MG-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | SmartGale v4 ignorava streaks reais — separação por direção impedia detecção de sequências cross-direction (28/03 SmartGale v5) | 52-72 |
 | BUG-MG-002 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | c4_rate threshold 0.25 excessivamente agressivo — bloqueava 40% das escalações sem justificativa (ajustado para 0.15) | 61 |
+| BUG-PL-001 | `server/message_handler.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | `get_gale()` NUNCA chamado em produção — SmartGale era puramente decorativo. Todas as apostas eram G1 por default (28/03 TASK-01) | 232 |
+| BUG-PL-002 | `server/message_handler.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | `sync_global()` ausente — martingales nunca sincronizavam streak cross-direction em produção (28/03 TASK-01) | 163-167 |
+| BUG-PL-003 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `global_hit` não passado no `update()` — global_consecutive_hits sempre 0 em produção (28/03 TASK-01) | 163 |
+| BUG-PL-004 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `get_bet_c4_rate()` não chamado — filtro de segurança c4 inativo em produção (28/03 TASK-01) | 235 |
+| BUG-PL-005 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Fallback early-session ausente — primeiras jogadas da sessão pulavam sem apostar (28/03 TASK-02) | 270-285 |
+| BUG-PL-006 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `action_reason` genérico — não incluía score e gale_display para diagnóstico (28/03 TASK-01) | 239 |
+| BUG-PL-007 | `server/message_handler.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | `gale_level` no DB era 1-decisão atrasado — get_gale() agora chamado ANTES de gravar (28/03 TASK-01) | 296 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1036,6 +1043,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-MG-001 | Eficiência | ~~SmartGale v4 travado em G1~~ ✅ CORRIGIDO — Anti-Martingale com streak global cross-direction (SmartGale v5) | ✅ Feito |
 | MEL-MG-002 | Eficiência | ~~Sem take-profit em G3~~ ✅ CORRIGIDO — G3+HIT reseta G1, preserva lucro (SmartGale v5) | ✅ Feito |
 | MEL-MG-003 | Confiabilidade | ~~global_hit não sincronizado~~ ✅ CORRIGIDO — sync_global() sincroniza ambos martingales em engine.py | ✅ Feito |
+| MEL-PL-001 | Confiabilidade | ~~Pipeline produção sem SmartGale~~ ✅ CORRIGIDO — message_handler.py agora chama get_gale(), sync_global(), get_bet_c4_rate() (28/03 plano_tarefas_sessao13) | ✅ Feito |
+| MEL-PL-002 | Adequação Funcional | ~~Sem fallback early-session em produção~~ ✅ CORRIGIDO — Fallback G1 seguro com 21 vizinhos quando SDA insuficiente (28/03 TASK-02) | ✅ Feito |
+| MEL-PL-003 | Testabilidade | ~~Sem testes de integração para pipeline produção~~ ✅ CORRIGIDO — 15 testes em test_message_handler_gale.py (28/03 TASK-03) | ✅ Feito |
 
 ---
 
@@ -1045,13 +1055,13 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
-| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v5 (Anti-Martingale), DB logging, Analytics handler | Colunas mortas no schema |
+| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v5 (Anti-Martingale), DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
 | **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v5 streak global | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog | CI vazio, cobertura testes ~43%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 96 testes (15 integração pipeline) | CI vazio, cobertura testes ~50%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
@@ -1081,8 +1091,8 @@ O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (SmartGale v5: anti-martingale, take-profit, streak global, c4 0.15)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (Pipeline produção: get_gale + sync_global + fallback early-session + 15 testes integração)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
 > **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03

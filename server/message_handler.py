@@ -160,9 +160,11 @@ class MessageHandler:
                 # Martingale da direção que FOI apostada
                 bet_direction = pending.get("direction", "")
                 if bet_direction in ("cw", "horario"):
-                    martingale_info = self.game_state.martingale_cw.update(hit_result)
+                    martingale_info = self.game_state.martingale_cw.update(hit_result, global_hit=hit_result)
+                    self.game_state.martingale_ccw.sync_global(hit_result)
                 else:
-                    martingale_info = self.game_state.martingale_ccw.update(hit_result)
+                    martingale_info = self.game_state.martingale_ccw.update(hit_result, global_hit=hit_result)
+                    self.game_state.martingale_cw.sync_global(hit_result)
 
                 if martingale_info.get("transition"):
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
@@ -228,8 +230,13 @@ class MessageHandler:
         if result.should_bet:
             # SDA recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
             if advice.should_bet:
+                # SmartGale v5: calcular gale ANTES de registrar
+                mg = self.game_state.target_martingale
+                bet_c4_rate = self.game_state.get_bet_c4_rate()
+                mg.get_gale(score=result.score, c4_rate=bet_c4_rate)
+                
                 acao = "APOSTAR"
-                action_reason = f"SDA + Triple Rate aprovaram ({advice.confidence})"
+                action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
                 # Registrar com bet_placed=True (realmente apostou)
                 self.game_state.store_prediction(
                     result.numbers,
@@ -260,6 +267,22 @@ class MessageHandler:
         else:
             acao = "PULAR"
             action_reason = "SDA não recomendou (forças insuficientes)"
+            # Fallback early-session: timeline com dados mas SDA insuficiente → G1 seguro
+            if self.game_state.target_timeline.size > 0:
+                mg = self.game_state.target_martingale
+                mg.level = 1
+                center = self.game_state.last_number
+                fallback_nums = sorted(
+                    self.strategy.get_neighbors(center, 10, roulette.WHEEL_SEQUENCE)
+                )
+                acao = "APOSTAR"
+                action_reason = f"SDA insuficiente ({self.game_state.target_timeline.size} forças) → G1 seguro"
+                self.game_state.store_prediction(
+                    fallback_nums, self.game_state.target_direction, center,
+                    predicted_force=0, bet_placed=True,
+                    tr_confidence="baixa", tr_reason="Fallback early-session",
+                    sda_score=1, sda_centers=[center]
+                )
             # SDA não recomendou - não há predição para verificar
 
         # Obter info do martingale da direção ALVO (para overlay)

@@ -17,11 +17,13 @@
   "martingale_cw": {
     "level": 1,
     "consecutive_hits": 0,
+    "global_consecutive_hits": 0,
     "total_bets": 0
   },
   "martingale_ccw": {
     "level": 1,
     "consecutive_hits": 0,
+    "global_consecutive_hits": 0,
     "total_bets": 0
   },
   "pending_prediction": {}
