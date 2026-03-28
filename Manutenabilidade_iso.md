@@ -227,8 +227,9 @@ EXTENSÃO CHROME                      SERVIDOR PYTHON
                                      └── Se bet_placed: performance_bet
 
 4.                                   Martingale update (se apostou)
-                                     ├── window_hits / window_count
-                                     ├── Transição G1→G2→G3→STOP
+                                     ├── update(hit, global_hit=hit)
+                                     ├── sync_global() → martingale oposto
+                                     ├── Anti-Martingale: HIT escala, MISS→G1
                                      └── track_gale_window() → DB
 
 5.                                   process_spin(numero, direcao)
@@ -249,8 +250,10 @@ EXTENSÃO CHROME                      SERVIDOR PYTHON
                                      └── APOSTAR em todos outros casos
 
 8.                                   Decision final
-                                     ├── APOSTAR: SDA + TR aprovaram
-                                     ├── PULAR: TR vetou ou SDA insuficiente
+                                     ├── APOSTAR: get_gale(score, c4_rate)
+                                     │   action_reason = "SDA score=X | GY SZ GSW | C4=XX%"
+                                     ├── FALLBACK: SDA insuficiente + dados → G1 seguro
+                                     ├── PULAR: TR vetou ou SDA sem dados
                                      └── save_decision() → DB
 
 9. ◄──────────────────────────────── Resposta {sugestao}
@@ -340,8 +343,8 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
                     └─────────┬──────────┘
                               │ {acao: APOSTAR | PULAR}
                     ┌─────────▼──────────┐
-                    │  Martingale State   │  G1(R$19) → G2(R$38) → G3(R$76) → STOP
-                    │  Window de 5 jogadas│  3+/5 acertos = sucesso (volta G1)
+                    │  Martingale State   │  SmartGale v5: Anti-Martingale
+                    │  Streak Global Cross│  G1(R$21) → G2(R$42) → G3(R$63)
                     └─────────┬──────────┘
                               │
                     ┌─────────▼──────────┐
@@ -496,8 +499,8 @@ CREATE TABLE sessions (
     total_hits INTEGER DEFAULT 0,
     total_profit REAL DEFAULT 0.0,
     max_gale_reached INTEGER DEFAULT 1,
-    total_stops INTEGER DEFAULT 0,   -- DEPRECATED (Smart Gale v4 não para)
-    total_resets INTEGER DEFAULT 0   -- Smart Gale v4: resets a G1 após miss
+    total_stops INTEGER DEFAULT 0,   -- DEPRECATED (Smart Gale v5 não para)
+    total_resets INTEGER DEFAULT 0   -- Smart Gale v5: resets a G1 após miss
 );
 
 -- decisions: cada spin processado pelo sistema
@@ -554,13 +557,14 @@ Chrome Extension (chrome.storage)
     ▼
 message_handler.py
     ├─ check_prediction(numero)        → Verifica predição anterior
-    ├─ SmartGaleV4.update(hit)         → Atualiza gale da direção
+    ├─ SmartGaleV5.update(hit, global_hit) → Atualiza gale + streak global
+    ├─ SmartGaleV5.sync_global(hit)    → Sincroniza martingale oposto
     ├─ db_service.track_gale_window()  → Grava em gale_windows + window_plays
     ├─ GameState.process_spin()        → Atualiza timeline + forças
     ├─ GameState.save()                → Grava state.json (bind mount)
     ├─ sda17.analyze()                 → SDA-21 Triple Focus → predição
     ├─ bet_advisor.analyze()           → Kill Switch Advisor → c4_rate
-    ├─ SmartGaleV4.get_gale()          → Nível de aposta (1×/2×/3×)
+    ├─ SmartGaleV5.get_gale(score,c4)  → Nível de aposta (1×/2×/3×)
     ├─ db_service.save_decision()      → Grava em decisions (Named Volume)
     ├─ db_service.update_session_stats() → A cada 10 decisões
     └─ WebSocket.send(overlay)         → Envia sugestão para Chrome
@@ -594,7 +598,7 @@ A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto
 |-----------|:------:|-----------|
 | Receber spins em tempo real | ✅ Completo | `message_handler.handle_new_result()` — validação Pydantic (0-36) |
 | Calcular predições (SDA-19) | ✅ Completo | Pipeline IQR → Weighted Median → Drift → Score (19 números) |
-| Gerenciar Martingale | ✅ Completo | Dois Martingales independentes (CW/CCW), janela de 5, G1→G2→G3→STOP |
+| Gerenciar Martingale | ✅ Completo | SmartGale v5: Anti-Martingale com streak global cross-direction, take-profit G3, c4 threshold 0.15, fallback G1 |
 | Kill Switch (Triple Rate) | ✅ Completo | Veta apenas catástrofe (C4=0% + SDA≤2), mínimo intervencionista |
 | Persistir decisões | ✅ Completo | SQLite com 27 campos, 4 tabelas, 10 índices |
 | Analytics via WebSocket | ✅ Completo | 5 queries (summary, sessions, gale, timeline, decision_log) |
