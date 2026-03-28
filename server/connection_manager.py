@@ -87,6 +87,10 @@ class ConnectionManager:
                      self.master_id = conn_id
                      self.master_device_id = device_id
                      self.master_disconnect_time = None
+                     # 🔧 TASK-01: cancelar grace period pendente para evitar duplo master
+                     if self._grace_period_task and not self._grace_period_task.done():
+                         self._grace_period_task.cancel()
+                         self._grace_period_task = None
                      logger.info(f"👑 Novo MASTER atribuído (sem master prévio): {device_id}")
             
             # CASO 3: Dispositivo que já é SLAVE reconectando ou sem device_id
@@ -265,7 +269,11 @@ class ConnectionManager:
                     info.role = "master"
                     self.master_id = conn_id
                     self.master_device_id = device_id
-                    
+                    self.master_disconnect_time = None
+                    # 🔧 TASK-01: cancelar grace period pendente para evitar duplo master
+                    if self._grace_period_task and not self._grace_period_task.done():
+                        self._grace_period_task.cancel()
+                        self._grace_period_task = None
                     try:
                         await info.websocket.send(json.dumps({
                             "type": "role_assigned",

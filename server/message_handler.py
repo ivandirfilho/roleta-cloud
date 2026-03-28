@@ -516,7 +516,7 @@ class MessageHandler:
     async def handle_extrair_mesa(self, websocket: WebSocketServerProtocol, data: Dict, trace: TraceContext):
         """Processa extração de mesa e salva config."""
         logger.info(f"📥 Recebida solicitação de extração: {data.get('url')}")
-        result = self.extractor_service.process_mesa(data)
+        result = await self.extractor_service.process_mesa(data)
         
         response = {
             "type": "mesa_configurada",
@@ -529,7 +529,7 @@ class MessageHandler:
 
     async def handle_listar_mesas(self, websocket: WebSocketServerProtocol):
         """Retorna lista de mesas configuradas."""
-        mesas = self.extractor_service.list_mesas()
+        mesas = await self.extractor_service.list_mesas()
         await websocket.send(json.dumps({
             "type": "mesas_disponiveis",
             "mesas": mesas
@@ -538,7 +538,7 @@ class MessageHandler:
     async def handle_get_mesa_config(self, websocket: WebSocketServerProtocol, data: Dict):
         """Retorna config de uma mesa específica."""
         mesa_id = data.get("mesa_id")
-        config = self.extractor_service.get_mesa_config(mesa_id)
+        config = await self.extractor_service.get_mesa_config(mesa_id)
         if config:
             await websocket.send(json.dumps({
                 "type": "config_mesa",

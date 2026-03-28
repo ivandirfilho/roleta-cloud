@@ -123,6 +123,9 @@ class GameState:
     Mantém duas timelines (horário e anti-horário) + último spin.
     Inclui tracking de performance e calibração por direção.
     """
+    # 🔧 TASK-04: ClassVar para evitar recriação a cada chamada
+    _VALID_DIRECTIONS: ClassVar[set] = {"horario", "anti-horario"}
+
     # Último spin
     last_number: int = 0
     last_direction: str = ""
@@ -217,9 +220,8 @@ class GameState:
         Retorna: força calculada
         """
         # 🔧 BUG-011: validar direcao
-        _VALID_DIRECTIONS = {"horario", "anti-horario"}
-        if direcao not in _VALID_DIRECTIONS:
-            logger.warning(f"⚠️ Direção inválida ignorada: '{direcao}' (esperado: {_VALID_DIRECTIONS})")
+        if direcao not in self._VALID_DIRECTIONS:
+            logger.warning(f"⚠️ Direção inválida ignorada: '{direcao}' (esperado: {self._VALID_DIRECTIONS})")
             return 0
         
         force = 0

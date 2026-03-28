@@ -1012,6 +1012,7 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-POST-005 | `server/connection_manager.py` | ~~🟡 Média~~ ✅ CORRIGIDO | Grace period task agora é criada DENTRO do `async with master_lock` | 154 |
 | BUG-POST-006 | `database/sqlite_repo.py` | 🔵 Baixa | Colunas mortas `calibration_offset` e `calibration_error` no schema — consumem espaço sem uso | 110-111 |
 | BUG-POST-007 | `state/game.py` | 🔵 Baixa | `GameState.load()` captura `Exception` genérica e retorna estado vazio silenciosamente — pode mascarar erros de parsing | 501 |
+| BUG-POST-008 | `server/connection_manager.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Grace period não cancelado no CASO 2 — race condition podia causar duplo master (28/03 TASK-01) | 85-90 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1027,6 +1028,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-ISO-008 | Segurança | Assinatura criptográfica de `device_id` para prevenir spoofing | 🟡 Médio |
 | MEL-ISO-009 | Manutenibilidade | ~~Ler versão de `VERSION` file em vez de hardcoded no banner~~ ✅ CORRIGIDO | ✅ Feito |
 | MEL-ISO-010 | Confiabilidade | Logging do motivo quando `GameState.load()` falha (atualmente silencioso) | 🟢 Baixo |
+| MEL-ISO-011 | Eficiência | ~~N+1 query em `get_gale_window_history()`~~ ✅ CORRIGIDO — Batch IN() query (28/03 TASK-02) | ✅ Feito |
+| MEL-ISO-012 | Eficiência | ~~I/O síncrono no event loop async~~ ✅ CORRIGIDO — `asyncio.to_thread()` em ExtractorService + heartbeat (28/03 TASK-03) | ✅ Feito |
+| MEL-ISO-013 | Manutenibilidade | ~~`_VALID_DIRECTIONS` local em `process_spin()`~~ ✅ CORRIGIDO — Movido para `ClassVar` (28/03 TASK-04) | ✅ Feito |
 
 ---
 
@@ -1037,12 +1041,12 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
 | **Adequação Funcional** | Pipeline SDA-19, Kill Switch, Martingale, DB logging, Analytics handler | Colunas mortas no schema |
-| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally | ✅ Conexões SQLite corrigidas (try/finally close) |
+| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally | ✅ Conexões SQLite corrigidas (try/finally close); ✅ N+1 batch query; ✅ asyncio.to_thread() |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
-| **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | Sem circuit breaker, erro silencioso em load |
+| **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog | CI vazio, cobertura testes ~40%, sem migrations |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog | CI vazio, cobertura testes ~43%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
@@ -1072,8 +1076,8 @@ O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 20/03/2026 (pós-correções Sprint 1-3)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (TASK-01~04 Jules: grace period, batch query, async to_thread, ClassVar)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
 > **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 (BUG-RES + BUG-DEEP + BUG-POST)
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03

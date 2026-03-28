@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import json
 import os
@@ -47,7 +48,13 @@ class ExtractorService:
         clean_name = last_part.replace("-", "_").lower()
         return f"{provider}_{clean_name}"
 
-    def process_mesa(self, data: Dict) -> Dict:
+    # 🔧 TASK-03: Métodos async com to_thread() para não bloquear event loop
+
+    async def process_mesa(self, data: Dict) -> Dict:
+        """Processa snapshot DOM e gera configuração de mesa (async wrapper)."""
+        return await asyncio.to_thread(self._process_mesa_sync, data)
+
+    def _process_mesa_sync(self, data: Dict) -> Dict:
         """Processa snapshot DOM e gera configuração de mesa."""
         url = data.get("url", "")
         provider = self._detect_provider(url)
@@ -81,7 +88,11 @@ class ExtractorService:
             "status": "success"
         }
 
-    def list_mesas(self) -> List[Dict]:
+    async def list_mesas(self) -> List[Dict]:
+        """Lista todas as mesas configuradas (async wrapper)."""
+        return await asyncio.to_thread(self._list_mesas_sync)
+
+    def _list_mesas_sync(self) -> List[Dict]:
         """Lista todas as mesas configuradas."""
         mesas = []
         try:
@@ -98,7 +109,11 @@ class ExtractorService:
             logger.error(f"Erro ao listar mesas: {e}")
         return mesas
 
-    def get_mesa_config(self, mesa_id: str) -> Optional[dict]:
+    async def get_mesa_config(self, mesa_id: str) -> Optional[dict]:
+        """Retorna config de uma mesa específica (async wrapper)."""
+        return await asyncio.to_thread(self._get_mesa_config_sync, mesa_id)
+
+    def _get_mesa_config_sync(self, mesa_id: str) -> Optional[dict]:
         """Retorna config de uma mesa específica."""
         file_path = os.path.join(self.mesas_path, f"{mesa_id}.json")
         if os.path.exists(file_path):

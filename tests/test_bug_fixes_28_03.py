@@ -207,6 +207,66 @@ def test_drift_detection_correct_order():
     print("✅ test_drift_detection_correct_order PASSED")
 
 
+# =====================================================================
+# TASK-01: Teste grace period CASO 2 (duplo master)
+# =====================================================================
+
+def test_grace_period_cancelled_on_caso2():
+    """TASK-01: Grace period deve ser cancelado quando novo device assume master (CASO 2)."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock, patch
+    
+    async def _run():
+        from server.connection_manager import ConnectionManager
+        
+        cm = ConnectionManager()
+        
+        # Simular que existe grace period ativo (master desconectou)
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        cm._grace_period_task = mock_task
+        cm.master_id = None
+        cm.master_disconnect_time = 1000.0
+        cm.last_master_device_id = "old_device"
+        
+        # Simular nova conexão (CASO 2 — novo device sem master prévio)
+        mock_ws = AsyncMock()
+        mock_ws.remote_address = ("127.0.0.1", 12345)
+        
+        conn_id = await cm.connect(mock_ws, device_id="new_device_123")
+        
+        # Grace period DEVE ter sido cancelado
+        mock_task.cancel.assert_called_once()
+        assert cm._grace_period_task is None, "Grace period task deveria ser None após CASO 2"
+        assert cm.master_id == conn_id, "Novo device deveria ser master"
+    
+    asyncio.run(_run())
+    print("✅ test_grace_period_cancelled_on_caso2 PASSED")
+
+
+def test_valid_directions_classvar():
+    """TASK-04: _VALID_DIRECTIONS deve ser ClassVar na classe, não local."""
+    assert hasattr(GameState, '_VALID_DIRECTIONS'), "_VALID_DIRECTIONS deve ser atributo da classe"
+    assert GameState._VALID_DIRECTIONS == {"horario", "anti-horario"}
+    
+    gs = GameState()
+    # Direções válidas
+    gs.process_spin(17, "horario")
+    assert gs.last_direction == "horario"
+    
+    # Direção inválida
+    gs.process_spin(32, "invalid")
+    assert gs.last_direction == "horario", "Direção inválida não deve atualizar last_direction"
+    
+    # Edge cases
+    gs.process_spin(15, None)
+    assert gs.last_direction == "horario"
+    gs.process_spin(15, 123)
+    assert gs.last_direction == "horario"
+    
+    print("✅ test_valid_directions_classvar PASSED")
+
+
 if __name__ == "__main__":
     test_sda17_coverage_always_ge_18()
     test_c4_rate_uses_bet_performance()
@@ -217,4 +277,6 @@ if __name__ == "__main__":
     test_foreign_key_constraint()
     test_martingale_all_levels_valid()
     test_drift_detection_correct_order()
+    test_grace_period_cancelled_on_caso2()
+    test_valid_directions_classvar()
     print("\n🎉 Todos os testes de bug fixes passaram!")

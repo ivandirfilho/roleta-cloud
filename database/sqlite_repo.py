@@ -797,18 +797,40 @@ class SQLiteDecisionRepository(DecisionRepository):
             params.append(limit)
 
             rows = conn.execute(query, params).fetchall()
+            if not rows:
+                return []
+
+            # 🔧 TASK-02: Batch query em vez de N+1
+            window_ids = [row["id"] for row in rows]
+            placeholders = ",".join(["?"] * len(window_ids))
+
+            plays_rows = conn.execute(f"""
+                SELECT window_id, play_number, hit, spin_number, spin_force,
+                       sda_score, tr_confidence
+                FROM window_plays
+                WHERE window_id IN ({placeholders})
+                ORDER BY window_id, play_number
+            """, window_ids).fetchall()
+
+            plays_by_window = {}
+            for p in plays_rows:
+                wid = p["window_id"]
+                if wid not in plays_by_window:
+                    plays_by_window[wid] = []
+                plays_by_window[wid].append({
+                    "play_number": p["play_number"],
+                    "hit": bool(p["hit"]),
+                    "spin_number": p["spin_number"],
+                    "spin_force": p["spin_force"],
+                    "sda_score": p["sda_score"],
+                    "tr_confidence": p["tr_confidence"],
+                })
+
             windows = []
             for row in rows:
-                plays = conn.execute("""
-                    SELECT play_number, hit, spin_number, spin_force, 
-                           sda_score, tr_confidence
-                    FROM window_plays 
-                    WHERE window_id = ?
-                    ORDER BY play_number
-                """, (row["id"],)).fetchall()
-
+                wid = row["id"]
                 windows.append({
-                    "id": row["id"],
+                    "id": wid,
                     "direction": row["direction"],
                     "gale_level": row["gale_level"],
                     "started_at": row["started_at"],
@@ -819,17 +841,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                     "next_level": row["next_level"],
                     "sda17_rate_at_start": row["sda17_rate_at_start"],
                     "bet_rate_at_start": row["bet_rate_at_start"],
-                    "plays": [
-                        {
-                            "play_number": p["play_number"],
-                            "hit": bool(p["hit"]),
-                            "spin_number": p["spin_number"],
-                            "spin_force": p["spin_force"],
-                            "sda_score": p["sda_score"],
-                            "tr_confidence": p["tr_confidence"],
-                        }
-                        for p in plays
-                    ],
+                    "plays": plays_by_window.get(wid, []),
                 })
             return windows
         finally:
