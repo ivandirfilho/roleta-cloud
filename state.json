@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "last_number": 0,
   "last_direction": "",
   "timeline_cw": {
@@ -26,5 +26,6 @@
     "global_consecutive_hits": 0,
     "total_bets": 0
   },
-  "pending_prediction": {}
+  "pending_prediction": {},
+  "adaptive_state": {}
 }

@@ -170,7 +170,7 @@ class TestFallbackEarlySession:
         mg = gs.target_martingale
         mg.level = 1
         assert mg.level == 1
-        assert mg.current_bet == 21
+        assert mg.current_bet == 17
 
     def test_no_fallback_empty_timeline(self):
         gs = make_game_state()
@@ -194,7 +194,7 @@ class TestGaleLevelInDecision:
 
         # O level agora reflete a decisão, sem lag
         assert mg.gale_display == "G2 S0 GS2"
-        assert mg.current_bet == 42
+        assert mg.current_bet == 34
 
     def test_gale_level_no_lag_after_update(self):
         """Verifica que não há lag de 1 decisão no gale_level."""

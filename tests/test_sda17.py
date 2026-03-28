@@ -24,7 +24,7 @@ class TestSDA17Strategy:
     """Testa a estratégia SDA-17."""
 
     def test_name(self, strategy):
-        assert strategy.name == "SDA-21"
+        assert strategy.name == "M15-ADA"
 
     def test_analyze_insufficient_data(self, strategy):
         """Com dados insuficientes, should_bet=False."""
@@ -86,20 +86,29 @@ class TestSDA17Strategy:
             assert len(result.numbers) == len(set(result.numbers))  # Todos únicos
 
     def test_triple_focus_forces_used(self, strategy, timeline_with_data):
-        """Detalhes contêm as forças usadas para cada centro."""
+        """M15-ADA: detalhes contêm mediana (offset adaptativo substitui max/min)."""
         from core.roulette import roulette
         result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
         if result.should_bet:
             forces_used = result.details.get("forces_used", {})
             assert "median" in forces_used
-            assert "max" in forces_used
-            assert "min" in forces_used
 
-    def test_ensure_diversity(self, strategy):
-        """Centros devem estar separados por pelo menos 4 posições."""
+    def test_adaptive_offset_in_details(self, strategy, timeline_with_data):
+        """M15-ADA: detalhes contêm offset e tipo."""
         from core.roulette import roulette
-        ws = roulette.WHEEL_SEQUENCE
-        # Force identical centers
-        c1, c2, c3 = strategy._ensure_diversity(17, 17, 17, ws)
-        # After diversity enforcement, they should be different
-        assert len({c1, c2, c3}) >= 2  # At minimum 2 unique
+        result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
+        if result.should_bet:
+            assert "offset" in result.details
+            assert "offset_type" in result.details
+            assert result.details["offset_type"] in ("errdriven", "bayesian")
+
+    def test_adaptive_state_persistence(self, strategy):
+        """M15-ADA: estado adaptativo pode ser salvo e restaurado."""
+        strategy.cw_ema = 9.5
+        strategy.ccw_history = [(17, 25), (0, 32)]
+        state = strategy.get_adaptive_state()
+        
+        new_strategy = SDA17Strategy()
+        new_strategy.load_adaptive_state(state)
+        assert new_strategy.cw_ema == 9.5
+        assert len(new_strategy.ccw_history) == 2

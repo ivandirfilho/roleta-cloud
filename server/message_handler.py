@@ -201,6 +201,17 @@ class MessageHandler:
                 except Exception as e:
                     logger.error(f"Erro ao trackear gale window: {e}")
 
+            # ★ M15-ADA: Atualizar estado adaptativo com resultado real
+            if pending and hit_result is not None:
+                bet_direction = pending.get("direction", "")
+                c1_predicted = pending.get("center", 0)
+                if c1_predicted > 0:
+                    self.strategy.update_adaptive(
+                        bet_direction, c1_predicted, numero, roulette.WHEEL_SEQUENCE
+                    )
+                    # Persistir estado adaptativo no GameState
+                    self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
             trace.step("processed", {
@@ -402,7 +413,10 @@ class MessageHandler:
                 "score": result.score,
                 "numeros": result.numbers,
                 "unique_count": result.details.get("unique_count", len(result.numbers)),
-                "trend": result.details.get("trend", "")
+                "trend": result.details.get("trend", ""),
+                "offset": result.details.get("offset", 12),
+                "offset_type": result.details.get("offset_type", "fixed"),
+                "cw_ema": result.details.get("cw_ema", 12.0),
             },
             "strategy": {
                 "name": self.strategy.name,

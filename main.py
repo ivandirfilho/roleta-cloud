@@ -22,18 +22,33 @@ Variáveis de ambiente:
 import asyncio
 import signal
 import sys
+from pathlib import Path
 
 from core.logging_config import setup_logging
 from server.websocket import start_server, game_state
 
 logger = setup_logging()
 
+# BUG-MAIN-002 fix: Flag para prevenir double shutdown
+_shutdown_called = False
+
 
 def handle_shutdown(signum, frame):
     """Handler para shutdown graceful."""
+    global _shutdown_called
+    if _shutdown_called:
+        return
+    _shutdown_called = True
+    
     logger.info("shutdown_requested", signal=signum)
-    game_state.save()
-    # Finalizar sessão ativa no DB (atualiza stats + end_time)
+    
+    # BUG-MAIN-004 fix: try/except no save()
+    try:
+        game_state.save()
+    except Exception as e:
+        logger.error(f"Erro ao salvar estado: {e}")
+    
+    # Finalizar sessão ativa no DB
     try:
         from database.service import db_service
         from server.websocket import message_handler
@@ -41,6 +56,7 @@ def handle_shutdown(signum, frame):
             db_service.end_session(message_handler.current_session_id)
     except Exception as e:
         logger.warning(f"Erro ao finalizar sessão no shutdown: {e}")
+    
     logger.info("state_saved")
     sys.exit(0)
 
@@ -49,12 +65,16 @@ def main():
     """Ponto de entrada principal."""
     # Registrar handler de shutdown
     signal.signal(signal.SIGINT, handle_shutdown)
-    signal.signal(signal.SIGTERM, handle_shutdown)
+    try:
+        signal.signal(signal.SIGTERM, handle_shutdown)
+    except (OSError, AttributeError):
+        pass  # BUG-MAIN-001: SIGTERM não existe no Windows
     
-    # Ler versão do arquivo VERSION
+    # Ler versão do arquivo VERSION (path relativo ao script)
     version = "unknown"
     try:
-        with open("VERSION", "r") as f:
+        version_file = Path(__file__).parent / "VERSION"
+        with open(version_file, "r") as f:
             version = f.read().strip()
     except FileNotFoundError:
         pass
@@ -64,6 +84,7 @@ def main():
     ║              🎰 ROLETA CLOUD v{version:<24s}  ║
     ║                                                           ║
     ║  Backend para processamento de roleta em tempo real       ║
+    ║  Estratégia: M15-ADA (17 números, offset adaptativo)     ║
     ╚═══════════════════════════════════════════════════════════╝
     """)
     

@@ -21,7 +21,7 @@ class MartingaleState:
     """
     Smart Gale v6 — Anti-Martingale com Confiança.
     
-    Gales: 1× (R$21), 2× (R$42), 3× (R$63). SEMPRE aposta.
+    Gales: 1× (R$17), 2× (R$34), 3× (R$51). SEMPRE aposta.
     
     Regra 6 — Proteção por Confiança:
       "alta" (spike) → max 1× | "baixa" → max 1× | "media" → max 3×
@@ -36,11 +36,11 @@ class MartingaleState:
     global_consecutive_hits: int = 0
     total_bets: int = 0
     
-    BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 63}
+    BET_VALUES: ClassVar[Dict[int, int]] = {1: 17, 2: 34, 3: 51}
     
     @property
     def current_bet(self) -> int:
-        return self.BET_VALUES.get(self.level, 21)
+        return self.BET_VALUES.get(self.level, 17)
     
     @property
     def multiplier(self) -> str:
@@ -460,13 +460,13 @@ class GameState:
         return self.bet_advisor.analyze(self.target_performance, sda_score=sda_score)
     
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.5 - sem calibração) com escrita atômica."""
+        """Salva estado em arquivo JSON (v1.6 - com adaptive_state) com escrita atômica."""
         import os
         import tempfile
         
         path = path or settings.state_file
         data = {
-            "version": "1.5.0",
+            "version": "1.6.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
@@ -477,7 +477,8 @@ class GameState:
             "performance_bet_ccw": list(self.performance_bet_ccw),
             "martingale_cw": self.martingale_cw.to_dict(),
             "martingale_ccw": self.martingale_ccw.to_dict(),
-            "pending_prediction": self.pending_prediction
+            "pending_prediction": self.pending_prediction,
+            "adaptive_state": self._adaptive_state if hasattr(self, '_adaptive_state') else {}
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -510,6 +511,7 @@ class GameState:
         MIGRAÇÕES:
         - v1.3 -> v1.4: performance_cw/ccw -> performance_sda17_cw/ccw
         - v1.3 -> v1.4: martingale -> martingale_cw e martingale_ccw (copia para ambos)
+        - v1.5 -> v1.6: adiciona adaptive_state (vazio se não existe, populado durante operação)
         """
         path = path or settings.state_file
         if not path.exists():
@@ -548,8 +550,8 @@ class GameState:
                     pending_prediction=data.get("pending_prediction", {})
                 )
             
-            # v1.4+ / v1.5+ - formato atual (ignora calibração se presente)
-            return cls(
+            # v1.4+ / v1.5+ / v1.6+ - formato atual
+            gs = cls(
                 last_number=data.get("last_number", 0),
                 last_direction=data.get("last_direction", ""),
                 timeline_cw=Timeline.from_dict(data.get("timeline_cw", {})),
@@ -562,6 +564,9 @@ class GameState:
                 martingale_ccw=MartingaleState.from_dict(data.get("martingale_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})
             )
+            # M15-ADA: Restaurar estado adaptativo (v1.6+, vazio se v1.5)
+            gs._adaptive_state = data.get("adaptive_state", {})
+            return gs
         except Exception as e:
             logger.error(f"Falha ao carregar state.json: {e}")
             try:

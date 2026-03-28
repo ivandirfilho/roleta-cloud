@@ -18,7 +18,7 @@ WHEEL = roulette.WHEEL_SEQUENCE
 
 
 def test_sda17_coverage_always_ge_18():
-    """BUG-28-04: Triple Focus deve gerar >= 18 números em qualquer cenário."""
+    """M15-ADA: Triple Focus deve gerar >= 15 números (17 esperado, overlap pode reduzir)."""
     strategy = SDA17Strategy()
     
     # Edge case: forças extremas que causam overlap máximo
@@ -36,8 +36,8 @@ def test_sda17_coverage_always_ge_18():
             tl.add(f)
         result = strategy.analyze(tl, 0, WHEEL, calibration=0)
         if result.should_bet:
-            assert len(result.numbers) >= 18, (
-                f"Coverage {len(result.numbers)} < 18 com forces={forces}"
+            assert len(result.numbers) >= 15, (
+                f"Coverage {len(result.numbers)} < 15 com forces={forces}"
             )
     print("✅ test_sda17_coverage_always_ge_18 PASSED")
 

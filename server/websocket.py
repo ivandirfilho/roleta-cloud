@@ -26,7 +26,12 @@ logger = logging.getLogger(__name__)
 # Estado global
 state_lock = asyncio.Lock()
 game_state: GameState = GameState.load()
-strategy = SDA17Strategy()  # SDA-21 Triple Focus
+strategy = SDA17Strategy()  # M15-ADA Adaptive Triple Focus
+
+# M15-ADA: Restaurar estado adaptativo da sessão anterior
+if hasattr(game_state, '_adaptive_state') and game_state._adaptive_state:
+    strategy.load_adaptive_state(game_state._adaptive_state)
+
 configs_path = os.path.join(os.path.dirname(__file__), "configs")
 message_handler = MessageHandler(game_state, strategy, state_lock, configs_path)
 

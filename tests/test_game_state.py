@@ -17,7 +17,7 @@ class TestSmartGaleV4:
         assert mg.level == 1
         assert mg.consecutive_hits == 0
         assert mg.total_bets == 0
-        assert mg.current_bet == 21
+        assert mg.current_bet == 17
 
     def test_hit_increments_streak(self):
         mg = MartingaleState()
@@ -67,11 +67,11 @@ class TestSmartGaleV4:
     def test_bet_values(self):
         mg = MartingaleState()
         mg.level = 1
-        assert mg.current_bet == 21
+        assert mg.current_bet == 17
         mg.level = 2
-        assert mg.current_bet == 42
+        assert mg.current_bet == 34
         mg.level = 3
-        assert mg.current_bet == 63
+        assert mg.current_bet == 51
 
     def test_multiplier_display(self):
         mg = MartingaleState()
