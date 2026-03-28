@@ -170,6 +170,20 @@ class MessageHandler:
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
                 logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} | Streak {martingale_info.get('consecutive_hits', 0)}")
 
+                # Log distância ao centro predito (diagnóstico E4)
+                sda_centers = pending.get("sda_centers", [])
+                if sda_centers:
+                    wheel = roulette.WHEEL_SEQUENCE
+                    try:
+                        idx_actual = wheel.index(numero)
+                        min_dist = min(
+                            min(abs(idx_actual - wheel.index(c)), len(wheel) - abs(idx_actual - wheel.index(c)))
+                            for c in sda_centers if c in wheel
+                        )
+                        logger.info(f"  DISTÂNCIA: {min_dist} casas do centro mais próximo (centros={sda_centers})")
+                    except (ValueError, TypeError):
+                        pass
+
                 # Tracking de janelas para ML/Dashboard
                 try:
                     db_service.track_gale_window(
@@ -233,7 +247,7 @@ class MessageHandler:
                 # SmartGale v5: calcular gale ANTES de registrar
                 mg = self.game_state.target_martingale
                 bet_c4_rate = self.game_state.get_bet_c4_rate()
-                mg.get_gale(score=result.score, c4_rate=bet_c4_rate)
+                mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
                 
                 acao = "APOSTAR"
                 action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"

@@ -24,23 +24,23 @@ class TestAntiMartingaleEscalation:
 
         # Hit 1: global=1 → get_gale retorna G1 (streak<2)
         mg.update(hit=True, global_hit=True)
-        level = mg.get_gale(score=4, c4_rate=0.5)
+        level = mg.get_gale(score=4, c4_rate=0.5, confidence="media")
         assert level == 1, f"After 1 global hit, expected G1 but got G{level}"
 
         # Hit 2: global=2 → get_gale retorna G2
         mg.update(hit=True, global_hit=True)
-        level = mg.get_gale(score=4, c4_rate=0.5)
+        level = mg.get_gale(score=4, c4_rate=0.5, confidence="media")
         assert level == 2, f"After 2 global hits, expected G2 but got G{level}"
 
-        # Hit 3: global=3 → get_gale retorna G2 (score 4 teto = G2)
+        # Hit 3: global=3 → get_gale retorna G3 (v6: score não limita mais)
         mg.update(hit=True, global_hit=True)
-        level = mg.get_gale(score=4, c4_rate=0.5)
-        assert level == 2, f"Score 4 caps at G2, expected G2 but got G{level}"
+        level = mg.get_gale(score=4, c4_rate=0.5, confidence="media")
+        assert level == 3, f"After 3 global hits with media, expected G3 but got G{level}"
 
-        # Hit 3 com score 5: global=4 → get_gale retorna G3
+        # Hit 4 com confiança alta: global=4 → get_gale retorna G1 (alta força G1)
         mg.update(hit=True, global_hit=True)
-        level = mg.get_gale(score=5, c4_rate=0.5)
-        assert level == 3, f"Score 5 unlocks G3, expected G3 but got G{level}"
+        level = mg.get_gale(score=5, c4_rate=0.5, confidence="alta")
+        assert level == 1, f"Confidence 'alta' forces G1, expected G1 but got G{level}"
 
 
 class TestAntiMartingaleMissReset:
@@ -109,9 +109,9 @@ class TestGlobalStreakCrossDirection:
         assert mg_cw.global_consecutive_hits == 3
         assert mg_ccw.global_consecutive_hits == 3
 
-        # Both should now allow G2+ (score 4 caps at G2)
-        assert mg_cw.get_gale(score=4, c4_rate=0.5) == 2
-        assert mg_ccw.get_gale(score=5, c4_rate=0.5) == 3
+        # Both should now allow G3 with media confidence (v6: no score ceiling)
+        assert mg_cw.get_gale(score=4, c4_rate=0.5, confidence="media") == 3
+        assert mg_ccw.get_gale(score=5, c4_rate=0.5, confidence="media") == 3
 
 
 class TestC4Threshold015:
@@ -202,14 +202,14 @@ class TestSessionReplay:
         Score varia: 3-4 normalmente, sobe para 5 durante streaks fortes
         (modelo prediz melhor quando está acertando → score sobe).
         """
-        # (hit, score) — score sobe para 5 durante streaks de 3+
+        # (hit, score, confidence) — v6 uses confidence instead of score for gale
         plays = [
-            (True, 3), (True, 4), (True, 4), (False, 4), (False, 3),
-            (False, 3), (False, 3), (True, 3), (True, 4), (False, 4),
-            (True, 4), (False, 3), (True, 4), (False, 3),
-            (True, 4), (True, 4), (True, 5), (True, 5), (True, 5), (False, 4),
-            (False, 3), (False, 3), (True, 3), (False, 3),
-            (False, 3), (False, 3), (False, 3), (True, 3), (True, 4), (False, 4),
+            (True, 3, "media"), (True, 4, "media"), (True, 4, "media"), (False, 4, "media"), (False, 3, "media"),
+            (False, 3, "alta"), (False, 3, "alta"), (True, 3, "media"), (True, 4, "media"), (False, 4, "alta"),
+            (True, 4, "media"), (False, 3, "media"), (True, 4, "media"), (False, 3, "media"),
+            (True, 4, "media"), (True, 4, "media"), (True, 5, "media"), (True, 5, "media"), (True, 5, "media"), (False, 4, "alta"),
+            (False, 3, "alta"), (False, 3, "alta"), (True, 3, "media"), (False, 3, "media"),
+            (False, 3, "alta"), (False, 3, "alta"), (False, 3, "alta"), (True, 3, "media"), (True, 4, "media"), (False, 4, "alta"),
         ]
 
         PAYOFF = {1: (15, -21), 2: (30, -42), 3: (45, -63)}
@@ -218,20 +218,20 @@ class TestSessionReplay:
         total_pnl = 0
         max_level_seen = 1
 
-        for hit, score in plays:
-            level = mg.get_gale(score=score, c4_rate=0.5)
+        for hit, score, conf in plays:
+            level = mg.get_gale(score=score, c4_rate=0.5, confidence=conf)
             max_level_seen = max(max_level_seen, level)
             win, loss = PAYOFF[level]
             total_pnl += win if hit else loss
             mg.update(hit=hit, global_hit=hit)
 
-        always_g1_pnl = sum(15 if h else -21 for h, _ in plays)
+        always_g1_pnl = sum(15 if h else -21 for h, _, _ in plays)
 
-        # v5 should escalate during the 5-hit streak (bets 15-19, score 5)
+        # v6 should escalate during the 5-hit streak (bets 15-19, confidence media)
         assert max_level_seen >= 2, "Should have escalated above G1 at some point"
-        # With G3 unlocked during streak, should outperform always G1
+        # With G3 unlocked during streak with media confidence, should outperform always G1
         assert total_pnl > always_g1_pnl, (
-            f"SmartGale v5 ({total_pnl}) should beat Always G1 ({always_g1_pnl})"
+            f"SmartGale v6 ({total_pnl}) should beat Always G1 ({always_g1_pnl})"
         )
 
     def test_session_replay_no_catastrophic_loss(self):

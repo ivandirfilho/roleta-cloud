@@ -96,13 +96,13 @@ class GameEngine:
         advice = self.game_state.get_bet_advice(sda_score=result.score)
         c4_rate = getattr(advice, 'c4_rate', 0.5)
 
-        # 6. Decisão combinada — Smart Gale v4: SEMPRE aposta
+        # 6. Decisão combinada — Smart Gale v6: SEMPRE aposta
         #    BUG-28-03/M-01: c4_rate para gale vem de performance_bet (apostas reais)
         bet_c4_rate = self.game_state.get_bet_c4_rate()
 
         if result.should_bet:
             mg = self.game_state.target_martingale
-            mg.get_gale(score=result.score, c4_rate=bet_c4_rate)
+            mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
             
             acao = "APOSTAR"
             action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"

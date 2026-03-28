@@ -250,7 +250,8 @@ EXTENSÃO CHROME                      SERVIDOR PYTHON
                                      └── APOSTAR em todos outros casos
 
 8.                                   Decision final
-                                     ├── APOSTAR: get_gale(score, c4_rate)
+                                     ├── APOSTAR: get_gale(score, c4_rate, confidence)
+                                     │   Regra 6: "alta"→G1, "baixa"→G1, "media"→escalável
                                      │   action_reason = "SDA score=X | GY SZ GSW | C4=XX%"
                                      ├── FALLBACK: SDA insuficiente + dados → G1 seguro
                                      ├── PULAR: TR vetou ou SDA sem dados
@@ -1026,6 +1027,11 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-PL-005 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Fallback early-session ausente — primeiras jogadas da sessão pulavam sem apostar (28/03 TASK-02) | 270-285 |
 | BUG-PL-006 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `action_reason` genérico — não incluía score e gale_display para diagnóstico (28/03 TASK-01) | 239 |
 | BUG-PL-007 | `server/message_handler.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | `gale_level` no DB era 1-decisão atrasado — get_gale() agora chamado ANTES de gravar (28/03 TASK-01) | 296 |
+| BUG-E3-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `get_gale()` sem parâmetro `confidence` — escalação ignorava qualidade do sinal (28/03 TASK-E3) | 54 |
+| BUG-E3-002 | `server/message_handler.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Pipeline não passava `confidence` para get_gale() — SmartGale cego à qualidade (28/03 TASK-E3) | 236 |
+| BUG-E3-003 | `core/engine.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Engine não passava `confidence` para get_gale() — mesma omissão do pipeline (28/03 TASK-E3) | 105 |
+| BUG-E2-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Score 3 limitado a G1 com 58.1% HR — regra de teto por score penalizava melhores momentos (28/03 TASK-E2) | 57-62 |
+| BUG-E2-002 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Score 5-6 liberava G3 com ~40% HR — escalação destrutiva baseada em score instável (28/03 TASK-E2) | 61-62 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1050,6 +1056,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-PL-001 | Confiabilidade | ~~Pipeline produção sem SmartGale~~ ✅ CORRIGIDO — message_handler.py agora chama get_gale(), sync_global(), get_bet_c4_rate() (28/03 plano_tarefas_sessao13) | ✅ Feito |
 | MEL-PL-002 | Adequação Funcional | ~~Sem fallback early-session em produção~~ ✅ CORRIGIDO — Fallback G1 seguro com 21 vizinhos quando SDA insuficiente (28/03 TASK-02) | ✅ Feito |
 | MEL-PL-003 | Testabilidade | ~~Sem testes de integração para pipeline produção~~ ✅ CORRIGIDO — 15 testes em test_message_handler_gale.py (28/03 TASK-03) | ✅ Feito |
+| MEL-E3-001 | Adequação Funcional | ~~Gale cego à confiança~~ ✅ CORRIGIDO — get_gale() recebe confidence: "alta"→G1 (spike), "baixa"→G1, "media"→escalável (SmartGale v6) | ✅ Feito |
+| MEL-E2-001 | Adequação Funcional | ~~Score limitava gale (não-preditivo)~~ ✅ CORRIGIDO — Regra de teto por score REMOVIDA; gale agora decidido por confiança+c4+streak (SmartGale v6) | ✅ Feito |
+| MEL-E4-001 | Analisabilidade | ~~Distância ao centro não logada~~ ✅ CORRIGIDO — Log de distância resultado→centro predito em cada spin com resultado (28/03 TASK-E4) | ✅ Feito |
 
 ---
 
@@ -1059,13 +1068,13 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
-| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v5 (Anti-Martingale), DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
-| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v5 streak global | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit |
+| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v6 (Anti-Martingale + Confiança), DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
+| **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v6 confiança+streak+c4 | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit; ✅ Score removido de gale |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 96 testes (15 integração pipeline) | CI vazio, cobertura testes ~50%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 104 testes (23 integração pipeline+gale) | CI vazio, cobertura testes ~55%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
@@ -1095,8 +1104,8 @@ O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (Pipeline produção: get_gale + sync_global + fallback early-session + 15 testes integração)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (SmartGale v6: confiança no get_gale + score removido + distância logada + 104 testes)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
 > **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03

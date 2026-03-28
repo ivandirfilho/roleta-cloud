@@ -240,7 +240,7 @@ class TestPipelineSequence:
         assert gs.martingale_ccw.global_consecutive_hits == 2
 
         # get_gale para próxima aposta
-        gs.martingale_cw.get_gale(score=4, c4_rate=0.5)
+        gs.martingale_cw.get_gale(score=4, c4_rate=0.5, confidence="media")
         assert gs.martingale_cw.level == 2
 
     def test_full_pipeline_miss_resets(self):
@@ -253,7 +253,7 @@ class TestPipelineSequence:
         gs.martingale_cw.sync_global(True)
 
         # get_gale → G2
-        gs.martingale_cw.get_gale(score=4, c4_rate=0.5)
+        gs.martingale_cw.get_gale(score=4, c4_rate=0.5, confidence="media")
         assert gs.martingale_cw.level == 2
 
         # Miss em CW
@@ -261,6 +261,70 @@ class TestPipelineSequence:
         gs.martingale_ccw.sync_global(False)
 
         # get_gale → G1 (reset)
-        gs.martingale_cw.get_gale(score=4, c4_rate=0.5)
+        gs.martingale_cw.get_gale(score=4, c4_rate=0.5, confidence="media")
         assert gs.martingale_cw.level == 1
         assert gs.martingale_cw.global_consecutive_hits == 0
+
+
+class TestConfidenceInGale:
+    """T7: Confiança como filtro de gale (SmartGale v6)."""
+
+    def test_confidence_alta_forces_g1(self):
+        """'alta' (spike regression) → G1 mesmo com streak alto."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 5
+        mg.get_gale(score=5, c4_rate=0.8, confidence="alta")
+        assert mg.level == 1, "Confiança 'alta' deve forçar G1"
+
+    def test_confidence_media_allows_escalation(self):
+        """'media' (estável) → permite G2/G3 normalmente."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 3
+        mg.get_gale(score=4, c4_rate=0.5, confidence="media")
+        assert mg.level == 3, "Confiança 'media' com streak 3 deve permitir G3"
+
+    def test_confidence_baixa_forces_g1(self):
+        """'baixa' (dados ruins) → G1."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 4
+        mg.get_gale(score=5, c4_rate=0.9, confidence="baixa")
+        assert mg.level == 1, "Confiança 'baixa' deve forçar G1"
+
+    def test_confidence_media_with_c4_low_still_g1(self):
+        """'media' mas c4_rate < 0.15 → G1 (Regra 4 prevalece)."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 3
+        mg.get_gale(score=4, c4_rate=0.10, confidence="media")
+        assert mg.level == 1, "C4 rate baixo deve forçar G1 mesmo com 'media'"
+
+
+class TestScoreNoLongerLimitsGale:
+    """T8: Score não é mais fator na decisão de gale (SmartGale v6)."""
+
+    def test_score_2_allows_g3_with_streak(self):
+        """Score baixo (2) com streak alto → G3 (antes era limitado a G1)."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 3
+        mg.get_gale(score=2, c4_rate=0.5, confidence="media")
+        assert mg.level == 3, "Score 2 não deve mais limitar gale"
+
+    def test_score_1_allows_g2_with_streak(self):
+        """Score mínimo (1) com streak 2 → G2."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 2
+        mg.get_gale(score=1, c4_rate=0.5, confidence="media")
+        assert mg.level == 2, "Score 1 não deve mais limitar gale"
+
+    def test_score_6_without_streak_stays_g1(self):
+        """Score alto (6) sem streak → G1 (score não libera gale)."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 0
+        mg.get_gale(score=6, c4_rate=0.8, confidence="media")
+        assert mg.level == 1, "Score alto sem streak não deve liberar gale"
+
+    def test_score_irrelevant_confidence_decides(self):
+        """Score=5 + streak=3 + 'alta' → G1 (confiança domina, não score)."""
+        mg = MartingaleState()
+        mg.global_consecutive_hits = 3
+        mg.get_gale(score=5, c4_rate=0.8, confidence="alta")
+        assert mg.level == 1, "Confiança 'alta' deve dominar sobre score e streak"

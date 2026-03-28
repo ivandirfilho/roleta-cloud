@@ -19,16 +19,16 @@ from .bet_advisor import TripleRateAdvisor, BetAdvice
 @dataclass
 class MartingaleState:
     """
-    Smart Gale v5 — Anti-Martingale com Take-Profit.
+    Smart Gale v6 — Anti-Martingale com Confiança.
     
     Gales: 1× (R$21), 2× (R$42), 3× (R$63). SEMPRE aposta.
     
-    Regra 1 — Teto por Score SDA:
-      Score 1-2 → max 1× | Score 3-4 → max 2× | Score 5-6 → max 3×
+    Regra 6 — Proteção por Confiança:
+      "alta" (spike) → max 1× | "baixa" → max 1× | "media" → max 3×
+    Regra 4 — Gale Advisor: C4 rate < 15% → forçar teto 1×
     Regra 2 — Anti-Martingale com Streak Global:
       0-1 global streak → 1× | 2 global streak → 2× | 3+ global streak → 3×
     Regra 3 — Reset após MISS: qualquer miss → volta 1× imediatamente
-    Regra 4 — Gale Advisor: C4 rate < 15% → forçar teto 1×
     Regra 5 — Take-Profit: G3 + HIT → lock profit, reset G1
     """
     level: int = 1
@@ -51,17 +51,17 @@ class MartingaleState:
     def gale_display(self) -> str:
         return f"G{self.level} S{self.consecutive_hits} GS{self.global_consecutive_hits}"
     
-    def get_gale(self, score: int = 3, c4_rate: float = 0.5) -> int:
-        """SmartGale v5: Anti-Martingale com streak global. Retorna 1, 2 ou 3."""
-        # Regra 1 — Teto por Score (mantida)
-        if score <= 2:
-            max_gale = 1
-        elif score <= 4:
-            max_gale = 2
-        else:
-            max_gale = 3
+    def get_gale(self, score: int = 3, c4_rate: float = 0.5, confidence: str = "media") -> int:
+        """SmartGale v6: Anti-Martingale com confiança. Retorna 1, 2 ou 3."""
+        max_gale = 3
         
-        # Regra 4 — C4 advisor (threshold ajustado 0.25→0.15)
+        # Regra 6 — Proteção por confiança (spike regression)
+        if confidence == "alta":
+            max_gale = 1
+        elif confidence == "baixa":
+            max_gale = 1
+        
+        # Regra 4 — C4 advisor (threshold 0.15)
         if c4_rate < 0.15:
             max_gale = 1
         

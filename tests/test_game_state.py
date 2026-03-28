@@ -44,12 +44,13 @@ class TestSmartGaleV4:
         assert mg.level == 1
         assert mg.consecutive_hits == 0
 
-    def test_get_gale_score_ceiling(self):
+    def test_get_gale_confidence_ceiling(self):
         mg = MartingaleState()
         mg.global_consecutive_hits = 5  # wants to raise via global streak
-        assert mg.get_gale(score=1) == 1  # ceiling 1 for low score
-        assert mg.get_gale(score=3) == 2  # ceiling 2 for mid score
-        assert mg.get_gale(score=5) == 3  # ceiling 3 for high score
+        # v6: score no longer limits gale, confidence does
+        assert mg.get_gale(score=1, confidence="media") == 3  # media allows G3
+        assert mg.get_gale(score=3, confidence="alta") == 1   # alta forces G1
+        assert mg.get_gale(score=5, confidence="baixa") == 1  # baixa forces G1
 
     def test_get_gale_c4_rate_override(self):
         mg = MartingaleState()
