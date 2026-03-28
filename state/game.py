@@ -377,12 +377,34 @@ class GameState:
     def target_performance(self) -> List[bool]:
         """
         Retorna performance SDA17 da direção ALVO (oposta à última).
-        Usado pelo Triple Rate Advisor para analisar tendência.
+        Usado pelo Triple Rate Advisor (Kill Switch) para analisar tendência.
         Retorna list (não deque) para compatibilidade com slicing.
         """
         if self.last_direction == "horario":
             return list(self.performance_sda17_ccw)
         return list(self.performance_sda17_cw)
+    
+    @property
+    def target_performance_bet(self) -> List[bool]:
+        """
+        Retorna performance de APOSTAS REAIS da direção ALVO.
+        Usado pelo SmartGaleV4 para c4_rate (BUG-28-03 fix).
+        """
+        if self.last_direction == "horario":
+            return list(self.performance_bet_ccw)
+        return list(self.performance_bet_cw)
+    
+    def get_bet_c4_rate(self) -> float:
+        """
+        C4 rate baseado em apostas reais (para SmartGaleV4).
+        Usa performance_bet em vez de performance_sda17.
+        """
+        perf = self.target_performance_bet
+        if len(perf) == 0:
+            return 0.5
+        if len(perf) < 4:
+            return sum(perf) / len(perf)
+        return sum(perf[:4]) / 4
     
     @property
     def target_martingale(self) -> MartingaleState:
@@ -439,11 +461,15 @@ class GameState:
         try:
             os.replace(temp_path, path)
         except OSError:
-            # Fallback para Docker bind mounts (os.replace falha com Errno 16)
-            with open(path, 'w', encoding='utf-8') as target:
-                with open(temp_path, 'r', encoding='utf-8') as source:
-                    target.write(source.read())
-            os.unlink(temp_path)
+            try:
+                with open(path, 'w', encoding='utf-8') as target:
+                    with open(temp_path, 'r', encoding='utf-8') as source:
+                        target.write(source.read())
+            finally:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
 
     
     @classmethod
@@ -506,5 +532,13 @@ class GameState:
                 martingale_ccw=MartingaleState.from_dict(data.get("martingale_ccw", {})),
                 pending_prediction=data.get("pending_prediction", {})
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Falha ao carregar state.json: {e}")
+            try:
+                import shutil
+                backup = Path(str(path) + '.corrupted')
+                shutil.copy2(path, backup)
+                logger.info(f"Backup do state corrompido salvo em: {backup}")
+            except Exception:
+                pass
             return cls()

@@ -82,6 +82,10 @@ class SDA17Strategy(StrategyBase):
                 valid_forces[i] = max(1, 37 - f)  # Inversão suave
         
         # BUG-E5: Fallback SDA-19 quando <5 forças válidas (early-session)
+        # M-08: Ativado quando valid_forces < 5 (início de sessão ou muitas anomalias).
+        # Usa 1 centro (mediana) + 9 vizinhos = 19 números contíguos (~51% da roda).
+        # Hit rate observado: ~52% vs ~61% do SDA-21 Triple Focus.
+        # É geometricamente diferente: 1 arco largo vs 3 arcos curtos.
         if len(valid_forces) < 5:
             c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
             numbers = sorted(self.get_neighbors(c1, 9, wheel_sequence))
@@ -134,6 +138,13 @@ class SDA17Strategy(StrategyBase):
             nums = set()
             for center in [c1, c2, c3]:
                 nums |= set(self.get_neighbors(center, self.num_neighbors, wheel_sequence))
+            numbers = sorted(nums)
+        
+        # BUG-28-04/M-07: Segunda validação — se spread não bastou, aumentar raio
+        if len(numbers) < 18:
+            nums = set()
+            for center in [c1, c2, c3]:
+                nums |= set(self.get_neighbors(center, self.num_neighbors + 1, wheel_sequence))
             numbers = sorted(nums)
         
         visual = f"[{c1}] [{c2}] [{c3}]"
@@ -207,7 +218,9 @@ class SDA17Strategy(StrategyBase):
         # === PASSO 3: Drift Detection (MEL-05: sobre dados LIMPOS pós-IQR) ===
         drift_adj = 0
         if len(clean) >= 3:
-            # Ordenar clean por posição original (mais recente primeiro)
+            # BUG-28-12/M-09: clean é indexado por posição original (idx 0 = mais recente).
+            # sorted ascending by idx → [:3] captura os 3 mais recentes (idx 0, 1, 2).
+            # diffs[i] = force[i] - force[i+1] = mais_recente - menos_recente
             clean_by_recency = sorted(clean, key=lambda x: x[1])[:3]
             last3_clean = [f for f, _ in clean_by_recency]
             diffs = [last3_clean[i] - last3_clean[i + 1] for i in range(min(2, len(last3_clean) - 1))]

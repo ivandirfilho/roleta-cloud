@@ -25,6 +25,10 @@ class Timeline:
     
     def add(self, force: int) -> None:
         """Adiciona uma força no início (mais recente). Auto-trim via maxlen."""
+        if force < 1 or force > 37:
+            import logging
+            logging.getLogger(__name__).warning(f"Force fora dos limites: {force}, clamped para [1,37]")
+            force = max(1, min(37, force))
         self.forces.appendleft(force)
     
     def get_last_n(self, n: int) -> List[int]:

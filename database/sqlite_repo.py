@@ -42,10 +42,11 @@ class SQLiteDecisionRepository(DecisionRepository):
         logger.info(f"SQLite repository initialized: {self.db_path}")
     
     def _get_connection(self) -> sqlite3.Connection:
-        """Retorna nova conexão com SQLite (WAL mode + busy timeout)."""
+        """Retorna nova conexão com SQLite (WAL mode + busy timeout + FK)."""
         conn = sqlite3.connect(str(self.db_path))
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA foreign_keys = ON")
         conn.row_factory = sqlite3.Row
         return conn
 

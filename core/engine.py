@@ -95,12 +95,15 @@ class GameEngine:
         c4_rate = getattr(advice, 'c4_rate', 0.5)
 
         # 6. Decisão combinada — Smart Gale v4: SEMPRE aposta
+        #    BUG-28-03/M-01: c4_rate para gale vem de performance_bet (apostas reais)
+        bet_c4_rate = self.game_state.get_bet_c4_rate()
+
         if result.should_bet:
             mg = self.game_state.target_martingale
-            mg.get_gale(score=result.score, c4_rate=c4_rate)
+            mg.get_gale(score=result.score, c4_rate=bet_c4_rate)
             
             acao = "APOSTAR"
-            action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={c4_rate:.0%}"
+            action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
             self.game_state.store_prediction(
                 result.numbers, self.game_state.target_direction, result.center,
                 predicted_force=result.details.get("predicted_force", 0),
@@ -110,9 +113,25 @@ class GameEngine:
                 sda_score=result.score,
                 sda_centers=result.details.get("centers", [result.center])
             )
+        elif self.game_state.target_timeline.size > 0:
+            # BUG-28-01/M-02: SDA insuficiente mas com dados → G1 seguro
+            mg = self.game_state.target_martingale
+            mg.level = 1
+            center = self.game_state.last_number
+            fallback_nums = sorted(
+                self.strategy.get_neighbors(center, 10, roulette.WHEEL_SEQUENCE)
+            )
+            acao = "APOSTAR"
+            action_reason = f"SDA insuficiente ({self.game_state.target_timeline.size} forças) → G1 seguro"
+            self.game_state.store_prediction(
+                fallback_nums, self.game_state.target_direction, center,
+                predicted_force=0, bet_placed=True,
+                tr_confidence="baixa", tr_reason="Fallback early-session",
+                sda_score=1, sda_centers=[center]
+            )
         else:
             acao = "PULAR"
-            action_reason = "SDA não recomendou (forças insuficientes)"
+            action_reason = "Timeline vazia — sem dados para predição"
 
         mg = self.game_state.target_martingale
         confidence = {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50)
