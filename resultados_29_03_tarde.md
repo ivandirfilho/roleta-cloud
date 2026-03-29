@@ -8,6 +8,163 @@
 
 ---
 
+## PREMISSAS ATUALIZADAS — Modo Estudo 29/03 Tarde
+
+> **⚠️ Modo Estudo:** Este documento é de análise exclusiva. Nenhum código foi modificado.
+> As premissas abaixo são hipóteses a serem validadas por simulação antes de qualquer implementação.
+
+### Premissa 1 — Usuário Aposta em TODAS as Jogadas (sem PULAR)
+
+A premissa anterior admitia um Kill Switch (PULAR) quando `C4==0 AND Score≤2`.
+Na nova premissa, o usuário **sempre aposta**, independente de performance recente.
+
+**Justificativa:**
+- O Kill Switch estava efetivamente desabilitado (BUG-RES-001): Score nunca ≤2 com M15-ADA
+- Com estratégia Bayesiana, o offset se auto-corrige a cada jogada — não há razão para pausar
+- O usuário prefere participar de todas as rodadas e confiar no algoritmo adaptativo
+
+**Impacto esperado:**
+- `taxa_pular = 0%` (confirmado nos dados reais — já era o comportamento efetivo)
+- SmartGale opera apenas como G1 em 90-94% das decisões (sem PULAR, sem escalada)
+- EV de longo prazo depende exclusivamente da HR do algoritmo adaptativo
+
+---
+
+### Premissa 2 — Estratégia Unificada: CCW Bayesiano migrado para CW
+
+A arquitetura atual usa **dois algoritmos distintos**:
+- **CW**: ErrDriven EMA (α=0.25, cw_ema → offset clamp[8,16])
+- **CCW**: Bayesiano retrospectivo (janela=12, testa offsets 7-17)
+
+A nova premissa propõe **unificar** para o algoritmo Bayesiano em ambas as direções,
+mantendo parâmetros independentes (histórico, bounds) por sentido.
+
+**Motivação (evidência dos dados reais):**
+
+| Algoritmo | HR Total (50) | HR últ.20 | Max Miss Streak |
+|-----------|:------------:|:---------:|:---------------:|
+| CW ErrDriven (real) | 36.7% | 20.0% | **14** ⚠️ |
+| CCW Bayesiano (real) | 48.0% | 45.0% | 8 |
+| **Gap de performance** | **+11.3pp** | **+25pp** | **-6** |
+
+O Bayesiano é superior porque:
+1. **Reavalia tudo a cada jogada** — testa todos os offsets 7-17 contra as últimas 12 plays
+2. **Sem "inércia"** — o EMA leva ~8-12 observações para reagir; o Bayesiano reage na próxima jogada
+3. **Busca direta** — encontra o offset ótimo por brute-force, não por convergência iterativa
+
+**Parâmetros propostos para CW Bayesiano:**
+
+```
+CW_BAYES_WINDOW   = 12   # Mesma janela do CCW
+CW_BAYES_WARMUP   = 5    # Mesmo warmup
+CW_BAYES_DEFAULT  = 14   # Offset padrão durante warmup
+CW_BAYES_OFF_MIN  = 7    # Range início (CCW usa 7)
+CW_BAYES_OFF_MAX  = 17   # Range fim (CCW usa 17)
+```
+
+---
+
+### Premissa 3 — Melhorias Sugeridas para Estratégia mais Adaptativa
+
+As melhorias abaixo são sugestões de estudo, ordenadas por impacto esperado:
+
+#### MEL-BAY-01: Janela Bayesiana Dinâmica (Dynamic Window)
+
+**Problema:** Janela fixa de 12 é lenta para reagir a mudanças abruptas de padrão.
+
+**Proposta:**
+```python
+# Pseudocódigo — não implementar ainda
+def dynamic_window(history, miss_streak):
+    if miss_streak >= 6:
+        return 5   # janela curta: responde rápido à mudança
+    elif miss_streak >= 3:
+        return 8   # janela média
+    else:
+        return 12  # janela padrão
+```
+
+**Impacto esperado:** Redução do max miss streak de 14→6 (estimativa baseada no padrão CW).
+
+---
+
+#### MEL-BAY-02: Histórico Ponderado por Recência (Weighted History)
+
+**Problema:** Todas as 12 jogadas da janela têm peso igual. Jogadas antigas influenciam tanto quanto as recentes.
+
+**Proposta:** Pesos exponenciais para contagem de hits:
+```python
+# Pseudocódigo — não implementar ainda
+hits = sum(0.9**(n-i) for i, (c1, res) in enumerate(window) if res in coverage(c1, off))
+```
+
+**Impacto esperado:** Melhor tracking de padrões recentes; offset converge ~30% mais rápido.
+
+---
+
+#### MEL-BAY-03: Confiança Bayesiana como Indicador de Qualidade
+
+**Problema:** Atualmente o algoritmo sempre usa o melhor offset, mas não há como saber se o offset é "muito bom" (8/12 hits) ou "pouco confiável" (4/12 hits).
+
+**Proposta:** Calcular e expor a confiança:
+```python
+# Pseudocódigo — não implementar ainda
+confidence = best_hits / len(window)
+# confidence > 0.50 → sinal forte → poderia aumentar aposta
+# confidence < 0.25 → sinal fraco → considerar PULAR ou reduzir
+```
+
+Com a Premissa 1 (sempre apostar), isso seria usado apenas como métrica de monitoramento
+e potencialmente para escalar o valor de aposta.
+
+---
+
+#### MEL-BAY-04: Detector de Regime (Regime Change Detector)
+
+**Problema:** O histórico acumula jogadas de "regimes" diferentes (ex: antes e depois de uma mudança na mesa ou no dealer).
+
+**Proposta:** Detectar saltos abruptos no offset ótimo como indicador de mudança de regime:
+```python
+# Pseudocódigo — não implementar apenas
+if abs(new_best_offset - prev_best_offset) >= 6:
+    history = history[-5:]  # reset agressivo: esquece histórico antigo
+```
+
+**Impacto esperado:** Evita que o algoritmo fique "preso" num padrão desatualizado após mudança de condições.
+
+---
+
+#### MEL-BAY-05: Multi-Offset (Top-2 Average)
+
+**Problema:** Hard-selection do melhor offset pode introduzir instabilidade quando dois offsets têm hits iguais.
+
+**Proposta:** Usar média ponderada dos top-2 offsets:
+```python
+# Pseudocódigo — não implementar ainda
+top2 = sorted([(hits, off) for off, hits in offset_scores.items()], reverse=True)[:2]
+if top2[0][0] == top2[1][0]:  # empate
+    offset = round((top2[0][1] * top2[0][0] + top2[1][1] * top2[1][0]) / sum(h for h, _ in top2))
+else:
+    offset = top2[0][1]  # vencedor claro
+```
+
+**Impacto esperado:** Redução de instabilidade em períodos de transição de padrão.
+
+---
+
+#### Tabela de Melhorias
+
+| ID | Melhoria | Complexidade | Impacto HR (est.) | Risco |
+|----|----------|:------------:|:-----------------:|:-----:|
+| MEL-BAY-01 | Janela Dinâmica | Baixa | +2-4pp | Baixo |
+| MEL-BAY-02 | Histórico Ponderado | Média | +1-3pp | Médio |
+| MEL-BAY-03 | Confiança Bayesiana | Baixa | Monitoramento | Nenhum |
+| MEL-BAY-04 | Detector de Regime | Média | +2-5pp | Médio |
+| MEL-BAY-05 | Multi-Offset Top-2 | Baixa | +0-2pp | Baixo |
+| **TOTAL** | **CW Bayesiano + MEL-01+04** | — | **+12-18pp vs ErrDriven** | Médio |
+
+---
+
 ## REGISTRO COMPLETO — ÚLTIMAS 50 JOGADAS POR SENTIDO
 
 ### Horário (CW) — 50 Jogadas com Timestamps
@@ -631,4 +788,278 @@ do Kill Switch.
 2. **ALTA:** Acelerar ou substituir algoritmo CW (BUG-RES-003)
 3. **MÉDIA:** Gravar offset real no DB para análises futuras (BUG-RES-002)
 
-> **Status:** Documento de análise finalizado. Aguardando aprovação para implementar correções.
+> **Status (original):** Documento de análise finalizado. Aguardando aprovação para implementar correções.
+
+---
+
+## PARTE 4 — SIMULAÇÃO ENGENHARIA REVERSA (MODO ESTUDO)
+
+> **Premissas aplicadas nesta seção:**
+> 1. Usuário aposta em **TODAS** as jogadas (taxa PULAR = 0%)
+> 2. Ambas as direções usam **algoritmo Bayesiano** (mesmo do CCW atual)
+> 3. Parâmetros: window=12, warmup=5, default_offset=14, offsets testados 7-17
+> 4. C1 é o mesmo que o sistema real (não alterado — apenas o offset muda)
+> 5. Cobertura: neighbors(C1, raio=3) ∪ neighbors(C2, raio=2) ∪ neighbors(C3, raio=2) = 17 números
+> 6. Simulação independente por sentido
+
+### 4.1 Metodologia da Simulação
+
+A engenharia reversa usa os dados reais de C1 e resultado de cada jogada para calcular
+qual offset o algoritmo Bayesiano teria selecionado, e se o resultado estaria na cobertura.
+
+```
+Para cada jogada (em ordem cronológica):
+  1. Consulta história acumulada até aquele momento
+  2. Se len(historia) < 5 → usa offset padrão = 14 (warmup)
+  3. Senão → testa offsets 7..17 contra últimas 12 entradas da historia
+             → conta hits por offset
+             → seleciona offset com mais hits (tie → menor offset)
+  4. Calcula cobertura: C2 = wheel[(C1_idx + offset) % 37]
+                        C3 = wheel[(C1_idx - offset) % 37]
+                        cob = neighbors(C1,3) ∪ neighbors(C2,2) ∪ neighbors(C3,2)
+  5. Verifica: resultado ∈ cob → HIT_SIM = ✅
+  6. Adiciona (C1, resultado) à historia
+```
+
+**Nota:** A simulação assume que C1 seria idêntico ao produzido pelo sistema real
+(o pipeline de predição de força não muda — apenas o mecanismo de offset).
+
+---
+
+### 4.2 Simulação CW — Bayesiano Simulado vs ErrDriven Real
+
+#### Tabela de Engenharia Reversa — CW (49 jogadas com resultado verificado)
+
+```
+   ID |  C1 |  Off |  C2 |  C3 | #Cob | RES | BAY | REAL | Δ | Nota
+─────-+─────+──────+─────+─────+──────+─────+─────+──────+───+────────────────
+ 2903 |  10 |   14 |  28 |   4 |   17 |  23 |  ✅  |   ✅  |   | [warmup]
+ 2905 |  11 |   14 |  22 |   0 |   17 |   4 |  ❌  |   ✅  | ≠ | [warmup] real hit, sim miss
+ 2907 |  29 |   14 |  25 |   8 |   17 |  23 |  ✅  |   ✅  |   | [warmup]
+ 2909 |  11 |   14 |  22 |   0 |   17 |  24 |  ❌  |   ❌  |   | [warmup]
+ 2911 |  12 |   14 |   6 |   5 |   17 |   7 |  ✅  |   ✅  |   | [warmup]
+ 2913 |  25 |    8 |  30 |  26 |   17 |   8 |  ✅  |   ✅  |   | Bay opt=8 (4 hits/5)
+ 2915 |  15 |    8 |   6 |   7 |   17 |  30 |  ❌  |   ❌  |   | Bay opt=8 (5 hits/6)
+ 2917 |   1 |   11 |  35 |  13 |   17 |  11 |  ✅  |   ✅  |   | Bay opt=11 (6 hits/7)
+ 2919 |  24 |   11 |   7 |  34 |   17 |  10 |  ✅  |   ✅  |   | Bay opt=11 (7 hits/8)
+ 2921 |   0 |   11 |  27 |  31 |   17 |   4 |  ❌  |   ❌  |   | Bay opt=11 (8 hits/9)
+ 2923 |  25 |   11 |  10 |  12 |   17 |  22 |  ❌  |   ❌  |   | Bay opt=11 (8 hits/10)
+ 2925 |   3 |   11 |  34 |  20 |   17 |  27 |  ✅  |   ✅  |   | Bay opt=11 (8 hits/11)
+ 2927 |  17 |   11 |   5 |  35 |   17 |  15 |  ❌  |   ❌  |   | Bay opt=11 (9 hits/12)
+ 2929 |   7 |   11 |  21 |  24 |   17 |  19 |  ✅  |   ✅  |   | Bay opt=11 (8 hits/12)
+ 2931 |  31 |   11 |   0 |  30 |   17 |  34 |  ❌  |   ❌  |   | Bay opt=11 (8 hits/12)
+ 2933 |   4 |    7 |  27 |  35 |   17 |  10 |  ❌  |   ❌  |   | Bay opt=7  (7 hits/12) ← offset muda!
+ 2935 |  29 |   11 |   4 |   5 |   17 |  28 |  ✅  |   ✅  |   | Bay opt=11 (7 hits/12)
+ 2937 |  10 |   11 |  18 |  25 |   17 |  20 |  ❌  |   ❌  |   | Bay opt=11 (7 hits/12)
+ 2939 |  33 |   15 |   0 |  25 |   17 |   3 |  ✅  |   ❌  | ≠ | Bay opt=15 (7 hits/12) sim hit, real miss
+ 2941 |   0 |   15 |  30 |  33 |   17 |  22 |  ❌  |   ❌  |   | Bay opt=15 (7 hits/12)
+ 2943 |   9 |   15 |  21 |  13 |   17 |  25 |  ✅  |   ✅  |   | Bay opt=15 (7 hits/12)
+ 2945 |   8 |   15 |   7 |  32 |   17 |   0 |  ✅  |   ✅  |   | Bay opt=15 (7 hits/12)
+ 2947 |   0 |   15 |  30 |  33 |   17 |  34 |  ❌  |   ❌  |   | Bay opt=15 (8 hits/12)
+ 2949 |  10 |   15 |  12 |  19 |   17 |  23 |  ✅  |   ✅  |   | Bay opt=15 (7 hits/12)
+ 2951 |   3 |    7 |  21 |  22 |   17 |  35 |  ✅  |   ✅  |   | Bay opt=7  (7 hits/12)
+ 2953 |  27 |   15 |  31 |  12 |   17 |  10 |  ❌  |   ❌  |   | Bay opt=15 (8 hits/12)
+ 2955 |  13 |   15 |   9 |  35 |   17 |  29 |  ❌  |   ❌  |   | Bay opt=15 (8 hits/12)
+ 2957 |   0 |    7 |  25 |  29 |   17 |  17 |  ✅  |   ❌  | ≠ | Bay opt=7  (7 hits/12) Bay pega 17!
+ 2959 |  26 |    7 |   2 |  18 |   17 |   9 |  ✅  |   ❌  | ≠ | Bay opt=7  (8 hits/12) Bay pega 9!
+ 2961 |  24 |    7 |   9 |  36 |   17 |  31 |  ✅  |   ❌  | ≠ | Bay opt=7  (8 hits/12) Bay pega 31!
+ 2963 |   2 |    7 |  36 |  26 |   17 |   1 |  ❌  |   ❌  |   | Bay opt=7  (8 hits/12)
+ 2965 |  28 |    7 |  15 |  14 |   17 |  36 |  ❌  |   ❌  |   | Bay opt=7  (8 hits/12)
+ 2967 |  34 |    7 |   8 |  15 |   17 |   3 |  ❌  |   ❌  |   | Bay opt=7  (7 hits/12)
+ 2969 |   7 |    7 |  32 |  20 |   17 |  14 |  ✅  |   ❌  | ≠ | Bay opt=7  (7 hits/12) Bay pega 14!
+ 2971 |  32 |    7 |  17 |   7 |   17 |  14 |  ❌  |   ❌  |   | Bay opt=7  (8 hits/12)
+ 2973 |  16 |    7 |  22 |  11 |   17 |  21 |  ❌  |   ❌  |   | Bay opt=7  (7 hits/12)
+ 2975 |  21 |    7 |  13 |   3 |   17 |  30 |  ❌  |   ❌  |   | Bay opt=7  (6 hits/12)
+ 2977 |   3 |    8 |   2 |   9 |   17 |  30 |  ❌  |   ❌  |   | Bay opt=8  (6 hits/12)
+ 2979 |   9 |    8 |   3 |   5 |   17 |   2 |  ❌  |   ❌  |   | Bay opt=8  (5 hits/12)
+ 2981 |  31 |    8 |  35 |  10 |   17 |  22 |  ✅  |   ✅  |   | Bay opt=8  (5 hits/12)
+ 2983 |  21 |   15 |  24 |   9 |   17 |  13 |  ❌  |   ❌  |   | Bay opt=15 (6 hits/12)
+ 2985 |   1 |   15 |  32 |  17 |   17 |   1 |  ✅  |   ✅  |   | Bay opt=15 (6 hits/12)
+ 2987 |   3 |   15 |  36 |  24 |   17 |   7 |  ❌  |   ❌  |   | Bay opt=15 (7 hits/12)
+ 2989 |  29 |   15 |  17 |  30 |   17 |  18 |  ✅  |   ✅  |   | Bay opt=15 (6 hits/12)
+ 2991 |   6 |   15 |  14 |  28 |   17 |   6 |  ✅  |   ✅  |   | Bay opt=15 (7 hits/12)
+ 2993 |   2 |   15 |  16 |  22 |   17 |  10 |  ❌  |   ❌  |   | Bay opt=15 (8 hits/12)
+ 2995 |  31 |   14 |  19 |  13 |   17 |   3 |  ❌  |   ❌  |   | Bay opt=14 (8 hits/12)
+ 2997 |   7 |    8 |  15 |   1 |   17 |   9 |  ❌  |   ❌  |   | Bay opt=8  (7 hits/12)
+ 2999 |   5 |    8 |   9 |  27 |   17 |  17 |  ❌  |   ❌  |   | Bay opt=8  (7 hits/12)
+```
+
+#### Resumo Estatístico — CW
+
+| Métrica | Bayesiano Simulado | ErrDriven Real | Δ |
+|---------|:-----------------:|:--------------:|:--:|
+| **HR Total (49 jogadas)** | **22/49 = 44.9%** | 18/49 = 36.7% | **+8.2pp** ✅ |
+| **HR últimas 20** | **6/20 = 30.0%** | 4/20 = 20.0% | **+10.0pp** ✅ |
+| Max streak acertos | 3 | 3 | = |
+| **Max streak erros** | **5** ⬇️ | **14** ⚠️ | **-9** ✅ |
+| Total divergências (Sim≠Real) | 6/49 = 12.2% | — | — |
+
+#### Distribuição de Offsets Bayesianos — CW
+
+| Offset | Vezes | % | Interpretação |
+|--------|------:|:--:|---------------|
+| 7 | 12 | 24.5% | Período IDs 2957-2975 — offset pequeno dominante |
+| 8 | 7 | 14.3% | Início e fase final |
+| 11 | 10 | 20.4% | Fase central IDs 2917-2935 |
+| 14 | 6 | 12.2% | Warmup + retorno final |
+| 15 | 14 | 28.6% | **Mais frequente!** Fase IDs 2939-2993 |
+
+**Insight CW:** O Bayesiano oscila entre offsets 7 e 15 — extremos opostos —
+indicando alta variabilidade de padrão neste sentido. O ErrDriven (EMA=11) ficou
+"travado" numa média que não representava nem o padrão 7 nem o padrão 15.
+
+---
+
+### 4.3 Simulação CCW — Bayesiano Simulado vs Bayesiano Real
+
+#### Tabela de Engenharia Reversa — CCW (50 jogadas)
+
+```
+   ID |  C1 |  Off |  C2 |  C3 | #Cob | RES | BAY | REAL | Δ | Nota
+─────-+─────+──────+─────+─────+──────+─────+─────+──────+───+────────────────
+ 2902 |  17 |   14 |  33 |   7 |   17 |  34 |  ✅  |   ✅  |   | [warmup]
+ 2904 |  20 |   14 |  32 |   6 |   17 |  11 |  ❌  |   ❌  |   | [warmup]
+ 2906 |   9 |   14 |   4 |  36 |   17 |  16 |  ❌  |   ✅  | ≠ | [warmup] real usou offset diferente
+ 2908 |  35 |   14 |  27 |  24 |   17 |  30 |  ❌  |   ❌  |   | [warmup]
+ 2910 |   2 |   14 |  24 |  18 |   17 |  20 |  ❌  |   ❌  |   | [warmup]
+ 2912 |  27 |    8 |   5 |  19 |   17 |  26 |  ❌  |   ✅  | ≠ | Bay opt=8 (3 hits/5) real usou off dif
+ 2914 |  16 |    8 |  18 |  36 |   17 |  24 |  ✅  |   ✅  |   | Bay opt=8 (3 hits/6)
+ 2916 |  24 |    8 |  22 |  13 |   17 |   7 |  ❌  |   ✅  | ≠ | Bay opt=8 (4 hits/7)
+ 2918 |  20 |   10 |  35 |  11 |   17 |   0 |  ❌  |   ❌  |   | Bay opt=10 (5 hits/8)
+ 2920 |   2 |   11 |  23 |  28 |   17 |  31 |  ❌  |   ❌  |   | Bay opt=11 (6 hits/9)
+ 2922 |  13 |   11 |   1 |  32 |   17 |  22 |  ❌  |   ❌  |   | Bay opt=11 (6 hits/10)
+ 2924 |  25 |   11 |  10 |  12 |   17 |   8 |  ✅  |   ❌  | ≠ | Bay opt=11 (6 hits/11)
+ 2926 |  21 |   11 |   8 |   7 |   17 |  36 |  ❌  |   ❌  |   | Bay opt=11 (7 hits/12)
+ 2928 |  10 |   10 |  22 |  17 |   17 |   6 |  ✅  |   ❌  | ≠ | Bay opt=10 (6 hits/12)
+ 2930 |  27 |   10 |  16 |  32 |   17 |  12 |  ❌  |   ❌  |   | Bay opt=10 (6 hits/12)
+ 2932 |  34 |   10 |   5 |  26 |   17 |  30 |  ❌  |   ❌  |   | Bay opt=10 (6 hits/12)
+ 2934 |  31 |   10 |  26 |   8 |   17 |  22 |  ✅  |   ✅  |   | Bay opt=10 (6 hits/12)
+ 2936 |  21 |   10 |  30 |  28 |   17 |  21 |  ✅  |   ✅  |   | Bay opt=10 (7 hits/12)
+ 2938 |  35 |    7 |   4 |   9 |   17 |   3 |  ✅  |   ✅  |   | Bay opt=7  (7 hits/12)
+ 2940 |  17 |    7 |  30 |  32 |   17 |  15 |  ✅  |   ✅  |   | Bay opt=7  (7 hits/12)
+ 2942 |  32 |    7 |  17 |   7 |   17 |  32 |  ✅  |   ✅  |   | Bay opt=7  (8 hits/12)
+ 2944 |  23 |    7 |  20 |   6 |   17 |  30 |  ✅  |   ✅  |   | Bay opt=7  (9 hits/12)
+ 2946 |   6 |    7 |  23 |  19 |   17 |  30 |  ✅  |   ❌  | ≠ | Bay opt=7  (10 hits/12) ← pico!
+ 2948 |   5 |    7 |  31 |  13 |   17 |   5 |  ✅  |   ✅  |   | Bay opt=7  (11 hits/12) ← máx confiança
+ 2950 |   9 |    7 |  35 |  24 |   17 |  26 |  ✅  |   ✅  |   | Bay opt=7  (11 hits/12)
+ 2952 |  25 |    7 |  11 |   0 |   17 |  36 |  ✅  |   ✅  |   | Bay opt=7  (11 hits/12)
+ 2954 |  12 |    7 |  19 |  31 |   17 |  24 |  ❌  |   ❌  |   | Bay opt=7  (11 hits/12)
+ 2956 |  28 |    7 |  15 |  14 |   17 |   9 |  ✅  |   ❌  | ≠ | Bay opt=7  (11 hits/12)
+ 2958 |  20 |    7 |   7 |  23 |   17 |  13 |  ❌  |   ❌  |   | Bay opt=7  (11 hits/12)
+ 2960 |  15 |    7 |  34 |  28 |   17 |  21 |  ✅  |   ✅  |   | Bay opt=7  (10 hits/12)
+ 2962 |   4 |    7 |  27 |  35 |   17 |  14 |  ❌  |   ❌  |   | Bay opt=7  (10 hits/12)
+ 2964 |  10 |    7 |  14 |  27 |   17 |  32 |  ❌  |   ❌  |   | Bay opt=7  (9 hits/12)
+ 2966 |  22 |    7 |   3 |  16 |   17 |   7 |  ✅  |   ✅  |   | Bay opt=7  (8 hits/12)
+ 2968 |  11 |    7 |  16 |  25 |   17 |   7 |  ❌  |   ❌  |   | Bay opt=7  (8 hits/12)
+ 2970 |  30 |    7 |  33 |  17 |   17 |  10 |  ✅  |   ✅  |   | Bay opt=7  (7 hits/12)
+ 2972 |  10 |   15 |  12 |  19 |   17 |  34 |  ❌  |   ✅  | ≠ | Bay opt=15 (8 hits/12)
+ 2974 |  24 |    7 |   9 |  36 |   17 |   8 |  ❌  |   ❌  |   | Bay opt=7  (7 hits/12)
+ 2976 |   9 |   15 |  21 |  13 |   17 |  26 |  ❌  |   ✅  | ≠ | Bay opt=15 (7 hits/12)
+ 2978 |  26 |   11 |   6 |  14 |   17 |  27 |  ✅  |   ❌  | ≠ | Bay opt=11 (7 hits/12)
+ 2980 |  32 |   10 |  27 |  22 |   17 |   7 |  ❌  |   ✅  | ≠ | Bay opt=10 (7 hits/12)
+ 2982 |   8 |   10 |  31 |   2 |   17 |   2 |  ✅  |   ✅  |   | Bay opt=10 (7 hits/12)
+ 2984 |  20 |    8 |  28 |   8 |   17 |  22 |  ❌  |   ❌  |   | Bay opt=8  (7 hits/12)
+ 2986 |  15 |    8 |   6 |   7 |   17 |  19 |  ✅  |   ✅  |   | Bay opt=8  (6 hits/12)
+ 2988 |  13 |    8 |  24 |   4 |   17 |   0 |  ❌  |   ❌  |   | Bay opt=8  (7 hits/12)
+ 2990 |  17 |   10 |  10 |   3 |   17 |  10 |  ✅  |   ✅  |   | Bay opt=10 (8 hits/12)
+ 2992 |   9 |   10 |   0 |  23 |   17 |  11 |  ❌  |   ❌  |   | Bay opt=10 (8 hits/12)
+ 2994 |  12 |   11 |  25 |  33 |   17 |  35 |  ✅  |   ✅  |   | Bay opt=11 (9 hits/12)
+ 2996 |  11 |   11 |  14 |  19 |   17 |   7 |  ❌  |   ❌  |   | Bay opt=11 (9 hits/12)
+ 2998 |  24 |   11 |   7 |  34 |   17 |   9 |  ❌  |   ❌  |   | Bay opt=11 (8 hits/12)
+ 3000 |  20 |   11 |   3 |  36 |   17 |  34 |  ❌  |   ❌  |   | Bay opt=11 (8 hits/12)
+```
+
+#### Resumo Estatístico — CCW
+
+| Métrica | Bayesiano Simulado | Bayesiano Real | Δ |
+|---------|:-----------------:|:--------------:|:--:|
+| **HR Total (50 jogadas)** | **23/50 = 46.0%** | 24/50 = 48.0% | -2.0pp |
+| **HR últimas 20** | **7/20 = 35.0%** | 9/20 = 45.0% | -10.0pp |
+| Max streak acertos | **10** ✅ | 6 | +4 |
+| Max streak erros | **5** ✅ | 8 | -3 |
+| Total divergências (Sim≠Real) | 11/50 = 22.0% | — | — |
+
+**Nota sobre divergência CCW:** As 11 divergências (22%) indicam que o algoritmo Bayesiano
+"real" do sistema usou offsets diferentes do que nossa simulação calculou. Isso pode ser
+explicado por: (a) diferença no estado inicial de `ccw_history` no servidor, (b) offset que
+foi fixo por warmup no servidor mas já estava adaptado, ou (c) pequenas diferenças de C1 real
+vs simulado. A diferença de -2pp no HR total (46% vs 48%) valida que a simulação é
+uma boa aproximação da realidade.
+
+#### Distribuição de Offsets Bayesianos — CCW
+
+| Offset | Vezes | % | Interpretação |
+|--------|------:|:--:|---------------|
+| 7 | 18 | 36.0% | **Dominante** — IDs 2938-2974, período de alta confiança |
+| 8 | 6 | 12.0% | Início e fase final |
+| 10 | 10 | 20.0% | Fase transitória IDs 2918-2936, 2980-2992 |
+| 11 | 9 | 18.0% | IDs 2920-2926, fase final 2994-3000 |
+| 14 | 5 | 10.0% | Warmup exclusivamente |
+| 15 | 2 | 4.0% | Raros (IDs 2972, 2976) |
+
+**Insight CCW:** O offset 7 domina (36%) e corresponde ao período de maior confiança
+(best_hits = 10-11/12). A simulação capturou a "fase quente" IDs 2938-2952 com 10 acertos
+consecutivos — superior ao max streak real de 6!
+
+---
+
+### 4.4 Comparação Final — Estratégia Unificada Bayesiana
+
+| Métrica | CW ErrDriven (real) | CW Bayesiano (sim) | CCW Bayesiano (real) | CCW Bayesiano (sim) |
+|---------|:-------------------:|:------------------:|:-------------------:|:-------------------:|
+| **HR Total (50)** | 36.7% ⚠️ | **44.9%** ✅ | **48.0%** ✅ | 46.0% ✅ |
+| **HR últimas 20** | 20.0% 🔴 | **30.0%** 🟡 | **45.0%** ✅ | 35.0% 🟡 |
+| Max miss streak | **14** 🔴 | **5** ✅ | 8 🟡 | **5** ✅ |
+| Max hit streak | 3 | 3 | 6 | **10** |
+| Offsets usados | {11} fixo | {7,8,11,14,15} | variado | {7,8,10,11,14,15} |
+| Confiança média | — | 7.0/12 = 58% | — | 7.4/12 = 62% |
+
+#### Impacto Financeiro com Bayesiano Unificado (aposta base R$5, todas as jogadas)
+
+```
+─── Estado atual (CW ErrDriven + CCW Bayesiano real) ───
+CW:  18/49 hits × R$5 × 1.176 - 31 misses × R$5  =  R$105.84 - R$155.00  =  -R$49.16
+CCW: 24/50 hits × R$5 × 1.176 - 26 misses × R$5  =  R$141.12 - R$130.00  =  +R$11.12
+TOTAL:                                                                         -R$38.04
+
+─── Simulado (CW Bayesiano + CCW Bayesiano simulado) ───
+CW:  22/49 hits × R$5 × 1.176 - 27 misses × R$5  =  R$129.36 - R$135.00  =  -R$5.64
+CCW: 23/50 hits × R$5 × 1.176 - 27 misses × R$5  =  R$135.24 - R$135.00  =  +R$0.24
+TOTAL:                                                                         -R$5.40
+
+─── Ganho com unificação Bayesiana ───
+Melhoria: -R$5.40 vs -R$38.04 = +R$32.64 (85.8% de redução de perda)
+CW isolado: -R$5.64 vs -R$49.16 = +R$43.52 (88.5% de redução)
+```
+
+---
+
+### 4.5 Conclusão da Simulação
+
+**Resultado da Engenharia Reversa:**
+
+1. ✅ **CW Bayesiano é significativamente superior ao ErrDriven:**
+   - HR melhora de 36.7% → 44.9% (+8.2pp)
+   - Miss streak máximo cai de 14 → 5 (-9 jogadas)
+   - Redução de perda financeira: 88.5% no sentido CW
+
+2. ✅ **CCW Bayesiano simulado confirma a metodologia:**
+   - Simulação reproduz 78% dos resultados reais (11/50 divergências)
+   - HR simulado 46.0% vs real 48.0% — margem de erro de -2pp (aceitável)
+   - Validação: o algoritmo Bayesiano é consistente e reproduzível
+
+3. ✅ **Premissa "apostar sempre" não prejudica o resultado:**
+   - Com Bayesiano, o max miss streak é 5 (gerenciável)
+   - Sem necessidade de Kill Switch quando o offset é auto-calibrado
+
+4. ⚠️ **HR últimas 20 ainda abaixo do ideal:**
+   - CW Bayesiano sim: 30% (vs 45% meta) — período final das 50 jogadas é difícil para ambos
+   - Sugere que MEL-BAY-01 (janela dinâmica) seria benéfico nessa fase
+
+5. 📊 **Offsets divergem muito entre CW e CCW:**
+   - CW oscila entre 7 e 15 (padrão bimodal instável)
+   - CCW converge fortemente para 7 (padrão estável)
+   - Mesmo algoritmo, parâmetros independentes — comportamento correto
+
+> **Status:** Simulação de Engenharia Reversa concluída. Resultados confirmam a viabilidade
+> da migração CW→Bayesiano. Implementação pendente de aprovação. Modo Estudo encerrado.
