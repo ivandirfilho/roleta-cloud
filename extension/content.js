@@ -13,6 +13,16 @@ let overlayState = {
   deviceRole: 'unknown'  // 🆕 v3.4: 'master' | 'slave' | 'unknown'
 };
 
+// === M15-ADA v4.0.2: Helper DRY para destaque C1 ===
+// Formato bracket para status minimizado: [C1] [C2] [C3]
+// C1 (primeiro) recebe classe eb-c1 (dourado/bold)
+function buildCentroHTML(centros) {
+  if (!centros || centros.length === 0) return '--';
+  return centros.filter(c => c != null)
+      .map((c, i) => i === 0 ? `<span class="eb-c1">[${c}]</span>` : `[${c}]`)
+      .join(' ');
+}
+
 // 🆕 v4.0: Carregar estado salvo de UI
 async function loadUIState() {
   try {
@@ -373,9 +383,7 @@ function toggleMinimize() {
     // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
     if (status && galeDisplay && overlayState.lastSugestao) {
       const centros = overlayState.lastSugestao.centros || [overlayState.lastSugestao.centro];
-      const centroDisplay = centros.filter(c => c)
-          .map((c, i) => i === 0 ? `<span class="eb-c1">[${c}]</span>` : `[${c}]`)
-          .join(' ') || '--';
+      const centroDisplay = buildCentroHTML(centros);
       const galeText = galeDisplay.textContent;
       status.innerHTML = `${centroDisplay} ${galeText}`;
       // Copiar classe de cor
@@ -487,9 +495,7 @@ function updateOverlay(sugestao) {
   // Sempre mostrar formato [C1] [C2] [C3] G1 2/5 no status se minimizado
   // Se expandido, mostrar a Ação (APOSTAR/PULAR)
   const centros = sugestao.centros || [sugestao.centro];
-  const centroDisplay = centros.filter(c => c != null)
-      .map((c, i) => i === 0 ? `<span class="eb-c1">[${c}]</span>` : `[${c}]`)
-      .join(' ') || '--';
+  const centroDisplay = buildCentroHTML(centros);
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
 
@@ -792,13 +798,12 @@ function handleStateSync(data) {
       aposta.textContent = data.aposta;
     }
 
-    // Atualizar status se minimizado
+    // Atualizar status se minimizado — v4.0.2: innerHTML + buildCentroHTML
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
-      if (status && data.pending_prediction) {
-        const centros = data.pending_prediction.centers || [data.pending_prediction.center || '--'];
-        const centroDisplay = centros.map(c => `[${c}]`).join(' ');
-        status.textContent = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
+      if (status && data.pending_prediction && data.pending_prediction.centers) {
+        const centroDisplay = buildCentroHTML(data.pending_prediction.centers);
+        status.innerHTML = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
         status.className = `eb-status g${data.gale_level || 1}`;
       }
     }

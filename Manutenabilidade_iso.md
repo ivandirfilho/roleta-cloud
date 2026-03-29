@@ -1,6 +1,6 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.0.1  
+> **Versão do Software:** 4.0.2  
 > **Data da Análise:** 29/03/2026  
 > **Base:** Auditoria pós-implantação M15-ADA (execuções de 29/03/2026)  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
@@ -1039,6 +1039,9 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-ADA-002 | `strategies/sda17.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Validação frágil em `load_adaptive_state()` — dados corrompidos causavam ValueError (29/03 P0) | 322-326 |
 | BUG-ADA-003 | `state/game.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | `_adaptive_state` dinâmico no dataclass — hasattr() frágil, declarado como field (29/03 P1) | 147, 481 |
 | BUG-ADA-004 | `server/websocket.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | Restauração adaptativa sem error handling — try/except adicionado (29/03 P1) | 32-33 |
+| BUG-FE-001 | `extension/content.js` | ~~🔴 Crítico~~ ✅ CORRIGIDO | handleStateSync usava textContent sem eb-c1 — heartbeat destruía gold C1 a cada 1s (29/03 v4.0.2) | 805-812 |
+| BUG-FE-002 | `extension/overlay.css` | ~~🟠 Alto~~ ✅ CORRIGIDO | .eb-region .eb-c1 com color:#000 invisível em fundo verde — alterado para #fff (29/03 v4.0.2) | 945-950 |
+| BUG-FE-003 | `extension/content.js` | ~~🟡 Médio~~ ✅ CORRIGIDO | centroDisplay duplicado em 4 locais (DRY violation) — buildCentroHTML() helper (29/03 v4.0.2) | 16-23 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1071,6 +1074,8 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-ADA-003 | Confiabilidade | ~~Error handling na restauração adaptativa (websocket.py)~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 | MEL-ADA-004 | Manutenibilidade | ~~_adaptive_state como campo dataclass em GameState~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 | MEL-ADA-005 | Usabilidade | ~~Destaque bold+cor C1 no overlay e dashboard para identificação rápida~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-006 | Manutenibilidade | ~~buildCentroHTML() helper DRY — 3 locais de renderização C1 unificados~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-007 | Usabilidade | ~~Fix heartbeat sobrescrevendo C1 gold (textContent→innerHTML) + CSS contraste região~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 
 ---
 
@@ -1083,17 +1088,17 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | **Adequação Funcional** | Pipeline M15-ADA (Adaptive Triple Focus 17 nums), Kill Switch, SmartGale v6, DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
 | **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v6 confiança+streak+c4 | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit; ✅ Score removido de gale |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
-| **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
+| **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; ✅ C1 gold destaque fix v4.0.2; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 105 testes (23 integração pipeline+gale), _adaptive_state como campo dataclass | CI vazio, cobertura testes ~60%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 105 testes (23 integração pipeline+gale), _adaptive_state como campo dataclass, buildCentroHTML() DRY helper | CI vazio, cobertura testes ~60%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
 
 ## PARTE VI — CONCLUSÃO E RECOMENDAÇÕES
 
-O **Roleta Cloud v4.0.1** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
+O **Roleta Cloud v4.0.2** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
 
 ### Pontos Fortes
 
@@ -1109,16 +1114,16 @@ O **Roleta Cloud v4.0.1** apresenta uma arquitetura madura com bons padrões de 
 
 1. **Segurança (6.5/10)** — Sanitizar erros, ativar auth em produção, assinar device_id
 2. **Compatibilidade (7.0/10)** — REST API, documentação AsyncAPI
-3. **Usabilidade (8.2/10)** — ~~Corrigir versão no banner~~ ✅ Feito; ~~destaque C1~~ ✅ Feito; documentar protocolo WS
+3. **Usabilidade (8.3/10)** — ~~Corrigir versão no banner~~ ✅ Feito; ~~destaque C1~~ ✅ Feito; ~~fix heartbeat/CSS C1~~ ✅ Feito v4.0.2; documentar protocolo WS
 
 ### Conformidade ISO/IEC 25010
 
-O software atende ao nível **"Bom"** (8.0/10) da norma ISO/IEC 25010, com 6 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para evoluir, as ações prioritárias são: reforço de segurança e expansão da interoperabilidade (REST API, AsyncAPI).
+O software atende ao nível **"Bom"** (8.1/10) da norma ISO/IEC 25010, com 6 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para evoluir, as ações prioritárias são: reforço de segurança e expansão da interoperabilidade (REST API, AsyncAPI).
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 29/03/2026 (M15-ADA v4.0.1: offset adaptativo + C1 bold + 4 bugs corrigidos + 105 testes)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 29/03/2026 (M15-ADA v4.0.2: fix C1 gold heartbeat + CSS contraste + DRY helper)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v4.0.1 | ~5.700 LOC | 39 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03
+> **Software:** Roleta Cloud v4.0.2 | ~5.700 LOC | 39 arquivos Python  
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + Fix BUG-FE-001/002/003 em 29/03 v4.0.2
