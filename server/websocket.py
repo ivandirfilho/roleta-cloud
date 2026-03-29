@@ -29,8 +29,12 @@ game_state: GameState = GameState.load()
 strategy = SDA17Strategy()  # M15-ADA Adaptive Triple Focus
 
 # M15-ADA: Restaurar estado adaptativo da sessão anterior
-if hasattr(game_state, '_adaptive_state') and game_state._adaptive_state:
-    strategy.load_adaptive_state(game_state._adaptive_state)
+if game_state._adaptive_state:
+    try:
+        strategy.load_adaptive_state(game_state._adaptive_state)
+        logger.info("Estado adaptativo restaurado com sucesso")
+    except Exception as e:
+        logger.warning(f"Falha ao restaurar estado adaptativo: {e}, usando defaults")
 
 configs_path = os.path.join(os.path.dirname(__file__), "configs")
 message_handler = MessageHandler(game_state, strategy, state_lock, configs_path)

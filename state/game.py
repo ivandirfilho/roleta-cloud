@@ -183,6 +183,9 @@ class GameState:
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
     
+    # M15-ADA: Estado adaptativo (v1.6+)
+    _adaptive_state: Dict[str, Any] = field(default_factory=dict)
+    
     def reset_session(self, keep_last_number: bool = False) -> Dict[str, Any]:
         """
         Reseta estado para nova sessão/dealer.
@@ -478,7 +481,7 @@ class GameState:
             "martingale_cw": self.martingale_cw.to_dict(),
             "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction,
-            "adaptive_state": self._adaptive_state if hasattr(self, '_adaptive_state') else {}
+            "adaptive_state": self._adaptive_state
         }
         
         # Escrita atômica: escreve em temp, depois renomeia

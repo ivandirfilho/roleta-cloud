@@ -373,9 +373,11 @@ function toggleMinimize() {
     // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
     if (status && galeDisplay && overlayState.lastSugestao) {
       const centros = overlayState.lastSugestao.centros || [overlayState.lastSugestao.centro];
-      const centroDisplay = centros.filter(c => c).map(c => `[${c}]`).join(' ') || '--';
+      const centroDisplay = centros.filter(c => c)
+          .map((c, i) => i === 0 ? `<span class="eb-c1">[${c}]</span>` : `[${c}]`)
+          .join(' ') || '--';
       const galeText = galeDisplay.textContent;
-      status.textContent = `${centroDisplay} ${galeText}`;
+      status.innerHTML = `${centroDisplay} ${galeText}`;
       // Copiar classe de cor
       status.classList.remove('g1', 'g2', 'g3', 'apostar', 'pular', 'aguardando');
       if (galeDisplay.classList.contains('g1')) status.classList.add('g1');
@@ -463,7 +465,13 @@ function updateOverlay(sugestao) {
   if (acao === 'APOSTAR') {
     panel.classList.add('apostar');
     regiao.classList.remove('pular');
-    regiao.textContent = sugestao.regiao || `Centros: ${(sugestao.centros || [sugestao.centro]).join(', ')}`;
+    if (sugestao.centros && sugestao.centros.length > 0) {
+      const c = sugestao.centros;
+      regiao.innerHTML = `Centros: <span class="eb-c1">${c[0]}</span>` +
+          (c.length > 1 ? `, ${c.slice(1).join(', ')}` : '');
+    } else {
+      regiao.textContent = sugestao.regiao || `Centro: ${sugestao.centro}`;
+    }
   } else if (acao === 'PULAR') {
     panel.classList.add('pular');
     regiao.classList.add('pular');
@@ -479,12 +487,14 @@ function updateOverlay(sugestao) {
   // Sempre mostrar formato [C1] [C2] [C3] G1 2/5 no status se minimizado
   // Se expandido, mostrar a Ação (APOSTAR/PULAR)
   const centros = sugestao.centros || [sugestao.centro];
-  const centroDisplay = centros.filter(c => c != null).map(c => `[${c}]`).join(' ') || '--';
+  const centroDisplay = centros.filter(c => c != null)
+      .map((c, i) => i === 0 ? `<span class="eb-c1">[${c}]</span>` : `[${c}]`)
+      .join(' ') || '--';
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
 
   if (overlayState.isMinimized) {
-    status.textContent = `${centroDisplay} ${galeText}`;
+    status.innerHTML = `${centroDisplay} ${galeText}`;
   } else {
     if (acao === 'APOSTAR') {
       status.classList.add('apostar');

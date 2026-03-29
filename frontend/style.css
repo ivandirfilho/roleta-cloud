@@ -209,6 +209,12 @@ body {
     grid-column: 2;
 }
 
+/* M15-ADA v4.0.1: Destaque C1 no dashboard */
+#result-center {
+    color: #FFD700;
+    font-weight: 900;
+}
+
 .result-card.apostar {
     border-color: var(--success);
 }

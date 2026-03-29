@@ -929,3 +929,22 @@
   background: linear-gradient(135deg, #2e7d32, #4caf50);
   color: #fff;
 }
+
+/* ========================================
+   M15-ADA v4.0.1: Destaque visual do centro C1
+   C1 = primeiro centro, raio 3 (7 números)
+   Dourado + negrito para identificação rápida
+   ======================================== */
+.eb-c1 {
+  color: #FFD700;
+  font-weight: 900;
+  text-shadow: 0 0 3px rgba(255, 215, 0, 0.25);
+}
+
+/* Dentro da região (fundo verde/laranja), usar preto bold */
+.eb-region .eb-c1 {
+  color: #000;
+  font-weight: 900;
+  text-decoration: underline;
+  text-shadow: none;
+}

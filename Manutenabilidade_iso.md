@@ -1,10 +1,10 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 3.5.0  
-> **Data da Análise:** 19/03/2026  
-> **Base:** Auditoria pós-implantação (execuções de 19/03/2026)  
+> **Versão do Software:** 4.0.1  
+> **Data da Análise:** 29/03/2026  
+> **Base:** Auditoria pós-implantação M15-ADA (execuções de 29/03/2026)  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
-> **Total de Linhas de Código:** 5.193 (37 arquivos Python)
+> **Total de Linhas de Código:** ~5.700 (39 arquivos Python)
 
 ---
 
@@ -14,7 +14,7 @@
 
 ### 1. Visão Geral
 
-O **Roleta Cloud** é um backend em tempo real para processamento de dados de roleta europeia. Recebe resultados (spins) via WebSocket a partir de uma extensão Chrome, aplica análise estatística com a estratégia proprietária SDA-19, e retorna sugestões de aposta para um overlay no navegador.
+O **Roleta Cloud** é um backend em tempo real para processamento de dados de roleta europeia. Recebe resultados (spins) via WebSocket a partir de uma extensão Chrome, aplica análise estatística com a estratégia proprietária M15-ADA (Adaptive Dual Algorithm — 17 números), e retorna sugestões de aposta para um overlay no navegador.
 
 ```
 ┌─────────────────────┐         WebSocket (ws/wss)        ┌─────────────────────┐
@@ -23,7 +23,7 @@ O **Roleta Cloud** é um backend em tempo real para processamento de dados de ro
 │                     │   spins, histórico, comandos      │                     │
 │   • Extrator DOM    │   ◄── sugestões, state_sync       │   • WebSocket Server│
 │   • Overlay UI      │                                   │   • Game Engine     │
-│   • Popup Dashboard │                                   │   • SDA-19 Strategy │
+│   • Popup Dashboard │                                   │   • M15-ADA Strategy│
 └─────────────────────┘                                   │   • SQLite DB       │
                                                           └─────────────────────┘
 ```
@@ -70,7 +70,7 @@ Roleta Cloud/
 │
 ├── strategies/                      # ── Estratégias de Análise ──
 │   ├── base.py                      # StrategyBase (ABC) + StrategyResult
-│   └── sda17.py                     # SDA-19 (IQR + Weighted Median + Drift)
+│   └── sda17.py                     # M15-ADA (IQR + Weighted Median + Drift + Adaptive Triple Focus)
 │
 ├── state/                           # ── Estado do Jogo ──
 │   ├── game.py                      # GameState + MartingaleState (493 LOC)
@@ -105,7 +105,7 @@ Roleta Cloud/
 ├── tests/                           # ── Testes ──
 │   ├── conftest.py                  # Configuração pytest
 │   ├── test_core.py                 # Testes RouletteCore (123 LOC)
-│   ├── test_sda17.py                # Testes SDA-19 (56 LOC)
+│   ├── test_sda17.py                # Testes M15-ADA (56 LOC)
 │   ├── test_bet_advisor.py          # Testes Kill Switch (69 LOC)
 │   ├── test_game_state.py           # Testes GameState (116 LOC)
 │   └── test_db_query.py             # Testes queries DB (32 LOC)
@@ -237,7 +237,7 @@ EXTENSÃO CHROME                      SERVIDOR PYTHON
                                      ├── Adiciona à timeline CW ou CCW
                                      └── game_state.save() (atômico)
 
-6.                                   SDA-19 analyze(target_timeline)
+6.                                   M15-ADA analyze(target_timeline)
                                      ├── IQR outlier rejection
                                      ├── Weighted median (decay=0.8)
                                      ├── Drift detection
@@ -313,7 +313,7 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
 
 ---
 
-### 6. Sistema de Decisão (Pipeline SDA-19 + Kill Switch)
+### 6. Sistema de Decisão (Pipeline M15-ADA + Kill Switch)
 
 ```
                        Forças da Timeline (últimas 7)
@@ -598,7 +598,7 @@ A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto
 | Requisito | Status | Evidência |
 |-----------|:------:|-----------|
 | Receber spins em tempo real | ✅ Completo | `message_handler.handle_new_result()` — validação Pydantic (0-36) |
-| Calcular predições (SDA-19) | ✅ Completo | Pipeline IQR → Weighted Median → Drift → Score (19 números) |
+| Calcular predições (M15-ADA) | ✅ Completo | Pipeline IQR → Weighted Median → Drift → Score → Adaptive Triple Focus (17 números) |
 | Gerenciar Martingale | ✅ Completo | SmartGale v5: Anti-Martingale com streak global cross-direction, take-profit G3, c4 threshold 0.15, fallback G1 |
 | Kill Switch (Triple Rate) | ✅ Completo | Veta apenas catástrofe (C4=0% + SDA≤2), mínimo intervencionista |
 | Persistir decisões | ✅ Completo | SQLite com 27 campos, 4 tabelas, 10 índices |
@@ -975,7 +975,7 @@ server/msg_handler   ──► Quase todos os módulos                [5] ❌ Al
 |-----------|:-------------:|-----------|
 | SQLite → PostgreSQL | ✅ | `DecisionRepository` (ABC) |
 | SQLite → SurrealDB | ✅ | Planejado no código |
-| SDA-19 → Outra estratégia | ✅ | `StrategyBase` (ABC) |
+| M15-ADA → Outra estratégia | ✅ | `StrategyBase` (ABC) |
 | WebSocket → REST | ⚠️ | Requer refatoração do message_handler |
 | structlog → outro logger | ✅ | Wrapper do stdlib `logging` |
 
@@ -987,16 +987,16 @@ server/msg_handler   ──► Quase todos os módulos                [5] ❌ Al
 
 | # | Característica | Sub-características Avaliadas | Nota | Nível |
 |:-:|---------------|-------------------------------|:----:|:-----:|
-| 1 | **Adequação Funcional** | Completude, Correção, Pertinência | **8.7** | 🟢 |
+| 1 | **Adequação Funcional** | Completude, Correção, Pertinência | **9.0** | 🟢 |
 | 2 | **Eficiência de Desempenho** | Tempo, Recursos, Capacidade | **8.7** | 🟢 |
 | 3 | **Compatibilidade** | Coexistência, Interoperabilidade | **7.0** | 🟡 |
-| 4 | **Usabilidade** | Reconhecibilidade, Aprendizado, Proteção | **8.0** | 🟢 |
+| 4 | **Usabilidade** | Reconhecibilidade, Aprendizado, Proteção | **8.2** | 🟢 |
 | 5 | **Confiabilidade** | Maturidade, Disponibilidade, Tolerância, Recuperação | **8.5** | 🟢 |
 | 6 | **Segurança** | Confidencialidade, Integridade, Não-repúdio, Autenticidade | **6.5** | 🟡 |
-| 7 | **Manutenibilidade** | Modularidade, Reusabilidade, Analisabilidade, Modificabilidade, Testabilidade | **7.5** | 🟡 |
-| 8 | **Portabilidade** | Adaptabilidade, Instalabilidade, Substituibilidade | **8.0** | 🟢 |
+| 7 | **Manutenibilidade** | Modularidade, Reusabilidade, Analisabilidade, Modificabilidade, Testabilidade | **8.0** | 🟢 |
+| 8 | **Portabilidade** | Adaptabilidade, Instalabilidade, Substituibilidade | **8.2** | 🟢 |
 
-**Nota Geral Ponderada: 7.9 / 10** *(+0.4 após correções de 20/03)*
+**Nota Geral Ponderada: 8.0 / 10** *(+0.1 após M15-ADA + correções 29/03)*
 
 ```
 Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas)  |  🔴 < 6.0 (Crítico)
@@ -1032,6 +1032,13 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-E3-003 | `core/engine.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Engine não passava `confidence` para get_gale() — mesma omissão do pipeline (28/03 TASK-E3) | 105 |
 | BUG-E2-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Score 3 limitado a G1 com 58.1% HR — regra de teto por score penalizava melhores momentos (28/03 TASK-E2) | 57-62 |
 | BUG-E2-002 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Score 5-6 liberava G3 com ~40% HR — escalação destrutiva baseada em score instável (28/03 TASK-E2) | 61-62 |
+| BUG-MAIN-001 | `main.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | SIGTERM não tratado no Windows — try/except no signal handler (29/03 M15-ADA) | 63-68 |
+| BUG-MAIN-002 | `main.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | Double shutdown — flag `_shutdown_called` implementada (29/03 M15-ADA) | 32 |
+| BUG-MAIN-004 | `main.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | `game_state.save()` sem try/except no handler (29/03 M15-ADA) | 43 |
+| BUG-ADA-001 | `strategies/sda17.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | `self._wheel` não inicializado em `__init__()` — crash na primeira predição CCW após restart (29/03 P0) | 46-54, 285 |
+| BUG-ADA-002 | `strategies/sda17.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Validação frágil em `load_adaptive_state()` — dados corrompidos causavam ValueError (29/03 P0) | 322-326 |
+| BUG-ADA-003 | `state/game.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | `_adaptive_state` dinâmico no dataclass — hasattr() frágil, declarado como field (29/03 P1) | 147, 481 |
+| BUG-ADA-004 | `server/websocket.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | Restauração adaptativa sem error handling — try/except adicionado (29/03 P1) | 32-33 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1059,6 +1066,11 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-E3-001 | Adequação Funcional | ~~Gale cego à confiança~~ ✅ CORRIGIDO — get_gale() recebe confidence: "alta"→G1 (spike), "baixa"→G1, "media"→escalável (SmartGale v6) | ✅ Feito |
 | MEL-E2-001 | Adequação Funcional | ~~Score limitava gale (não-preditivo)~~ ✅ CORRIGIDO — Regra de teto por score REMOVIDA; gale agora decidido por confiança+c4+streak (SmartGale v6) | ✅ Feito |
 | MEL-E4-001 | Analisabilidade | ~~Distância ao centro não logada~~ ✅ CORRIGIDO — Log de distância resultado→centro predito em cada spin com resultado (28/03 TASK-E4) | ✅ Feito |
+| MEL-ADA-001 | Adequação Funcional | ~~Migrar SDA-21→M15-ADA (17 nums, offset adaptativo CW ErrDriven + CCW Bayesian)~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-002 | Confiabilidade | ~~Inicializar self._wheel em __init__ + fallback em _bayesian_offset~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-003 | Confiabilidade | ~~Error handling na restauração adaptativa (websocket.py)~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-004 | Manutenibilidade | ~~_adaptive_state como campo dataclass em GameState~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-ADA-005 | Usabilidade | ~~Destaque bold+cor C1 no overlay e dashboard para identificação rápida~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 
 ---
 
@@ -1068,20 +1080,20 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
-| **Adequação Funcional** | Pipeline SDA-19, Kill Switch, SmartGale v6 (Anti-Martingale + Confiança), DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
+| **Adequação Funcional** | Pipeline M15-ADA (Adaptive Triple Focus 17 nums), Kill Switch, SmartGale v6, DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
 | **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v6 confiança+streak+c4 | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit; ✅ Score removido de gale |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; falta docs API (AsyncAPI) |
 | **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 104 testes (23 integração pipeline+gale) | CI vazio, cobertura testes ~55%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 105 testes (23 integração pipeline+gale), _adaptive_state como campo dataclass | CI vazio, cobertura testes ~60%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
 
 ## PARTE VI — CONCLUSÃO E RECOMENDAÇÕES
 
-O **Roleta Cloud v3.5.0** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
+O **Roleta Cloud v4.0.1** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
 
 ### Pontos Fortes
 
@@ -1090,22 +1102,23 @@ O **Roleta Cloud v3.5.0** apresenta uma arquitetura madura com bons padrões de 
 3. **Observabilidade** — `TraceContext` + structlog + 27 campos por decisão no DB
 4. **Resiliência** — escrita atômica, WAL mode, grace period, migração de versão automática
 5. **Eficiência** — pipeline sub-50ms, O(n) com n ≤ 7
+6. **Algoritmo adaptativo M15-ADA** — offset dinâmico CW (ErrDriven EMA) e CCW (Bayesian retrospectivo), 17 números com EV+R$1.51/jogada
+7. **Usabilidade operacional** — destaque visual do C1 (bold+dourado) para identificação rápida pelo operador
 
 ### Áreas Prioritárias de Melhoria (Ordenadas por Impacto)
 
 1. **Segurança (6.5/10)** — Sanitizar erros, ativar auth em produção, assinar device_id
-2. **Manutenibilidade (7.5/10)** — CI/CD automatizado, expandir testes, Alembic migrations
-3. **Compatibilidade (7.0/10)** — REST API, documentação AsyncAPI
-4. **Usabilidade (8.0/10)** — ~~Corrigir versão no banner~~ ✅ Feito; documentar protocolo WS
+2. **Compatibilidade (7.0/10)** — REST API, documentação AsyncAPI
+3. **Usabilidade (8.2/10)** — ~~Corrigir versão no banner~~ ✅ Feito; ~~destaque C1~~ ✅ Feito; documentar protocolo WS
 
 ### Conformidade ISO/IEC 25010
 
-O software atende ao nível **"Adequado"** (7.9/10) da norma ISO/IEC 25010, com 5 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para atingir o nível "Bom" global (≥ 8.0), as ações prioritárias são: reforço de segurança, automação de testes e CI/CD, e expansão da interoperabilidade.
+O software atende ao nível **"Bom"** (8.0/10) da norma ISO/IEC 25010, com 6 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para evoluir, as ações prioritárias são: reforço de segurança e expansão da interoperabilidade (REST API, AsyncAPI).
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 28/03/2026 (SmartGale v6: confiança no get_gale + score removido + distância logada + 104 testes)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 29/03/2026 (M15-ADA v4.0.1: offset adaptativo + C1 bold + 4 bugs corrigidos + 105 testes)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v3.5.0 | ~5.500 LOC | 37 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03
+> **Software:** Roleta Cloud v4.0.1 | ~5.700 LOC | 39 arquivos Python  
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03

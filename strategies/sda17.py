@@ -52,6 +52,7 @@ class SDA17Strategy(StrategyBase):
         # Estado adaptativo
         self.cw_ema = self.CW_EMA_INIT
         self.ccw_history: List[Tuple[int, int]] = []
+        self._wheel: List[int] = []
     
     def analyze(
         self,
@@ -272,7 +273,7 @@ class SDA17Strategy(StrategyBase):
     
     def _bayesian_offset(self) -> int:
         """Bayesiano: testa todos offsets contra janela recente, retorna o melhor."""
-        if len(self.ccw_history) < self.CCW_WARMUP:
+        if not self._wheel or len(self.ccw_history) < self.CCW_WARMUP:
             return self.CCW_DEFAULT_OFFSET
         
         window = self.ccw_history[-self.CCW_WINDOW:]
@@ -320,10 +321,17 @@ class SDA17Strategy(StrategyBase):
         }
     
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
-        """Carrega estado adaptativo de persistência."""
-        self.cw_ema = state.get("cw_ema", self.CW_EMA_INIT)
-        self.ccw_history = [tuple(x) if isinstance(x, list) else x 
-                           for x in state.get("ccw_history", [])]
+        """Carrega estado adaptativo de persistência com validação."""
+        self.cw_ema = float(state.get("cw_ema", self.CW_EMA_INIT))
+        raw = state.get("ccw_history", [])
+        validated = []
+        for item in raw:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                try:
+                    validated.append((int(item[0]), int(item[1])))
+                except (ValueError, TypeError):
+                    continue
+        self.ccw_history = validated
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""
