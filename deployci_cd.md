@@ -1,4 +1,4 @@
-# 🚀 Deploy CI/CD — Roleta Cloud v3.5.0
+# 🚀 Deploy CI/CD — Roleta Cloud v4.0.2
 
 > **Objetivo:** Guia completo e executável para o agente realizar deploy após alterações no código.  
 > **Fluxo:** Local → GitHub (push) → Servidor Debian (Docker)  
@@ -103,10 +103,13 @@ python -m pytest tests/ -v --tb=short
 
 # Testes devem passar:
 #   tests/test_core.py         — RouletteCore (cálculos circulares)
-#   tests/test_sda17.py        — SDA-19 strategy (IQR, median, drift)
+#   tests/test_sda17.py        — M15-ADA strategy (adaptive dual offset)
 #   tests/test_bet_advisor.py  — Kill Switch Advisor (veto/aprovação)
 #   tests/test_game_state.py   — GameState (process_spin, martingale)
 #   tests/test_db_query.py     — Queries SQLite
+#   tests/test_message_handler_gale.py — Integração pipeline+gale
+#   tests/test_bug_fixes_28_03.py — Bug fixes regressão
+#   Total esperado: 105 testes
 ```
 
 ### 2.3 Verificar imports e sintaxe
@@ -579,6 +582,7 @@ PÓS-DEPLOY:
 ---
 
 > **Documento gerado em:** 19/03/2026  
+> **Atualizado em:** 29/03/2026 (v4.0.2 — M15-ADA + C1 bold fix)  
 > **Referência:** `Manutenabilidade_iso.md` (Análise ISO/IEC 25010)  
 > **Servidor:** `root@187.45.181.75` (Debian)  
 > **Repositório:** `github.com/ivandirfilho/roleta-cloud`
