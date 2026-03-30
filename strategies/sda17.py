@@ -363,10 +363,11 @@ class SDA17Strategy(StrategyBase):
         
         # v4.2: Symmetry cap — limita divergência entre off_c2 e off_c3
         if abs(off2 - off3) > self.SYMMETRY_CAP:
+            off2_bigger = off2 > off3
             avg = (off2 + off3) / 2
             half_cap = self.SYMMETRY_CAP / 2
-            off2 = round(avg + half_cap) if off2 > off3 else round(avg - half_cap)
-            off3 = round(avg - half_cap) if off2 > off3 else round(avg + half_cap)
+            off2 = round(avg + half_cap) if off2_bigger else round(avg - half_cap)
+            off3 = round(avg - half_cap) if off2_bigger else round(avg + half_cap)
             off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off2))
             off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off3))
         
