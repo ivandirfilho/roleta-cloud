@@ -126,7 +126,7 @@ s10._pct_sigmoid_update("cw", 10, result_in_cov)
 new_off2 = s10._sigmoid_off["cw_off2"]
 new_off3 = s10._sigmoid_off["cw_off3"]
 check("C12 sigmoid hit tightens", new_off2 < 13.0 and new_off3 < 13.0,
-      f"off2: 13.0→{new_off2:.2f}, off3: 13.0→{new_off3:.2f}")
+      f"off2: 13.0->{new_off2:.2f}, off3: 13.0->{new_off3:.2f}")
 
 # C13: M02 sigmoid — miss expands in error direction (max adj ~2.0)
 s11 = SDA17Strategy()
@@ -139,7 +139,7 @@ miss_off2 = s11._sigmoid_off["ccw_off2"]
 miss_off3 = s11._sigmoid_off["ccw_off3"]
 # sigmoid saturates at ~2.0, so off2 should grow but not beyond MAX
 check("C13 sigmoid miss expands", miss_off2 != 10.0 or miss_off3 != 10.0,
-      f"off2: 10.0→{miss_off2:.2f}, off3: 10.0→{miss_off3:.2f}")
+      f"off2: 10.0->{miss_off2:.2f}, off3: 10.0->{miss_off3:.2f}")
 
 # C14: Persistence includes sigmoid_off and last_offset
 s12 = SDA17Strategy()

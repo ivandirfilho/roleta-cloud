@@ -1,10 +1,10 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.0.2  
-> **Data da Análise:** 29/03/2026  
-> **Base:** Auditoria pós-implantação M15-ADA (execuções de 29/03/2026)  
+> **Versão do Software:** 4.3.0  
+> **Data da Análise:** 30/03/2026  
+> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.0)  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
-> **Total de Linhas de Código:** ~5.700 (39 arquivos Python)
+> **Total de Linhas de Código:** ~5.900 (39 arquivos Python)
 
 ---
 
@@ -48,7 +48,7 @@ O **Roleta Cloud** é um backend em tempo real para processamento de dados de ro
 ```
 Roleta Cloud/
 ├── main.py                          # Entry point (49 LOC)
-├── VERSION                          # Versão semântica (3.5.0)
+├── VERSION                          # Versão semântica (4.3.0)
 ├── requirements.txt                 # Dependências Python
 ├── Dockerfile                       # Imagem Docker (python:3.12-slim)
 ├── docker-compose.yml               # Orquestração com volume persistente
@@ -70,7 +70,7 @@ Roleta Cloud/
 │
 ├── strategies/                      # ── Estratégias de Análise ──
 │   ├── base.py                      # StrategyBase (ABC) + StrategyResult
-│   └── sda17.py                     # M15-ADA (IQR + Weighted Median + Drift + Adaptive Triple Focus)
+│   └── sda17.py                     # M15-ADA (IQR + Weighted Median + Drift + M02-PctSigmoid Triple Focus)
 │
 ├── state/                           # ── Estado do Jogo ──
 │   ├── game.py                      # GameState + MartingaleState (493 LOC)
@@ -170,7 +170,8 @@ Roleta Cloud/
            │  • Weighted Med │  │  │   • 4 listas performance  │
            │  • Drift detect │  │  │   • 2 Martingales (CW/CCW)│
            │  • Smart Score  │  │  │   • Persistência atômica  │
-           │  • 19 números   │  │  ├── timeline.py (deque)     │
+           │  • M02 Sigmoid  │  │  ├── timeline.py (deque)     │
+           │  • 17 números   │  │  └── bet_advisor.py          │
            └──────┬──────────┘  │  └── bet_advisor.py          │
                   │             │      • Kill Switch (C4+SDA≤2)│
                   │             └──────────────────────────────┘
@@ -242,7 +243,8 @@ EXTENSÃO CHROME                      SERVIDOR PYTHON
                                      ├── Weighted median (decay=0.8)
                                      ├── Drift detection
                                      ├── Smart Score (1-6)
-                                     └── 19 vizinhos do centro
+                                     ├── M02-PctSigmoid offset C2/C3
+                                     └── Triple Focus (17 números)
 
 7.                                   Kill Switch Advisor
                                      ├── C4/M6/L12 rates
@@ -1098,7 +1100,7 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 ## PARTE VI — CONCLUSÃO E RECOMENDAÇÕES
 
-O **Roleta Cloud v4.0.2** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
+O **Roleta Cloud v4.3.0** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
 
 ### Pontos Fortes
 
@@ -1122,8 +1124,8 @@ O software atende ao nível **"Bom"** (8.1/10) da norma ISO/IEC 25010, com 6 de 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 29/03/2026 (M15-ADA v4.0.2: fix C1 gold heartbeat + CSS contraste + DRY helper)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 30/03/2026 (M02-PctSigmoid v4.3.0: sigmoid offset C2/C3, warmup 5→2, 15-model simulation winner)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v4.0.2 | ~5.700 LOC | 39 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + Fix BUG-FE-001/002/003 em 29/03 v4.0.2
+> **Software:** Roleta Cloud v4.3.0 | ~5.900 LOC | 39 arquivos Python  
+> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + Fix BUG-FE-001/002/003 em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03

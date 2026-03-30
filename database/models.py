@@ -39,7 +39,7 @@ class Decision:
     sda_numbers: List[int] = field(default_factory=list)
     sda_predicted_force: int = 0
     sda_offset: int = 0                                        # Offset adaptativo usado
-    sda_offset_type: str = ""                                  # "errdriven" ou "bayesian"
+    sda_offset_type: str = ""                                  # "sigmoid" (v4.3+), "bayesian" (v4.1-4.2)
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"

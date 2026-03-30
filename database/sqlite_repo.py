@@ -103,7 +103,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                     sda_numbers TEXT,  -- JSON array
                     sda_predicted_force INTEGER,
                     sda_offset INTEGER,              -- Offset adaptativo real
-                    sda_offset_type TEXT,             -- "errdriven" ou "bayesian"
+                    sda_offset_type TEXT,             -- "sigmoid" (v4.3+), "bayesian" (v4.1-4.2)
                     
                     -- Decisão Final
                     final_action TEXT,

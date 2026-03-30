@@ -146,5 +146,30 @@ off3 = clamp(off3, 7.0, 13.0)
 
 ---
 
+## 6. Auditoria Pós-Implantação v4.3.0
+
+### Bug Audit — Resultados
+
+| Área | Verificação | Status |
+|------|------------|--------|
+| `_pct_sigmoid_update` edge cases | c1 inválido, cov vazio, direction mapping | ✅ Sem bugs |
+| `_get_adaptive_offset` | Leitura _sigmoid_off, clamp [7,13], default 10.0 | ✅ Correto |
+| `_predict_robust` com window=2 | IQR skip (n<4), clean_count≥2, weighted median | ✅ Correto |
+| `_circ_dir` direction detection | CW/CCW correto para miss feedback | ✅ Correto |
+| `message_handler` integration | c1_predicted de pending, direction de bet_direction | ✅ Correto |
+| `valid_forces < 2` threshold | Interação com SDA-19 fallback | ✅ Correto |
+| Backward compat v4.2→v4.3 | State sem sigmoid_off → defaults 10.0 | ✅ Correto |
+| DB offset_type="sigmoid" | String livre, sem constraints | ✅ Correto |
+
+### Correções Cosméticas Aplicadas
+1. **models.py**: Comentário `sda_offset_type` atualizado: `"errdriven" ou "bayesian"` → `"sigmoid" (v4.3+), "bayesian" (v4.1-4.2)`
+2. **sqlite_repo.py**: Mesmo comentário atualizado no schema CREATE TABLE
+3. **verify_scenarios.py**: Arrow Unicode `→` substituído por `->` para compatibilidade Windows cp1252
+
+### Conclusão
+**0 bugs funcionais encontrados** na implementação M02-PctSigmoid. Todos os caminhos de código validados.
+
+---
+
 *Documento de planejamento e execução — M02-PctSigmoid v4.3.0*
-*Todos os testes passaram. Pronto para deploy.*
+*Todos os testes passaram. Auditoria pós-implantação: 0 bugs. Pronto para deploy.*
