@@ -94,21 +94,22 @@ class TestSDA17Strategy:
             assert "median" in forces_used
 
     def test_adaptive_offset_in_details(self, strategy, timeline_with_data):
-        """M15-ADA: detalhes contêm offset e tipo."""
+        """M15-ADA: detalhes contêm offset assimétrico e tipo bayesian."""
         from core.roulette import roulette
         result = strategy.analyze(timeline_with_data, 17, roulette.WHEEL_SEQUENCE)
         if result.should_bet:
             assert "offset" in result.details
+            assert "offset_c3" in result.details
             assert "offset_type" in result.details
-            assert result.details["offset_type"] in ("errdriven", "bayesian")
+            assert result.details["offset_type"] == "bayesian"
 
     def test_adaptive_state_persistence(self, strategy):
         """M15-ADA: estado adaptativo pode ser salvo e restaurado."""
-        strategy.cw_ema = 9.5
+        strategy.cw_history = [(17, 25), (0, 32)]
         strategy.ccw_history = [(17, 25), (0, 32)]
         state = strategy.get_adaptive_state()
         
         new_strategy = SDA17Strategy()
         new_strategy.load_adaptive_state(state)
-        assert new_strategy.cw_ema == 9.5
+        assert len(new_strategy.cw_history) == 2
         assert len(new_strategy.ccw_history) == 2

@@ -11,38 +11,41 @@ logger = logging.getLogger(__name__)
 
 class SDA17Strategy(StrategyBase):
     """
-    Estratégia M15-ADA: Adaptive Dual Algorithm — Triple Focus 17 números.
+    Estratégia M15-ADA v4.1: Unified Bayesian Error-Vector — Triple Focus 17 números.
     
-    Pipeline otimizado (v4):
+    Pipeline otimizado (v4.1 — M04+M10 Hybrid):
     1. Janela Adaptativa (7→5→3 forças)
     2. IQR Outlier Rejection (statistics.quantiles)
     3. Weighted Median (peso exponencial nas mais recentes)
     4. Drift Detection (sobre dados limpos pós-IQR)
     5. Smart Score (survival_rate × tightness)
-    6. Adaptive Triple Focus:
+    6. Adaptive Triple Focus — Bayesiano Unificado:
        - C1: mediana ponderada, raio 3 (7 números)
-       - C2/C3: offset adaptativo por direção, raio 2 (5 números cada)
-       - CW: ErrDriven EMA (α=0.25) — converge para offsets menores (8-10)
-       - CCW: Bayesiano retrospectivo (window=12) — converge para offsets maiores (14-15)
+       - C2/C3: offset ASSIMÉTRICO por Error-Vector, raio 2 (5 números cada)
+       - CW e CCW: Mesmo algoritmo Bayesiano, parâmetros INDEPENDENTES
+       - M04 Error-Vector: off_c2 ≠ off_c3 baseado em viés direcional
+       - M10 Gaussian Prior: regularizador anti-overfitting (center=10, strength=0.3)
     
     Cobertura: 17 números (7+5+5) = 45.9% da roda
     Break-even: 47.2% (vs 58.3% do SDA-21)
-    EV simulado: +R$1.51/jogada (vs -R$2.10 do SDA-21)
+    Simulação M04: 53.5% HR, +R$81.76 (vs Original 42.4%, -R$37.94)
+    Produção v4.0.3: Bayesiano 63.2% vs EMA 20.0% (39 jogadas pós-deploy)
     """
     
     # Forças acima deste limiar são sinalizadas como anômalas
     MAX_FORCE_THRESHOLD = 30
 
-    # M15-ADA: Constantes adaptativas por direção
-    CW_ALPHA = 0.25           # Taxa de aprendizado EMA (CW)
-    CW_EMA_INIT = 12.0        # EMA inicial (CW)
-    CW_OFFSET_MIN = 8         # Offset mínimo (CW)
-    CW_OFFSET_MAX = 16        # Offset máximo (CW)
-    CCW_WINDOW = 12            # Janela bayesiana (CCW)
-    CCW_DEFAULT_OFFSET = 14    # Offset padrão durante warm-up (CCW)
-    CCW_WARMUP = 5             # Jogadas mínimas antes de adaptar (CCW)
-    CCW_OFFSET_MIN = 7         # Offset mínimo candidato (CCW)
-    CCW_OFFSET_MAX = 17        # Offset máximo candidato (CCW)
+    # M15-ADA v4.1: Constantes Bayesianas unificadas (CW e CCW usam os mesmos)
+    BAYESIAN_WINDOW = 12       # Janela de histórico para cálculo
+    BAYESIAN_DEFAULT = 12      # Offset padrão durante warm-up
+    BAYESIAN_WARMUP = 5        # Jogadas mínimas antes de adaptar
+    OFFSET_MIN = 7             # Offset mínimo candidato
+    OFFSET_MAX = 17            # Offset máximo candidato
+    ERROR_DECAY = 0.15         # Sensibilidade do vetor de erro (M04)
+    ERROR_THRESHOLD = 5        # Só conta erros significativos (distância > 5)
+    PRIOR_CENTER = 10          # Centro do prior Gaussiano (M10)
+    PRIOR_STRENGTH = 0.3       # Peso do prior: 30% prior, 70% dados
+    MAX_HISTORY = 24           # 2× BAYESIAN_WINDOW para buffer
     C2_RADIUS = 2              # Raio de C2 (5 números)
     C3_RADIUS = 2              # Raio de C3 (5 números)
     
@@ -51,9 +54,9 @@ class SDA17Strategy(StrategyBase):
         self.min_forces = 3
         self.default_window = 7
         self.decay = 0.8
-        self.description = "Adaptive Dual Algorithm, Triple Focus 17 números"
-        # Estado adaptativo
-        self.cw_ema = self.CW_EMA_INIT
+        self.description = "Unified Bayesian Error-Vector, Triple Focus 17 números"
+        # Estado adaptativo — históricos INDEPENDENTES por direção
+        self.cw_history: List[Tuple[int, int]] = []
         self.ccw_history: List[Tuple[int, int]] = []
         self._wheel: List[int] = []
     
@@ -140,17 +143,17 @@ class SDA17Strategy(StrategyBase):
                 }
             )
         
-        # === M15-ADA: Triple Focus com offset adaptativo ===
+        # === M15-ADA v4.1: Triple Focus com offset ASSIMÉTRICO ===
         c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
         
-        # Offset adaptativo baseado na direção
-        offset = self._get_adaptive_offset(timeline.direction)
+        # Offsets adaptativos assimétricos (M04 Error-Vector)
+        off_c2, off_c3 = self._get_adaptive_offset(timeline.direction)
         
-        # C2 e C3 posicionados simetricamente em relação a C1
+        # C2 e C3 posicionados ASSIMETRICAMENTE em relação a C1
         c1_idx = self._wheel_index(c1, wheel_sequence)
         wheel_size = len(wheel_sequence)
-        c2 = wheel_sequence[(c1_idx + offset) % wheel_size]
-        c3 = wheel_sequence[(c1_idx - offset) % wheel_size]
+        c2 = wheel_sequence[(c1_idx + off_c2) % wheel_size]
+        c3 = wheel_sequence[(c1_idx - off_c3) % wheel_size]
         
         # Agregar números com raios assimétricos
         nums = set()
@@ -162,7 +165,7 @@ class SDA17Strategy(StrategyBase):
         # BUG-NEW-002 FIX: Alerta se cobertura abaixo do esperado
         if len(numbers) < 15:
             logger.warning(
-                f"Cobertura baixa: {len(numbers)} números (offset={offset}, "
+                f"Cobertura baixa: {len(numbers)} números (off_c2={off_c2}, off_c3={off_c3}, "
                 f"C1={c1}, C2={c2}, C3={c3})"
             )
         
@@ -190,9 +193,10 @@ class SDA17Strategy(StrategyBase):
                 "survival_rate": pred_info.get("survival_rate", 1.0),
                 "calibration": calibration,
                 "flagged_forces": flagged,
-                "offset": offset,
-                "offset_type": "errdriven" if timeline.direction in ("cw", "horario") else "bayesian",
-                "cw_ema": round(self.cw_ema, 2),
+                "offset": off_c2,
+                "offset_c3": off_c3,
+                "offset_type": "bayesian",
+                "cw_history_size": len(self.cw_history),
                 "ccw_history_size": len(self.ccw_history),
             }
         )
@@ -274,27 +278,75 @@ class SDA17Strategy(StrategyBase):
             "score": score
         }
     
-    def _get_adaptive_offset(self, direction: str) -> int:
+    def _get_adaptive_offset(self, direction: str) -> Tuple[int, int]:
         """
-        Retorna offset adaptativo baseado na direção.
-        CW: ErrDriven (EMA de erro) — converge para offsets menores (8-10)
-        CCW: Bayesiano retrospectivo — converge para offsets maiores (14-15)
+        Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).
+        v4.1: Ambas direções usam Bayesiano Error-Vector (M04+M10).
+        Parâmetros independentes por direção — históricos não se misturam.
         """
         if direction in ("cw", "horario"):
-            return max(self.CW_OFFSET_MIN, min(self.CW_OFFSET_MAX, round(self.cw_ema)))
+            return self._bayesian_error_vector(self.cw_history)
         else:
-            return self._bayesian_offset()
+            return self._bayesian_error_vector(self.ccw_history)
     
-    def _bayesian_offset(self) -> int:
-        """Bayesiano: testa todos offsets contra janela recente, retorna o melhor."""
-        if not self._wheel or len(self.ccw_history) < self.CCW_WARMUP:
-            return self.CCW_DEFAULT_OFFSET
+    def _bayesian_error_vector(self, history: List[Tuple[int, int]]) -> Tuple[int, int]:
+        """
+        M04+M10 Hybrid: Error-Vector com Prior Gaussiano.
         
-        window = self.ccw_history[-self.CCW_WINDOW:]
-        best_off = self.CCW_DEFAULT_OFFSET
+        M04 calcula viés direcional dos erros recentes para gerar
+        offsets assimétricos (off_c2 ≠ off_c3).
+        M10 aplica prior Gaussiano centrado em PRIOR_CENTER como regularizador.
+        
+        Returns:
+            (off_c2, off_c3) — offsets para posicionar C2 (sentido +) e C3 (sentido -)
+        """
+        if not self._wheel or len(history) < self.BAYESIAN_WARMUP:
+            return self.BAYESIAN_DEFAULT, self.BAYESIAN_DEFAULT
+        
+        window = history[-self.BAYESIAN_WINDOW:]
+        wheel_size = len(self._wheel)
+        
+        # --- M04: Calcular viés direcional dos erros ---
+        bias_pos = 0.0  # Viés no sentido + (horário na roda)
+        bias_neg = 0.0  # Viés no sentido - (anti-horário na roda)
+        
+        for c1, result in window:
+            dist = self._circ_dist(c1, result, self._wheel)
+            if dist > self.ERROR_THRESHOLD:
+                direction = self._circ_dir(c1, result, self._wheel)
+                if direction > 0:
+                    bias_pos += dist * self.ERROR_DECAY
+                elif direction < 0:
+                    bias_neg += dist * self.ERROR_DECAY
+        
+        # --- Brute-force Bayesiano como base ---
+        base_off = self._bayesian_brute_force(history)
+        
+        # --- M04: Aplicar viés direcional ---
+        off2_raw = base_off + bias_pos - bias_neg
+        off3_raw = base_off + bias_neg - bias_pos
+        
+        # --- M10: Regularização pelo Prior Gaussiano ---
+        data_weight = 1.0 - self.PRIOR_STRENGTH
+        off2 = round(off2_raw * data_weight + self.PRIOR_CENTER * self.PRIOR_STRENGTH)
+        off3 = round(off3_raw * data_weight + self.PRIOR_CENTER * self.PRIOR_STRENGTH)
+        
+        # Clamp dentro dos limites
+        off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off2))
+        off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off3))
+        
+        return off2, off3
+    
+    def _bayesian_brute_force(self, history: List[Tuple[int, int]]) -> int:
+        """Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melhor."""
+        if not self._wheel or len(history) < self.BAYESIAN_WARMUP:
+            return self.BAYESIAN_DEFAULT
+        
+        window = history[-self.BAYESIAN_WINDOW:]
+        best_off = self.BAYESIAN_DEFAULT
         best_hits = -1
         
-        for test_off in range(self.CCW_OFFSET_MIN, self.CCW_OFFSET_MAX + 1):
+        for test_off in range(self.OFFSET_MIN, self.OFFSET_MAX + 1):
             hits = 0
             for c1, result in window:
                 c1_idx = self._wheel_index(c1, self._wheel)
@@ -311,45 +363,63 @@ class SDA17Strategy(StrategyBase):
         
         return best_off
     
+    def _circ_dir(self, a: int, b: int, wheel_sequence: List[int]) -> int:
+        """
+        Direção circular de a para b na roda.
+        Retorna +1 se b está no sentido horário, -1 se anti-horário, 0 se coincide.
+        """
+        try:
+            a_pos = wheel_sequence.index(a)
+            b_pos = wheel_sequence.index(b)
+            wheel_size = len(wheel_sequence)
+            cw_dist = (b_pos - a_pos) % wheel_size
+            ccw_dist = (a_pos - b_pos) % wheel_size
+            if cw_dist == 0:
+                return 0
+            return 1 if cw_dist <= ccw_dist else -1
+        except ValueError:
+            return 0
+    
     def update_adaptive(self, direction: str, c1: int, actual_result: int,
                         wheel_sequence: List[int]) -> None:
         """
         Atualiza estado adaptativo após resultado conhecido.
+        v4.1: Ambas direções usam histórico (não mais EMA para CW).
         Deve ser chamado APÓS check_prediction() e ANTES de analyze() do próximo spin.
         """
         self._wheel = wheel_sequence
         if direction in ("cw", "horario"):
-            error = self._circ_dist(c1, actual_result, wheel_sequence)
-            self.cw_ema = self.CW_ALPHA * error + (1 - self.CW_ALPHA) * self.cw_ema
-            # BUG-TASK-003 FIX: Clamp EMA dentro dos limites válidos
-            self.cw_ema = max(self.CW_OFFSET_MIN, min(self.CW_OFFSET_MAX, self.cw_ema))
+            self.cw_history.append((c1, actual_result))
+            if len(self.cw_history) > self.MAX_HISTORY:
+                self.cw_history = self.cw_history[-self.MAX_HISTORY:]
         else:
             self.ccw_history.append((c1, actual_result))
-            max_history = self.CCW_WINDOW * 2
-            if len(self.ccw_history) > max_history:
-                self.ccw_history = self.ccw_history[-max_history:]
+            if len(self.ccw_history) > self.MAX_HISTORY:
+                self.ccw_history = self.ccw_history[-self.MAX_HISTORY:]
     
     def get_adaptive_state(self) -> Dict[str, Any]:
         """Retorna estado adaptativo para persistência."""
         return {
-            "cw_ema": self.cw_ema,
+            "cw_history": self.cw_history,
             "ccw_history": self.ccw_history
         }
     
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
-        """Carrega estado adaptativo de persistência com validação."""
-        raw_ema = float(state.get("cw_ema", self.CW_EMA_INIT))
-        # BUG-TASK-005 FIX: Validar cw_ema dentro dos bounds ao carregar
-        self.cw_ema = max(self.CW_OFFSET_MIN, min(self.CW_OFFSET_MAX, raw_ema))
-        raw = state.get("ccw_history", [])
-        validated = []
-        for item in raw:
-            if isinstance(item, (list, tuple)) and len(item) == 2:
-                try:
-                    validated.append((int(item[0]), int(item[1])))
-                except (ValueError, TypeError):
-                    continue
-        self.ccw_history = validated
+        """Carrega estado adaptativo de persistência com validação.
+        Compatível com formato v4.0.x (cw_ema) — ignora cw_ema, inicia cw_history vazio."""
+        for key in ("cw_history", "ccw_history"):
+            raw = state.get(key, [])
+            validated = []
+            for item in raw:
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    try:
+                        validated.append((int(item[0]), int(item[1])))
+                    except (ValueError, TypeError):
+                        continue
+            if key == "cw_history":
+                self.cw_history = validated
+            else:
+                self.ccw_history = validated
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""

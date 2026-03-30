@@ -418,7 +418,7 @@ class MessageHandler:
                 "trend": result.details.get("trend", ""),
                 "offset": result.details.get("offset", 12),
                 "offset_type": result.details.get("offset_type", "fixed"),
-                "cw_ema": result.details.get("cw_ema", 12.0),
+                "cw_history_size": result.details.get("cw_history_size", 0),
             },
             "strategy": {
                 "name": self.strategy.name,

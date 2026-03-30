@@ -1,4 +1,4 @@
-"""Verificação dos 8 cenários críticos pós-correção v4.0.3"""
+"""Verificacao dos cenarios criticos pos-correcao v4.1 (M04 Error-Vector)"""
 import sys, os
 # Ensure project root is on path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,19 +19,18 @@ def check(name, condition, detail=""):
     print(f"  [{status}] {name}: {detail}")
 
 print("=" * 60)
-print("VALIDAÇÃO DE CENÁRIOS CRÍTICOS — v4.0.3")
+print("VALIDACAO DE CENARIOS CRITICOS — v4.1 (M04 Error-Vector)")
 print("=" * 60)
 
-# C1: EMA clamp upper
+# C1: CW update_adaptive stores history (no longer EMA)
 s = SDA17Strategy()
-s.cw_ema = 16.0
 s.update_adaptive("cw", 10, 23, WHEEL)
-check("C1 EMA upper clamp", s.cw_ema <= 16.0, f"ema={s.cw_ema:.4f}")
+s.update_adaptive("cw", 15, 30, WHEEL)
+check("C1 CW history append", len(s.cw_history) == 2, f"len={len(s.cw_history)}")
 
-# C2: EMA clamp lower
-s.cw_ema = 8.0
-s.update_adaptive("cw", 10, 5, WHEEL)
-check("C2 EMA lower clamp", s.cw_ema >= 8.0, f"ema={s.cw_ema:.4f}")
+# C2: CCW update_adaptive stores history
+s.update_adaptive("ccw", 10, 5, WHEEL)
+check("C2 CCW history append", len(s.ccw_history) == 1, f"len={len(s.ccw_history)}")
 
 # C3: _wheel in analyze
 s2 = SDA17Strategy()
@@ -42,15 +41,19 @@ for f in [10, 12, 8, 11, 9, 13, 7]:
 s2.analyze(tl, 10, WHEEL)
 check("C3 _wheel in analyze()", len(s2._wheel) == 37, f"slots={len(s2._wheel)}")
 
-# C4: load ema=25 -> clamp 16
+# C4: Asymmetric offset returns tuple
 s3 = SDA17Strategy()
-s3.load_adaptive_state({"cw_ema": 25.0, "ccw_history": []})
-check("C4 load ema=25 clamp", s3.cw_ema == 16.0, f"ema={s3.cw_ema}")
+s3._wheel = WHEEL
+# Fill enough history for warmup
+for i in range(6):
+    s3.cw_history.append((WHEEL[i], WHEEL[i+5]))
+off2, off3 = s3._get_adaptive_offset("horario")
+check("C4 asymmetric offset tuple", isinstance(off2, int) and isinstance(off3, int),
+      f"off_c2={off2}, off_c3={off3}")
 
-# C5: load ema=3 -> clamp 8
-s4 = SDA17Strategy()
-s4.load_adaptive_state({"cw_ema": 3.0, "ccw_history": []})
-check("C5 load ema=3 clamp", s4.cw_ema == 8.0, f"ema={s4.cw_ema}")
+# C5: Offsets within bounds
+ok5 = 7 <= off2 <= 17 and 7 <= off3 <= 17
+check("C5 offset bounds", ok5, f"off_c2={off2} in [7,17], off_c3={off3} in [7,17]")
 
 # C6: Decision model fields
 d = Decision(sda_offset=11, sda_offset_type="bayesian")
@@ -58,19 +61,31 @@ dd = d.to_dict()
 ok6 = dd.get("sda_offset") == 11 and dd.get("sda_offset_type") == "bayesian"
 check("C6 Decision model", ok6, f"offset={dd.get('sda_offset')}, type={dd.get('sda_offset_type')}")
 
-# C7: persistence chain
+# C7: persistence chain (both histories)
 s5 = SDA17Strategy()
 s5.update_adaptive("cw", 15, 30, WHEEL)
 s5.update_adaptive("ccw", 10, 23, WHEEL)
 state = s5.get_adaptive_state()
 s6 = SDA17Strategy()
 s6.load_adaptive_state(state)
-ok7 = abs(s6.cw_ema - s5.cw_ema) < 0.001 and s6.ccw_history == s5.ccw_history
-check("C7 persistence chain", ok7, f"ema={s6.cw_ema:.2f}, hist={len(s6.ccw_history)}")
+ok7 = s6.cw_history == s5.cw_history and s6.ccw_history == s5.ccw_history
+check("C7 persistence chain", ok7, f"cw_hist={len(s6.cw_history)}, ccw_hist={len(s6.ccw_history)}")
 
-# C8: DB migration
+# C8: Backward compat — old state with cw_ema loads without error
+s7 = SDA17Strategy()
+s7.load_adaptive_state({"cw_ema": 12.0, "ccw_history": [(10, 23)]})
+check("C8 backward compat cw_ema", len(s7.cw_history) == 0 and len(s7.ccw_history) == 1,
+      f"cw_hist={len(s7.cw_history)}, ccw_hist={len(s7.ccw_history)}")
+
+# C9: _circ_dir returns correct direction
+s8 = SDA17Strategy()
+d1 = s8._circ_dir(0, 32, WHEEL)  # 0 is at index 0, 32 at index 1 -> +1 (cw)
+d2 = s8._circ_dir(0, 26, WHEEL)  # 0 at 0, 26 at 36 -> -1 (ccw, closer going back)
+check("C9 _circ_dir direction", d1 == 1 and d2 == -1, f"d1={d1}, d2={d2}")
+
+# C10: DB migration
 import sqlite3, tempfile
-dbpath = os.path.join(tempfile.gettempdir(), "test_migration_v403.db")
+dbpath = os.path.join(tempfile.gettempdir(), "test_migration_v41.db")
 if os.path.exists(dbpath):
     os.remove(dbpath)
 from database.sqlite_repo import SQLiteDecisionRepository
@@ -79,13 +94,13 @@ conn = sqlite3.connect(dbpath)
 conn.row_factory = sqlite3.Row
 r = conn.execute("PRAGMA table_info(decisions)").fetchall()
 cols = [row["name"] for row in r]
-ok8 = "sda_offset" in cols and "sda_offset_type" in cols
-check("C8 DB schema migration", ok8, f"cols={[c for c in cols if 'offset' in c]}")
+ok10 = "sda_offset" in cols and "sda_offset_type" in cols
+check("C10 DB schema migration", ok10, f"cols={[c for c in cols if 'offset' in c]}")
 conn.close()
 try:
     os.remove(dbpath)
 except PermissionError:
-    pass  # Windows file lock — DB was verified
+    pass
 
 print()
 print("=" * 60)
@@ -98,6 +113,6 @@ else:
     print("[ERRO] CENARIOS COM FALHA DETECTADOS")
     for name, status, detail in results:
         if status == "FAIL":
-            print(f"  FAIL: {name} — {detail}")
+            print(f"  FAIL: {name} -- {detail}")
 print("=" * 60)
 sys.exit(0 if failed == 0 else 1)
