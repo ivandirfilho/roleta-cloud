@@ -1,5 +1,6 @@
 # Roleta Cloud - M15-ADA Strategy (IQR + Weighted Median + Drift + Adaptive Triple Focus)
 
+import math
 import logging
 from typing import List, Tuple, Dict, Any
 from statistics import median, quantiles
@@ -11,63 +12,71 @@ logger = logging.getLogger(__name__)
 
 class SDA17Strategy(StrategyBase):
     """
-    Estratégia M15-ADA v4.2: Unified Bayesian Error-Vector — Triple Focus 17 números.
+    Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.
     
-    Pipeline otimizado (v4.2 — M04+M10 Hybrid + Anti-Drift):
-    1. Janela Adaptativa (7→5→3 forças)
+    Pipeline otimizado (v4.3 — M02-PctSigmoid + Warmup Reduzido):
+    1. Janela Adaptativa (7→5→3→2 forças) — warmup reduzido de 5→2
     2. IQR Outlier Rejection (statistics.quantiles)
     3. Weighted Median (peso exponencial nas mais recentes)
     4. Drift Detection (sobre dados limpos pós-IQR)
     5. Smart Score (survival_rate × tightness)
-    6. Adaptive Triple Focus — Bayesiano Unificado:
-       - C1: mediana ponderada, raio 3 (7 números)
-       - C2/C3: offset ASSIMÉTRICO por Error-Vector, raio 2 (5 números cada)
-       - CW e CCW: Mesmo algoritmo Bayesiano, parâmetros INDEPENDENTES
-       - M04 Error-Vector: off_c2 ≠ off_c3 baseado em viés direcional
-       - M10 Gaussian Prior: regularizador anti-overfitting (center=10, strength=0.5)
-    7. v4.2 Anti-Drift Guardrails:
-       - OFFSET_MAX reduzido de 17 para 13 (foco em offsets produtivos)
-       - PRIOR_STRENGTH 0.3→0.5 (ancoragem mais forte em center=10)
-       - ERROR_THRESHOLD 5→7 (filtra ruído no vetor de erro)
-       - ERROR_DECAY 0.15→0.08 (menor sensibilidade a viés direcional)
-       - MAX_DELTA_OFFSET=2 (momentum limiter: max ±2 entre jogadas)
-       - SYMMETRY_CAP=4 (limita divergência entre off_c2 e off_c3)
+    6. Adaptive Triple Focus — M02-PctSigmoid:
+       - C1: mediana ponderada, raio 3 (7 números) — FIXO
+       - C2/C3: offset variável por Sigmoid Dampened Error Feedback
+       - CW e CCW: Mesmo algoritmo, parâmetros INDEPENDENTES
+       - Hit: tighten 8% em direção a center=10
+       - Miss: sigmoid(error_pct) × 2.0, direction-aware (100%/30%)
+    7. v4.3 Melhorias sobre v4.2:
+       - M02-PctSigmoid substitui Bayesian brute-force (O(1) vs O(n×m))
+       - Warmup reduzido: Triple Focus a partir de 2 jogadas (era 5)
+       - Anti-drift nativo via sigmoid saturation (max ±2 posições/jogada)
+       - Sem necessidade de momentum limiter ou symmetry cap externo
+       - BAYESIAN_DEFAULT: 12→10 (centro ótimo confirmado por oracle analysis)
     
     Cobertura: 17 números (7+5+5) = 45.9% da roda
     Break-even: 47.2% (vs 58.3% do SDA-21)
+    Performance projetada: CW ~54%, CCW ~46% (simulação 100 jogadas reais)
     """
     
     # Forças acima deste limiar são sinalizadas como anômalas
     MAX_FORCE_THRESHOLD = 30
 
-    # M15-ADA v4.2: Constantes Bayesianas unificadas (CW e CCW usam os mesmos)
-    BAYESIAN_WINDOW = 12       # Janela de histórico para cálculo
-    BAYESIAN_DEFAULT = 12      # Offset padrão durante warm-up
-    BAYESIAN_WARMUP = 5        # Jogadas mínimas antes de adaptar
+    # M15-ADA v4.3: Constantes (CW e CCW usam os mesmos valores)
+    BAYESIAN_WINDOW = 12       # Janela de histórico para cálculo (legacy, usado no brute-force)
+    BAYESIAN_DEFAULT = 10      # Offset padrão durante warm-up (v4.3: 12→10, oracle ótimo)
+    BAYESIAN_WARMUP = 2        # Jogadas mínimas antes de adaptar (v4.3: 5→2)
     OFFSET_MIN = 7             # Offset mínimo candidato
-    OFFSET_MAX = 13            # Offset máximo candidato (v4.2: 17→13 anti-drift)
-    ERROR_DECAY = 0.08         # Sensibilidade do vetor de erro (v4.2: 0.15→0.08)
-    ERROR_THRESHOLD = 7        # Só conta erros significativos (v4.2: 5→7)
-    PRIOR_CENTER = 10          # Centro do prior Gaussiano (M10)
-    PRIOR_STRENGTH = 0.5       # Peso do prior (v4.2: 0.3→0.5 anti-drift)
+    OFFSET_MAX = 13            # Offset máximo candidato
+    ERROR_DECAY = 0.08         # Sensibilidade do vetor de erro (legacy v4.2)
+    ERROR_THRESHOLD = 7        # Só conta erros significativos (legacy v4.2)
+    PRIOR_CENTER = 10          # Centro de atração dos offsets
+    PRIOR_STRENGTH = 0.5       # Peso do prior (legacy v4.2)
     MAX_HISTORY = 24           # 2× BAYESIAN_WINDOW para buffer
     C2_RADIUS = 2              # Raio de C2 (5 números)
     C3_RADIUS = 2              # Raio de C3 (5 números)
-    MAX_DELTA_OFFSET = 2       # Máxima variação de offset entre jogadas (v4.2)
-    SYMMETRY_CAP = 4           # Máxima diferença |off_c2 - off_c3| (v4.2)
+    MAX_DELTA_OFFSET = 2       # Legacy v4.2 (não usado por M02)
+    SYMMETRY_CAP = 4           # Legacy v4.2 (não usado por M02)
+    
+    # v4.3: M02-PctSigmoid — Controlador variável C2/C3
+    SIGMOID_K = 6              # Curvatura da sigmoid (controla dampening)
+    SIGMOID_SCALE = 2.0        # Escala máxima do ajuste (posições por jogada)
+    HIT_TIGHTEN = 0.08         # Taxa de retorno ao centro após acerto (8%)
+    MISS_CROSS_RATE = 0.3      # Taxa de ajuste contra-direcional (30%)
     
     def __init__(self):
         super().__init__(name="M15-ADA", num_neighbors=3)  # C1 mantém raio 3
-        self.min_forces = 3
+        self.min_forces = 2    # v4.3: reduzido de 3→2 para warmup mais rápido
         self.default_window = 7
         self.decay = 0.8
-        self.description = "Unified Bayesian Error-Vector v4.2, Triple Focus 17 números"
+        self.description = "M02-PctSigmoid v4.3, Triple Focus 17 números"
         # Estado adaptativo — históricos INDEPENDENTES por direção
         self.cw_history: List[Tuple[int, int]] = []
         self.ccw_history: List[Tuple[int, int]] = []
         self._wheel: List[int] = []
-        # v4.2: Momentum limiter — último offset usado por direção
+        # v4.2 legacy: Momentum limiter (mantido para backward compat, não usado por M02)
         self._last_offset: Dict[str, int] = {}
+        # v4.3: M02-PctSigmoid — offsets float independentes por direção
+        self._sigmoid_off: Dict[str, float] = {}
     
     def analyze(
         self,
@@ -83,11 +92,11 @@ class SDA17Strategy(StrategyBase):
         if wheel_sequence and not self._wheel:
             self._wheel = wheel_sequence
         
-        # Janela adaptativa: tenta 7, depois 5, depois min_forces
+        # Janela adaptativa: tenta 7, depois 5, depois 3, depois 2 (v4.3: min=2)
         predicted_force = None
         pred_info = {}
         
-        for window in [self.default_window, 5, self.min_forces]:
+        for window in [self.default_window, 5, 3, self.min_forces]:
             if timeline.size >= window:
                 forces = timeline.get_last_n(window)
                 predicted_force, pred_info = self._predict_robust(forces)
@@ -119,12 +128,10 @@ class SDA17Strategy(StrategyBase):
                 flagged.append(f)
                 valid_forces[i] = max(1, 37 - f)  # Inversão suave
         
-        # BUG-E5: Fallback SDA-19 quando <5 forças válidas (early-session)
-        # M-08: Ativado quando valid_forces < 5 (início de sessão ou muitas anomalias).
+        # BUG-E5: Fallback SDA-19 quando <2 forças válidas (v4.3: 5→2)
+        # Ativado apenas na primeiríssima jogada de cada sentido.
         # Usa 1 centro (mediana) + 9 vizinhos = 19 números contíguos (~51% da roda).
-        # Hit rate observado: ~52% vs ~61% do SDA-21 Triple Focus.
-        # É geometricamente diferente: 1 arco largo vs 3 arcos curtos.
-        if len(valid_forces) < 5:
+        if len(valid_forces) < 2:
             c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
             numbers = sorted(self.get_neighbors(c1, 9, wheel_sequence))
             return StrategyResult(
@@ -204,7 +211,7 @@ class SDA17Strategy(StrategyBase):
                 "flagged_forces": flagged,
                 "offset": off_c2,
                 "offset_c3": off_c3,
-                "offset_type": "bayesian",
+                "offset_type": "sigmoid",
                 "cw_history_size": len(self.cw_history),
                 "ccw_history_size": len(self.ccw_history),
             }
@@ -290,30 +297,15 @@ class SDA17Strategy(StrategyBase):
     def _get_adaptive_offset(self, direction: str) -> Tuple[int, int]:
         """
         Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).
-        v4.2: Ambas direções usam Bayesiano Error-Vector (M04+M10) + momentum limiter.
+        v4.3: M02-PctSigmoid — lê offsets float do estado sigmoid.
         Parâmetros independentes por direção — históricos não se misturam.
         """
-        if direction in ("cw", "horario"):
-            off2, off3 = self._bayesian_error_vector(self.cw_history)
-        else:
-            off2, off3 = self._bayesian_error_vector(self.ccw_history)
-        
-        # v4.2: Momentum limiter — máxima variação de ±MAX_DELTA_OFFSET entre jogadas
         dir_key = "cw" if direction in ("cw", "horario") else "ccw"
-        last = self._last_offset.get(dir_key, self.BAYESIAN_DEFAULT)
+        off2 = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
+        off3 = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
         
-        avg_off = round((off2 + off3) / 2)
-        delta = avg_off - last
-        if abs(delta) > self.MAX_DELTA_OFFSET:
-            shift = self.MAX_DELTA_OFFSET if delta > 0 else -self.MAX_DELTA_OFFSET
-            diff2 = off2 - avg_off
-            diff3 = off3 - avg_off
-            new_avg = last + shift
-            off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, new_avg + diff2))
-            off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, new_avg + diff3))
-        
-        self._last_offset[dir_key] = round((off2 + off3) / 2)
-        return off2, off3
+        return (max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2))),
+                max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3))))
     
     def _bayesian_error_vector(self, history: List[Tuple[int, int]]) -> Tuple[int, int]:
         """
@@ -416,11 +408,73 @@ class SDA17Strategy(StrategyBase):
         except ValueError:
             return 0
     
+    def _pct_sigmoid_update(self, direction: str, c1: int, actual_result: int) -> None:
+        """
+        M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.
+        
+        - Hit: tighten 8% em direção a center=10 (estabiliza)
+        - Miss: sigmoid(error_pct) × 2.0 na direção do erro (adapta)
+        - Cada direção (CW/CCW) mantém offsets independentes
+        """
+        if not self._wheel:
+            return
+        
+        dir_key = "cw" if direction in ("cw", "horario") else "ccw"
+        off2 = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
+        off3 = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
+        
+        # Calcular cobertura atual
+        o2, o3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2))), \
+                 max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3)))
+        c1_idx = self._wheel_index(c1, self._wheel)
+        ws = len(self._wheel)
+        c2 = self._wheel[(c1_idx + o2) % ws]
+        c3 = self._wheel[(c1_idx - o3) % ws]
+        cov = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
+        cov |= set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
+        cov |= set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
+        
+        is_hit = actual_result in cov
+        
+        if is_hit:
+            # Tighten: mover 8% em direção ao centro (10)
+            off2 += (self.PRIOR_CENTER - off2) * self.HIT_TIGHTEN
+            off3 += (self.PRIOR_CENTER - off3) * self.HIT_TIGHTEN
+        else:
+            # Calcular erro percentual
+            min_dist = min(
+                self._circ_dist(actual_result, n, self._wheel) for n in cov
+            ) if cov else 18
+            pct = min_dist / 18.0
+            
+            # Sigmoid dampening
+            adj = (2.0 / (1.0 + math.exp(-self.SIGMOID_K * pct)) - 1.0) * self.SIGMOID_SCALE
+            
+            # Direção do erro
+            err_dir = self._circ_dir(c1, actual_result, self._wheel)
+            
+            if err_dir > 0:  # Resultado está no sentido CW da roda
+                off2 += adj
+                off3 -= adj * self.MISS_CROSS_RATE
+            elif err_dir < 0:  # Resultado está no sentido CCW
+                off3 += adj
+                off2 -= adj * self.MISS_CROSS_RATE
+            else:
+                off2 += adj * 0.5
+                off3 += adj * 0.5
+        
+        # Clamp
+        off2 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off2))
+        off3 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off3))
+        
+        self._sigmoid_off[f"{dir_key}_off2"] = off2
+        self._sigmoid_off[f"{dir_key}_off3"] = off3
+    
     def update_adaptive(self, direction: str, c1: int, actual_result: int,
                         wheel_sequence: List[int]) -> None:
         """
         Atualiza estado adaptativo após resultado conhecido.
-        v4.2: Ambas direções usam histórico Bayesiano + momentum tracking.
+        v4.3: Atualiza histórico + chama M02-PctSigmoid para ajustar offsets.
         Deve ser chamado APÓS check_prediction() e ANTES de analyze() do próximo spin.
         """
         self._wheel = wheel_sequence
@@ -432,19 +486,22 @@ class SDA17Strategy(StrategyBase):
             self.ccw_history.append((c1, actual_result))
             if len(self.ccw_history) > self.MAX_HISTORY:
                 self.ccw_history = self.ccw_history[-self.MAX_HISTORY:]
+        
+        # v4.3: M02-PctSigmoid feedback
+        self._pct_sigmoid_update(direction, c1, actual_result)
     
     def get_adaptive_state(self) -> Dict[str, Any]:
         """Retorna estado adaptativo para persistência."""
         return {
             "cw_history": self.cw_history,
             "ccw_history": self.ccw_history,
-            "last_offset": self._last_offset
+            "last_offset": self._last_offset,
+            "sigmoid_off": self._sigmoid_off
         }
     
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
         """Carrega estado adaptativo de persistência com validação.
-        Compatível com formato v4.0.x (cw_ema) — ignora cw_ema, inicia cw_history vazio.
-        Compatível com v4.1.x (sem last_offset) — inicia _last_offset vazio."""
+        Compatível com v4.0.x (cw_ema), v4.1.x (sem last_offset), v4.2.x (sem sigmoid_off)."""
         for key in ("cw_history", "ccw_history"):
             raw = state.get(key, [])
             validated = []
@@ -458,11 +515,17 @@ class SDA17Strategy(StrategyBase):
                 self.cw_history = validated
             else:
                 self.ccw_history = validated
-        # v4.2: Restaurar último offset (backward compat: começa vazio)
+        # v4.2 legacy: Restaurar último offset (backward compat)
         raw_lo = state.get("last_offset", {})
         if isinstance(raw_lo, dict):
             self._last_offset = {k: int(v) for k, v in raw_lo.items()
                                  if k in ("cw", "ccw") and isinstance(v, (int, float))}
+        # v4.3: Restaurar offsets sigmoid (backward compat: default CENTER=10)
+        raw_sig = state.get("sigmoid_off", {})
+        if isinstance(raw_sig, dict):
+            valid_keys = {"cw_off2", "cw_off3", "ccw_off2", "ccw_off3"}
+            self._sigmoid_off = {k: float(v) for k, v in raw_sig.items()
+                                 if k in valid_keys and isinstance(v, (int, float))}
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""

@@ -101,7 +101,7 @@ class TestSDA17Strategy:
             assert "offset" in result.details
             assert "offset_c3" in result.details
             assert "offset_type" in result.details
-            assert result.details["offset_type"] == "bayesian"
+            assert result.details["offset_type"] == "sigmoid"
 
     def test_adaptive_state_persistence(self, strategy):
         """M15-ADA: estado adaptativo pode ser salvo e restaurado."""
