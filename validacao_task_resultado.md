@@ -584,13 +584,39 @@ tasks_resultados_30_03.md (estudo)
 | ISO/IEC 25010 média | 7.1 → 8.0/10 (8 características) |
 | Deploy ready | ✅ |
 
+### 8.2 Resultado do Deploy v4.0.3
+
+| Fase | Status | Evidência |
+|------|:------:|-----------|
+| FASE 1 — Validação Local | ✅ | 105/105 testes, imports OK, sem secrets |
+| FASE 2 — Commit & Push | ✅ | `b0aa9f4` → origin/main |
+| FASE 3 — Deploy Servidor | ✅ | Docker build --no-cache + compose up -d |
+| FASE 4 — Verificação Pós-Deploy | ✅ | Ver checklist abaixo |
+
+**Checklist Pós-Deploy (FASE 4):**
+
+| Item | Resultado |
+|------|:---------:|
+| Container running | ✅ Up (healthy) |
+| WebSocket port 8765 | ✅ OPEN |
+| Health status | ✅ healthy |
+| VERSION em produção | ✅ 4.0.3 |
+| Commit em produção | ✅ b0aa9f4 |
+| Coluna `sda_offset` | ✅ Presente |
+| Coluna `sda_offset_type` | ✅ Presente |
+| Docker image cleanup | ✅ Executado |
+
+**Servidor:** root@187.45.181.75 (xmaiajpvm)  
+**Container:** roleta-cloud  
+**Domínio:** roleta.xma-ia.com (WSS via nginx)
+
 ### Próximos Passos
 
 | Prioridade | Item | Dependência |
 |:----------:|------|:-----------:|
-| 1 | Commit + push v4.0.3 (bug fixes) | Aprovação do usuário |
-| 2 | Deploy no servidor Debian | Commit aceito |
-| 3 | Implementar M04 Error-Vector no SDA17 | v4.0.3 em produção |
+| ~~1~~ | ~~Commit + push v4.0.3~~ | ✅ CONCLUÍDO — b0aa9f4 |
+| ~~2~~ | ~~Deploy no servidor Debian~~ | ✅ CONCLUÍDO — healthy |
+| 3 | Implementar M04 Error-Vector no SDA17 | v4.0.3 em produção ✅ |
 | 4 | Unificar CW/CCW com Bayesiano independente | M04 validado |
 | 5 | 200+ jogadas de validação em produção | Implementação completa |
 
@@ -598,6 +624,7 @@ tasks_resultados_30_03.md (estudo)
 
 > **Documento gerado em:** 30/03/2026  
 > **Versão:** v4.0.3  
-> **Status:** ✅ VALIDAÇÃO COMPLETA — PRONTO PARA DEPLOY  
+> **Status:** ✅ DEPLOY CONCLUÍDO E VERIFICADO EM PRODUÇÃO  
 > **Conformidade:** ISO/IEC 25010:2011 — 8 características avaliadas  
-> **Evidência:** `scripts/sim_temp/verify_scenarios.py` (8/8 PASS) + `pytest` (105/105 PASS)
+> **Evidência:** `scripts/sim_temp/verify_scenarios.py` (8/8 PASS) + `pytest` (105/105 PASS)  
+> **Deploy:** Commit b0aa9f4 → servidor xmaiajpvm → container healthy
