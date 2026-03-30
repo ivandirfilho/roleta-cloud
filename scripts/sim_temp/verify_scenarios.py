@@ -19,7 +19,7 @@ def check(name, condition, detail=""):
     print(f"  [{status}] {name}: {detail}")
 
 print("=" * 60)
-print("VALIDACAO DE CENARIOS CRITICOS — v4.1 (M04 Error-Vector)")
+print("VALIDACAO DE CENARIOS CRITICOS — v4.2 (Anti-Drift Guardrails)")
 print("=" * 60)
 
 # C1: CW update_adaptive stores history (no longer EMA)
@@ -52,8 +52,8 @@ check("C4 asymmetric offset tuple", isinstance(off2, int) and isinstance(off3, i
       f"off_c2={off2}, off_c3={off3}")
 
 # C5: Offsets within bounds
-ok5 = 7 <= off2 <= 17 and 7 <= off3 <= 17
-check("C5 offset bounds", ok5, f"off_c2={off2} in [7,17], off_c3={off3} in [7,17]")
+ok5 = 7 <= off2 <= 13 and 7 <= off3 <= 13
+check("C5 offset bounds", ok5, f"off_c2={off2} in [7,13], off_c3={off3} in [7,13]")
 
 # C6: Decision model fields
 d = Decision(sda_offset=11, sda_offset_type="bayesian")
@@ -101,6 +101,44 @@ try:
     os.remove(dbpath)
 except PermissionError:
     pass
+
+print()
+print("=" * 60)
+
+# C11: v4.2 parameter values
+s9 = SDA17Strategy()
+ok11 = (s9.OFFSET_MAX == 13 and s9.PRIOR_STRENGTH == 0.5 and
+        s9.ERROR_THRESHOLD == 7 and s9.ERROR_DECAY == 0.08 and
+        s9.MAX_DELTA_OFFSET == 2 and s9.SYMMETRY_CAP == 4)
+check("C11 v4.2 params", ok11,
+      f"MAX={s9.OFFSET_MAX}, PRIOR={s9.PRIOR_STRENGTH}, THRESH={s9.ERROR_THRESHOLD}, "
+      f"DECAY={s9.ERROR_DECAY}, DELTA={s9.MAX_DELTA_OFFSET}, SYMCAP={s9.SYMMETRY_CAP}")
+
+# C12: Momentum limiter — offset cannot jump more than ±2 per call
+s10 = SDA17Strategy()
+s10._wheel = WHEEL
+# Force known last_offset via internal state
+s10._last_offset["cw"] = 10
+for i in range(8):
+    s10.cw_history.append((WHEEL[i], WHEEL[(i+15) % 37]))
+o2, o3 = s10._get_adaptive_offset("horario")
+avg_new = round((o2 + o3) / 2)
+check("C12 momentum limiter", abs(avg_new - 10) <= 2,
+      f"last=10, new_avg={avg_new}, off_c2={o2}, off_c3={o3}")
+
+# C13: Symmetry cap — |off_c2 - off_c3| <= SYMMETRY_CAP
+check("C13 symmetry cap", abs(o2 - o3) <= s10.SYMMETRY_CAP,
+      f"|{o2} - {o3}| = {abs(o2 - o3)} <= {s10.SYMMETRY_CAP}")
+
+# C14: Persistence includes last_offset
+s11 = SDA17Strategy()
+s11._last_offset = {"cw": 11, "ccw": 9}
+s11.cw_history = [(10, 20)]
+state14 = s11.get_adaptive_state()
+s12 = SDA17Strategy()
+s12.load_adaptive_state(state14)
+ok14 = s12._last_offset.get("cw") == 11 and s12._last_offset.get("ccw") == 9
+check("C14 last_offset persistence", ok14, f"loaded={s12._last_offset}")
 
 print()
 print("=" * 60)

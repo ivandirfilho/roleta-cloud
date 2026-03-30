@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 class SDA17Strategy(StrategyBase):
     """
-    Estratégia M15-ADA v4.1: Unified Bayesian Error-Vector — Triple Focus 17 números.
+    Estratégia M15-ADA v4.2: Unified Bayesian Error-Vector — Triple Focus 17 números.
     
-    Pipeline otimizado (v4.1 — M04+M10 Hybrid):
+    Pipeline otimizado (v4.2 — M04+M10 Hybrid + Anti-Drift):
     1. Janela Adaptativa (7→5→3 forças)
     2. IQR Outlier Rejection (statistics.quantiles)
     3. Weighted Median (peso exponencial nas mais recentes)
@@ -24,41 +24,50 @@ class SDA17Strategy(StrategyBase):
        - C2/C3: offset ASSIMÉTRICO por Error-Vector, raio 2 (5 números cada)
        - CW e CCW: Mesmo algoritmo Bayesiano, parâmetros INDEPENDENTES
        - M04 Error-Vector: off_c2 ≠ off_c3 baseado em viés direcional
-       - M10 Gaussian Prior: regularizador anti-overfitting (center=10, strength=0.3)
+       - M10 Gaussian Prior: regularizador anti-overfitting (center=10, strength=0.5)
+    7. v4.2 Anti-Drift Guardrails:
+       - OFFSET_MAX reduzido de 17 para 13 (foco em offsets produtivos)
+       - PRIOR_STRENGTH 0.3→0.5 (ancoragem mais forte em center=10)
+       - ERROR_THRESHOLD 5→7 (filtra ruído no vetor de erro)
+       - ERROR_DECAY 0.15→0.08 (menor sensibilidade a viés direcional)
+       - MAX_DELTA_OFFSET=2 (momentum limiter: max ±2 entre jogadas)
+       - SYMMETRY_CAP=4 (limita divergência entre off_c2 e off_c3)
     
     Cobertura: 17 números (7+5+5) = 45.9% da roda
     Break-even: 47.2% (vs 58.3% do SDA-21)
-    Simulação M04: 53.5% HR, +R$81.76 (vs Original 42.4%, -R$37.94)
-    Produção v4.0.3: Bayesiano 63.2% vs EMA 20.0% (39 jogadas pós-deploy)
     """
     
     # Forças acima deste limiar são sinalizadas como anômalas
     MAX_FORCE_THRESHOLD = 30
 
-    # M15-ADA v4.1: Constantes Bayesianas unificadas (CW e CCW usam os mesmos)
+    # M15-ADA v4.2: Constantes Bayesianas unificadas (CW e CCW usam os mesmos)
     BAYESIAN_WINDOW = 12       # Janela de histórico para cálculo
     BAYESIAN_DEFAULT = 12      # Offset padrão durante warm-up
     BAYESIAN_WARMUP = 5        # Jogadas mínimas antes de adaptar
     OFFSET_MIN = 7             # Offset mínimo candidato
-    OFFSET_MAX = 17            # Offset máximo candidato
-    ERROR_DECAY = 0.15         # Sensibilidade do vetor de erro (M04)
-    ERROR_THRESHOLD = 5        # Só conta erros significativos (distância > 5)
+    OFFSET_MAX = 13            # Offset máximo candidato (v4.2: 17→13 anti-drift)
+    ERROR_DECAY = 0.08         # Sensibilidade do vetor de erro (v4.2: 0.15→0.08)
+    ERROR_THRESHOLD = 7        # Só conta erros significativos (v4.2: 5→7)
     PRIOR_CENTER = 10          # Centro do prior Gaussiano (M10)
-    PRIOR_STRENGTH = 0.3       # Peso do prior: 30% prior, 70% dados
+    PRIOR_STRENGTH = 0.5       # Peso do prior (v4.2: 0.3→0.5 anti-drift)
     MAX_HISTORY = 24           # 2× BAYESIAN_WINDOW para buffer
     C2_RADIUS = 2              # Raio de C2 (5 números)
     C3_RADIUS = 2              # Raio de C3 (5 números)
+    MAX_DELTA_OFFSET = 2       # Máxima variação de offset entre jogadas (v4.2)
+    SYMMETRY_CAP = 4           # Máxima diferença |off_c2 - off_c3| (v4.2)
     
     def __init__(self):
         super().__init__(name="M15-ADA", num_neighbors=3)  # C1 mantém raio 3
         self.min_forces = 3
         self.default_window = 7
         self.decay = 0.8
-        self.description = "Unified Bayesian Error-Vector, Triple Focus 17 números"
+        self.description = "Unified Bayesian Error-Vector v4.2, Triple Focus 17 números"
         # Estado adaptativo — históricos INDEPENDENTES por direção
         self.cw_history: List[Tuple[int, int]] = []
         self.ccw_history: List[Tuple[int, int]] = []
         self._wheel: List[int] = []
+        # v4.2: Momentum limiter — último offset usado por direção
+        self._last_offset: Dict[str, int] = {}
     
     def analyze(
         self,
@@ -281,13 +290,30 @@ class SDA17Strategy(StrategyBase):
     def _get_adaptive_offset(self, direction: str) -> Tuple[int, int]:
         """
         Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).
-        v4.1: Ambas direções usam Bayesiano Error-Vector (M04+M10).
+        v4.2: Ambas direções usam Bayesiano Error-Vector (M04+M10) + momentum limiter.
         Parâmetros independentes por direção — históricos não se misturam.
         """
         if direction in ("cw", "horario"):
-            return self._bayesian_error_vector(self.cw_history)
+            off2, off3 = self._bayesian_error_vector(self.cw_history)
         else:
-            return self._bayesian_error_vector(self.ccw_history)
+            off2, off3 = self._bayesian_error_vector(self.ccw_history)
+        
+        # v4.2: Momentum limiter — máxima variação de ±MAX_DELTA_OFFSET entre jogadas
+        dir_key = "cw" if direction in ("cw", "horario") else "ccw"
+        last = self._last_offset.get(dir_key, self.BAYESIAN_DEFAULT)
+        
+        avg_off = round((off2 + off3) / 2)
+        delta = avg_off - last
+        if abs(delta) > self.MAX_DELTA_OFFSET:
+            shift = self.MAX_DELTA_OFFSET if delta > 0 else -self.MAX_DELTA_OFFSET
+            diff2 = off2 - avg_off
+            diff3 = off3 - avg_off
+            new_avg = last + shift
+            off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, new_avg + diff2))
+            off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, new_avg + diff3))
+        
+        self._last_offset[dir_key] = round((off2 + off3) / 2)
+        return off2, off3
     
     def _bayesian_error_vector(self, history: List[Tuple[int, int]]) -> Tuple[int, int]:
         """
@@ -334,6 +360,15 @@ class SDA17Strategy(StrategyBase):
         # Clamp dentro dos limites
         off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off2))
         off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off3))
+        
+        # v4.2: Symmetry cap — limita divergência entre off_c2 e off_c3
+        if abs(off2 - off3) > self.SYMMETRY_CAP:
+            avg = (off2 + off3) / 2
+            half_cap = self.SYMMETRY_CAP / 2
+            off2 = round(avg + half_cap) if off2 > off3 else round(avg - half_cap)
+            off3 = round(avg - half_cap) if off2 > off3 else round(avg + half_cap)
+            off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off2))
+            off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, off3))
         
         return off2, off3
     
@@ -384,7 +419,7 @@ class SDA17Strategy(StrategyBase):
                         wheel_sequence: List[int]) -> None:
         """
         Atualiza estado adaptativo após resultado conhecido.
-        v4.1: Ambas direções usam histórico (não mais EMA para CW).
+        v4.2: Ambas direções usam histórico Bayesiano + momentum tracking.
         Deve ser chamado APÓS check_prediction() e ANTES de analyze() do próximo spin.
         """
         self._wheel = wheel_sequence
@@ -401,12 +436,14 @@ class SDA17Strategy(StrategyBase):
         """Retorna estado adaptativo para persistência."""
         return {
             "cw_history": self.cw_history,
-            "ccw_history": self.ccw_history
+            "ccw_history": self.ccw_history,
+            "last_offset": self._last_offset
         }
     
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
         """Carrega estado adaptativo de persistência com validação.
-        Compatível com formato v4.0.x (cw_ema) — ignora cw_ema, inicia cw_history vazio."""
+        Compatível com formato v4.0.x (cw_ema) — ignora cw_ema, inicia cw_history vazio.
+        Compatível com v4.1.x (sem last_offset) — inicia _last_offset vazio."""
         for key in ("cw_history", "ccw_history"):
             raw = state.get(key, [])
             validated = []
@@ -420,6 +457,11 @@ class SDA17Strategy(StrategyBase):
                 self.cw_history = validated
             else:
                 self.ccw_history = validated
+        # v4.2: Restaurar último offset (backward compat: começa vazio)
+        raw_lo = state.get("last_offset", {})
+        if isinstance(raw_lo, dict):
+            self._last_offset = {k: int(v) for k, v in raw_lo.items()
+                                 if k in ("cw", "ccw") and isinstance(v, (int, float))}
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""
