@@ -82,6 +82,17 @@ class GameEngine:
 
         # 3. Processar spin
         force = self.game_state.process_spin(numero, direcao)
+        
+        # BUG-TASK-001 FIX: Atualizar estado adaptativo no engine (espelho do message_handler)
+        if pending and hit_result is not None:
+            bet_direction = pending.get("direction", "")
+            c1_predicted = pending.get("center", 0)
+            if c1_predicted > 0 and hasattr(self.strategy, 'update_adaptive'):
+                self.strategy.update_adaptive(
+                    bet_direction, c1_predicted, numero, roulette.WHEEL_SEQUENCE
+                )
+                self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+        
         self.game_state.save()
 
         # 4. Analisar com SDA-21

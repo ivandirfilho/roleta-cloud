@@ -1,9 +1,12 @@
 # Roleta Cloud - M15-ADA Strategy (IQR + Weighted Median + Drift + Adaptive Triple Focus)
 
+import logging
 from typing import List, Tuple, Dict, Any
 from statistics import median, quantiles
 from state.timeline import Timeline
 from .base import StrategyBase, StrategyResult
+
+logger = logging.getLogger(__name__)
 
 
 class SDA17Strategy(StrategyBase):
@@ -63,6 +66,10 @@ class SDA17Strategy(StrategyBase):
         error_history: List[int] = None
     ) -> StrategyResult:
         """Analisa timeline e prediz próxima força usando pipeline robusto."""
+        
+        # BUG-TASK-004 FIX: Garantir _wheel disponível antes do Bayesiano
+        if wheel_sequence and not self._wheel:
+            self._wheel = wheel_sequence
         
         # Janela adaptativa: tenta 7, depois 5, depois min_forces
         predicted_force = None
@@ -151,6 +158,13 @@ class SDA17Strategy(StrategyBase):
         nums |= set(self.get_neighbors(c2, self.C2_RADIUS, wheel_sequence))      # 5 nums
         nums |= set(self.get_neighbors(c3, self.C3_RADIUS, wheel_sequence))      # 5 nums
         numbers = sorted(nums)  # Esperado: 17 (pode ser menos se houver overlap)
+        
+        # BUG-NEW-002 FIX: Alerta se cobertura abaixo do esperado
+        if len(numbers) < 15:
+            logger.warning(
+                f"Cobertura baixa: {len(numbers)} números (offset={offset}, "
+                f"C1={c1}, C2={c2}, C3={c3})"
+            )
         
         visual = f"[{c1}] [{c2}] [{c3}]"
         
@@ -307,6 +321,8 @@ class SDA17Strategy(StrategyBase):
         if direction in ("cw", "horario"):
             error = self._circ_dist(c1, actual_result, wheel_sequence)
             self.cw_ema = self.CW_ALPHA * error + (1 - self.CW_ALPHA) * self.cw_ema
+            # BUG-TASK-003 FIX: Clamp EMA dentro dos limites válidos
+            self.cw_ema = max(self.CW_OFFSET_MIN, min(self.CW_OFFSET_MAX, self.cw_ema))
         else:
             self.ccw_history.append((c1, actual_result))
             max_history = self.CCW_WINDOW * 2
@@ -322,7 +338,9 @@ class SDA17Strategy(StrategyBase):
     
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
         """Carrega estado adaptativo de persistência com validação."""
-        self.cw_ema = float(state.get("cw_ema", self.CW_EMA_INIT))
+        raw_ema = float(state.get("cw_ema", self.CW_EMA_INIT))
+        # BUG-TASK-005 FIX: Validar cw_ema dentro dos bounds ao carregar
+        self.cw_ema = max(self.CW_OFFSET_MIN, min(self.CW_OFFSET_MAX, raw_ema))
         raw = state.get("ccw_history", [])
         validated = []
         for item in raw:
@@ -341,13 +359,17 @@ class SDA17Strategy(StrategyBase):
             wheel_size = len(wheel_sequence)
             return min((a_pos - b_pos) % wheel_size, (b_pos - a_pos) % wheel_size)
         except ValueError:
-            return 12  # Fallback conservador
+            # BUG-NEW-004 FIX: Logar fallback para diagnóstico
+            logger.warning(f"_circ_dist: número inválido na roda (a={a}, b={b}), fallback=12")
+            return 12
     
     def _wheel_index(self, number: int, wheel_sequence: List[int]) -> int:
         """Retorna o índice de um número na sequência da roda."""
         try:
             return wheel_sequence.index(number)
         except ValueError:
+            # BUG-NEW-003 FIX: Logar fallback para diagnóstico
+            logger.warning(f"_wheel_index: número {number} não encontrado na roda, fallback=0")
             return 0
     
     def _apply_force(

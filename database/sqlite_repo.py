@@ -102,6 +102,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                     sda_centers TEXT,  -- JSON array [C1, C2, C3] — SDA-21
                     sda_numbers TEXT,  -- JSON array
                     sda_predicted_force INTEGER,
+                    sda_offset INTEGER,              -- Offset adaptativo real
+                    sda_offset_type TEXT,             -- "errdriven" ou "bayesian"
                     
                     -- Decisão Final
                     final_action TEXT,
@@ -203,6 +205,15 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.execute("ALTER TABLE sessions ADD COLUMN total_resets INTEGER DEFAULT 0")
                 conn.commit()
                 logger.info("Migration: added total_resets column to sessions")
+            
+            # Auto-migration: add sda_offset and sda_offset_type for M15-ADA v4.0.3
+            try:
+                conn.execute("SELECT sda_offset FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN sda_offset INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE decisions ADD COLUMN sda_offset_type TEXT DEFAULT ''")
+                conn.commit()
+                logger.info("Migration: added sda_offset, sda_offset_type columns to decisions")
     
     def save_decision(self, decision: Decision) -> int:
         """Salva uma nova decisão."""
@@ -216,12 +227,13 @@ class SQLiteDecisionRepository(DecisionRepository):
                     tr_c4_rate, tr_m6_rate, tr_l12_rate,
                     sda_should_bet, sda_score, sda_center, sda_centers,
                     sda_numbers, sda_predicted_force,
+                    sda_offset, sda_offset_type,
                     final_action, action_reason,
                     gale_level, gale_window_hits, gale_window_count, gale_bet_value,
                     result_hit, result_actual,
                     calibration_offset, calibration_error,
                     performance_snapshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -240,6 +252,8 @@ class SQLiteDecisionRepository(DecisionRepository):
                 json.dumps(decision.sda_centers) if decision.sda_centers else json.dumps([decision.sda_center]),
                 json.dumps(decision.sda_numbers),
                 decision.sda_predicted_force,
+                decision.sda_offset,
+                decision.sda_offset_type,
                 decision.final_action,
                 decision.action_reason,
                 decision.gale_level,
@@ -358,6 +372,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             sda_centers=json.loads(row["sda_centers"]) if row["sda_centers"] else [row["sda_center"] or 0],
             sda_numbers=json.loads(row["sda_numbers"]) if row["sda_numbers"] else [],
             sda_predicted_force=row["sda_predicted_force"] or 0,
+            sda_offset=row["sda_offset"] if "sda_offset" in row.keys() else 0,
+            sda_offset_type=row["sda_offset_type"] if "sda_offset_type" in row.keys() else "",
             final_action=row["final_action"] or "",
             action_reason=row["action_reason"] or "",
             gale_level=row["gale_level"] or 1,

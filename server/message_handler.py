@@ -339,6 +339,8 @@ class MessageHandler:
                 sda_centers=result.details.get("centers", [result.center]),
                 sda_numbers=result.numbers,
                 sda_predicted_force=result.details.get("predicted_force", 0),
+                sda_offset=result.details.get("offset", 0),
+                sda_offset_type=result.details.get("offset_type", ""),
                 final_action=acao,
                 action_reason=action_reason,
                 gale_level=mg.level,

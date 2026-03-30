@@ -38,6 +38,8 @@ class Decision:
     sda_centers: List[int] = field(default_factory=list)       # [C1, C2, C3] — SDA-21
     sda_numbers: List[int] = field(default_factory=list)
     sda_predicted_force: int = 0
+    sda_offset: int = 0                                        # Offset adaptativo usado
+    sda_offset_type: str = ""                                  # "errdriven" ou "bayesian"
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"
@@ -81,6 +83,8 @@ class Decision:
             "sda_centers": self.sda_centers,
             "sda_numbers": self.sda_numbers,
             "sda_predicted_force": self.sda_predicted_force,
+            "sda_offset": self.sda_offset,
+            "sda_offset_type": self.sda_offset_type,
             "final_action": self.final_action,
             "action_reason": self.action_reason,
             "gale_level": self.gale_level,
