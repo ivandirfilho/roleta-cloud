@@ -144,12 +144,12 @@ class MessageHandler:
             raise ValueError(f"Entrada inválida: {e}")
 
         # Log da predição pendente antes de verificar
-        pending = self.game_state.pending_prediction
-        if pending:
-            logger.info(f"VERIFICANDO: numero={numero}, centro_previsto={pending.get('center')}, numeros={pending.get('numbers', [])[:5]}...")
-
-        # Verificar predição anterior (performance tracking)
+        # BUG-AUDIT-002 FIX: Ler pending DENTRO do lock para evitar race condition
         async with self.state_lock:
+            pending = self.game_state.pending_prediction
+            if pending:
+                logger.info(f"VERIFICANDO: numero={numero}, centro_previsto={pending.get('center')}, numeros={pending.get('numbers', [])[:5]}...")
+
             hit_result = self.game_state.check_prediction(numero)
 
             # Atualizar Martingale da direção da predição (se havia predição E apostou)
@@ -157,14 +157,16 @@ class MessageHandler:
             #        (oposto de last_direction), ou seja, a direção que FOI predita/apostada.
             martingale_info = {}
             if pending and hit_result is not None and pending.get("bet_placed", False):
-                # Martingale da direção que FOI apostada
+                # BUG-AUDIT-006 FIX: Validar direction antes de atualizar Martingale
                 bet_direction = pending.get("direction", "")
                 if bet_direction in ("cw", "horario"):
                     martingale_info = self.game_state.martingale_cw.update(hit_result, global_hit=hit_result)
                     self.game_state.martingale_ccw.sync_global(hit_result)
-                else:
+                elif bet_direction in ("ccw", "anti-horario"):
                     martingale_info = self.game_state.martingale_ccw.update(hit_result, global_hit=hit_result)
                     self.game_state.martingale_cw.sync_global(hit_result)
+                else:
+                    logger.warning(f"Direction inválida no pending: '{bet_direction}', Martingale NÃO atualizado")
 
                 if martingale_info.get("transition"):
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")

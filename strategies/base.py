@@ -57,6 +57,9 @@ class StrategyBase(ABC):
         """
         Retorna vizinhos de um número na roleta.
         """
+        # BUG-AUDIT-005 FIX: Guardar contra wheel vazia
+        if not wheel_sequence:
+            return [center]
         try:
             center_idx = wheel_sequence.index(center)
             wheel_size = len(wheel_sequence)

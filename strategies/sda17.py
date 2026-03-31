@@ -229,6 +229,11 @@ class SDA17Strategy(StrategyBase):
         """
         n = len(forces)
         
+        # BUG-AUDIT-008 FIX: Guardar contra lista vazia
+        if n == 0:
+            return (0, {"clean_count": 0, "outliers_removed": 0, "spread": 0,
+                        "drift": 0, "score": 1, "survival_rate": 0})
+        
         # === PASSO 1: IQR Outlier Rejection ===
         # 🔧 BUG-009: com N < 4, quartis são irrelevantes — pular filtragem
         if n < 4:
@@ -445,6 +450,8 @@ class SDA17Strategy(StrategyBase):
             min_dist = min(
                 self._circ_dist(actual_result, n, self._wheel) for n in cov
             ) if cov else 18
+            # BUG-AUDIT-007 FIX: Clampar min_dist ao raio máximo da roda
+            min_dist = min(min_dist, 18)
             pct = min_dist / 18.0
             
             # Sigmoid dampening

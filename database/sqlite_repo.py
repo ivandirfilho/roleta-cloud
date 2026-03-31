@@ -351,6 +351,16 @@ class SQLiteDecisionRepository(DecisionRepository):
         finally:
             conn.close()
     
+    @staticmethod
+    def _safe_json_loads(raw: str, default):
+        """BUG-AUDIT-004 FIX: json.loads defensivo com fallback."""
+        if not raw:
+            return default
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return default
+
     def _row_to_decision(self, row: sqlite3.Row) -> Decision:
         """Converte row do SQLite para objeto Decision."""
         return Decision(
@@ -369,8 +379,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             sda_should_bet=bool(row["sda_should_bet"]) if row["sda_should_bet"] is not None else True,
             sda_score=row["sda_score"] or 0,
             sda_center=row["sda_center"] or 0,
-            sda_centers=json.loads(row["sda_centers"]) if row["sda_centers"] else [row["sda_center"] or 0],
-            sda_numbers=json.loads(row["sda_numbers"]) if row["sda_numbers"] else [],
+            sda_centers=self._safe_json_loads(row["sda_centers"], [row["sda_center"] or 0]),
+            sda_numbers=self._safe_json_loads(row["sda_numbers"], []),
             sda_predicted_force=row["sda_predicted_force"] or 0,
             sda_offset=row["sda_offset"] if "sda_offset" in row.keys() else 0,
             sda_offset_type=row["sda_offset_type"] if "sda_offset_type" in row.keys() else "",
@@ -384,7 +394,7 @@ class SQLiteDecisionRepository(DecisionRepository):
             result_actual=row["result_actual"],
             calibration_offset=row["calibration_offset"] or 0,
             calibration_error=row["calibration_error"],
-            performance_snapshot=json.loads(row["performance_snapshot"]) if row["performance_snapshot"] else []
+            performance_snapshot=self._safe_json_loads(row["performance_snapshot"], [])
         )
     
     # =========================================================================
