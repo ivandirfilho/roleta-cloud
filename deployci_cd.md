@@ -1,4 +1,4 @@
-# 🚀 Deploy CI/CD — Roleta Cloud v4.0.2
+# 🚀 Deploy CI/CD — Roleta Cloud v4.3.1
 
 > **Objetivo:** Guia completo e executável para o agente realizar deploy após alterações no código.  
 > **Fluxo:** Local → GitHub (push) → Servidor Debian (Docker)  

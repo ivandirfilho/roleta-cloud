@@ -1,8 +1,8 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.3.0  
-> **Data da Análise:** 30/03/2026  
-> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.0)  
+> **Versão do Software:** 4.3.1  
+> **Data da Análise:** 31/03/2026  
+> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.1)  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
 > **Total de Linhas de Código:** ~5.900 (39 arquivos Python)
 
@@ -315,10 +315,10 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
 
 ---
 
-### 6. Sistema de Decisão (Pipeline M15-ADA + Kill Switch)
+### 6. Sistema de Decisão (Pipeline M15-ADA v4.3 + Kill Switch)
 
 ```
-                       Forças da Timeline (últimas 7)
+                       Forças da Timeline (últimas 7, mín 2)
                               │
                     ┌─────────▼──────────┐
                     │  IQR Outlier Filter │  Remove forças fora de [Q1-1.5·IQR, Q3+1.5·IQR]
@@ -334,12 +334,26 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
                     │  Drift Detection   │  Se últimas 3 forças são monotônicas:
                     │  (tendência)        │  drift_adj = sum(diffs) × 0.5
                     └─────────┬──────────┘
-                              │ predicted_force (ajustada)
+                              │ predicted_force (ajustada) → C1
+                    ┌─────────▼──────────┐
+                    │  M02-PctSigmoid    │  Offsets adaptativos C2/C3:
+                    │  Offset Controller │  sigmoid(error%) × 2.0 por direção
+                    │  (v4.3+)           │  Hit: tighten 8% → center=10
+                    │                    │  Miss: expand na dir do erro ±cross 30%
+                    │                    │  Clamp: [7, 13] | Independente CW/CCW
+                    └─────────┬──────────┘
+                              │ C1 + off_c2/off_c3
+                    ┌─────────▼──────────┐
+                    │  Triple Focus      │  C1: centro (raio 3 = 7 nums)
+                    │  17 números        │  C2: CW de C1 (raio 2 = 5 nums)
+                    │  (45.9% cobertura) │  C3: CCW de C1 (raio 2 = 5 nums)
+                    └─────────┬──────────┘
+                              │ {should_bet, center, numbers[17], score}
                     ┌─────────▼──────────┐
                     │  Smart Score        │  score = survival × 3 + tightness × 3 + stable_bonus
                     │  (1-6)              │  tightness = 1 - spread/15
                     └─────────┬──────────┘
-                              │ {should_bet, center, numbers[19], score}
+                              │
                     ┌─────────▼──────────┐
                     │  Kill Switch (TR)   │  VETA se: C4 == 0% AND sda_score ≤ 2
                     │  Advisor v2         │  APROVA em todos os outros casos
@@ -565,7 +579,8 @@ message_handler.py
     ├─ db_service.track_gale_window()  → Grava em gale_windows + window_plays
     ├─ GameState.process_spin()        → Atualiza timeline + forças
     ├─ GameState.save()                → Grava state.json (bind mount)
-    ├─ sda17.analyze()                 → SDA-21 Triple Focus → predição
+    ├─ sda17.analyze()                 → M15-ADA Triple Focus 17 nums → predição
+    ├─ sda17.update_adaptive()         → M02-PctSigmoid offset feedback
     ├─ bet_advisor.analyze()           → Kill Switch Advisor → c4_rate
     ├─ SmartGaleV5.get_gale(score,c4)  → Nível de aposta (1×/2×/3×)
     ├─ db_service.save_decision()      → Grava em decisions (Named Volume)
@@ -587,7 +602,7 @@ message_handler.py
 
 ## PARTE II — ANÁLISE ISO/IEC 25010
 
-A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto de software, cada uma com sub-características. A seguir, cada uma é avaliada contra o estado atual do Roleta Cloud v3.5.0.
+A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto de software, cada uma com sub-características. A seguir, cada uma é avaliada contra o estado atual do Roleta Cloud v4.3.1.
 
 ---
 
@@ -600,7 +615,7 @@ A norma **ISO/IEC 25010:2011** define 8 características de qualidade de produto
 | Requisito | Status | Evidência |
 |-----------|:------:|-----------|
 | Receber spins em tempo real | ✅ Completo | `message_handler.handle_new_result()` — validação Pydantic (0-36) |
-| Calcular predições (M15-ADA) | ✅ Completo | Pipeline IQR → Weighted Median → Drift → Score → Adaptive Triple Focus (17 números) |
+| Calcular predições (M15-ADA) | ✅ Completo | Pipeline IQR → Weighted Median → Drift → Score → M02-PctSigmoid → Triple Focus (17 números, offsets adaptativos por direção) |
 | Gerenciar Martingale | ✅ Completo | SmartGale v5: Anti-Martingale com streak global cross-direction, take-profit G3, c4 threshold 0.15, fallback G1 |
 | Kill Switch (Triple Rate) | ✅ Completo | Veta apenas catástrofe (C4=0% + SDA≤2), mínimo intervencionista |
 | Persistir decisões | ✅ Completo | SQLite com 27 campos, 4 tabelas, 10 índices |
@@ -745,7 +760,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 | Tratamento de exceções | ✅ | Try/catch em cada handler, fallback para `ErrorOutput` |
 | Shutdown graceful | ✅ | `SIGINT/SIGTERM` handlers salvam estado |
 | Escrita atômica de estado | ✅ | `tempfile` + `os.replace` previne corrupção |
-| Migração de versão | ✅ | v1.3→v1.4→v1.5 com fallback automático |
+| Migração de versão | ✅ | v1.3→v1.4→v1.5→v1.6 com fallback automático, sigmoid_off backward compat v4.2→v4.3 |
 | DB WAL mode | ✅ | Resistente a crash mid-write |
 | Heartbeat | ✅ | Detecção de conexões perdidas |
 
@@ -766,6 +781,7 @@ O sistema executa apenas o que é necessário: recebe dados, analisa, decide, re
 | DB indisponível | Warning no log, continua sem persistir | Decisões perdidas silenciosamente |
 | Spin duplicado | Ignorado (hash check) | Nenhum |
 | JSON inválido | ErrorOutput com código 400 | Nenhum |
+| JSON corrompido no DB | Fallback para default via _safe_json_loads() | Nenhum (v4.3.1) |
 | Exceção no handler | ErrorOutput com código 500, conexão mantida | Stack trace pode vazar info interna |
 | WebSocket desconecta | Remove de `connections`, grace period | Nenhum |
 | Erro no heartbeat | Log de erro, continua | Broadcasting pode falhar silenciosamente |
@@ -1044,6 +1060,13 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-FE-001 | `extension/content.js` | ~~🔴 Crítico~~ ✅ CORRIGIDO | handleStateSync usava textContent sem eb-c1 — heartbeat destruía gold C1 a cada 1s (29/03 v4.0.2) | 805-812 |
 | BUG-FE-002 | `extension/overlay.css` | ~~🟠 Alto~~ ✅ CORRIGIDO | .eb-region .eb-c1 com color:#000 invisível em fundo verde — alterado para #fff (29/03 v4.0.2) | 945-950 |
 | BUG-FE-003 | `extension/content.js` | ~~🟡 Médio~~ ✅ CORRIGIDO | centroDisplay duplicado em 4 locais (DRY violation) — buildCentroHTML() helper (29/03 v4.0.2) | 16-23 |
+| BUG-V42-001 | `strategies/sda17.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | Offset Bayesiano drift para extremos (17/7) sem guardrails — anti-drift com symmetry cap (30/03 v4.2.0) | 310-368 |
+| BUG-AUDIT-002 | `server/message_handler.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Race condition: pending_prediction lida FORA do state_lock — movida para dentro (31/03 v4.3.1) | 147-152 |
+| BUG-AUDIT-004 | `database/sqlite_repo.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | json.loads() sem try-except crasheia se JSON corrompido no DB — _safe_json_loads() helper (31/03 v4.3.1) | 354-364 |
+| BUG-AUDIT-005 | `strategies/base.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | get_neighbors() ZeroDivisionError se wheel_sequence vazia — guard adicionada (31/03 v4.3.1) | 51-54 |
+| BUG-AUDIT-006 | `server/message_handler.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | Direction vazia/inválida atualizava Martingale CCW erroneamente — validação com elif (31/03 v4.3.1) | 162-167 |
+| BUG-AUDIT-007 | `strategies/sda17.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | min_dist sem clamp em _pct_sigmoid_update — adicionado min(min_dist, 18) (31/03 v4.3.1) | 450-452 |
+| BUG-AUDIT-008 | `strategies/sda17.py` | ~~🟠 Alto~~ ✅ CORRIGIDO | _predict_robust sem guard para forces=[] — early return defensivo (31/03 v4.3.1) | 230-233 |
 
 ### Melhorias Recomendadas Pós-Implantação
 
@@ -1078,6 +1101,12 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | MEL-ADA-005 | Usabilidade | ~~Destaque bold+cor C1 no overlay e dashboard para identificação rápida~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 | MEL-ADA-006 | Manutenibilidade | ~~buildCentroHTML() helper DRY — 3 locais de renderização C1 unificados~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
 | MEL-ADA-007 | Usabilidade | ~~Fix heartbeat sobrescrevendo C1 gold (textContent→innerHTML) + CSS contraste região~~ ✅ CORRIGIDO 29/03 | ✅ Feito |
+| MEL-V42-001 | Adequação Funcional | ~~Migrar CW para Bayesiano assimétrico (unificar algoritmo CW/CCW)~~ ✅ CORRIGIDO — M04 Error-Vector com prior Gaussiano (30/03 v4.2.0) | ✅ Feito |
+| MEL-V42-002 | Confiabilidade | ~~Anti-drift guardrails para offset Bayesiano~~ ✅ CORRIGIDO — Symmetry cap + limites [7,13] (30/03 v4.2.0) | ✅ Feito |
+| MEL-V43-001 | Adequação Funcional | ~~Substituir Bayesian brute-force por M02-PctSigmoid~~ ✅ CORRIGIDO — Sigmoid dampened error feedback O(1) (30/03 v4.3.0) | ✅ Feito |
+| MEL-V43-002 | Eficiência | ~~Warmup 5→2 jogadas para ativar Triple Focus~~ ✅ CORRIGIDO — min_forces=2, window=[7,5,3,2] (30/03 v4.3.0) | ✅ Feito |
+| MEL-V43-003 | Adequação Funcional | ~~BAYESIAN_DEFAULT 12→10 (centro ótimo confirmado por oracle analysis)~~ ✅ CORRIGIDO (30/03 v4.3.0) | ✅ Feito |
+| MEL-V43-004 | Confiabilidade | ~~Race condition no pending + json defensivo + guards defensivos~~ ✅ CORRIGIDO — 6 bugs audit fixes (31/03 v4.3.1) | ✅ Feito |
 
 ---
 
@@ -1087,20 +1116,20 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | Característica ISO | Artefatos de Evidência | Gaps Identificados |
 |-------------------|----------------------|-------------------|
-| **Adequação Funcional** | Pipeline M15-ADA (Adaptive Triple Focus 17 nums), Kill Switch, SmartGale v6, DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
+| **Adequação Funcional** | Pipeline M15-ADA v4.3 (M02-PctSigmoid Triple Focus 17 nums, offsets adaptativos por direção), Kill Switch, SmartGale v6, DB logging, Analytics handler, Fallback early-session | Colunas mortas no schema |
 | **Eficiência** | TraceContext (latência), deque com maxlen, MAX_CONNECTIONS, SQLite conn try/finally, SmartGale v6 confiança+streak+c4 | ✅ Conexões SQLite corrigidas; ✅ N+1 batch query; ✅ asyncio.to_thread(); ✅ Anti-Martingale com take-profit; ✅ Score removido de gale |
 | **Compatibilidade** | Docker, ENV vars, JSON protocol | Sem REST API, sem AsyncAPI spec |
 | **Usabilidade** | Pydantic models com exemplos, emojis em logs, overlay Chrome, banner dinâmico | ✅ Banner corrigido; ✅ C1 gold destaque fix v4.0.2; falta docs API (AsyncAPI) |
-| **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker | ✅ Grace period CASO 2 corrigido (duplo master); sem circuit breaker, erro silencioso em load |
+| **Confiabilidade** | Escrita atômica, WAL mode, grace period, healthcheck Docker, M02 backward compat, _safe_json_loads | ✅ Grace period CASO 2 corrigido; ✅ Race condition fix v4.3.1; sem circuit breaker |
 | **Segurança** | HMAC comparison, SSL/TLS, MASTER-only, SECURITY.md, porta 8765 restrita a localhost | Auth bypass default, device_id sem crypto |
-| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 105 testes (23 integração pipeline+gale), _adaptive_state como campo dataclass, buildCentroHTML() DRY helper | CI vazio, cobertura testes ~60%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
+| **Manutenibilidade** | Strategy Pattern, Repository Pattern (ABC com 16 métodos), type hints, structlog, 105 testes (23 integração pipeline+gale), _adaptive_state como campo dataclass, buildCentroHTML() DRY helper, M02-PctSigmoid auto-adaptativo | CI vazio, cobertura testes ~60%, sem migrations; ✅ ClassVar _VALID_DIRECTIONS |
 | **Portabilidade** | Docker, SQLite portátil, ENV config, setup script | WebSocket-only (sem REST fallback) |
 
 ---
 
 ## PARTE VI — CONCLUSÃO E RECOMENDAÇÕES
 
-O **Roleta Cloud v4.3.0** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
+O **Roleta Cloud v4.3.1** apresenta uma arquitetura madura com bons padrões de design (Strategy, Repository, Singleton, Observer via broadcast). A separação entre lógica pura (`core/`, `strategies/`, `state/`) e infraestrutura (`server/`, `database/`) é clara e bem executada.
 
 ### Pontos Fortes
 
@@ -1109,8 +1138,9 @@ O **Roleta Cloud v4.3.0** apresenta uma arquitetura madura com bons padrões de 
 3. **Observabilidade** — `TraceContext` + structlog + 27 campos por decisão no DB
 4. **Resiliência** — escrita atômica, WAL mode, grace period, migração de versão automática
 5. **Eficiência** — pipeline sub-50ms, O(n) com n ≤ 7
-6. **Algoritmo adaptativo M15-ADA** — offset dinâmico CW (ErrDriven EMA) e CCW (Bayesian retrospectivo), 17 números com EV+R$1.51/jogada
+6. **Algoritmo adaptativo M02-PctSigmoid** — offset dinâmico sigmoid-dampened independente por direção (CW/CCW), 17 números, warmup de apenas 2 jogadas
 7. **Usabilidade operacional** — destaque visual do C1 (bold+dourado) para identificação rápida pelo operador
+8. **Robustez defensiva** — guards contra race conditions, JSON corrompido, wheel vazia, forces vazia (v4.3.1)
 
 ### Áreas Prioritárias de Melhoria (Ordenadas por Impacto)
 
@@ -1124,8 +1154,18 @@ O software atende ao nível **"Bom"** (8.1/10) da norma ISO/IEC 25010, com 6 de 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 30/03/2026 (M02-PctSigmoid v4.3.0: sigmoid offset C2/C3, warmup 5→2, 15-model simulation winner)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 31/03/2026 (v4.3.1: M02-PctSigmoid + 6 bug fixes audit defensivo)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v4.3.0 | ~5.900 LOC | 39 arquivos Python  
-> **Correções aplicadas:** 22 bugs corrigidos em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 (E2+E3+E4) 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + Fix BUG-FE-001/002/003 em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03
+> **Software:** Roleta Cloud v4.3.1 | ~5.900 LOC | 39 arquivos Python  
+> **Correções aplicadas:** 22 bugs em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + BUG-FE 3 bugs em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03 + 6 bug fixes audit v4.3.1 em 31/03
+
+### Changelog de Versões
+
+| Versão | Data | Principais Mudanças |
+|--------|------|---------------------|
+| v4.0.2 | 29/03/2026 | M15-ADA inicial, fix C1 gold heartbeat, CSS contraste, DRY helper |
+| v4.1.0 | 29/03/2026 | Offset adaptativo CW (ErrDriven EMA) + CCW (Bayesian brute-force) |
+| v4.2.0 | 30/03/2026 | M04 Error-Vector com prior Gaussiano, anti-drift guardrails, algoritmo unificado CW/CCW |
+| v4.3.0 | 30/03/2026 | M02-PctSigmoid (vencedor simulação 15 modelos), warmup 5→2, DEFAULT 12→10 |
+| v4.3.1 | 31/03/2026 | 6 bug fixes defensivos: race condition, json safe, wheel guard, direction validation, min_dist clamp, empty forces guard |
