@@ -341,18 +341,21 @@ function updatePerformance(perf) {
 
 // Update Martingale display for a direction (cw or ccw)
 function updateMartingale(direction, mg) {
+    const hits = mg.window_hits ?? mg.consecutive_hits ?? 0;
+    const count = mg.window_count ?? mg.total_bets ?? 0;
+    const bet = mg.current_bet ?? 17;
     if (direction === 'cw') {
         if (el.mgCWDisplay) {
-            el.mgCWDisplay.textContent = `G${mg.level} ${mg.window_hits}/${mg.window_count}`;
+            el.mgCWDisplay.textContent = `G${mg.level} ${hits}/${count}`;
             el.mgCWDisplay.className = `mg-gale level-${mg.level}`;
         }
-        if (el.mgCWBet) el.mgCWBet.textContent = `R$${mg.current_bet}`;
+        if (el.mgCWBet) el.mgCWBet.textContent = `R$${bet}`;
     } else {
         if (el.mgCCWDisplay) {
-            el.mgCCWDisplay.textContent = `G${mg.level} ${mg.window_hits}/${mg.window_count}`;
+            el.mgCCWDisplay.textContent = `G${mg.level} ${hits}/${count}`;
             el.mgCCWDisplay.className = `mg-gale level-${mg.level}`;
         }
-        if (el.mgCCWBet) el.mgCCWBet.textContent = `R$${mg.current_bet}`;
+        if (el.mgCCWBet) el.mgCCWBet.textContent = `R$${bet}`;
     }
 }
 

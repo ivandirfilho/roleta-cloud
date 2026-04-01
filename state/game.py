@@ -130,7 +130,12 @@ class MartingaleState:
             "level": self.level,
             "consecutive_hits": self.consecutive_hits,
             "global_consecutive_hits": self.global_consecutive_hits,
-            "total_bets": self.total_bets
+            "total_bets": self.total_bets,
+            # Campos esperados pelo dashboard frontend (app.js)
+            "current_bet": self.current_bet,
+            "gale_display": self.gale_display,
+            "window_hits": self.consecutive_hits,
+            "window_count": self.total_bets,
         }
     
     @classmethod
