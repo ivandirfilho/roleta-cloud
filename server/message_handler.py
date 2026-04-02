@@ -427,6 +427,8 @@ class MessageHandler:
                 "description": getattr(self.strategy, 'description', ''),
             },
             "performance": self.game_state.get_performance_stats(),
+            "martingale_cw": self.game_state.martingale_cw.to_dict(),
+            "martingale_ccw": self.game_state.martingale_ccw.to_dict(),
             "state": {
                 "timeline_cw": self.game_state.timeline_cw.size,
                 "timeline_ccw": self.game_state.timeline_ccw.size,

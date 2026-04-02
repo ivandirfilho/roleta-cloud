@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL maintainer="Roleta Cloud Team"
-LABEL version="4.0.2"
+LABEL version="4.3.2"
 
 WORKDIR /app
 

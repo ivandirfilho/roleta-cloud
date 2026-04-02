@@ -1,8 +1,8 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.3.1  
-> **Data da Análise:** 31/03/2026  
-> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.1)  
+> **Versão do Software:** 4.3.2  
+> **Data da Análise:** 02/04/2026  
+> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.2)  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
 > **Total de Linhas de Código:** ~5.900 (39 arquivos Python)
 
@@ -1146,19 +1146,19 @@ O **Roleta Cloud v4.3.1** apresenta uma arquitetura madura com bons padrões de 
 
 1. **Segurança (6.5/10)** — Sanitizar erros, ativar auth em produção, assinar device_id
 2. **Compatibilidade (7.0/10)** — REST API, documentação AsyncAPI
-3. **Usabilidade (8.3/10)** — ~~Corrigir versão no banner~~ ✅ Feito; ~~destaque C1~~ ✅ Feito; ~~fix heartbeat/CSS C1~~ ✅ Feito v4.0.2; documentar protocolo WS
+3. **Usabilidade (8.5/10)** — ~~Corrigir versão no banner~~ ✅ Feito; ~~destaque C1~~ ✅ Feito; ~~fix heartbeat/CSS C1~~ ✅ Feito v4.0.2; ~~fix encoding frontend~~ ✅ Feito v4.3.2; ~~fix DOM morto~~ ✅ Feito v4.3.2; documentar protocolo WS
 
 ### Conformidade ISO/IEC 25010
 
-O software atende ao nível **"Bom"** (8.1/10) da norma ISO/IEC 25010, com 6 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). Para evoluir, as ações prioritárias são: reforço de segurança e expansão da interoperabilidade (REST API, AsyncAPI).
+O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 8 características no nível "Bom" (≥ 8.0) e nenhuma no nível "Crítico" (< 6.0). v4.3.2 elevou Usabilidade de 8.3 para 8.5 com correção de encoding frontend e eliminação de código morto. Para evoluir, as ações prioritárias são: reforço de segurança e expansão da interoperabilidade (REST API, AsyncAPI).
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 31/03/2026 (v4.3.1: M02-PctSigmoid + 6 bug fixes audit defensivo)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 02/04/2026 (v4.3.2: fix encoding frontend + dead code cleanup + Martingale instant trace)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v4.3.1 | ~5.900 LOC | 39 arquivos Python  
-> **Correções aplicadas:** 22 bugs em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + BUG-FE 3 bugs em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03 + 6 bug fixes audit v4.3.1 em 31/03
+> **Software:** Roleta Cloud v4.3.2 | ~5.900 LOC | 39 arquivos Python  
+> **Correções aplicadas:** 22 bugs em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + BUG-FE 3 bugs em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03 + 6 bug fixes audit v4.3.1 em 31/03 + **10 bugs frontend v4.3.2 em 02/04**
 
 ### Changelog de Versões
 
@@ -1169,3 +1169,4 @@ O software atende ao nível **"Bom"** (8.1/10) da norma ISO/IEC 25010, com 6 de 
 | v4.2.0 | 30/03/2026 | M04 Error-Vector com prior Gaussiano, anti-drift guardrails, algoritmo unificado CW/CCW |
 | v4.3.0 | 30/03/2026 | M02-PctSigmoid (vencedor simulação 15 modelos), warmup 5→2, DEFAULT 12→10 |
 | v4.3.1 | 31/03/2026 | 6 bug fixes defensivos: race condition, json safe, wheel guard, direction validation, min_dist clamp, empty forces guard |
+| v4.3.2 | 02/04/2026 | **Auditoria frontend:** fix encoding UTF-8 (22 emojis + 7 acentos), dead code cleanup (4 refs DOM null), Martingale instant trace, cache busting, CSS responsive, Dockerfile label, null guards |

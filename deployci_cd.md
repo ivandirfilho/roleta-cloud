@@ -1,4 +1,4 @@
-# 🚀 Deploy CI/CD — Roleta Cloud v4.3.1
+# 🚀 Deploy CI/CD — Roleta Cloud v4.3.2
 
 > **Objetivo:** Guia completo e executável para o agente realizar deploy após alterações no código.  
 > **Fluxo:** Local → GitHub (push) → Servidor Debian (Docker)  
@@ -569,6 +569,7 @@ DEPLOY:
   [ ] git pull no servidor
   [ ] docker compose build
   [ ] docker compose down && up -d
+  [ ] cp frontend/* /var/www/roleta/  (atualizar Glass Box estático)
 
 PÓS-DEPLOY:
   [ ] Container status: healthy
@@ -582,7 +583,7 @@ PÓS-DEPLOY:
 ---
 
 > **Documento gerado em:** 19/03/2026  
-> **Atualizado em:** 29/03/2026 (v4.0.2 — M15-ADA + C1 bold fix)  
+> **Atualizado em:** 02/04/2026 (v4.3.2 — Fix encoding frontend + dead code cleanup)  
 > **Referência:** `Manutenabilidade_iso.md` (Análise ISO/IEC 25010)  
 > **Servidor:** `root@187.45.181.75` (Debian)  
 > **Repositório:** `github.com/ivandirfilho/roleta-cloud`

@@ -56,11 +56,7 @@ const el = {
     strategyName: document.getElementById('strategy-name'),
     strategyDesc: document.getElementById('strategy-desc'),
     strategyTrend: document.getElementById('strategy-trend'),
-    perfCW: document.getElementById('perf-cw'),
-    perfCCW: document.getElementById('perf-ccw'),
-    perfRateCW: document.getElementById('perf-rate-cw'),
-    perfRateCCW: document.getElementById('perf-rate-ccw'),
-    // New: SDA17 Performance (4 lists)
+    // SDA17 Performance (4 lists)
     perfSda17CW: document.getElementById('perf-sda17-cw'),
     perfSda17CCW: document.getElementById('perf-sda17-ccw'),
     perfRateSda17CW: document.getElementById('perf-rate-sda17-cw'),
@@ -87,19 +83,19 @@ function connect() {
         ws.onopen = () => {
             reconnectAttempts = 0;
             updateStatus(true);
-            addLog('info', 'Ô£à Conectado');
+            addLog('info', '✅ Conectado');
             animateFlow('escuta', true);
             ws.send(JSON.stringify({ type: 'get_state' }));
         };
 
         ws.onclose = () => {
             updateStatus(false);
-            addLog('error', '­ƒöî Desconectado');
+            addLog('error', '🔌 Desconectado');
             resetFlow();
             setTimeout(connect, RECONNECT_INTERVAL);
         };
 
-        ws.onerror = () => addLog('error', 'ÔØî Erro de conex├úo');
+        ws.onerror = () => addLog('error', '⚠️ Erro de conexão');
         ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 
     } catch (err) {
@@ -118,7 +114,7 @@ function handleMessage(data) {
     } else if (data.type === 'state_sync') {
         handleStateSync(data.data);
     } else if (data.type === 'ack') {
-        addLog('info', `Ô£à ${data.message}`);
+        addLog('info', `✅ ${data.message}`);
     }
 }
 
@@ -151,13 +147,13 @@ function renderWindowHistory(history) {
 
     ['cw', 'ccw'].forEach(dir => {
         const windows = history[dir] || [];
-        const label = dir === 'cw' ? 'Hor├írio Ô¼à´©Å' : 'Anti-hor├írio Ô×í´©Å';
+        const label = dir === 'cw' ? 'Horário 🔄' : 'Anti-horário 🔃';
 
         html += `<div class="window-direction">`;
         html += `<h4>${label}</h4>`;
 
         if (windows.length === 0) {
-            html += `<p class="no-data">Sem hist├│rico</p>`;
+            html += `<p class="no-data">Sem histórico</p>`;
         } else {
             windows.forEach(w => {
                 // Handle active windows (no result yet) vs closed windows
@@ -165,9 +161,9 @@ function renderWindowHistory(history) {
                 const resultClass = isActive ? 'active' :
                     w.result === 'success' ? 'success' :
                         w.result === 'stop' ? 'stop' : 'escalated';
-                const resultIcon = isActive ? 'ÔÅ│' :
-                    w.result === 'success' ? 'Ô£à' :
-                        w.result === 'stop' ? '­ƒøæ' : 'Ô¼å´©Å';
+                const resultIcon = isActive ? '⏳' :
+                    w.result === 'success' ? '✅' :
+                        w.result === 'stop' ? '🛑' : '⬆️';
 
                 html += `<div class="window-card ${resultClass}">`;
                 html += `<div class="window-header">`;
@@ -182,7 +178,7 @@ function renderWindowHistory(history) {
                         // Handle null/undefined hit values (pending plays)
                         const dotClass = p.hit === true ? 'hit' :
                             p.hit === false ? 'miss' : 'pending';
-                        const tooltip = `#${p.spin_number || '?'} ÔåÆ ${p.center_predicted || '?'}`;
+                        const tooltip = `#${p.spin_number || '?'} → ${p.center_predicted || '?'}`;
                         html += `<span class="play-dot ${dotClass}" title="${tooltip}"></span>`;
                     });
                     html += `</div>`;
@@ -223,9 +219,13 @@ function handleTrace(data) {
     if (data.strategy) updateStrategy(data.strategy, data.result.trend);
     if (data.performance) updatePerformance(data.performance);
 
+    // Martingale per direction (instant update on spin)
+    if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
+    if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+
     // Log
-    const dir = data.spin.direcao === 'horario' ? 'Ô¼à´©Å' : 'Ô×í´©Å';
-    addLog('spin', `${data.spin.numero} ${dir} ÔåÆ for├ºa ${data.spin.force}`);
+    const dir = data.spin.direcao === 'horario' ? '🔄' : '🔃';
+    addLog('spin', `${data.spin.numero} ${dir} → força ${data.spin.force}`);
     addLog('result', `${data.result.acao} centro ${data.result.centro} (score: ${data.result.score})`);
 
     el.latency.textContent = `${data.total_ms}ms`;
@@ -251,12 +251,12 @@ function handleState(data) {
 // UI Updates
 function updateStatus(online) {
     el.status.className = `status ${online ? 'online' : 'offline'}`;
-    el.status.textContent = online ? 'ÔùÅ ONLINE' : 'ÔùÅ OFFLINE';
+    el.status.textContent = online ? '⚫ ONLINE' : '⚫ OFFLINE';
 }
 
 function updateSpinDisplay(spin, ms) {
     el.spinNumber.textContent = spin.numero;
-    el.spinDirection.textContent = spin.direcao === 'horario' ? 'Ô¼à´©Å' : 'Ô×í´©Å';
+    el.spinDirection.textContent = spin.direcao === 'horario' ? '🔄' : '🔃';
     el.spinForce.textContent = spin.force;
     el.spinLatency.textContent = `${ms}ms`;
 }
@@ -303,40 +303,10 @@ function updateStrategy(strategy, trend) {
     if (el.strategyTrend) el.strategyTrend.textContent = trend || '--';
 }
 
-// Legacy performance update (for backward compatibility)
+// Performance update — delegates to 4-list format (sda17 + bet per direction)
 function updatePerformance(perf) {
-    // Update CW squares (legacy - maps to sda17)
-    if (el.perfCW) {
-        const squares = el.perfCW.querySelectorAll('.perf-square');
-        squares.forEach((sq, i) => {
-            sq.className = 'perf-square';
-            if (perf.cw.results && i < perf.cw.results.length) {
-                sq.classList.add(perf.cw.results[i] ? 'hit' : 'miss');
-            } else {
-                sq.classList.add('empty');
-            }
-        });
-    }
-    if (el.perfRateCW) el.perfRateCW.textContent = `${perf.cw.rate || 0}%`;
-
-    // Update CCW squares
-    if (el.perfCCW) {
-        const squares = el.perfCCW.querySelectorAll('.perf-square');
-        squares.forEach((sq, i) => {
-            sq.className = 'perf-square';
-            if (perf.ccw.results && i < perf.ccw.results.length) {
-                sq.classList.add(perf.ccw.results[i] ? 'hit' : 'miss');
-            } else {
-                sq.classList.add('empty');
-            }
-        });
-    }
-    if (el.perfRateCCW) el.perfRateCCW.textContent = `${perf.ccw.rate || 0}%`;
-
-    // Also update new 4-list format if available
-    if (perf.sda17 || perf.bet) {
-        updatePerformance4(perf);
-    }
+    if (!perf) return;
+    updatePerformance4(perf);
 }
 
 // Update Martingale display for a direction (cw or ccw)
@@ -458,6 +428,6 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
-    addLog('info', '­ƒÄ░ Dashboard Glass Box iniciado');
+    addLog('info', '🎰 Dashboard Glass Box iniciado');
     connect();
 });

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>­ƒÄ░ Roleta Cloud - Glass Box</title>
+    <title>🎰 Roleta Cloud - Glass Box</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -12,9 +12,9 @@
     <div class="dashboard">
         <!-- Header -->
         <header class="header">
-            <h1>­ƒÄ░ Roleta Cloud</h1>
+            <h1>🎰 Roleta Cloud</h1>
             <div class="header-actions">
-                <span id="status-indicator" class="status offline">ÔùÅ OFFLINE</span>
+                <span id="status-indicator" class="status offline">⚫ OFFLINE</span>
                 <span id="latency">--ms</span>
             </div>
         </header>
@@ -23,25 +23,25 @@
         <section class="flow-section">
             <div class="flow-container">
                 <div class="flow-node" id="flow-escuta">
-                    <span class="flow-icon">­ƒô▒</span>
+                    <span class="flow-icon">📱</span>
                     <span class="flow-label">Escuta</span>
                     <span class="flow-status">--</span>
                 </div>
-                <div class="flow-arrow" id="arrow-1">ÔåÆ</div>
+                <div class="flow-arrow" id="arrow-1">→</div>
                 <div class="flow-node" id="flow-server">
-                    <span class="flow-icon">Ôÿü´©Å</span>
+                    <span class="flow-icon">☁️</span>
                     <span class="flow-label">Servidor</span>
                     <span class="flow-status">--</span>
                 </div>
-                <div class="flow-arrow" id="arrow-2">ÔåÆ</div>
+                <div class="flow-arrow" id="arrow-2">→</div>
                 <div class="flow-node" id="flow-sda">
-                    <span class="flow-icon">­ƒºá</span>
+                    <span class="flow-icon">🧠</span>
                     <span class="flow-label">SDA</span>
                     <span class="flow-status">--</span>
                 </div>
-                <div class="flow-arrow" id="arrow-3">ÔåÆ</div>
+                <div class="flow-arrow" id="arrow-3">→</div>
                 <div class="flow-node" id="flow-overlay">
-                    <span class="flow-icon">­ƒôè</span>
+                    <span class="flow-icon">📊</span>
                     <span class="flow-label">Overlay</span>
                     <span class="flow-status">--</span>
                 </div>
@@ -52,41 +52,41 @@
         <main class="main-grid">
             <!-- Last Spin -->
             <section class="card spin-card">
-                <h2>­ƒÄ» ├Ültimo Spin</h2>
+                <h2>🎯 Último Spin</h2>
                 <div class="spin-display">
                     <span class="spin-number" id="spin-number">--</span>
                     <span class="spin-direction" id="spin-direction">--</span>
                 </div>
                 <div class="spin-details">
-                    <div class="detail"><span>For├ºa:</span><span id="spin-force">--</span></div>
-                    <div class="detail"><span>Lat├¬ncia:</span><span id="spin-latency">--</span></div>
+                    <div class="detail"><span>Força:</span><span id="spin-force">--</span></div>
+                    <div class="detail"><span>Latência:</span><span id="spin-latency">--</span></div>
                 </div>
             </section>
 
             <!-- Result -->
             <section class="card result-card" id="result-card">
-                <h2>­ƒÆí Resultado</h2>
+                <h2>👉 Resultado</h2>
                 <div class="result-action" id="result-action">--</div>
                 <div class="result-details">
                     <div class="detail"><span>Centro:</span><span id="result-center">--</span></div>
                     <div class="detail"><span>Score:</span><span id="result-score">--</span></div>
-                    <div class="detail"><span>Regi├úo:</span><span id="result-region">--</span></div>
+                    <div class="detail"><span>Região:</span><span id="result-region">--</span></div>
                 </div>
             </section>
 
             <!-- Timeline -->
             <section class="card timeline-card">
-                <h2>­ƒôê Timeline</h2>
+                <h2>📈 Timeline</h2>
                 <div class="timeline-bars">
                     <div class="timeline-row">
-                        <span>Ô¼à´©Å CW</span>
+                        <span>🔄 CW</span>
                         <div class="bar-container">
                             <div class="bar" id="bar-cw"></div>
                         </div>
                         <span id="count-cw">0</span>
                     </div>
                     <div class="timeline-row">
-                        <span>Ô×í´©Å CCW</span>
+                        <span>🔃 CCW</span>
                         <div class="bar-container">
                             <div class="bar bar-ccw" id="bar-ccw"></div>
                         </div>
@@ -97,7 +97,7 @@
 
             <!-- Metrics -->
             <section class="card metrics-card">
-                <h2>­ƒôè M├®tricas</h2>
+                <h2>📊 Métricas</h2>
                 <div class="metrics-grid">
                     <div class="metric-item">
                         <span class="metric-value" id="metric-spins">0</span>
@@ -120,22 +120,22 @@
 
             <!-- Strategy + Martingale -->
             <section class="card strategy-card">
-                <h2>­ƒºá Estrat├®gia</h2>
+                <h2>🧠 Estratégia</h2>
                 <div class="strategy-info">
                     <div class="strategy-name" id="strategy-name">SDA-17</div>
-                    <div class="strategy-desc" id="strategy-desc">Regress├úo linear + Triple Rate Advisor</div>
+                    <div class="strategy-desc" id="strategy-desc">Regressão linear + Triple Rate Advisor</div>
                     <div class="strategy-trend" id="strategy-trend">--</div>
                 </div>
 
-                <!-- Martingale por Dire├º├úo -->
+                <!-- Martingale por Direção -->
                 <div class="martingale-section">
                     <div class="martingale-row">
-                        <span class="mg-label">Ô¼à´©Å CW</span>
+                        <span class="mg-label">🔄 CW</span>
                         <span class="mg-gale" id="mg-cw-display">G1 0/0</span>
                         <span class="mg-bet" id="mg-cw-bet">R$17</span>
                     </div>
                     <div class="martingale-row">
-                        <span class="mg-label">Ô×í´©Å CCW</span>
+                        <span class="mg-label">🔃 CCW</span>
                         <span class="mg-gale" id="mg-ccw-display">G1 0/0</span>
                         <span class="mg-bet" id="mg-ccw-bet">R$17</span>
                     </div>
@@ -144,10 +144,10 @@
 
             <!-- SDA17 Performance (base para Triple Rate) -->
             <section class="card perf-sda17-card">
-                <h2>­ƒôè Performance SDA17 <small>(base Triple Rate)</small></h2>
+                <h2>📊 Performance SDA17 <small>(base Triple Rate)</small></h2>
                 <div class="performance-section">
                     <div class="performance-row">
-                        <span class="perf-label">Ô¼à´©Å CW</span>
+                        <span class="perf-label">🔄 CW</span>
                         <div class="perf-squares" id="perf-sda17-cw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -165,7 +165,7 @@
                         <span class="perf-rate" id="perf-rate-sda17-cw">0%</span>
                     </div>
                     <div class="performance-row">
-                        <span class="perf-label">Ô×í´©Å CCW</span>
+                        <span class="perf-label">🔃 CCW</span>
                         <div class="perf-squares" id="perf-sda17-ccw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -187,10 +187,10 @@
 
             <!-- Bet Performance (apostas reais) -->
             <section class="card perf-bet-card">
-                <h2>­ƒÆ░ Performance Apostas <small>(Martingale)</small></h2>
+                <h2>💰 Performance Apostas <small>(Martingale)</small></h2>
                 <div class="performance-section">
                     <div class="performance-row">
-                        <span class="perf-label">Ô¼à´©Å CW</span>
+                        <span class="perf-label">🔄 CW</span>
                         <div class="perf-squares" id="perf-bet-cw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -208,7 +208,7 @@
                         <span class="perf-rate" id="perf-rate-bet-cw">0%</span>
                     </div>
                     <div class="performance-row">
-                        <span class="perf-label">Ô×í´©Å CCW</span>
+                        <span class="perf-label">🔃 CCW</span>
                         <div class="perf-squares" id="perf-bet-ccw">
                             <div class="perf-square empty"></div>
                             <div class="perf-square empty"></div>
@@ -228,9 +228,9 @@
                 </div>
             </section>
 
-            <!-- Hist├│rico de Janelas Martingale -->
+            <!-- Histórico de Janelas Martingale -->
             <section class="card window-history-card">
-                <h2>­ƒôè Hist├│rico de Janelas</h2>
+                <h2>📊 Histórico de Janelas</h2>
                 <div id="window-history-container" class="window-history-container">
                     <p class="no-data">Carregando...</p>
                 </div>
@@ -238,7 +238,7 @@
 
             <!-- Trace Panel -->
             <section class="card trace-card">
-                <h2>­ƒöì Trace <span id="trace-id"></span></h2>
+                <h2>🔍 Trace <span id="trace-id"></span></h2>
                 <div class="trace-steps" id="trace-steps">
                     <div class="trace-step">Aguardando...</div>
                 </div>
@@ -246,7 +246,7 @@
 
             <!-- Logs -->
             <section class="card logs-card">
-                <h2>­ƒôï Logs <span id="log-count">(0)</span></h2>
+                <h2>📝 Logs <span id="log-count">(0)</span></h2>
                 <div class="log-filters">
                     <button class="filter-btn active" data-filter="all">Todos</button>
                     <button class="filter-btn" data-filter="spin">Spin</button>
@@ -266,7 +266,7 @@
         </footer>
     </div>
 
-    <script src="app.js?v=3.5.1"></script>
+    <script src="app.js?v=4.3.2"></script>
 </body>
 
 </html>

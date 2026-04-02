@@ -682,6 +682,10 @@ body {
     .logs-card {
         grid-column: span 2;
     }
+
+    .window-history-card {
+        grid-column: span 2;
+    }
 }
 
 @media (max-width: 768px) {
@@ -691,7 +695,8 @@ body {
 
     .logs-card,
     .trace-card,
-    .timeline-card {
+    .timeline-card,
+    .window-history-card {
         grid-column: 1;
     }
 
