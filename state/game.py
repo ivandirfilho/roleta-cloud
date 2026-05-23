@@ -466,15 +466,105 @@ class GameState:
             BetAdvice com should_bet, confidence, reason e rates
         """
         return self.bet_advisor.analyze(self.target_performance, sda_score=sda_score)
-    
+
+    # ==================================================================== #
+    # v4.4 Quick Wins INV-3 — Stake modulation                              #
+    #                                                                      #
+    # Estes métodos NÃO alteram should_bet/acao. Apenas ajustam o VALOR     #
+    # exibido (`current_bet`) preservando martingale e Triple Rate.         #
+    # ==================================================================== #
+    def get_effective_bet(self, direction: str, strategy) -> Dict[str, Any]:
+        """
+        QW-1 (Stake Minimizer) + QW-2 (Stake Weight) — calcula valor de aposta
+        efetivo aplicando modulações em cima de `current_bet`.
+
+        Args:
+            direction: "cw"/"horario"/"ccw"/"anti-horario" (target direction).
+            strategy: instância de SDA17Strategy (exposta via message_handler).
+
+        Returns:
+            dict com {
+                "effective_bet":  int,   # valor a exibir no overlay
+                "base_bet":       int,   # current_bet do martingale (sem modulação)
+                "multiplier":     float, # 0.0..1.5 efetivamente aplicado
+                "mode":           str,   # "minimizer" | "weight" | "normal" | "mg_escalated"
+                "rolling_rate":   float | None,
+                "minimizer_active": bool,
+            }
+        """
+        mg = self.martingale_cw if direction in ("cw", "horario") else self.martingale_ccw
+        base_bet = mg.current_bet
+        result = {
+            "effective_bet": base_bet,
+            "base_bet": base_bet,
+            "multiplier": 1.0,
+            "mode": "normal",
+            "rolling_rate": None,
+            "minimizer_active": False,
+        }
+
+        # Helper opcional: se strategy não expõe os métodos QW (compat ascendente)
+        # retorna base sem modulação.
+        if not hasattr(strategy, "should_minimize") or not hasattr(strategy, "get_stake_weight"):
+            return result
+
+        try:
+            minimize, rate = strategy.should_minimize(direction)
+        except Exception as e:
+            logger.warning(f"[QW-1] should_minimize falhou ({e}) — usando base")
+            return result
+        result["rolling_rate"] = rate
+
+        if minimize:
+            # QW-1: força level=1 + stake mínimo. Aposta CONTINUA (INV-3).
+            try:
+                if mg.level != 1:
+                    # Reset implícito: conta para métrica QW-3
+                    if hasattr(strategy, "record_mg_reset"):
+                        strategy.record_mg_reset(direction)
+                    mg.level = 1
+                    mg.consecutive_hits = 0
+                frac = float(strategy._cfg.get("sda17.minimizer", "stake_fraction", 0.10))
+            except Exception:
+                frac = 0.10
+            # Garante valor mínimo inteiro >= 1 (estética overlay)
+            effective = max(1, int(round(base_bet * frac)))
+            result.update({
+                "effective_bet": effective,
+                "multiplier": frac,
+                "mode": "minimizer",
+                "minimizer_active": True,
+            })
+            return result
+
+        # QW-2: weight só quando level=1 (não amplifica em escalação).
+        if mg.level == 1:
+            try:
+                w = float(strategy.get_stake_weight(direction))
+            except Exception:
+                w = 1.0
+            if abs(w - 1.0) > 1e-9:
+                effective = max(1, int(round(base_bet * w)))
+                result.update({
+                    "effective_bet": effective,
+                    "multiplier": w,
+                    "mode": "weight",
+                })
+                return result
+            return result
+
+        # Mantém base em escalação (sem amplificar drawdown).
+        result["mode"] = "mg_escalated"
+        return result
+
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.6 - com adaptive_state) com escrita atômica."""
+        """Salva estado em arquivo JSON (v1.7 - Quick Wins INV-3) com escrita atômica."""
         import os
         import tempfile
         
         path = path or settings.state_file
         data = {
-            "version": "1.6.0",
+            "version": "1.7.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),

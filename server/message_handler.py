@@ -315,6 +315,40 @@ class MessageHandler:
         # Obter info do martingale da direção ALVO (para overlay)
         mg = self.game_state.target_martingale
 
+        # v4.4 QW-1/2: Stake modulation (INV-3 — apenas valor; aposta continua)
+        try:
+            stake_info = self.game_state.get_effective_bet(
+                self.game_state.target_direction, self.strategy
+            )
+        except Exception as _qw_e:
+            logger.warning(f"[QW] get_effective_bet falhou ({_qw_e}) — fallback base")
+            stake_info = {
+                "effective_bet": mg.current_bet,
+                "base_bet": mg.current_bet,
+                "multiplier": 1.0,
+                "mode": "normal",
+                "rolling_rate": None,
+                "minimizer_active": False,
+            }
+        if stake_info["mode"] == "minimizer":
+            logger.info(
+                "[QW-1 MINIMIZER] dir=%s rate=%.3f base=%d → effective=%d (×%.2f) — APOSTA CONTINUA (INV-3)",
+                self.game_state.target_direction,
+                stake_info.get("rolling_rate") or 0.0,
+                stake_info["base_bet"],
+                stake_info["effective_bet"],
+                stake_info["multiplier"],
+            )
+        elif stake_info["mode"] == "weight" and abs(stake_info["multiplier"] - 1.0) > 0.05:
+            logger.info(
+                "[QW-2 WEIGHT] dir=%s rate=%.3f base=%d → effective=%d (×%.2f)",
+                self.game_state.target_direction,
+                stake_info.get("rolling_rate") or 0.0,
+                stake_info["base_bet"],
+                stake_info["effective_bet"],
+                stake_info["multiplier"],
+            )
+
         # ====================================================
         # LOGGING - Salvar decisão no banco de dados
         # ====================================================
@@ -348,7 +382,7 @@ class MessageHandler:
                 gale_level=mg.level,
                 gale_window_hits=mg.consecutive_hits,
                 gale_window_count=mg.total_bets,
-                gale_bet_value=mg.current_bet,
+            gale_bet_value=mg.current_bet,
                 calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12]
             )
@@ -382,7 +416,10 @@ class MessageHandler:
                 "ultimo_numero": self.game_state.last_number,
                 "confianca": {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50),
                 "martingale": mg.multiplier,
-                "aposta": mg.current_bet,
+                "aposta": stake_info["effective_bet"],
+                "aposta_base": stake_info["base_bet"],
+                "stake_mode": stake_info["mode"],
+                "stake_multiplier": stake_info["multiplier"],
                 "gale_level": mg.level,
                 "gale_display": mg.gale_display,
                 "gale_reasoning": action_reason,
