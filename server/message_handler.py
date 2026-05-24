@@ -353,6 +353,16 @@ class MessageHandler:
         # LOGGING - Salvar decisão no banco de dados
         # ====================================================
         try:
+            # BUG-FK-1 fix: garantir que session_id existe no DB antes do save
+            # (current_session_id é gerado no __init__ via uuid mas nunca registrado)
+            if not getattr(self, "_session_db_initialized", False):
+                try:
+                    db_service.create_session(self.current_session_id)
+                    self._session_db_initialized = True
+                    logger.info(f"✅ Sessão DB inicializada: {self.current_session_id}")
+                except Exception as init_err:
+                    logger.error(f"❌ Falha criando sessão {self.current_session_id}: {init_err}")
+
             # Atualizar resultado da decisão anterior (se existia)
             if self.last_decision_id and hit_result is not None:
                 db_service.update_result(self.last_decision_id, hit_result, numero)
@@ -402,7 +412,16 @@ class MessageHandler:
                 db_service.update_session_stats(self.current_session_id)
 
         except Exception as db_error:
-            logger.warning(f"Erro ao salvar decisão no DB: {db_error}")
+            # BUG-SILENCE-1 fix: era warning, escalado para error + métrica
+            logger.error(
+                f"❌ Erro ao salvar decisão no DB: {db_error} "
+                f"(session={self.current_session_id}, spin={numero})"
+            )
+            try:
+                from database.outbox_integration import save_decision_failed_total
+                save_decision_failed_total.labels(reason=type(db_error).__name__).inc()
+            except Exception:
+                pass
 
         # Formato esperado pelo overlay
         overlay_response = {

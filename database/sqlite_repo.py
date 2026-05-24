@@ -413,8 +413,10 @@ class SQLiteDecisionRepository(DecisionRepository):
         """Cria uma nova sessão."""
         conn = self._get_connection()
         try:
+            # BUG-FK-1 fix: idempotente para evitar FK constraint quando
+            # message_handler recria session_id após restart sem REGISTER novo
             conn.execute("""
-                INSERT INTO sessions (id, start_time)
+                INSERT OR IGNORE INTO sessions (id, start_time)
                 VALUES (?, ?)
             """, (session.id, session.start_time.isoformat()))
             conn.commit()

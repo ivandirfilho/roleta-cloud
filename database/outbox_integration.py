@@ -76,6 +76,11 @@ try:
         "outbox_publisher_ready",
         "1 se OutboxPublisher inicializado; 0 caso contrário",
     )
+    save_decision_failed_total = Counter(
+        "save_decision_failed_total",
+        "Falhas em save_decision (BUG-FK-1 tracking)",
+        ["reason"],
+    )
     _METRICS = True
 except Exception:  # noqa: BLE001
     _METRICS = False
@@ -85,6 +90,7 @@ except Exception:  # noqa: BLE001
         def inc(self, *_a, **_kw): pass
         def set(self, *_a, **_kw): pass
     _m_hook_called = _m_hook_published = _m_hook_skipped = _m_hook_init_attempts = _m_publisher_ready = _NoOp()
+    save_decision_failed_total = _NoOp()
 
 
 def _normalize_direction(raw: str) -> str | None:

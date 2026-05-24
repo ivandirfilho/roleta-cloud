@@ -1,16 +1,16 @@
-# Graph Report - Roleta Cloud  (2026-05-22)
+# Graph Report - Roleta Cloud  (2026-05-24)
 
 ## Corpus Check
-- 22 files · ~46,707 words
+- 41 files · ~117,133 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 787 nodes · 895 edges · 55 communities (49 shown, 6 thin omitted)
+- 1592 nodes · 1693 edges · 150 communities (134 shown, 16 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6bdde3c8`
+- Built from commit: `5c6280e7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -67,28 +67,120 @@
 - [[_COMMUNITY_Community 49|Community 49]]
 - [[_COMMUNITY_Community 50|Community 50]]
 - [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 59|Community 59]]
+- [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 65|Community 65]]
+- [[_COMMUNITY_Community 66|Community 66]]
+- [[_COMMUNITY_Community 67|Community 67]]
+- [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 71|Community 71]]
+- [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
+- [[_COMMUNITY_Community 81|Community 81]]
+- [[_COMMUNITY_Community 82|Community 82]]
+- [[_COMMUNITY_Community 83|Community 83]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 86|Community 86]]
+- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_Community 88|Community 88]]
+- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 90|Community 90]]
+- [[_COMMUNITY_Community 91|Community 91]]
+- [[_COMMUNITY_Community 92|Community 92]]
+- [[_COMMUNITY_Community 93|Community 93]]
+- [[_COMMUNITY_Community 94|Community 94]]
+- [[_COMMUNITY_Community 95|Community 95]]
+- [[_COMMUNITY_Community 96|Community 96]]
+- [[_COMMUNITY_Community 97|Community 97]]
+- [[_COMMUNITY_Community 98|Community 98]]
+- [[_COMMUNITY_Community 99|Community 99]]
+- [[_COMMUNITY_Community 100|Community 100]]
+- [[_COMMUNITY_Community 101|Community 101]]
+- [[_COMMUNITY_Community 102|Community 102]]
+- [[_COMMUNITY_Community 103|Community 103]]
+- [[_COMMUNITY_Community 104|Community 104]]
+- [[_COMMUNITY_Community 105|Community 105]]
+- [[_COMMUNITY_Community 106|Community 106]]
+- [[_COMMUNITY_Community 107|Community 107]]
+- [[_COMMUNITY_Community 108|Community 108]]
+- [[_COMMUNITY_Community 109|Community 109]]
+- [[_COMMUNITY_Community 110|Community 110]]
+- [[_COMMUNITY_Community 111|Community 111]]
+- [[_COMMUNITY_Community 112|Community 112]]
+- [[_COMMUNITY_Community 113|Community 113]]
+- [[_COMMUNITY_Community 114|Community 114]]
+- [[_COMMUNITY_Community 115|Community 115]]
+- [[_COMMUNITY_Community 116|Community 116]]
+- [[_COMMUNITY_Community 117|Community 117]]
+- [[_COMMUNITY_Community 118|Community 118]]
+- [[_COMMUNITY_Community 119|Community 119]]
+- [[_COMMUNITY_Community 120|Community 120]]
+- [[_COMMUNITY_Community 121|Community 121]]
+- [[_COMMUNITY_Community 122|Community 122]]
+- [[_COMMUNITY_Community 123|Community 123]]
+- [[_COMMUNITY_Community 124|Community 124]]
+- [[_COMMUNITY_Community 125|Community 125]]
+- [[_COMMUNITY_Community 126|Community 126]]
+- [[_COMMUNITY_Community 127|Community 127]]
+- [[_COMMUNITY_Community 128|Community 128]]
+- [[_COMMUNITY_Community 129|Community 129]]
+- [[_COMMUNITY_Community 130|Community 130]]
+- [[_COMMUNITY_Community 131|Community 131]]
+- [[_COMMUNITY_Community 132|Community 132]]
+- [[_COMMUNITY_Community 133|Community 133]]
+- [[_COMMUNITY_Community 134|Community 134]]
+- [[_COMMUNITY_Community 135|Community 135]]
+- [[_COMMUNITY_Community 136|Community 136]]
+- [[_COMMUNITY_Community 137|Community 137]]
+- [[_COMMUNITY_Community 138|Community 138]]
+- [[_COMMUNITY_Community 142|Community 142]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 144|Community 144]]
+- [[_COMMUNITY_Community 145|Community 145]]
+- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 147|Community 147]]
+- [[_COMMUNITY_Community 148|Community 148]]
+- [[_COMMUNITY_Community 149|Community 149]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `BaseModel` - 21 edges
-2. `SDA17Strategy` - 19 edges
-3. `MessageHandler` - 15 edges
-4. `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` - 15 edges
-5. `simulate_all()` - 14 edges
-6. `coverage_set()` - 11 edges
-7. `PARTE I — ARQUITETURA COMPLETA DO SOFTWARE` - 11 edges
-8. `cov_sym()` - 10 edges
-9. `4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO` - 10 edges
-10. `mg.level permanece SEMPRE 1 (default)` - 10 edges
+1. `SDA17Strategy` - 28 edges
+2. `VF.2 Detalhamento de cada sprint (template uniforme)` - 24 edges
+3. `V2.1 Sprints corrigidas` - 22 edges
+4. `BaseModel` - 21 edges
+5. `🛠️ Skills & Melhoras — Plano de Evolução Roleta Cloud` - 17 edges
+6. `V1.1 Sprints (15 sprints, S0 a S14)` - 16 edges
+7. `🆕 SEÇÕES ADICIONADAS NA v2.0 (auditoria cruzada)` - 16 edges
+8. `MessageHandler` - 15 edges
+9. `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` - 15 edges
+10. `simulate_all()` - 14 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (55 total, 6 thin omitted)
+## Communities (150 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.04
-Nodes (45): 4.2.1 MartingaleState.BET_VALUES (linha 39), 4.2.2 Estado Adaptativo no GameState, 4.2.3 Migração de Versão do state.json, 4.2.4 Docstrings da Classe MartingaleState, 4.2 `state/game.py` — ALTERAÇÃO MÉDIA, 4.3.1 Chamar `update_adaptive()` após verificação de resultado, 4.3.2 Persistir Estado Adaptativo, 4.3.3 Restaurar Estado Adaptativo no Startup (+37 more)
+Cohesion: 0.18
+Nodes (11): 4.2.1 MartingaleState.BET_VALUES (linha 39), 4.2.2 Estado Adaptativo no GameState, 4.2.3 Migração de Versão do state.json, 4.2.4 Docstrings da Classe MartingaleState, 4.2 `state/game.py` — ALTERAÇÃO MÉDIA, code:python (BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 63}), code:python (BET_VALUES: ClassVar[Dict[int, int]] = {1: 17, 2: 34, 3: 51}), code:python (# No save() — adicionar ao dict 'data':) (+3 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
@@ -115,8 +207,8 @@ Cohesion: 0.06
 Nodes (34): 1. Resumo das Sessoes Pos-Deploy SmartGale v5, 2.1 O Problema, 2.2 Impacto, 2.3 Correcao Necessaria, 2. BUG CRITICO ENCONTRADO: get_gale() Nunca e Chamado em Producao, 3.1 CW (Predicoes feitas em spins AH → alvo Horario), 3.2 CCW (Predicoes feitas em spins H → alvo Anti-Horario), 3.3 Comparacao entre Direcoes (+26 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.08
-Nodes (19): handle_shutdown(), main(), Handler para shutdown graceful., Ponto de entrada principal., MessageHandler, Manipulador de mensagens WebSocket., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Processa uma mensagem recebida. (+11 more)
+Cohesion: 0.07
+Nodes (24): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., MessageHandler, Manipulador de mensagens WebSocket. (+16 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.10
@@ -127,8 +219,8 @@ Cohesion: 0.06
 Nodes (33): adaptive_state, last_direction, last_number, martingale_ccw, consecutive_hits, current_bet, gale_display, global_consecutive_hits (+25 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.08
-Nodes (17): Verificacao dos cenarios criticos — v4.3 (M02-PctSigmoid), Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened. (+9 more)
+Cohesion: 0.22
+Nodes (6): Analisa timeline e prediz próxima força usando pipeline robusto., Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Analisa timeline e prediz próxima força usando pipeline robusto.
 
 ### Community 11 - "Community 11"
 Cohesion: 0.06
@@ -143,8 +235,8 @@ Cohesion: 0.10
 Nodes (20): 2.1 Fluxo de Dados Completo (Estado Atual), 2.2 Mapa de Arquivos do Sistema, 2.3.1 Estratégia SDA-21 (`strategies/sda17.py`), 2.3.2 Base da Estratégia (`strategies/base.py`), 2.3.3 Estado do Jogo (`state/game.py`), 2.3.4 Handler de Mensagens (`server/message_handler.py`), 2.3.5 Banco de Dados (`database/models.py`), 2.3.6 Frontend Dashboard (`frontend/`) (+12 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.11
-Nodes (18): 3.1 FIX: BUG-TASK-001 — `update_adaptive()` em `engine.py`, 3.2 FIX: BUG-TASK-003 — EMA Clamp Imediato, 3.3 FIX: BUG-TASK-004 — `_wheel` Inicializado Cedo, 3.4 FIX: BUG-TASK-005 — Validação de Bounds no Load, 3.5 FIX: BUG-TASK-006 + BUG-NEW-007 — Offset Real no DB, 3.6 FIX: BUG-NEW-002 — Validação de Cobertura, 3.7 FIX: BUG-NEW-003 + BUG-NEW-004 — Logging de Fallbacks, 3.8 Tabela Consolidada de Correções (+10 more)
+Cohesion: 0.14
+Nodes (14): 3.1 FIX: BUG-TASK-001 — `update_adaptive()` em `engine.py`, 3.2 FIX: BUG-TASK-003 — EMA Clamp Imediato, 3.3 FIX: BUG-TASK-004 — `_wheel` Inicializado Cedo, 3.4 FIX: BUG-TASK-005 — Validação de Bounds no Load, 3.6 FIX: BUG-NEW-002 — Validação de Cobertura, 3.7 FIX: BUG-NEW-003 + BUG-NEW-004 — Logging de Fallbacks, 3.8 Tabela Consolidada de Correções, code:python (# BUG-NEW-002 FIX: Alerta se cobertura abaixo do esperado) (+6 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.12
@@ -270,25 +362,353 @@ Nodes (4): 8.1 Acoes Imediatas (v4.2.0), 8.2 Acoes de Medio Prazo (v4.3.0), 8.3 
 Cohesion: 0.50
 Nodes (4): 9. CONCLUSAO, O sistema v4.1.0 esta funcionando conforme projetado?, Performance real vs projetada, Veredicto Final
 
+### Community 55 - "Community 55"
+Cohesion: 0.04
+Nodes (44): 14. Onde a Parte 1 envelheceu mal (e o que muda), 15.1 MCPs — nova lista prioritária, 15.2 MCPs que descartei depois da auditoria, 15.3 Skills do Copilot CLI — refinamento da lista, 15. Stack tecnológica revisada (foco em "o que funciona"), 16.1 Critérios objetivos, 16.2 Veredito, 16.3 Recomendação prática (+36 more)
+
+### Community 56 - "Community 56"
+Cohesion: 0.05
+Nodes (42): code:sql (LOAD 'age'; SET search_path TO ag_catalog, public;), code:python (@circuit_breaker(threshold=5, window=60, recovery=300)), code:python (import hashlib, datetime), code:mermaid (flowchart TB), code:bash (gh pr checks 5  # confirmar green), code:bash (pip install alembic), code:yaml (jobs:), code:bash (az keyvault create --name roleta-kv --location brazilsouth) (+34 more)
+
+### Community 57 - "Community 57"
+Cohesion: 0.05
+Nodes (38): A1 · Ferramentas de runtime debug a instalar, A2 · Skills/estruturas Copilot a adicionar/atualizar, A3 · Pacotes Debian a confirmar/instalar no host, A4 · Pacotes pip a adicionar no container roleta-cloud, 🚨 BUG-GAP-1 · CRITICAL · Gap de 2h33 sem novas decisões no DB, 🟢 BUG-SQLITE-1 · LOW · Container roleta-cloud sem `sqlite3` CLI, 🟡 BUG-WS-1 · HIGH · Healthcheck do compose poluindo logs com `InvalidMessage`, C1 · Bugs descobertos durante essa nova auditoria (+30 more)
+
+### Community 58 - "Community 58"
+Cohesion: 0.07
+Nodes (27): B1.0 Pré-requisito: upgrade do Debian, B1.10 — S8: Apache AGE grafos por sentido, B1.11 — S9+S10+S11+S12+S13+S14: O resto, B1.1 — S0: Deploy Quick Wins v4.4, B1.2 — S0.5: Stack Docker-Compose unificada, B1.3 — S1+S2+S3: Refactor de persistência, B1.4 — Sx-CI: PostgreSQL no CI, B1.5 — Sx-SEC: Secrets sem Azure Key Vault (+19 more)
+
+### Community 59 - "Community 59"
+Cohesion: 0.08
+Nodes (23): 0 · Resumo Executivo, 1.1 · SQLite — `data/decisions.db` · tabela `decisions`, 1.2 · Postgres (réplica analítica) — estado real, 1.3 · Root cause — porque o hook não disparou, 1.4 · Mitigações aplicadas nesta auditoria, 1.5 · Recomendação para próximo sprint, 1 · Engenharia Reversa das Últimas 6 Jogadas, 2 · Auditoria Item-a-Item · Plano `plano_implentacao_pos_sessao_24_05.md` (+15 more)
+
+### Community 60 - "Community 60"
+Cohesion: 0.09
+Nodes (23): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+15 more)
+
+### Community 61 - "Community 61"
+Cohesion: 0.10
+Nodes (21): S0 — Deploy Quick Wins v4.4 (REVISADO), S10 — Cold regions opt-in com warning (mantido), S11 — Shadow com timeout + circuit breaker (REVISADO B11), S12 — Métricas com significância estatística (REVISADO B12), S13 — Canário por spin_id (REVISADO B13), S14 — Adoption com changelog (REVISADO B14), S1 — DecisionRepo + paridade testada (REVISADO B02), S2 — Alembic + baseline limpo (REVISADO B03) (+13 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.11
+Nodes (18): A. Mapa de alinhamento QW ↔ v5.0 (compatibilidade temporal), 🔍 AUDITORIA PROFUNDA vs `final_refatoracao_proposta.md` v5.0, B. Findings da auditoria (20 itens classificados por severidade), C. Gates de promoção dos QW (subset do v5.0 Gates 1-8), code:python (def get_adaptive_state(self):), code:python (from pydantic import BaseModel, Field), code:python (def analyze(self, ...):), code:python (# adicionar em strategies/sda17.py e state/game.py:) (+10 more)
+
+### Community 63 - "Community 63"
+Cohesion: 0.12
+Nodes (17): A3.0 TL;DR (3 bullets + 1 decisão), A3.1 Análise comparativa (Azure-first VF atual vs Local-first proposto), A3.2 Achado crítico **B32** — AGE não está na allowlist Azure PG Flexible, A3.3 Outros achados A3, A3.4 Sprints NOVAS / REESCRITAS, A3.5 Lista mestre atualizada (delta vs VF), A3.6 Self-audit da auditoria (sanity check), A3.7 Recomendação final (+9 more)
+
+### Community 64 - "Community 64"
+Cohesion: 0.12
+Nodes (16): S0 — Deploy Quick Wins v4.4 em produção, S10 — Cold regions feature (default OFF), S11 — Shadow predictor, S12 — Métricas shadow + dashboard, S13 — Canário 10% → 50%, S14 — Adoption full, S1 — DecisionRepo interface, S2 — Alembic migrations (+8 more)
+
+### Community 65 - "Community 65"
+Cohesion: 0.17
+Nodes (9): Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., QW-6 — warmup adaptativo (ganhando=2, perdendo=5)., SDA17Strategy (+1 more)
+
+### Community 66 - "Community 66"
+Cohesion: 0.14
+Nodes (14): A.1 — Cardinalidade & comparativo histórico, A.2 — Distribuição de Gale Anti-Martingale (hoje), A.3 — Skip / Aposta, A.4 — Streaks (sobreviventes do dia), A.5 — Drift retroativo por bloco de 20 jogadas, A.6 — Distância roda (predito → real), por direção, A.7 — Hit-rate por bucket de força (sweet spots por direção), A.8 — Cobertura física do dia (+6 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.14
+Nodes (14): code:mermaid (flowchart TD), D.1 — Mea culpa: o que faltou na Parte C, D.2.1 — Capacidades por stack (auditoria honesta), D.2.2 — Por que pgvector vira a escolha estratégica, D.2 — PostgreSQL + pgvector: por que merece ser a opção ⭐ recomendada, D.3 — Self-audit da tabela D.2.1, D.4 — Refactor da estrutura ATUAL antes do vector (pré-vector), D.5 — Sprints reordenados pós-auditoria (+6 more)
+
+### Community 68 - "Community 68"
+Cohesion: 0.17
+Nodes (12): code:block4 (.github/workflows/ci.yml           # pytest + ruff + mypy + ), code:yaml (name: CI), code:block6 (alembic.ini), code:powershell (alembic revision -m "v1.7 add fallback_used and direction_au), code:yaml (version: "3.8"), code:python (decisions_total = Counter("roleta_decisions_total", "...", [), ETAPA 0.1 — Git Workflow + Branch Protection (LOCAL + GitHub) — 0.5d, ETAPA 0.2 — CI/CD GitHub Actions (LOCAL) — 1d (+4 more)
+
+### Community 69 - "Community 69"
+Cohesion: 0.17
+Nodes (12): 0. Resumo executivo (para o agente provisionador), 10. Informações que VOCÊ (agente provisionador) deve solicitar ao usuário ANTES de começar, 11. ⭐ FORMATO OBRIGATÓRIO DO DOCUMENTO DE ENTREGA, 2. Visão alvo da infra (o que você vai entregar), 3. Convenções de nomenclatura (use EXATAMENTE estes nomes), 6. Key Vault — secrets que você DEVE criar, 🆕 CHANGELOG v1.0 → v2.0 (mudanças após auditoria cruzada com 4 documentos), code:markdown (# 🚀 Entrega — Infraestrutura Azure Roleta Cloud v5.0) (+4 more)
+
+### Community 70 - "Community 70"
+Cohesion: 0.17
+Nodes (12): 14. Em caso de dúvida, FALE COM O ORQUESTRADOR, 15. Histórico de revisões deste documento, 20. Resource Locks (proteção anti-acidente), 23. Cost Management Alert, 25. Particionamento pg_partman operacional (detalhes para §4), 27. Testes ADICIONAIS v2.0 (T32-T48), 28. Atualizações ao template de entrega §11, code:bash (for r in rg-roleta-prod; do) (+4 more)
+
+### Community 71 - "Community 71"
+Cohesion: 0.18
+Nodes (6): S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar, Wrapper carregavel via joblib. PCA(n_components=4) por default.      API estav, 6d -> 4d. Retorna None se modelo nao carregado., Treina PCA simples. X deve ser array (n_samples, 6)., SpinEncoder, train_pca()
+
+### Community 72 - "Community 72"
+Cohesion: 0.18
+Nodes (11): code:python (class DirectionalBayesianGate:), code:python (from river.drift import ADWIN), code:block12 (server/handlers/), code:python (@dataclass(frozen=True)), ETAPA 1.1 — Constantes em TOML (T1.1) — 0.5d, ETAPA 1.2 — Backtest vectorbt (T1.2) — 1d, ETAPA 1.3 — Logging granular + bug fix fallback (T1.3) — 0.5d, ETAPA 1.4 — Bayesian Gate per-direction (T1.4) — 0.5d (+3 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.18
+Nodes (11): code:python (def _detect_drift(self, direction: str) -> bool:), 📝 Decisões pendentes para o usuário, ✅ Definition of Done, Implementação (~30 LoC), Métrica, ⚠️ O que este documento NÃO faz (intencionalmente), O quê, Por quê (+3 more)
+
+### Community 74 - "Community 74"
+Cohesion: 0.18
+Nodes (11): 4. Ordem de execução recomendada, 6. Riscos consolidados, 7. Bibliotecas a adicionar (footprint total), 8. Decisão pendente do usuário, 9. Mapa final — Antes vs Depois (visual), code:block13 (SEMANA 1 (T1 inteiro)               SEMANA 2 (T2.1 + T2.3 + ), code:block14 (ANTES (HOJE)                                  DEPOIS (T1+T2 ), T4.1 — Persistência Postgres + pgmq (substitui state.json + SQLite) (+3 more)
+
+### Community 75 - "Community 75"
+Cohesion: 0.18
+Nodes (11): C.1 — Por que grafo-vetorial e não SQL+features?, C.2 — Modelo de dados proposto (Cypher-like, **isolado por sentido**), C.4 — Decisão recomendada (multi-cenário), C.5 — Pipeline conceitual (isolado por sentido), C.6 — Outlier removal — fórmula proposta, C.7 — Regiões não-visitadas — formalização, C.8 — Sprints para implementar (high-level, sem datas), code:block6 (// Universo CW totalmente isolado) (+3 more)
+
+### Community 76 - "Community 76"
+Cohesion: 0.18
+Nodes (11): 4.1 Provisionamento (comando `az` esperado), 4.2 Extensions OBRIGATÓRIAS habilitadas, 4.3 Parâmetros de servidor (`az postgres flexible-server parameter set`), 4.4 Firewall + Rede, 4.5 Backup, 4.6 Roles e usuários a criar (após server up), 4. PostgreSQL — especificação detalhada, code:bash (az postgres flexible-server create \) (+3 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.20
+Nodes (8): compare_and_log(), NoopShadowPredictor, S12 — Shadow Predictor.  Roda em paralelo ao predictor principal sem afetar de, Interface estavel. Cada implementacao concreta plugavel., Implementacao default — nao prediz nada. Usado quando S7 nao treinado., Loga divergencia primary vs shadow para auditoria offline., ShadowPrediction, ShadowPredictor
+
+### Community 78 - "Community 78"
+Cohesion: 0.20
+Nodes (9): code:python (from typing import Protocol), code:python (for stage in self.pipeline:), code:python (class AdamSigmoidUpdater:), code:python (def run(self, ctx):), T2.1 — Refactor SDA17 em Stage Protocol, T2.2 — Shadow mode infrastructure, T2.3 — Adam-Sigmoid updater (substitui PCT-Sigmoid), T2.4 — Stage Hot Center Filter (+1 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.20
+Nodes (10): 4.3.1 Chamar `update_adaptive()` após verificação de resultado, 4.3.2 Persistir Estado Adaptativo, 4.3.3 Restaurar Estado Adaptativo no Startup, 4.3.4 Incluir Offset Info no Trace Broadcast, 4.3 `server/message_handler.py` — ALTERAÇÃO MÉDIA, code:python (# ★ M15-ADA: Atualizar estado adaptativo com resultado real), code:python (# Após game_state.save()), code:python (import json) (+2 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.20
+Nodes (10): B.1 — QW-1 Stake Minimizer (cooldown pós-3 misses), B.2 — QW-2 Stake Weight (level=1 only), B.3 — QW-3 MG Cap métrica, B.4 — QW-4 Hot Center Substitution, B.5 — QW-5 TOML config + reload on-the-fly, B.6 — QW-6 Warmup Adaptativo, B.7 — QW-7 Drift Freeze, B.8 — Resumo do contrafactual (+2 more)
+
+### Community 81 - "Community 81"
+Cohesion: 0.20
+Nodes (9): 12. Cronograma esperado de execução do agente provisionador, 13. Definition of Done — checklist final, 1. Criar RG, 2. Criar VNet, code:block19, code:block20, code:block21, code:block22 (+1 more)
+
+### Community 82 - "Community 82"
+Cohesion: 0.20
+Nodes (10): 16.1 Provisionamento via docker-compose, 16.2 Arquivos de config que o agente DEVE criar (estrutura pronta, sem secrets concretos), 16.3 Caddy routes para observability (apenas IP whitelist Ivandir), 16. Observability Stack na VM — Prometheus + Loki + Grafana + Alertmanager, code:yaml (version: "3.8"), code:yaml (global:), code:yaml (groups:), code:yaml (route:) (+2 more)
+
+### Community 83 - "Community 83"
+Cohesion: 0.22
+Nodes (8): code:python (class Stage(Protocol):), code:sql (ALTER TABLE decisions ADD COLUMN shadow_strategy_id TEXT;), code:python (class AdamSigmoidUpdater:), ETAPA 2.1 — Stage Protocol pipeline (T2.1) — 2d, ETAPA 2.2 — Shadow Mode infra (T2.2) — 2d, ETAPA 2.3 — Adam-Sigmoid substitui PCT-Sigmoid (T2.3) — 1.5d, ETAPA 2.4 — Hot Center Filter dual (T2.4) — 0.5d, FASE 2 — Estrutural (6 dias) — 🟡 amarelo (mudança de algoritmo — shadow obrigatório)
+
+### Community 84 - "Community 84"
+Cohesion: 0.22
+Nodes (9): code:python (# Adicionar no __init__:), code:python (def get_stake(self, direction: str, mg_level: int) -> float:), Implementação (snippet ~40 LoC), Métrica de validação (24h shadow), O quê, Por que é o ganho #1, QW-1 — Per-Direction Stake Minimizer ⭐⭐⭐⭐⭐, Reversão (+1 more)
+
+### Community 85 - "Community 85"
+Cohesion: 0.22
+Nodes (9): 0. Como ler este documento, 1. Premissa estratégica — para onde a Roleta Cloud está indo, 3. Arquitetura-alvo (target architecture), 4. Skills/MCPs do ambiente de desenvolvimento, 9. Plataformas low-code (Power Apps, AppSheet, Retool…), code:block1 (┌───────────────────────────────────────────────────────────), MCPs que NÃO valem o esforço agora, 🛠️ Skills & Melhoras — Plano de Evolução Roleta Cloud (+1 more)
+
+### Community 86 - "Community 86"
+Cohesion: 0.22
+Nodes (9): 5.1 Provisionamento (`az vm create` esperado), 5.2 Cloud-init / Script de inicialização (executar no first-boot), 5.3 Managed Identity + permissões no Key Vault, 5.4 Validação pós-boot (script `check-vm.sh` que o agente roda via SSH), 5. VM substituta — especificação detalhada, code:bash (# Pega principal ID da identidade do sistema da VM), code:bash (#!/bin/bash), code:bash (az vm create \) (+1 more)
+
+### Community 87 - "Community 87"
+Cohesion: 0.22
+Nodes (6): M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Distância circular entre dois números na roda., Distância circular entre dois números na roda.
+
+### Community 88 - "Community 88"
+Cohesion: 0.25
+Nodes (7): A2.1 — Bugs/gaps remanescentes, A2.2 — Conflitos detectados em V2, A2.3 — Riscos identificados em V2, 🔎 AUDITORIA 2 — Segunda passada crítica em V2, 🚀 Plano de Implantação Pós-Sessão 24-05, V1.0 Premissas operacionais, 📋 VERSÃO 1 — DRAFT INICIAL
+
+### Community 89 - "Community 89"
+Cohesion: 0.25
+Nodes (8): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────), code:block3 (Sem1     Sem2     Sem3     Sem4     Sem5     Sem6), 📜 DIRETIVAS INEGOCIÁVEIS DO PROJETO, 🎯 FINAL — Refatoração Proposta Roleta Cloud v5.0, Visão consolidada (Gantt textual)
+
+### Community 90 - "Community 90"
+Cohesion: 0.25
+Nodes (8): code:python (class DirectionalThompson:), code:python (class DirectionalCalibrator:), code:python (class FractionalKellySizer:), ETAPA 3.1' — Thompson Bernoulli DUAL (T3.1 CORRIGIDO) — 2d, ETAPA 3.2' — Calibrator 2-MODELOS (T3.2 CORRIGIDO) — 1.5d, ETAPA 3.3 — PID auto-calibration dual (T3.3) — 1d, ETAPA 3.4 — ¼-Kelly bet sizing (T3.4) — 2d, FASE 3 — Profundo (7 dias) — 🟡 amarelo+ (shadow obrigatório, métrica gate)
+
+### Community 91 - "Community 91"
+Cohesion: 0.25
+Nodes (8): code:python (import tomllib, time, threading), code:toml (# config/strategy.toml), Implementação (~40 LoC + dep `tomli` ou Py3.11+ `tomllib` nativo), Métrica de validação, O quê, Por quê, QW-5 — Constantes em TOML hot-reload ⭐⭐⭐, Risco
+
+### Community 92 - "Community 92"
+Cohesion: 0.25
+Nodes (8): code:block11 (warmup_dir = 2 se rolling_hit_dir > BE), code:python (def _get_warmup(self, direction: str) -> int:), Implementação (~5 LoC), Métrica, O quê, Por quê, QW-6 — Per-Direction Warmup Adaptativo ⭐⭐, Risco
+
+### Community 93 - "Community 93"
+Cohesion: 0.25
+Nodes (8): code:block4 (stake_dir = base_stake × min(1.5, max(0.3, rolling_hit_dir /), code:python (def get_stake(self, direction: str, mg_level: int) -> float:), Implementação (snippet ~15 LoC), Métrica de validação, O quê, Por quê, QW-2 — Per-Direction Stake Weight ⭐⭐⭐⭐⭐, Risco
+
+### Community 94 - "Community 94"
+Cohesion: 0.25
+Nodes (8): code:block6 (mg_max_dir = 3 se rolling_hit < 0.50), code:python (def get_mg_max(self, direction: str) -> int:), Implementação (snippet ~15 LoC), Métrica de validação, O quê, Por quê, QW-3 — Martingale Cap por Direção com **Reset (não pula aposta)** ⭐⭐⭐⭐, Risco
+
+### Community 95 - "Community 95"
+Cohesion: 0.25
+Nodes (8): 4.6 `frontend/index.html` — SEM ALTERAÇÃO OBRIGATÓRIA, 4.8 `app_config/settings.py` — ALTERAÇÃO OPCIONAL, 4.9 `state.json` — MIGRAÇÃO AUTOMÁTICA, 4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO, code:html (<div class="detail"><span>Offset:</span><span id="result-off), code:python (class AdaptiveSettings(BaseSettings):), code:json ({), code:json ({)
+
+### Community 96 - "Community 96"
+Cohesion: 0.25
+Nodes (8): 0. TL;DR — A página única, 1. Mapa visual — quem é cada tier, 2. Matriz Risco × Retorno (decisão visual), 3. Risco do código ATUAL (se NADA for feito), code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (┌───────────────────────────────────────────────────────────), code:block3 (┌─────────────────────────────────────────────────────────┐), 🛠️ Proposta de Refatoração — Estratégia Roleta Cloud (23/05/2026)
+
+### Community 97 - "Community 97"
+Cohesion: 0.25
+Nodes (8): code:python (alpha = {n: 1.0 for n in range(37)}  # prior Beta(1,1)), code:python (class PIDCalibrator:), code:python (def quarter_kelly(p_hit: float, k: int, bankroll: float, pay), T3.1 — Stage Thompson Bernoulli per região, T3.2 — Platt LR calibration + Brier/ECE metrics, T3.3 — Auto-calibration PID controller, T3.4 — ¼-Kelly bet sizing (substitui Martingale puro), T3 — PROFUNDO (6.5 dias-dev, 🟡 médio risco, ⭐⭐ retorno médio-alto)
+
+### Community 98 - "Community 98"
+Cohesion: 0.25
+Nodes (8): code:python (def is_anomaly_significant(hits: int, total: int, h0: float ), code:python (from river.drift import ADWIN), T1.1 — Externalização de constantes para TOML, T1.2 — Backtest com vectorbt sobre 3.574 decisões históricas, T1.3 — Logging granular + correção do bug de fallback v4.0.3, T1.4 — Bayesian gating para scores raros (anti-prematura inversão), T1.5 — ADWIN drift detector por direção, T1 — CIRÚRGICO (3.8 dias-dev, 🟢 baixo risco, ⭐⭐⭐ alto retorno)
+
+### Community 99 - "Community 99"
+Cohesion: 0.25
+Nodes (8): 19.1 Criar SP federado SEM senha, 19.2 Federated credentials (3 trusts: branch main + tags v* + pull_request), 19.3 GitHub Actions secrets necessários (o agente fornece valores no doc de entrega — Ivandir adiciona em `Settings → Secrets`):, 19.4 Workflow exemplar (`.github/workflows/deploy.yml`), 19. GitHub OIDC Federation (substitui SP_CI long-lived), code:bash (az ad app create --display-name sp-roleta-gh-deploy), code:bash (for sub in \), code:yaml (permissions:)
+
+### Community 100 - "Community 100"
+Cohesion: 0.25
+Nodes (8): 7.1 Verificações que o agente DEVE fazer ANTES de tocar em DNS, 7.2 Estratégia recomendada (apresentar opções ao usuário), 7.3 Records finais alvo, 7.4 Caddyfile final (agente preenche após confirmar domínio), 7. DNS — verificação e configuração, code:bash (dig +short SEU-DOMINIO ANY @8.8.8.8), code:block13 (roleta    IN  A      <IP estático VM>      TTL 3600), code:block14 ({)
+
+### Community 101 - "Community 101"
+Cohesion: 0.25
+Nodes (5): M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his
+
+### Community 102 - "Community 102"
+Cohesion: 0.29
+Nodes (6): 📊 Baseline — dados de produção 23/05/2026, code:block1 (┌───────────────────────────────────────────────────────────), 🚦 Escopo deste documento, 🚦 INVARIANTES INEGOCIÁVEIS APLICADOS NESTE DOC, 🏆 Os 7 Quick Wins (ordenados por impacto/esforço), 🎯 Quick Wins de Estratégia — Roleta Cloud v4.3.2 → v4.4
+
+### Community 103 - "Community 103"
+Cohesion: 0.29
+Nodes (6): 📎 Anexos — dados brutos da auditoria, code:mermaid (mindmap), 🧠 Mapa Mental Final (síntese), ✅ Recomendações priorizadas (atualizadas pós-auditoria D), 🔬 Sessão 24-05 — Auditoria Pós-Implementação & Engenharia Reversa Estratégica, ⛔ TL;DR — O achado que muda tudo
+
+### Community 104 - "Community 104"
+Cohesion: 0.29
+Nodes (7): 13. Como você (Ivandir) deve responder este documento, Bloco A — Skills imediatas, Bloco B — Wave 0 (estabilização), Bloco C — Direção arquitetural, Bloco D — Cloud, Bloco E — Extrator e auto-bet, Bloco F — Prioridade pessoal
+
+### Community 105 - "Community 105"
+Cohesion: 0.29
+Nodes (7): 17.1 Provisionamento, 17.2 Containers a criar, 17.3 Lifecycle policy (JSON), 17.4 SAS tokens / Managed Identity, 17. Azure Storage Account — `stroletaprod`, code:bash (az storage account create \), code:json ({)
+
+### Community 106 - "Community 106"
+Cohesion: 0.29
+Nodes (7): 21.1 Script `/opt/roleta/backup/state_backup.sh` (criar via cloud-init ou pós-boot), 21.2 Crontab (root), 21.3 Test do agente, 21. Backup automático de `state.json` (cron daily → Blob), code:bash (#!/bin/bash), code:cron (0 3 * * *  /opt/roleta/backup/state_backup.sh >> /var/log/ro), code:bash (ssh root@<VM> "touch /opt/roleta/app/state.json && /opt/role)
+
+### Community 107 - "Community 107"
+Cohesion: 0.29
+Nodes (7): 24.1 Pre-cutover smoke test (OBRIGATÓRIO antes do D-0 da migração), 24.2 RTO / RPO targets, 24.3 Runbook em 1 página (entregar como anexo no doc final), 24.4 Bicep IaC (entrega como anexo), 24. Disaster Recovery Plan (RTO/RPO + runbook), code:bash (# 1. WSS handshake (após app deploy — fora do agente; mas es), code:bash (az deployment group create -g rg-roleta-dr -f main.bicep --p)
+
+### Community 108 - "Community 108"
+Cohesion: 0.33
+Nodes (6): code:bash (az login), ETAPA 4.1 — Provisionar Azure DB for PostgreSQL (CLOUD) — 1d, ETAPA 4.2 — Migração de schema + dados (LOCAL + CLOUD) — 1d, ETAPA 4.3 — Trocar driver no app (LOCAL) — 1d, ETAPA 4.4 — pgmq + pg_cron + pgvector setup (CLOUD) — 1d, FASE 4 — Migração para Postgres (4 dias) — 🟡 amarelo
+
+### Community 109 - "Community 109"
+Cohesion: 0.33
+Nodes (6): code:python (# __init__:), Implementação (~30 LoC), Métrica de validação, O quê, QW-4 — Hot Center **Substitution** (não pula, troca) ⭐⭐⭐, Risco
+
+### Community 110 - "Community 110"
+Cohesion: 0.33
+Nodes (6): Dia 1 (manhã, 4h) — base infraestrutural, Dia 1 (tarde, 4h) — quick wins críticos (modulação de stake), Dia 2 (manhã, 4h) — risk control, Dia 2 (tarde, 4h) — adaptive control, Dia 3 (4h) — ativação gradual em PROD, 🎬 Plano de execução sugerido (3 dias)
+
+### Community 111 - "Community 111"
+Cohesion: 0.33
+Nodes (6): 4.5.1 Atualizar Display de Números (updateResultDisplay), 4.5.2 Evolução Futura: Agrupar C1/C2/C3, 4.5 `frontend/app.js` — ALTERAÇÃO BAIXA, code:javascript (el.resultRegion.textContent = result.numeros?.join(', ') || ), code:javascript (// Números agora são 17 em vez de 21 — display funciona igua), code:javascript (if (result.centros && result.centros.length >= 3) {)
+
+### Community 112 - "Community 112"
+Cohesion: 0.33
+Nodes (6): 10. Roadmap em ondas (Wave 0 → Wave 4), 🌊 Wave 0 — Estabilizar (1-2 dias), 🌊 Wave 1 — Modularizar e portabilizar (1-2 semanas), 🌊 Wave 2 — Extrator Universal (2-4 semanas), 🌊 Wave 3 — Auto-bet (3-6 semanas), 🌊 Wave 4 — Observability + Multi-tenant (opcional)
+
+### Community 113 - "Community 113"
+Cohesion: 0.33
+Nodes (6): 6.1 Estratégias de atuação, 6.2 Camada de "layout de mesa" (declarativa, igual ao extrator), 6.3 Bibliotecas recomendadas, 6.4 Camada de **segurança obrigatória**, 6. Skills/Bibliotecas para o Auto-Bet (visão B), code:yaml (layout:)
+
+### Community 114 - "Community 114"
+Cohesion: 0.33
+Nodes (6): 18.1 Provisionamento, 18.2 Instrumentação esperada (o app Python vai consumir — fora do escopo do agente, apenas garantir o secret), 18.3 Test de smoke do agente, 18. Application Insights wiring real, code:bash (az monitor app-insights component create \), code:bash (# Envia 1 trace dummy via REST API para validar pipeline)
+
+### Community 115 - "Community 115"
+Cohesion: 0.33
+Nodes (6): 8.1 Criação, 8.2 Permissões, 8.3 Como o YOLO Orchestrator vai usar (instruções para README de entrega), 8. Service Principal `sp-roleta-orch` (acesso do YOLO Orchestrator), code:bash (az ad sp create-for-rbac \), code:bash (# Login não-interativo no PC do Ivandir:)
+
+### Community 116 - "Community 116"
+Cohesion: 0.33
+Nodes (4): Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda.
+
+### Community 117 - "Community 117"
+Cohesion: 0.40
+Nodes (5): 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), code:block2 (DIREÇÃO)
+
+### Community 118 - "Community 118"
+Cohesion: 0.40
+Nodes (5): 4.4.1 Decision.gale_bet_value Default, 4.4.2 Novo Campo Opcional (para análise), 4.4 `database/models.py` — ALTERAÇÃO MÍNIMA, code:python (gale_bet_value: int = 17), code:python (sda_offset: int = 0              # Offset usado nesta jogada)
+
+### Community 119 - "Community 119"
+Cohesion: 0.40
+Nodes (5): 4.7.1 Aposta Default (linha 72), 4.7.2 Região Display (linha 466), 4.7 `extension/content.js` — ALTERAÇÃO MÍNIMA, code:javascript (R$ <span id="eb-aposta">17</span>), code:javascript (regiao.textContent = sugestao.regiao || `Centros: ${(sugesta)
+
+### Community 120 - "Community 120"
+Cohesion: 0.40
+Nodes (5): 5. Resumo executivo — o que vale a pena, 📦 ADIAR (sem perda de PnL imediato):, ⚠️ ESPECIAL ATENÇÃO:, ✅ FAZER AGORA (próximas 2 semanas, ~9.8d):, 🟡 NEGOCIAR (depende de T1+T2 entregues, ~3.5d):
+
+### Community 121 - "Community 121"
+Cohesion: 0.40
+Nodes (5): C.3 — Avaliação técnica: qual stack?, Opção 1 — **Milvus** (vetorial puro), Opção 2 — **Neo4j 5.13+** (grafo + vector index nativo), Opção 3 — **Memgraph** (in-memory, drop-in Neo4j), Opção 4 — **Pragmática: SQLite + sqlite-vss + grafo-em-VIEW** ⭐ **RECOMENDADA**
+
+### Community 122 - "Community 122"
+Cohesion: 0.40
+Nodes (5): 5.1 Estratégia de coleta — onde executar o scraping, 5.2 Camada declarativa — o "extrator", 5.3 O que **NÃO** vale a pena aqui, 5. Skills/Bibliotecas para o Extrator Universal (visão A), code:yaml (extractor:)
+
+### Community 123 - "Community 123"
+Cohesion: 0.40
+Nodes (5): 7.1 Princípios para refatorar **sem quebrar o que funciona hoje**, 7.2 Reorganização proposta (monorepo Python, sem mudar linguagem), 7.3 Sequência de refatoração (cada passo PR-able isoladamente), 7. Refatoração do código atual — caminho por blocos isolados, code:block4 (roleta-cloud/)
+
+### Community 124 - "Community 124"
+Cohesion: 0.40
+Nodes (5): 8.1 Resposta direta às plataformas que você citou, 8.2 Comparativo prático (custos mensais para seu perfil de carga), 8.3 Minha recomendação por fase, 8.4 O que **não** vale a pena testar agora, 8. Cloud & Infra — comparativo objetivo
+
+### Community 125 - "Community 125"
+Cohesion: 0.40
+Nodes (5): Apêndice — Resumo das skills/MCPs/libs propostos, Bibliotecas Python (substituir/adicionar), MCPs, Plataformas Cloud (curto/médio prazo), Skills CLI (instalar em `~/.copilot/`)
+
+### Community 126 - "Community 126"
+Cohesion: 0.40
+Nodes (5): 1.1 Servidor a ser substituído, 1.2 Stack atual em execução, 1.3 Repositório código, 1. Inventário atual (o que existe hoje — para você comparar), code:yaml (# docker-compose.yml atual (do projeto):)
+
+### Community 127 - "Community 127"
+Cohesion: 0.40
+Nodes (5): 22.1 Azure Backup Vault, 22.2 Test do agente, 22. Snapshot Policy diária da VM, code:bash (az backup vault create -g rg-roleta-prod -n bv-roleta-prod -), code:bash (az backup item list -g rg-roleta-prod -v bv-roleta-prod \)
+
+### Community 128 - "Community 128"
+Cohesion: 0.40
+Nodes (5): 26.1 VM NIC, 26.2 Postgres, 26. Accelerated Networking + Performance recommendations Postgres, code:bash (NIC=$(az vm show -g rg-roleta-prod -n vm-roleta-app-01 --que), code:bash (az postgres flexible-server parameter set \)
+
+### Community 129 - "Community 129"
+Cohesion: 0.40
+Nodes (5): 9.1 Testes Azure, 9.2 Testes na VM, 9.3 Testes DNS (somente após aprovação Opção A ou B), 9.4 Testes de segurança mínimos, 9. Testes obrigatórios que o agente DEVE executar
+
+### Community 130 - "Community 130"
+Cohesion: 0.40
+Nodes (3): Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off
+
+### Community 132 - "Community 132"
+Cohesion: 0.50
+Nodes (4): A1.1 — Bugs e erros lógicos, A1.2 — Gaps de cobertura, A1.3 — Conflitos com decisões prévias, 🔍 AUDITORIA 1 — Bugs, gaps, conflitos detectados em V1
+
+### Community 133 - "Community 133"
+Cohesion: 0.50
+Nodes (4): code:block3 (S0  (0.5d)), V2.0 Premissas atualizadas, V2.2 Cronograma ordenado V2, ✍️ VERSÃO 2 — REESCRITA INCORPORANDO AUDITORIA 1
+
+### Community 134 - "Community 134"
+Cohesion: 0.50
+Nodes (4): 11. O que vale manter intacto e o que vale jogar fora, 🗑️ Jogo fora (deprecio com `git rm` quando o substituto estiver verde), ✅ Mantenho (não-negociáveis), 🔁 Refatoro (mantenho o **comportamento**, troco a **forma**)
+
+### Community 135 - "Community 135"
+Cohesion: 0.50
+Nodes (4): 12.1 Riscos técnicos, 12.2 Armadilhas de processo, 12.3 Dependências circulares já identificadas, 12. Riscos, dependências circulares e armadilhas conhecidas
+
+### Community 136 - "Community 136"
+Cohesion: 0.50
+Nodes (4): 2.1 O que MANTENHO sem dúvida, 2.2 O que RECALIBRO (com base na sua nova visão), 2.3 O que ABANDONO (errei na priorização), 2. Auditoria honesta das minhas sugestões anteriores
+
+### Community 137 - "Community 137"
+Cohesion: 0.50
+Nodes (4): 3.5 FIX: BUG-TASK-006 + BUG-NEW-007 — Offset Real no DB, code:python (sda_offset: int = 0           # Offset adaptativo usado), code:sql (-- Schema), code:python (sda_offset=result.details.get("offset", 0),)
+
 ## Knowledge Gaps
-- **368 isolated node(s):** `version`, `last_number`, `last_direction`, `direction`, `forces` (+363 more)
+- **862 isolated node(s):** `version`, `last_number`, `last_direction`, `direction`, `forces` (+857 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 0`, `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 25`, `Community 30`, `Community 31`?**
-  _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO` connect `Community 0` to `Community 21`, `Community 15`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Why does `13. ANOTAÇÕES PÓS-IMPLANTAÇÃO PARA `Manutenabilidade_iso.md`` connect `Community 4` to `Community 21`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
+  _High betweenness centrality (0.009) - this node is a cross-community bridge._
+- **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `🆕 SEÇÕES ADICIONADAS NA v2.0 (auditoria cruzada)` connect `Community 70` to `Community 128`, `Community 99`, `Community 105`, `Community 106`, `Community 107`, `Community 81`, `Community 82`, `Community 114`, `Community 127`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `version` to the rest of the system?**
-  _432 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.044444444444444446 - nodes in this community are weakly interconnected._
+  _963 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
+  _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
+- **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
