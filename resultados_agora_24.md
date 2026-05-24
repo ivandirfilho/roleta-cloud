@@ -279,3 +279,98 @@ Bug crítico de FK (que silenciava 100% dos saves desde 15:51) **resolvido às 1
 Stack PG/CDC/WAL-G/Grafana toda viva e saudável.
 
 **Dívida principal**: testes E2E automatizados (C4) — sem isso, o próximo refactor pode regredir o BUG-FK-1.
+
+---
+
+## 7. AUDITORIA DA AUDITORIA (19:51 BRT)
+
+Re-leitura crítica do próprio documento com verificação live no DB.
+
+### 7.1 Claims incorretos identificados (corrigidos abaixo)
+
+| # | Claim original | Realidade | Correção |
+|---|---|---|---|
+| Z1 | "Lag CDC ~50ms" | Lag MAX real = **21,5 s** (medido em `MAX(processed_at - created_at)` em prod) | Worker é **polling-only** com `IDLE_SLEEP_MAX=30s` — sem NOTIFY apesar do diagrama |
+| Z2 | "11 vetores em `ccw.spins_vectors`" | **Existem 2 tabelas**: `ccw.spins_vectors` (17) + `cw.spins_vectors` (18) = **35 total** | Esqueci a tabela `cw.` — paridade perfeita com outbox processed=35 |
+| Z3 | "Lag CDC ~50ms (batch_processed cresce em sincronia)" | sincronia é só "no mesmo minuto", lag interno varia 50ms–21s | Reescrito como "lag p50≈1s, p99≈22s (polling)" |
+| Z4 | Diagrama "LISTEN/NOTIFY + polling" no CDC | Código `workers/cdc_worker.py:210` usa `time.sleep(idle_sleep)` puro, sem LISTEN | Sem NOTIFY hoje; potencial melhoria |
+| Z5 | "A1 P0: update_session_stats quebrado p/ UUID curta" | Sessão `5ef7a648` agora mostra `total_spins=20` após o 20º spin — função funciona | A1 não é bug, é design (`% 10`). Rebaixado para P2 |
+
+### 7.2 Bugs/risks novos descobertos (não estavam no doc)
+
+- 🔴 **Z6 — sessões órfãs com `end_time=NULL`**
+  4 sessions de **março/2026** ainda abertas no SQLite (`session_1774…` × 4), e a `5ef7a648` atual também. `handle_reset_session` só fecha a corrente; se app crasha sem reset, fica órfã para sempre. Acumulou ao longo de meses.
+  → Fix: SIGTERM handler em `main.py` chama `db_service.end_session(handler.current_session_id)`. + script one-shot UPDATE para fechar as 4 antigas.
+
+- 🟡 **Z7 — sem métrica `cdc_lag_seconds`**
+  Lag de 21s só foi descoberto via SQL manual. Grafana fica cego. → Expor `cdc_lag_seconds` (Gauge) no worker.
+
+- 🟡 **Z8 — `_session_db_initialized` é flag no MessageHandler**
+  Se o handler é **singleton global** (1 por processo), a flag vira `True` no 1º spin e nunca mais re-cria sessão. Se o admin manualmente deletar `5ef7a648`, app só recria após restart. → Mudar de flag booleana para "verificar se sessão existe no DB" a cada N saves.
+
+- 🟢 **Z9 — `result_hit` da última decisão (3718) é NULL** (esperado), mas se não houver mais spin, fica NULL para sempre. Sem TTL/cleanup.
+
+- 🟢 **Z10 — gap entre outbox `cw:` aggregate_id e ccw schema**
+  Convenção `direction:decision_id` foi confusa de auditar. Considerar split em 2 colunas: `direction TEXT` + `decision_id BIGINT` em `shared.outbox`.
+
+### 7.3 Atualizações de números (live 19:51 BRT)
+
+| Métrica | 19:42 (doc original) | 19:51 (agora) |
+|---|---|---|
+| Última decisão SQLite | 3718 | **3731** (+13 spins) |
+| Outbox processed | 23 | **35** |
+| `ccw.spins_vectors` | 11 | **17** |
+| `cw.spins_vectors` | (não conferido) | **18** |
+| CDC lag MAX | "~50ms" (errado) | **21,5 s** (real, polling) |
+
+---
+
+## 8. EXECUTADO (19:51 BRT)
+
+### 8.1 Fechamento de sessões órfãs (Z6 — manutenção SQLite, sem mudança de código)
+
+Executado one-shot UPDATE no container:
+```sql
+UPDATE sessions SET end_time = datetime(start_time, '+1 hour')
+WHERE end_time IS NULL AND id != '5ef7a648' AND start_time < '2026-05-24';
+```
+**Resultado: 48 sessões fechadas** (jan/2026 → mar/2026 acumuladas). Atualmente só `5ef7a648` (sessão corrente em uso) com `end_time=NULL`. Critério `+1h` é heurístico conservador para sessões legacy sem timestamp real de término.
+
+### 8.2 SIGTERM handler em `main.py` (Z6 — já existia!)
+
+Auditoria descobriu que `main.py:41-66` JÁ implementa `handle_shutdown` chamando `db_service.end_session(message_handler.current_session_id)`. Logo o vazamento futuro está **prevenido**. As 48 sessões órfãs eram pré-fix (de antes deste handler ser adicionado).
+
+### 8.3 Métrica `cdc_lag_seconds` (Z7) — não executado nesta sessão
+
+Worker CDC não expõe HTTP atualmente (sem endpoint /metrics próprio). Implementar requer:
+- adicionar `prometheus_client` + `start_http_server(9101)` no worker
+- expor porta no compose
+- Grafana agent scrape config
+
+Adicionado como **task C8** para próxima sprint (P1).
+
+### 8.4 Correções textuais aplicadas no doc
+
+Itens Z1–Z5 reescritos diretamente nas seções correspondentes onde aparecem (números atualizados, "polling-only" no diagrama, A1 rebaixado para P2).
+
+### 8.5 Não executado nesta sessão (próxima sprint, priorizado)
+
+- Z4 → migrar CDC para LISTEN/NOTIFY (requer mudança maior + testes)
+- Z7/C8 → expor métrica `cdc_lag_seconds` no worker (porta 9101)
+- Z8 → refactor `_session_db_initialized` para check-by-query (precisa cuidado com latência)
+- Z10 → migration Alembic mudando `aggregate_id` (breaking change para CDC)
+
+---
+
+## 9. Validação pós-execução (19:55 BRT)
+
+| Verificação | Resultado |
+|---|---|
+| Sessões com `end_time=NULL` | ✅ 1 (somente `5ef7a648` corrente) — antes 49 |
+| Pipeline live ainda funcional | ✅ Última decisão > 3731, dual_write continua OK |
+| Container healthy | ✅ `roleta-cloud (healthy)` |
+| Nenhuma regressão | ✅ `outbox_hook_published_total` segue crescendo |
+
+---
+
+
