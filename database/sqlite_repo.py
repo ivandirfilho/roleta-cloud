@@ -267,7 +267,15 @@ class SQLiteDecisionRepository(DecisionRepository):
                 json.dumps(decision.performance_snapshot)
             ))
             conn.commit()
-            return cursor.lastrowid
+            decision_id = cursor.lastrowid
+            # S5 dual-write: publica features no outbox PG se feature flag estiver on.
+            # Defensivo: nunca quebra o app se PG offline.
+            try:
+                from database.outbox_integration import maybe_publish_decision_features
+                maybe_publish_decision_features(decision, decision_id)
+            except Exception as exc:  # noqa: BLE001 — never break SQLite write
+                logger.warning("dual_write_hook_failed: %s", exc)
+            return decision_id
         finally:
             conn.close()
     
