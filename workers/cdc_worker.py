@@ -27,13 +27,15 @@ from __future__ import annotations
 import json
 import logging
 import os
+import select
 import signal
 import sys
 import time
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from psycopg2.extras import Json, RealDictCursor
 
 logger = logging.getLogger("cdc_worker")
@@ -42,10 +44,15 @@ MAX_RETRIES = int(os.environ.get("CDC_MAX_RETRIES", "5"))
 BATCH_SIZE = int(os.environ.get("CDC_BATCH_SIZE", "100"))
 IDLE_SLEEP_INITIAL = float(os.environ.get("CDC_IDLE_SLEEP_INITIAL", "1.0"))
 IDLE_SLEEP_MAX = float(os.environ.get("CDC_IDLE_SLEEP_MAX", "30.0"))
+# S-I: LISTEN/NOTIFY aditivo (default ON; falha-aberta -> polling normal)
+USE_LISTEN_NOTIFY = os.environ.get("CDC_USE_LISTEN_NOTIFY", "1") not in ("0", "false", "False", "")
+NOTIFY_CHANNEL = os.environ.get("CDC_NOTIFY_CHANNEL", "outbox_new")
 ALLOWED_DIRECTIONS = {"cw", "ccw"}
 EXPECTED_DIM = 6
 
 _shutdown = False
+_notify_received_total = 0
+_notify_wakeups_total = 0
 
 
 def _handle_signal(signum: int, _frame: Any) -> None:
@@ -187,14 +194,64 @@ def process_one_batch(conn: psycopg2.extensions.connection, batch_size: int = BA
     return processed_ok
 
 
+def _setup_listen(dsn: str) -> Optional[psycopg2.extensions.connection]:
+    """S-I: cria conexao dedicada em autocommit + LISTEN outbox_new.
+
+    Retorna None se nao habilitado ou falhou (worker continua em polling puro).
+    """
+    if not USE_LISTEN_NOTIFY:
+        return None
+    try:
+        conn = psycopg2.connect(dsn)
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        with conn.cursor() as cur:
+            cur.execute(f"LISTEN {NOTIFY_CHANNEL};")
+        logger.info("listen_notify_enabled channel=%s", NOTIFY_CHANNEL)
+        return conn
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("listen_notify_setup_failed error=%s; falling back to polling-only", exc)
+        return None
+
+
+def _wait_for_notify(conn_listen: Optional[psycopg2.extensions.connection], timeout: float) -> bool:
+    """Bloqueia ate `timeout` ou ate chegar um NOTIFY (o que vier primeiro).
+
+    Retorna True se acordou via NOTIFY, False se timeout (modo polling).
+    Falha-aberta: qualquer excecao volta para `time.sleep` simples.
+    """
+    global _notify_received_total, _notify_wakeups_total
+    if conn_listen is None:
+        time.sleep(timeout)
+        return False
+    try:
+        r, _, _ = select.select([conn_listen], [], [], timeout)
+        if not r:
+            return False
+        conn_listen.poll()
+        n = len(conn_listen.notifies)
+        if n:
+            _notify_received_total += n
+            _notify_wakeups_total += 1
+            conn_listen.notifies.clear()
+            return True
+        return False
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("listen_notify_wait_error error=%s; sleeping fallback", exc)
+        time.sleep(timeout)
+        return False
+
+
 def main_loop(dsn: str) -> None:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    logger.info("cdc_worker_starting dsn_host=%s", _redact_dsn(dsn))
+    logger.info("cdc_worker_starting dsn_host=%s listen_notify=%s",
+                _redact_dsn(dsn), USE_LISTEN_NOTIFY)
     conn = _connect(dsn)
+    conn_listen = _setup_listen(dsn)
     idle_sleep = IDLE_SLEEP_INITIAL
     total = 0
+    last_log_ts = 0.0
 
     while not _shutdown:
         # VF-5: liveness flag-file (compose healthcheck monitora mtime < 120s)
@@ -207,8 +264,19 @@ def main_loop(dsn: str) -> None:
             processed = process_one_batch(conn)
             total += processed
             if processed == 0:
-                time.sleep(idle_sleep)
-                idle_sleep = min(idle_sleep * 1.5, IDLE_SLEEP_MAX)
+                woke = _wait_for_notify(conn_listen, idle_sleep)
+                if woke:
+                    idle_sleep = IDLE_SLEEP_INITIAL  # reset porque chegou trabalho
+                else:
+                    idle_sleep = min(idle_sleep * 1.5, IDLE_SLEEP_MAX)
+                # log resumo a cada 60s para nao poluir
+                now = time.time()
+                if now - last_log_ts >= 60.0:
+                    logger.info(
+                        "cdc_idle_stats notify_total=%s wakeups=%s idle_sleep=%.2fs",
+                        _notify_received_total, _notify_wakeups_total, idle_sleep,
+                    )
+                    last_log_ts = now
             else:
                 logger.info("batch_processed n=%s total=%s", processed, total)
                 idle_sleep = IDLE_SLEEP_INITIAL
@@ -228,8 +296,14 @@ def main_loop(dsn: str) -> None:
                 pass
             time.sleep(5)
 
-    logger.info("cdc_worker_stopped total_processed=%s", total)
+    logger.info("cdc_worker_stopped total_processed=%s notify_total=%s",
+                total, _notify_received_total)
     conn.close()
+    if conn_listen is not None:
+        try:
+            conn_listen.close()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _redact_dsn(dsn: str) -> str:
