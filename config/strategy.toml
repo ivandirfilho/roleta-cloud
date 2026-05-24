@@ -1,0 +1,62 @@
+# Roleta Cloud — Configuração dinâmica da estratégia M15-ADA (Quick Wins v4.4)
+# Editar este arquivo permite tunar a estratégia SEM redeploy (re-leitura on-demand).
+# Schema validado por app_config/strategy_config.py — valores inválidos mantêm defaults.
+
+[sda17]
+# Constantes "mágicas" extraídas do código (legacy hard-coded em sda17.py).
+bayesian_default = 10
+bayesian_warmup = 2
+offset_min = 7
+offset_max = 13
+sigmoid_k = 6
+sigmoid_scale = 2.0
+hit_tighten = 0.08
+miss_cross_rate = 0.3
+max_history = 24
+
+# QW-1 — Per-Direction Stake Minimizer.
+# Quando rolling_hit < threshold, reduz stake para fração mínima e força level=1.
+# INV-3: aposta CONTINUA a ser emitida (apenas valor exibido cai).
+[sda17.minimizer]
+enabled = true
+window = 30                  # tamanho da janela rolling de hits
+warmup_n = 10                # spins mínimos antes de ativar (evita falso positivo no início)
+threshold = 0.487            # 47.2% break-even + 1.5pt margem
+stake_fraction = 0.10        # 10% do base quando ativo
+
+# QW-2 — Per-Direction Stake Weight.
+# Quando level=1 (sem martingale), aplica peso direcional contínuo proporcional ao rolling hit.
+[sda17.stake_weight]
+enabled = true
+cap_upper = 1.5
+cap_lower = 0.3
+divisor = 0.472              # break-even
+
+# QW-3 — Métricas de reset martingale (cap=3 já é nativo via BET_VALUES).
+# Conta resets para alerta Prometheus; não muda comportamento existente.
+[sda17.mg_cap]
+enabled = true
+track_resets = true
+
+# QW-4 — Hot Center Substitution.
+# Após hit em C2 ou C3, TROCA o offset por alternativo (não pula aposta).
+[sda17.hot_substitution]
+enabled = true
+cooldown_spins = 3
+
+# QW-6 — Per-Direction Warmup Adaptativo.
+# warmup baixo quando direção está ganhando, alto quando está perdendo (estabiliza).
+[sda17.warmup_adaptive]
+enabled = true
+warmup_winning = 2           # rolling > break-even
+warmup_losing = 5            # rolling <= break-even
+
+# QW-7 — Drift Freeze.
+# Detecta quebra de regime via diff de hit_rate entre 1ª e 2ª metade da janela.
+# Ao detectar, congela offsets por N spins, depois faz soft-reset.
+[sda17.drift_freeze]
+enabled = true
+window = 50                  # buffer mínimo para detectar
+threshold = 0.15             # |rate_inicial - rate_recente| > threshold
+freeze_spins = 5
+soft_reset_weight = 0.5      # 0.5 * cur + 0.5 * default

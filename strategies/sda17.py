@@ -1,11 +1,18 @@
 # Roleta Cloud - M15-ADA Strategy (IQR + Weighted Median + Drift + Adaptive Triple Focus)
+# Quick Wins v4.4 — INV-3 compliant (aposta a toda jogada):
+#   QW-1/2 modulam stake fora daqui (state/game.py + server/message_handler.py).
+#   QW-4 (Hot Substitution), QW-6 (Warmup Adaptativo) e QW-7 (Drift Freeze)
+#   vivem dentro desta estratégia e NUNCA suprimem aposta — apenas trocam offsets
+#   ou postergam adaptação. should_bet permanece governado SOMENTE pela
+#   suficiência de forças (legado pré-Quick Wins).
 
 import math
 import logging
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 from statistics import median, quantiles
 from state.timeline import Timeline
 from .base import StrategyBase, StrategyResult
+from app_config.strategy_config import get_strategy_config
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +75,7 @@ class SDA17Strategy(StrategyBase):
         self.min_forces = 2    # v4.3: reduzido de 3→2 para warmup mais rápido
         self.default_window = 7
         self.decay = 0.8
-        self.description = "M02-PctSigmoid v4.3, Triple Focus 17 números"
+        self.description = "M02-PctSigmoid v4.4 (QW INV-3), Triple Focus 17 números"
         # Estado adaptativo — históricos INDEPENDENTES por direção
         self.cw_history: List[Tuple[int, int]] = []
         self.ccw_history: List[Tuple[int, int]] = []
@@ -77,6 +84,23 @@ class SDA17Strategy(StrategyBase):
         self._last_offset: Dict[str, int] = {}
         # v4.3: M02-PctSigmoid — offsets float independentes por direção
         self._sigmoid_off: Dict[str, float] = {}
+
+        # ===== v4.4 Quick Wins =====
+        # Buffer rolling de hits por direção (INV-1: estado dual isolado).
+        # Usado por QW-1 (minimizer), QW-2 (weight), QW-6 (warmup), QW-7 (drift).
+        self._recent_hits: Dict[str, List[int]] = {"cw": [], "ccw": []}
+        # QW-4 — Hot Center Substitution: cooldown por (direção, slot).
+        self._cooldown: Dict[str, Dict[str, int]] = {
+            "cw":  {"c2": 0, "c3": 0},
+            "ccw": {"c2": 0, "c3": 0},
+        }
+        # QW-7 — contador de spins restantes em freeze por direção.
+        self._drift_freeze: Dict[str, int] = {"cw": 0, "ccw": 0}
+        # QW-3 — métrica de resets de martingale (preenchida externamente, mas vive aqui
+        # para persistir no adaptive_state).
+        self._mg_resets: Dict[str, int] = {"cw": 0, "ccw": 0}
+        # Config TOML — carregada uma vez (singleton).
+        self._cfg = get_strategy_config()
     
     def analyze(
         self,
@@ -87,7 +111,13 @@ class SDA17Strategy(StrategyBase):
         error_history: List[int] = None
     ) -> StrategyResult:
         """Analisa timeline e prediz próxima força usando pipeline robusto."""
-        
+
+        # v4.4 QW-5: reload config TOML se mtime mudou (custo: 1 stat call).
+        try:
+            self._cfg.maybe_reload()
+        except Exception as _e:
+            logger.debug("[STRATEGY-CFG] maybe_reload falhou (não-fatal): %s", _e)
+
         # BUG-TASK-004 FIX: Garantir _wheel disponível antes do Bayesiano
         if wheel_sequence and not self._wheel:
             self._wheel = wheel_sequence
@@ -303,14 +333,20 @@ class SDA17Strategy(StrategyBase):
         """
         Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).
         v4.3: M02-PctSigmoid — lê offsets float do estado sigmoid.
+        v4.4: QW-4 — aplica Hot Center Substitution (TROCA por offset alternativo
+        quando slot está em cooldown). INV-3: nunca pula; só altera quais números
+        compõem C2/C3.
         Parâmetros independentes por direção — históricos não se misturam.
         """
         dir_key = "cw" if direction in ("cw", "horario") else "ccw"
-        off2 = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
-        off3 = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
-        
-        return (max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2))),
-                max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3))))
+        off2_raw = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
+        off3_raw = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
+        off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2_raw)))
+        off3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3_raw)))
+        # QW-4 substitution
+        off2 = self._get_effective_offset(dir_key, "c2", off2)
+        off3 = self._get_effective_offset(dir_key, "c3", off3)
+        return off2, off3
     
     def _bayesian_error_vector(self, history: List[Tuple[int, int]]) -> Tuple[int, int]:
         """
@@ -413,34 +449,207 @@ class SDA17Strategy(StrategyBase):
         except ValueError:
             return 0
     
+    # ================================================================== #
+    # ===================== v4.4 Quick Wins helpers ==================== #
+    # ================================================================== #
+    @staticmethod
+    def _dk(direction: str) -> str:
+        """Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases."""
+        return "cw" if direction in ("cw", "horario") else "ccw"
+
+    def _recent_hit_rate(self, direction: str) -> Optional[float]:
+        """
+        Rolling hit rate da janela mais recente (config: sda17.minimizer.window).
+        Retorna None enquanto warmup (< warmup_n amostras). INV-1 isolado por direção.
+        """
+        dk = self._dk(direction)
+        h = self._recent_hits[dk]
+        warmup_n = int(self._cfg.get("sda17.minimizer", "warmup_n", 10))
+        if len(h) < warmup_n:
+            return None
+        window = int(self._cfg.get("sda17.minimizer", "window", 30))
+        sample = h[-window:]
+        return sum(sample) / len(sample)
+
+    def should_minimize(self, direction: str) -> Tuple[bool, Optional[float]]:
+        """
+        QW-1 — decisão de minimizer (stake mínimo + force level=1).
+        Retorna (minimize, rolling_rate). NUNCA pula aposta (INV-3 garantido em
+        message_handler — este método só informa).
+        """
+        if not self._cfg.get("sda17.minimizer", "enabled", True):
+            return False, None
+        rate = self._recent_hit_rate(direction)
+        if rate is None:
+            return False, None
+        thr = float(self._cfg.get("sda17.minimizer", "threshold", 0.487))
+        return rate < thr, rate
+
+    def get_stake_weight(self, direction: str) -> float:
+        """
+        QW-2 — peso direcional contínuo para stake quando level=1.
+        Retorna 1.0 se desabilitado, warmup ou sem dados.
+        Aplicado apenas em level=1 (mg=0) pelo caller (game.py).
+        """
+        if not self._cfg.get("sda17.stake_weight", "enabled", True):
+            return 1.0
+        rate = self._recent_hit_rate(direction)
+        if rate is None:
+            return 1.0
+        sw = self._cfg.section("sda17.stake_weight")
+        try:
+            div = float(sw.get("divisor", 0.472)) or 0.472
+            return min(float(sw.get("cap_upper", 1.5)),
+                       max(float(sw.get("cap_lower", 0.3)), rate / div))
+        except Exception:
+            return 1.0
+
+    def get_mg_max(self, direction: str) -> int:
+        """
+        QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES).
+        Mantido por compat com plano e métricas; valores < 3 podem ser usados
+        pelo advisor para escalação conservadora.
+        """
+        rate = self._recent_hit_rate(direction)
+        if rate is None:
+            return 3
+        if rate >= 0.60:
+            return 3
+        if rate >= 0.50:
+            return 2
+        return 1  # rate baixo: nunca escala
+
+    def _get_warmup(self, direction: str) -> int:
+        """QW-6 — warmup adaptativo (ganhando=2, perdendo=5)."""
+        if not self._cfg.get("sda17.warmup_adaptive", "enabled", True):
+            return self.BAYESIAN_WARMUP
+        rate = self._recent_hit_rate(direction)
+        if rate is None:
+            return self.BAYESIAN_WARMUP
+        div = float(self._cfg.get("sda17.stake_weight", "divisor", 0.472))
+        if rate > div:
+            return int(self._cfg.get("sda17.warmup_adaptive", "warmup_winning", 2))
+        return int(self._cfg.get("sda17.warmup_adaptive", "warmup_losing", 5))
+
+    def _get_effective_offset(self, dk: str, slot: str, base_off: int) -> int:
+        """
+        QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por
+        offset alternativo (delta ±1 em direção oposta ao prior). Sempre devolve
+        offset válido — INV-3 garantido (nunca pula aposta).
+        """
+        if not self._cfg.get("sda17.hot_substitution", "enabled", True):
+            return base_off
+        cd = self._cooldown.get(dk, {}).get(slot, 0)
+        if cd <= 0:
+            return base_off
+        alt = base_off + (1 if base_off < self.PRIOR_CENTER else -1)
+        return max(self.OFFSET_MIN, min(self.OFFSET_MAX, alt))
+
+    def _detect_drift(self, dk: str) -> bool:
+        """QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)."""
+        if not self._cfg.get("sda17.drift_freeze", "enabled", True):
+            return False
+        win = int(self._cfg.get("sda17.drift_freeze", "window", 50))
+        h = self._recent_hits[dk]
+        if len(h) < win:
+            return False
+        half = win // 2
+        early = sum(h[-win:-half]) / half
+        late = sum(h[-half:]) / half
+        thr = float(self._cfg.get("sda17.drift_freeze", "threshold", 0.15))
+        return abs(early - late) > thr
+
+    def record_mg_reset(self, direction: str) -> None:
+        """QW-3 — métrica de reset martingale. Chamado externamente."""
+        self._mg_resets[self._dk(direction)] += 1
+
+    # ================================================================== #
+
     def _pct_sigmoid_update(self, direction: str, c1: int, actual_result: int) -> None:
         """
         M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.
-        
-        - Hit: tighten 8% em direção a center=10 (estabiliza)
-        - Miss: sigmoid(error_pct) × 2.0 na direção do erro (adapta)
-        - Cada direção (CW/CCW) mantém offsets independentes
+
+        v4.4 QW pipeline (ordem importa):
+          1. Decay cooldowns (QW-4)
+          2. Calcula is_hit (compat legacy)
+          3. Empurra hit em _recent_hits (alimenta QW-1/2/3/6/7)
+          4. Marca cooldown se C2 ou C3 hitou (QW-4)
+          5. Drift freeze pipeline (QW-7): se em freeze, decrementa e talvez
+             soft-reset; se detectar drift novo, entra em freeze e NÃO adapta
+             nesse spin (mas a aposta já foi emitida — INV-3 ok)
+          6. Adaptação sigmoid normal (legacy)
+
+        INV-1 isolado por direção (dk).
         """
         if not self._wheel:
             return
-        
-        dir_key = "cw" if direction in ("cw", "horario") else "ccw"
-        off2 = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
-        off3 = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
-        
-        # Calcular cobertura atual
-        o2, o3 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2))), \
-                 max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3)))
+
+        dk = self._dk(direction)
+
+        # ---- (1) Decay cooldowns ----
+        for k in self._cooldown[dk]:
+            if self._cooldown[dk][k] > 0:
+                self._cooldown[dk][k] -= 1
+
+        off2 = self._sigmoid_off.get(f"{dk}_off2", float(self.BAYESIAN_DEFAULT))
+        off3 = self._sigmoid_off.get(f"{dk}_off3", float(self.BAYESIAN_DEFAULT))
+
+        # Calcular cobertura atual (usa offsets EFETIVOS — mesmos vistos no analyze)
+        o2_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2)))
+        o3_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3)))
+        o2 = self._get_effective_offset(dk, "c2", o2_raw)
+        o3 = self._get_effective_offset(dk, "c3", o3_raw)
         c1_idx = self._wheel_index(c1, self._wheel)
         ws = len(self._wheel)
         c2 = self._wheel[(c1_idx + o2) % ws]
         c3 = self._wheel[(c1_idx - o3) % ws]
-        cov = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
-        cov |= set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
-        cov |= set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
-        
+        c1_nbrs = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
+        c2_nbrs = set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
+        c3_nbrs = set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
+        cov = c1_nbrs | c2_nbrs | c3_nbrs
+
         is_hit = actual_result in cov
-        
+
+        # ---- (3) Alimenta buffer rolling de hits ----
+        self._recent_hits[dk].append(1 if is_hit else 0)
+        if len(self._recent_hits[dk]) > 100:
+            self._recent_hits[dk] = self._recent_hits[dk][-100:]
+
+        # ---- (4) Cooldown trigger (QW-4) ----
+        if is_hit and self._cfg.get("sda17.hot_substitution", "enabled", True):
+            cd_spins = int(self._cfg.get("sda17.hot_substitution", "cooldown_spins", 3))
+            # Prioridade: se caiu em C2 (não C1), marca c2; se caiu em C3 (não C1/C2), marca c3.
+            if actual_result in c2_nbrs and actual_result not in c1_nbrs:
+                self._cooldown[dk]["c2"] = cd_spins
+            elif actual_result in c3_nbrs and actual_result not in c1_nbrs and actual_result not in c2_nbrs:
+                self._cooldown[dk]["c3"] = cd_spins
+
+        # ---- (5) Drift freeze pipeline (QW-7) ----
+        if self._drift_freeze[dk] > 0:
+            self._drift_freeze[dk] -= 1
+            if self._drift_freeze[dk] == 0:
+                # Soft reset: aproxima do default
+                w = float(self._cfg.get("sda17.drift_freeze", "soft_reset_weight", 0.5))
+                for suf in ("off2", "off3"):
+                    cur = self._sigmoid_off.get(f"{dk}_{suf}", float(self.BAYESIAN_DEFAULT))
+                    self._sigmoid_off[f"{dk}_{suf}"] = w * cur + (1.0 - w) * self.BAYESIAN_DEFAULT
+                logger.info("[DRIFT-RESET] dir=%s soft-reset aplicado", dk)
+            return  # não adapta durante freeze
+
+        if self._detect_drift(dk):
+            self._drift_freeze[dk] = int(self._cfg.get("sda17.drift_freeze", "freeze_spins", 5))
+            logger.warning("[DRIFT-DETECTED] dir=%s freezing %d spins",
+                           dk, self._drift_freeze[dk])
+            return
+
+        # ---- (6) QW-6: warmup adaptativo ----
+        warmup = self._get_warmup(direction)
+        history_len = len(self.cw_history if dk == "cw" else self.ccw_history)
+        if history_len < warmup:
+            # Ainda em warmup adaptativo — não adapta offsets (mas buffer já foi alimentado).
+            return
+
+        # ---- (legacy) Adaptação sigmoid ----
         if is_hit:
             # Tighten: mover 8% em direção ao centro (10)
             off2 += (self.PRIOR_CENTER - off2) * self.HIT_TIGHTEN
@@ -453,13 +662,13 @@ class SDA17Strategy(StrategyBase):
             # BUG-AUDIT-007 FIX: Clampar min_dist ao raio máximo da roda
             min_dist = min(min_dist, 18)
             pct = min_dist / 18.0
-            
+
             # Sigmoid dampening
             adj = (2.0 / (1.0 + math.exp(-self.SIGMOID_K * pct)) - 1.0) * self.SIGMOID_SCALE
-            
+
             # Direção do erro
             err_dir = self._circ_dir(c1, actual_result, self._wheel)
-            
+
             if err_dir > 0:  # Resultado está no sentido CW da roda
                 off2 += adj
                 off3 -= adj * self.MISS_CROSS_RATE
@@ -469,13 +678,13 @@ class SDA17Strategy(StrategyBase):
             else:
                 off2 += adj * 0.5
                 off3 += adj * 0.5
-        
+
         # Clamp
         off2 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off2))
         off3 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off3))
-        
-        self._sigmoid_off[f"{dir_key}_off2"] = off2
-        self._sigmoid_off[f"{dir_key}_off3"] = off3
+
+        self._sigmoid_off[f"{dk}_off2"] = off2
+        self._sigmoid_off[f"{dk}_off3"] = off3
     
     def update_adaptive(self, direction: str, c1: int, actual_result: int,
                         wheel_sequence: List[int]) -> None:
@@ -498,17 +707,24 @@ class SDA17Strategy(StrategyBase):
         self._pct_sigmoid_update(direction, c1, actual_result)
     
     def get_adaptive_state(self) -> Dict[str, Any]:
-        """Retorna estado adaptativo para persistência."""
+        """Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)."""
         return {
             "cw_history": self.cw_history,
             "ccw_history": self.ccw_history,
             "last_offset": self._last_offset,
-            "sigmoid_off": self._sigmoid_off
+            "sigmoid_off": self._sigmoid_off,
+            # v4.4 Quick Wins
+            "recent_hits": self._recent_hits,
+            "cooldown": self._cooldown,
+            "drift_freeze": self._drift_freeze,
+            "mg_resets": self._mg_resets,
+            "version": "1.7",
         }
-    
+
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
         """Carrega estado adaptativo de persistência com validação.
-        Compatível com v4.0.x (cw_ema), v4.1.x (sem last_offset), v4.2.x (sem sigmoid_off)."""
+        Compatível com v4.0.x (cw_ema), v4.1.x (sem last_offset), v4.2.x (sem sigmoid_off),
+        v4.3.x (sem buffers Quick Wins)."""
         for key in ("cw_history", "ccw_history"):
             raw = state.get(key, [])
             validated = []
@@ -533,6 +749,38 @@ class SDA17Strategy(StrategyBase):
             valid_keys = {"cw_off2", "cw_off3", "ccw_off2", "ccw_off3"}
             self._sigmoid_off = {k: float(v) for k, v in raw_sig.items()
                                  if k in valid_keys and isinstance(v, (int, float))}
+        # v4.4 Quick Wins: restaurar buffers (defaults seguros se ausente — sem
+        # crash em restart noturno se vier de v4.3.x).
+        raw_rh = state.get("recent_hits", {})
+        if isinstance(raw_rh, dict):
+            for dk in ("cw", "ccw"):
+                v = raw_rh.get(dk, [])
+                if isinstance(v, list):
+                    self._recent_hits[dk] = [int(x) for x in v if x in (0, 1)][-100:]
+        raw_cd = state.get("cooldown", {})
+        if isinstance(raw_cd, dict):
+            for dk in ("cw", "ccw"):
+                sub = raw_cd.get(dk, {})
+                if isinstance(sub, dict):
+                    for slot in ("c2", "c3"):
+                        try:
+                            self._cooldown[dk][slot] = max(0, int(sub.get(slot, 0)))
+                        except (ValueError, TypeError):
+                            pass
+        raw_df = state.get("drift_freeze", {})
+        if isinstance(raw_df, dict):
+            for dk in ("cw", "ccw"):
+                try:
+                    self._drift_freeze[dk] = max(0, int(raw_df.get(dk, 0)))
+                except (ValueError, TypeError):
+                    pass
+        raw_mg = state.get("mg_resets", {})
+        if isinstance(raw_mg, dict):
+            for dk in ("cw", "ccw"):
+                try:
+                    self._mg_resets[dk] = max(0, int(raw_mg.get(dk, 0)))
+                except (ValueError, TypeError):
+                    pass
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""
