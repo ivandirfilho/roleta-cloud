@@ -5,9 +5,9 @@ LABEL version="4.3.2"
 
 WORKDIR /app
 
-# Dependências de sistema
+# Dependências de sistema (VF-0: sqlite3 CLI + jq + strace para debug em produção)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends curl sqlite3 jq strace && \
     rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências Python primeiro (cache layer)
@@ -26,9 +26,10 @@ VOLUME ["/app/data"]
 # Porta do WebSocket
 EXPOSE 8765
 
-# Health check — verifica se o processo Python está rodando
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8765)); s.close()" || exit 1
+# Health check (VF-4): usa endpoint HTTP /health no porto interno 8766
+# em vez de TCP connect (que polui logs com handshake errors).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8766/health || exit 1
 
 # Variáveis de ambiente padrão
 ENV WS_HOST=0.0.0.0

@@ -10,6 +10,10 @@ websockets>=12.0
 # Logging estruturado
 structlog>=24.0
 
+# Observability / debugging (Sprint VF-0)
+prometheus-client>=0.20.0
+py-spy>=0.4.0
+
 # Database (SQLite é built-in, não precisa de pacote extra)
 # Para futuro migration para SurrealDB:
 # surrealdb>=0.3.0

@@ -5,8 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: roleta-cloud
     restart: unless-stopped
+    # VF-0: SYS_PTRACE para py-spy attach no PID 1 (debugging runtime)
+    cap_add:
+      - SYS_PTRACE
     ports:
       - "127.0.0.1:${WS_PORT:-8765}:8765"
+      # VF-3/VF-4: /metrics (Prometheus) + /health (HTTP healthcheck)
+      - "127.0.0.1:8766:8766"
     volumes:
       - roleta-data:/app/data
       - ./state.json:/app/state.json
@@ -19,12 +24,13 @@ services:
       - SSL_KEY=${SSL_KEY:-}
       - AUTH_ENABLED=${AUTH_ENABLED:-false}
       - ROLETA_API_KEY=${ROLETA_API_KEY:-}
+    # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8765)); s.close()"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 60s
     logging:
       driver: json-file
       options:

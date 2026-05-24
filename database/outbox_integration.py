@@ -44,10 +44,47 @@ _FLAG_CACHE_TTL_SEC = 30.0
 _flag_lock = threading.Lock()
 _flag_cache: dict[str, tuple[bool, float]] = {}
 
-# Publisher singleton.
+# Publisher singleton com retry exponencial (VF-2 fix HOOK-1).
 _pub_lock = threading.Lock()
 _publisher: Optional["OutboxPublisher"] = None
-_publisher_init_attempted = False
+_publisher_init_attempts = 0
+_publisher_last_attempt_ts = 0.0
+_MAX_INIT_ATTEMPTS = 20
+_RETRY_BACKOFF_SEC = 30.0
+
+# Métricas Prometheus (VF-3) — opcionais; se prometheus_client não disponível, no-op.
+try:
+    from prometheus_client import Counter, Gauge  # type: ignore
+    _m_hook_called = Counter(
+        "outbox_hook_called_total",
+        "Total chamadas a maybe_publish_decision_features",
+    )
+    _m_hook_published = Counter(
+        "outbox_hook_published_total",
+        "Total publicações OK no shared.outbox via hook",
+    )
+    _m_hook_skipped = Counter(
+        "outbox_hook_skipped_total",
+        "Total skips (flag off, publisher None, direction unknown)",
+        ["reason"],
+    )
+    _m_hook_init_attempts = Counter(
+        "outbox_hook_init_attempts_total",
+        "Tentativas de init do OutboxPublisher",
+    )
+    _m_publisher_ready = Gauge(
+        "outbox_publisher_ready",
+        "1 se OutboxPublisher inicializado; 0 caso contrário",
+    )
+    _METRICS = True
+except Exception:  # noqa: BLE001
+    _METRICS = False
+
+    class _NoOp:
+        def labels(self, *_a, **_kw): return self
+        def inc(self, *_a, **_kw): pass
+        def set(self, *_a, **_kw): pass
+    _m_hook_called = _m_hook_published = _m_hook_skipped = _m_hook_init_attempts = _m_publisher_ready = _NoOp()
 
 
 def _normalize_direction(raw: str) -> str | None:
@@ -78,28 +115,40 @@ def _extract_raw_features(decision: "Decision") -> list[float]:
 
 
 def _get_publisher() -> Optional["OutboxPublisher"]:
-    """Lazy singleton; retorna None se PG nao configurado / erro de init."""
-    global _publisher, _publisher_init_attempted
+    """Lazy singleton com retry exponencial (VF-2 fix HOOK-1).
+
+    Antes: single-shot — 1 falha = perma-disabled.
+    Agora: até _MAX_INIT_ATTEMPTS tentativas com backoff de _RETRY_BACKOFF_SEC.
+    """
+    global _publisher, _publisher_init_attempts, _publisher_last_attempt_ts
     if _publisher is not None:
         return _publisher
     with _pub_lock:
         if _publisher is not None:
             return _publisher
-        if _publisher_init_attempted:
+        if _publisher_init_attempts >= _MAX_INIT_ATTEMPTS:
             return None
-        _publisher_init_attempted = True
+        now = time.monotonic()
+        if _publisher_init_attempts > 0 and (now - _publisher_last_attempt_ts) < _RETRY_BACKOFF_SEC:
+            return None
+        _publisher_last_attempt_ts = now
+        _publisher_init_attempts += 1
+        _m_hook_init_attempts.inc()
         dsn = os.environ.get("ROLETA_PG_DSN")
         if not dsn:
-            logger.info("dual_write_pg ignored: ROLETA_PG_DSN nao setado")
+            logger.warning("dual_write_pg disabled: ROLETA_PG_DSN nao setado (attempt %d)", _publisher_init_attempts)
             return None
         try:
             from database.outbox_publisher import OutboxPublisher
-            _publisher = OutboxPublisher(dsn)
-            logger.info("OutboxPublisher inicializado")
+            p = OutboxPublisher(dsn)
+            _ = p._ensure_conn()  # força conexão imediata
+            _publisher = p
+            _m_publisher_ready.set(1)
+            logger.warning("OutboxPublisher inicializado com sucesso (attempt %d)", _publisher_init_attempts)
+            return _publisher
         except Exception as exc:  # noqa: BLE001
-            logger.warning("OutboxPublisher init falhou: %s", exc)
+            logger.warning("OutboxPublisher init attempt %d falhou: %s", _publisher_init_attempts, exc)
             return None
-        return _publisher
 
 
 def _is_flag_enabled(flag_name: str = "dual_write_pg") -> bool:
@@ -149,15 +198,19 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
     Returns:
         True se publicou; False caso contrario (flag off, PG offline, erro).
     """
+    _m_hook_called.inc()
     try:
         if not _is_flag_enabled("dual_write_pg"):
+            _m_hook_skipped.labels(reason="flag_off").inc()
             return False
         direction = _normalize_direction(decision.spin_direction)
         if direction is None:
+            _m_hook_skipped.labels(reason="unknown_direction").inc()
             logger.debug("skip_publish unknown direction=%r", decision.spin_direction)
             return False
         pub = _get_publisher()
         if pub is None:
+            _m_hook_skipped.labels(reason="publisher_none").inc()
             return False
         raw = _extract_raw_features(decision)
         pub.publish_spin_features(
@@ -170,7 +223,10 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
                 "gale_level": decision.gale_level,
             },
         )
+        _m_hook_published.inc()
+        logger.info("dual_write_ok decision_id=%s direction=%s", decision_id, direction)
         return True
     except Exception as exc:  # noqa: BLE001
+        _m_hook_skipped.labels(reason="exception").inc()
         logger.warning("dual_write_failed decision_id=%s error=%s", decision_id, exc)
         return False

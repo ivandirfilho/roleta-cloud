@@ -197,6 +197,12 @@ def main_loop(dsn: str) -> None:
     total = 0
 
     while not _shutdown:
+        # VF-5: liveness flag-file (compose healthcheck monitora mtime < 120s)
+        try:
+            with open("/tmp/cdc_alive", "w") as _f:
+                _f.write(str(int(time.time())))
+        except Exception:  # noqa: BLE001
+            pass
         try:
             processed = process_one_batch(conn)
             total += processed

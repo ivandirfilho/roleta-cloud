@@ -26,8 +26,13 @@ from pathlib import Path
 
 from core.logging_config import setup_logging
 from server.websocket import start_server, game_state
+from server.health_server import start_health_server
 
 logger = setup_logging()
+
+# VF-3: subir logger 'database' para INFO em produção (ver hook fires)
+import logging as _logging
+_logging.getLogger("database").setLevel(_logging.INFO)
 
 # BUG-MAIN-002 fix: Flag para prevenir double shutdown
 _shutdown_called = False
@@ -89,6 +94,8 @@ def main():
     """)
     
     try:
+        # VF-3/VF-4: iniciar health server (/health + /metrics) ANTES do WS loop
+        start_health_server()
         asyncio.run(start_server())
     except KeyboardInterrupt:
         handle_shutdown(None, None)
