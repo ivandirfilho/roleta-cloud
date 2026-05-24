@@ -628,13 +628,50 @@ Ver subseções abaixo.
 - **S-L (outbox atômico SQLite)**: maior refactor, 1 dia. Sessão dedicada.
 - **S-M (Loki/Promtail/Grafana rules)**: depende de node-exporter ou Loki instalado — nenhum ainda. Pré-req "observability stack inicial" precisa virar S-M0.
 
-### XXI.5 Próxima sessão
+## XXII. Execução v4.1 — S-M0 + S-I em produção
 
-Ordem sugerida (cada uma 1 sessão curta):
-1. **S-M0**: instalar node-exporter (escrap já-existente roleta_gap.prom) + Promtail.
-2. **S-I**: LISTEN/NOTIFY aditivo → valida lag p99 < 1s em 30min.
-3. **S-K**: pg_cron janela de manutenção.
-4. **S-L**: outbox-pattern atômico SQLite.
+### XXII.1 ✅ S-M0 (observability stack)
+
+| Item | Status | Evidência |
+|---|---|---|
+| node-exporter container | ✅ | `quay.io/prometheus/node-exporter:v1.8.2` --network host --pid host, textfile collector em `/var/lib/node_exporter` |
+| grafana-agent scrape `roleta-cloud` | ✅ | job_name=roleta-cloud target=127.0.0.1:8766 |
+| grafana-agent scrape `node` | ✅ | job_name=node target=127.0.0.1:9100 |
+| Permissão textfile | ✅ | wrapper agora `chmod 0644 roleta_gap.prom` (era 600, node-exporter rodava como nobody) |
+| Visibilidade em Grafana Cloud | ✅ | métricas `decisions_outbox_gap`, `decisions_outbox_*_total`, `outbox_hook_*`, `node_*`, `pg_*` chegando |
+
+### XXII.2 ✅ S-I (LISTEN/NOTIFY aditivo)
+
+| Item | Status | Evidência |
+|---|---|---|
+| migrations/007 | ✅ | `shared.notify_outbox_new()` + trigger `trg_outbox_notify` AFTER INSERT |
+| `cdc_worker.main_loop` | ✅ | conn dedicada autocommit em LISTEN; `select.select(conn,_,_,timeout)` |
+| Fallback automatico | ✅ | qualquer excecao no setup ou wait → polling normal (log warning) |
+| Kill switch | ✅ | `CDC_USE_LISTEN_NOTIFY=0` desabilita sem rebuild |
+| Log resumo 60s | ✅ | `cdc_idle_stats notify_total=N wakeups=N idle_sleep=N.NNs` |
+
+**Impacto medido (5 eventos pos-23:47):**
+
+| Métrica | Antes (polling) | Depois (NOTIFY) | Ganho |
+|---|---|---|---|
+| min | 0.5s | 0.00s | — |
+| avg | ~8s | **0.01s** | 800× |
+| p95 | 17.06s | **0.01s** | 1700× |
+| p99 | 28.91s | **0.01s** | 2891× |
+| wakeups via NOTIFY | 0/N | 4/4 (100%) | — |
+
+### XXII.3 Pendente (próxima sessão)
+
+- **S-K** (pg_cron janela manutenção) — requer rebuild image PG.
+- **S-L** (outbox atômico SQLite) — refactor 1 dia, sessão dedicada.
+- **S-M Loki rules + alertas** — datasource Loki já ativo; falta dashboard + alert `decisions_outbox_gap > 0 for 2m`.
+
+### XXII.4 Bonus: bugs latentes corrigidos colateralmente
+
+1. **`.dockerignore tools/`** → removido. Causa-raiz de M-1 precisar `docker cp` manual. Toda nova ferramenta em `tools/` agora entra naturalmente via `COPY . .`.
+2. **Permissão 600 do prom textfile** → `chmod 0644` após `mv` atomico. node-exporter (uid nobody) agora consegue ler.
+3. **`git pull` falhava por arquivos untracked** → nas próximas sessões, garantir `git stash` ou `rm` antes de `pull` quando deploy intermediário criou arquivos no host.
+
 
 
 
