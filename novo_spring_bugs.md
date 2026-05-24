@@ -93,6 +93,30 @@ if not getattr(self, "_session_db_initialized", False):
 5. Validar: `curl /metrics | grep outbox_hook_called_total` deve ser >0
 
 ### Critério de sucesso
-- [ ] Próximo spin do cliente persiste no SQLite (id > 3698)
-- [ ] `outbox_hook_called_total` > 0
-- [ ] Nenhum `FOREIGN KEY constraint failed` em 10min de produção
+- [x] Próximo spin do cliente persiste no SQLite (id > 3698) → **id=3712 @ 22:37 UTC**
+- [x] `outbox_hook_called_total` > 0 → **2.0**
+- [x] Nenhum `FOREIGN KEY constraint failed` em 10min de produção → **0 erros**
+
+---
+
+## ✅ RESULTADO VALIDADO EM PRODUÇÃO (22:37 UTC)
+
+| Indicador | Antes | Depois |
+|---|---|---|
+| Última decisão SQLite | id=3698 @ 15:51 BRT (travado 4h) | **id=3712 @ 19:37 BRT** (avançando) |
+| Sessão UUID curta no DB | ❌ FK constraint failed | ✅ `5ef7a648` criada |
+| `outbox_hook_called_total` | 0 | **2** |
+| `outbox_publisher_ready` | 0 | **1** |
+| `save_decision_failed_total` | métrica inexistente | exposta (0 falhas) |
+| Logs `FOREIGN KEY constraint` | em todo save | **zero** |
+| `dual_write_ok` SQLite→PG | nunca | `decision_id=3711, 3712` |
+
+**Logs novos confirmam fluxo correto**:
+```
+✅ Sessão DB inicializada: 5ef7a648
+OutboxPublisher inicializado com sucesso (attempt 1)
+dual_write_ok decision_id=3711 direction=ccw
+dual_write_ok decision_id=3712 direction=cw
+```
+
+Commit: `0adf3e4` (push) + deploy `docker compose up -d --build roleta-cloud` em prod.
