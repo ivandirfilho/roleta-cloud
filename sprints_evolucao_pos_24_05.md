@@ -475,5 +475,168 @@ Dia 13:
 4. **A-2 smoke restore WAL-G** — validação DR.
 5. **Alerta Grafana** baseado no log `gap_detector.log` (loki).
 
+---
+
+# 🔬 VERSÃO 4 — Auditoria de tudo que foi feito + auditoria das propostas (24/05 20:35 BRT)
+
+## XVIII. Auto-audit do trabalho v1 → v3 (bugs e melhorias)
+
+### XVIII.A Bugs em código já deployado
+
+| # | Bug | Local | Severidade | Evidência |
+|---|---|---|---|---|
+| V3-B1 | **DEAD CODE no fix `sqlite_repo.py:276-287`** — o except foi adicionado, mas `maybe_publish_decision_features` NUNCA levanta (já tem try/except interno que retorna False). O bloco de error+métrica nunca executa. O silent-skip de 3698 foi pelo WARNING em `outbox_integration.py:237`, não aqui. | `database/sqlite_repo.py:276-287` | 🟧 P1 |
+| V3-B2 | **DOUBLE-COUNT possível** — se algum dia `maybe_publish` voltar a re-raise, ambos `outbox_hook_skipped` no `outbox_integration.py:236` e o do `sqlite_repo.py:285` vão incrementar. | mesmo | 🟩 P3 (latente) |
+| V3-B3 | **Fix mirou o lugar errado** — deveria ter promovido o `logger.warning` da linha 237 do `outbox_integration.py` para `logger.error` com decision_id (que é onde a perda 3698 ocorreu). | `database/outbox_integration.py:237` | 🟥 P0 |
+
+### XVIII.B Bugs em M-1 (gap detector)
+
+| # | Bug | Severidade |
+|---|---|---|
+| M1-B1 | **Asymmetric lookback**: filtra decisions por `timestamp` (event-time) e outbox por `created_at` (insert-time). Backfill de 3698 (decision time=4h atrás, outbox time=agora) **inflou outbox=78 vs decisions=77** falsamente. | 🟧 P1 |
+| M1-B2 | **Sem persistência em Prometheus** — alerta só via grep do log. | 🟨 P2 |
+| M1-B3 | **Sem flock**: cron `* * * * *` pode sobrepor se execução >60s (psql cold-start). | 🟩 P3 |
+| M1-B4 | **Sem logrotate** em `/var/log/roleta/gap_detector.log` (cresce indefinidamente, ~1KB/min = 1,4MB/dia). | 🟩 P3 |
+| M1-B5 | **Lookback fixo 60min**: gaps >60min não são detectados. Decisão 3698 nunca seria descoberta por M-1 hoje. | 🟨 P2 |
+
+### XVIII.C Bugs no backfill de 3698
+
+| # | Bug | Severidade |
+|---|---|---|
+| BF-B1 | **Time semantics quebrada**: `created_at=now()` na inserção do outbox, mas decision real foi 15:51 BRT. Grafana verá esse spin como "agora", não como histórico. | 🟨 P2 |
+| BF-B2 | **Sem flag de backfill** no payload (`meta.backfill=true` faltando). ML treino não sabe distinguir replays de eventos originais. | 🟩 P3 |
+| BF-B3 | **Manual, não reprodutível** — sem script `tools/backfill_decision.py` parametrizado. | 🟩 P3 |
+
+### XVIII.D Audit das propostas §XVII.6 (próximas sprints)
+
+| # | Proposta | Bug/Risco descoberto agora |
+|---|---|---|
+| AUD-1 | **A-1b SAVEPOINT** seria impossível como escrito: SQLite e PG são **DBs distintos**, não existe transação XA nativa. Solução real: outbox-pattern **dentro do próprio SQLite** + forwarder para PG. | 🟥 P0 design flaw |
+| AUD-2 | **D-1 LISTEN/NOTIFY** muda toda arquitetura de loop (poll → event-driven). Deveria ser **aditivo**: notify só acorda poll cedo, mantém fallback. | 🟧 P1 |
+| AUD-3 | **C-1 pg_cron** requer rebuild da imagem PG + restart com `shared_preload_libraries`. **Downtime planejado** (~30s). Não foi mencionado. | 🟧 P1 |
+| AUD-4 | **"Alerta Grafana via Loki"** assume Loki ingerindo `/var/log/roleta/*.log` — hoje só ingere `docker logs`. Promtail config falta. | 🟨 P2 |
+| AUD-5 | Nenhuma das propostas mencionava **rollback plan** se o fix der errado em produção (além de feature flag). | 🟨 P2 |
+
+## XIX. Próximas sprints v4 (pós-auditoria)
+
+### 🟥 S-H — Correções de regressão do próprio trabalho v3 (HOJE, 30min)
+
+| ID | O quê | Como | Por quê |
+|---|---|---|---|
+| **H-1** | Mover fix do silent-skip para o local correto | Em `outbox_integration.py:235-238` trocar `logger.warning` por `logger.error` com `decision_id`, `direction`, `type(exc).__name__`. Remover dead code de `sqlite_repo.py:283-287`. | V3-B1/B3: fix atual é dead code |
+| **H-2** | M-1 asymmetric lookback → symétrico | Trocar query: usar `decision.id` range (min/max) ao invés de `timestamp`/`created_at`. Fórmula: `decisions[id >= MIN_outbox_id_30min] MINUS outbox_ids`. | M1-B1: backfill inflou contagem |
+| **H-3** | M-1 expor Prom textfile | Adicionar flag `--prom-textfile=/var/lib/node_exporter/roleta_gap.prom` que escreve `decisions_outbox_gap{lookback="60m"} N`. node-exporter coleta. | M1-B2: integração nativa Grafana |
+| **H-4** | Flock no wrapper | `flock -n /var/lock/roleta-gap.lock` no `roleta-gap-check.sh` | M1-B3: previne overlap |
+| **H-5** | Logrotate | `/etc/logrotate.d/roleta`: `rotate 7 daily compress` em `/var/log/roleta/*.log` | M1-B4: previne disk-fill |
+
+### 🟦 S-I — D-1 redesenhado (LISTEN/NOTIFY aditivo) — sessão dedicada
+
+| ID | O quê | Como |
+|---|---|---|
+| **I-1** | Trigger `pg_notify('outbox_new', NEW.id::text)` AFTER INSERT em `shared.outbox` | Migration Alembic |
+| **I-2** | `cdc_worker.main_loop`: `psycopg2 connection.set_isolation_level(0)` + `LISTEN outbox_new`; usa `select.select([conn], [], [], idle_sleep)` para acordar | manter `idle_sleep` como fallback (aditivo) |
+| **I-3** | Métrica `cdc_notifications_received_total` | Counter Prom |
+| **I-4** | Rollback: flag `cdc_use_notify` (default true), set false volta para poll-only | Sem deploy se errado |
+
+### 🟧 S-J — Backfill robusto (ferramental)
+
+| ID | O quê | Como |
+|---|---|---|
+| **J-1** | `tools/backfill_decision.py` parametrizado | `python -m tools.backfill_decision --decision-id 3698 [--dry-run]` |
+| **J-2** | Preserva `created_at` original na meta | `meta.original_decision_ts = decision.timestamp` |
+| **J-3** | Flag `meta.backfill = true` | Bypass ML training default |
+| **J-4** | Idempotente: `WHERE NOT EXISTS` antes de inserir | seguro re-rodar |
+
+### 🟨 S-K — C-1 pg_cron com janela de manutenção
+
+| ID | O quê | Como |
+|---|---|---|
+| **K-1** | Janela <23:00 UTC, anunciar > 24h | runbook |
+| **K-2** | Rebuild image PG com `pg_cron` (`citus/pgvector + custom build OR usar imagem `postgres:15 + apt install postgresql-15-cron`) | Dockerfile.pg |
+| **K-3** | `shared_preload_libraries = 'pg_cron'` em postgresql.conf | conf override |
+| **K-4** | Restart `roleta-pg` (downtime ~30s) | `docker compose up -d roleta-pg` |
+| **K-5** | `CREATE EXTENSION pg_cron;` + jobs (cleanup outbox 7d, reindex monthly) | SQL pós-restart |
+| **K-6** | Rollback: imagem anterior em tag `pg-pre-cron` | docker tag |
+
+### 🟪 S-L — Atomicidade real (substitui A-1b impossível)
+
+| ID | O quê | Como |
+|---|---|---|
+| **L-1** | Tabela `sqlite_outbox_pending` no MESMO arquivo SQLite | migration |
+| **L-2** | `save_decision()` INSERT decision + INSERT pending **na mesma transação** | refactor |
+| **L-3** | Novo worker `sqlite_outbox_forwarder.py`: lê pending, replica para PG `shared.outbox`, marca consumed | systemd ou thread no main |
+| **L-4** | At-least-once garantido: se forwarder cair, pending fica; se PG fora, retry | true outbox pattern |
+| **L-5** | Flag `sqlite_outbox_v1` para rollout gradual | rollback |
+
+### ⬜ S-M — Observability v2 (Loki + Promtail + Grafana rules)
+
+| ID | O quê | Como |
+|---|---|---|
+| **M-N1** | Promtail scrape `/var/log/roleta/*.log` | docker-compose.observability.yml |
+| **M-N2** | Loki query rule: `count_over_time({job="roleta"} \|= "gap_count" \|~ "gap_count\\\": [1-9]"[5m]) > 0` | alerta Grafana |
+| **M-N3** | Dashboard "Gap Health" | painel: gap_count timeline, backfills, decisions/outbox ratio |
+
+## XX. DAG de execução v4
+
+```
+HOJE (Dia 0+):  S-H (regressão) ← obrigatório antes de qualquer outro fix
+                S-J (backfill tool) ← leve, paralelo
+
+Dia 1:          S-I (LISTEN/NOTIFY aditivo) → valida em janela 30min
+Dia 2:          S-K (pg_cron com janela)   → desbloqueia C-2, D-4
+Dia 3-4:        S-L (outbox atômico SQLite) → elimina root cause silent-skip
+Dia 5:          S-M (observability v2)     → alertas confiáveis
+Dia 6+:         continuar com S-A v2, S-E, S-F do v2/v3
+```
+
+## XXI. Execução v4 — ações desta sessão
+
+Ver subseções abaixo.
+
+### XXI.1 ✅ S-H executado integralmente
+
+| ID | Status | Evidência live |
+|---|---|---|
+| **H-1** | ✅ | `outbox_integration.py:237` warning→error com `decision_id+direction+ExcClass`. `sqlite_repo.py` simplificado (era dead code). |
+| **H-2** | ✅ | gap_detector.py v2: lookback simétrico por `decision.id` range. Validado: `decisions=80, outbox=80` (antes inflado para 78×79). |
+| **H-3** | ✅ | wrapper v3 escreve `/var/lib/node_exporter/roleta_gap.prom` (atomic mv). 4 métricas expostas. |
+| **H-4** | ✅ | `flock -n /var/lock/roleta-gap.lock` no wrapper, log `skip=lock_busy` se busy. |
+| **H-5** | ✅ | `/etc/logrotate.d/roleta`: daily 7d compress copytruncate. Validado via `logrotate -d`. |
+
+### XXI.2 ✅ S-J (backfill tool) executado
+
+- `tools/backfill_decision.py` (4KB) criado com argparse, `--dry-run`, preserva `meta.backfill=true` + `meta.original_decision_ts`.
+- Idempotente: `WHERE NOT EXISTS IN (ccw:<id>, cw:<id>)`.
+- Validado dry-run sobre decision 3700 → payload correto, exit code 0.
+
+### XXI.3 Snapshot pós-S-H/S-J (20:38 BRT)
+
+| Métrica | Valor |
+|---|---|
+| Decisions (60min) | 80 |
+| Outbox (mesmo id range) | 80 |
+| Gap | **0** |
+| Wrapper flock | ativo |
+| prom textfile | escrito atomic |
+| logrotate | configurado |
+| backfill tool | disponível em `/app/tools/backfill_decision.py` |
+
+### XXI.4 Conscientemente reagendado
+
+- **S-I (LISTEN/NOTIFY aditivo)**: requer mudança no `cdc_worker.main_loop` + teste de fallback. Próxima sessão dedicada.
+- **S-K (pg_cron)**: requer janela de manutenção anunciada + rebuild PG image. Sessão agendada.
+- **S-L (outbox atômico SQLite)**: maior refactor, 1 dia. Sessão dedicada.
+- **S-M (Loki/Promtail/Grafana rules)**: depende de node-exporter ou Loki instalado — nenhum ainda. Pré-req "observability stack inicial" precisa virar S-M0.
+
+### XXI.5 Próxima sessão
+
+Ordem sugerida (cada uma 1 sessão curta):
+1. **S-M0**: instalar node-exporter (escrap já-existente roleta_gap.prom) + Promtail.
+2. **S-I**: LISTEN/NOTIFY aditivo → valida lag p99 < 1s em 30min.
+3. **S-K**: pg_cron janela de manutenção.
+4. **S-L**: outbox-pattern atômico SQLite.
+
+
+
 
 

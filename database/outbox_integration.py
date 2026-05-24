@@ -234,5 +234,11 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
         return True
     except Exception as exc:  # noqa: BLE001
         _m_hook_skipped.labels(reason="exception").inc()
-        logger.warning("dual_write_failed decision_id=%s error=%s", decision_id, exc)
+        # H-1 fix (v4 §XIX): promovido warning→error com decision_id+direction
+        # para que silent-skips fiquem visíveis em prod (caso de 3698 em 24/05).
+        logger.error(
+            "dual_write_failed decision_id=%s direction=%s exc=%s error=%s",
+            decision_id, _normalize_direction(decision.spin_direction),
+            type(exc).__name__, exc,
+        )
         return False

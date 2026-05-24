@@ -274,17 +274,13 @@ class SQLiteDecisionRepository(DecisionRepository):
                 from database.outbox_integration import maybe_publish_decision_features
                 maybe_publish_decision_features(decision, decision_id)
             except Exception as exc:  # noqa: BLE001 — never break SQLite write
-                # BUG-OUTBOX-SILENT-SKIP fix (sprints_evolucao_pos_24_05.md §XII.3):
-                # promove para ERROR + métrica granular para diagnóstico de perdas.
+                # H-1 fix (v4 §XIX): bloco mantido apenas como guard rail.
+                # maybe_publish_decision_features tem try/except interno e NUNCA
+                # deve levantar. Se levantar é bug grave — logar ERROR.
                 logger.error(
-                    "dual_write_hook_failed decision_id=%s direction=%s err=%s",
-                    decision_id, getattr(decision, "spin_direction", "?"), exc,
+                    "dual_write_hook_unexpected_raise decision_id=%s err=%s",
+                    decision_id, exc,
                 )
-                try:
-                    from database.outbox_integration import _m_hook_skipped
-                    _m_hook_skipped.labels(reason=type(exc).__name__).inc()
-                except Exception:
-                    pass
             return decision_id
         finally:
             conn.close()
