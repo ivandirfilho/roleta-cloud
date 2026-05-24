@@ -79,6 +79,13 @@ Desktop.ini
 # ----------------- Agent/Gemini -----------
 .agent/
 
+# ----------------- Graphify cache (regenerável) -
+graphify-out/cache/
+graphify-out/.cache/
+
+# ----------------- Runtime state -----------
+state.json
+
 # -----------------------------------------
 # Scripts de Desenvolvimento (excluídos)
 # Estes são scripts de análise one-off
