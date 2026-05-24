@@ -38,6 +38,11 @@ my_key.pub
 secrets/
 firebase-credentials.json
 *.credentials.json
+# B2 / WAL-G credentials (NUNCA commitar)
+b2_application_key
+b2_*_key
+wal-g.env
+*.b2.env
 
 # ----------------- Dados de Produção (Danger Zone) -
 *.db

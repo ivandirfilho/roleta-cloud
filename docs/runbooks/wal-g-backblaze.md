@@ -1,6 +1,19 @@
 # S4-BAK — Backup PG com WAL-G + Backblaze B2
 
-**Status: doc-only. Aguarda credenciais B2 do usuario.**
+**Status: 60% — application key armazenada e .env esqueletizado no Debian.
+Aguarda do usuario: keyID + bucket name + endpoint.**
+
+## Estado atual em prod (Debian 187.45.181.75)
+
+| Item | Valor / Path | Permissao |
+|---|---|---|
+| Application Key (secret) | `/root/secrets/b2_application_key` | `-rw------- root:root` |
+| WAL-G env esqueleto | `/etc/wal-g/env` | `-rw------- root:root` |
+| Test helper | `/usr/local/bin/test-b2.sh` | `-rwxr-xr-x` |
+| b2 CLI | `/usr/local/bin/b2` v4.7.0 | system |
+| Placeholders pendentes | 3x `TODO_PREENCHER_*` em `/etc/wal-g/env` | — |
+
+**Para destrancar:** preencher os 3 placeholders e rodar `test-b2.sh`.
 
 ## Por que B2
 
@@ -8,14 +21,26 @@
 - Compativel com S3 API => WAL-G funciona com `WALG_S3_PREFIX`.
 - Egress gratis para Cloudflare/Bandwidth Alliance.
 
-## Pre-requisitos (acao do usuario)
+## Pre-requisitos (acao do usuario — pendente)
 
-1. Criar conta em https://www.backblaze.com/b2/
-2. Criar bucket `roleta-cloud-pg-backup` (private, encryption-at-rest on).
-3. Gerar Application Key restrita ao bucket:
-   - keyId
-   - applicationKey
-   - endpoint (`s3.us-west-XXX.backblazeb2.com`)
+1. Criar conta em https://www.backblaze.com/b2/ — ✅ (chave fornecida)
+2. Criar bucket `roleta-cloud-pg-backup` (private, encryption SSE-B2).
+   - Pode ser criado pelo script `test-b2.sh` automaticamente.
+3. Coletar do painel B2 (https://secure.backblaze.com/app_keys.htm):
+   - **keyID** — string ~12-25 chars ao lado da app key. Para Master Key e o Account ID.
+   - **endpoint** — string `s3.us-XXX-NNN.backblazeb2.com` mostrada apos criar bucket.
+
+## Ativacao (apos coletar os 3 dados)
+
+```bash
+ssh root@187.45.181.75
+sudo sed -i 's|TODO_PREENCHER_KEYID|<keyID>|' /etc/wal-g/env
+sudo sed -i 's|TODO_PREENCHER_BUCKET|roleta-cloud-pg-backup|' /etc/wal-g/env
+sudo sed -i 's|TODO_PREENCHER_ENDPOINT|s3.us-west-004.backblazeb2.com|' /etc/wal-g/env
+sudo /usr/local/bin/test-b2.sh
+```
+
+Saida esperada: 4 etapas OK + upload de smoke-test/{hostname}-{ts}.txt.
 
 ## Instalacao no Debian
 
