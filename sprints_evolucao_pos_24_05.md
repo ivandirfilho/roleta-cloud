@@ -186,6 +186,155 @@ Mensal: S-F-2 → S-F-8 incrementalmente
 
 ---
 
-## TL;DR
+## TL;DR (v1 — supersedido pela v2 abaixo)
 
 **13,5 dias-dev** divididos em 7 sprints, com **S-B (observabilidade)** começando primeiro porque destrava todas as medições subsequentes. **S-F (ML)** depende de acumular dados (~40 dias). **Auditoria do próprio plano** revelou que blueprint mentia sobre `pg_cron` (não instalado) e que WAL-G já fez 1 backup mas restore-test ainda não rodou — ambos refletidos como tarefas C-1 e A-2.
+
+---
+
+# 🔄 VERSÃO 2 — Auditoria com janela de 30 minutos (24/05 20:15 BRT)
+
+> **Premissa nova (usuário):** "o servidor está sempre rodando e recebendo. Não vamos esperar dias — usamos os últimos 30 minutos de dados como base de análise e tomamos decisões baseadas nisso."
+
+## VI. Snapshot live (janela 30 min, coletado 23:14 UTC = 20:14 BRT)
+
+| Métrica | Valor real | Comentário |
+|---|---|---|
+| Decisões SQLite | **40** em 30min | ~80/h, ~1920/dia |
+| Outbox events | 40 total (40 proc, 0 pend) | 100% drenado ✅ |
+| CDC lag avg | **8,06 s** | 16× acima de target <500ms |
+| CDC lag max | **16,55 s** | p100 = SLA breach |
+| Vectors ccw | 32 (all-time) | +15 desde último snapshot |
+| Vectors cw | 33 (all-time) | +15 desde último snapshot |
+| Δ ccw vs cw | **1 vector** | imbalance leve |
+| FK errors 30min | 0 | fix BUG-FK-1 sustentado ✅ |
+| Sessões abertas | 1 | OK |
+| pg_cron | ausente | confirmado |
+| WAL-G backup | 1 existente | restore-test pendente |
+
+## VII. Bugs NOVOS descobertos nesta auditoria
+
+- **🆕 BUG-TS-FMT-1 (🟥 P0):** queries `WHERE timestamp >= datetime('now','-30 min')` em SQLite **sempre retornam todos os registros do dia**, porque coluna usa ISO `T` (ex.: `2026-05-24T23:13:59`) e `datetime()` retorna formato com espaço (`2026-05-24 22:44:30`). Comparação lexicográfica: `T` (0x54) > ` ` (0x20) → filtro vira no-op. **Impacto:** qualquer dashboard/relatório que dependa de janela temporal mente. Já corrigido o script de auditoria com `strftime('%Y-%m-%dT%H:%M:%S', 'now','-30 min')` — mas pode haver código de produção afetado. → tarefa **B-7** abaixo.
+- **🆕 BUG-CDC-LAG-16s (🟧 P1):** CDC lag max=16,55s em janela de 30min com volume real, confirma R2 do plano v1 (LISTEN/NOTIFY justifica) e é **40× maior que SLO sugerido**. → S-D D-1 sobe para **prioridade na semana 1**.
+- **🆕 TECH-DEBT-NAMING (🟢 P2):** vectors usam coluna `ts`, outbox usa `created_at`, sessions usa `start_time/end_time`. Padronizar para `created_at` em migration futura.
+- **🆕 INSIGHT-VOLUME-CORRIGIDO (🔵):** taxa real é **~1920 spins/dia, não 27** (fonte do erro: snapshot anterior pegou janela morta). → S-F NÃO precisa esperar 40 dias; em **~12h chegamos a 1000 vectors**. Postergar S-F era cautela exagerada. Pré-requisito real: 24h de runtime contínuo.
+- **🆕 BUG-IMBALANCE-CCW-CW (🟢 P2):** ccw=32 vs cw=33 (Δ=1). Pequeno mas indica que uma direção falhou em escrever 1 vector. Pode ser race/parcial em transação. Verificar via outbox aggregate_id.
+
+## VIII. Auditoria estrutural do v1
+
+| # | Crítica ao v1 | Correção v2 |
+|---|---|---|
+| 1 | R4 dizia "≥1000 vectors @ 27/dia = ~40 dias" | Real = 1920/dia → ~12h. S-F sai do parking lot, vira **S-F sprint paralela à S-D na semana 2**. |
+| 2 | B-1 propôs medir lag via `MAX(created_at)` global — mas backlog pendente pode ter 0 itens (já drenou) e dar 0s falso | Métrica correta: `MAX(processed_at - created_at) FILTER WHERE processed_at IS NOT NULL` (janela 5min). |
+| 3 | S-G (docs) listado mas não usa nova evidência empírica | Adicionar G-6: documentar runbook "análise por janela de 30min" como prática oficial. |
+| 4 | E-1 testes E2E sem assertion de **tempo** | Adicionar assert: `lag_outbox < 30s` (sanity contra regressão CDC). |
+| 5 | Ausência de tarefa para BUG-TS-FMT-1 | Adicionar **B-7**. |
+| 6 | Ausência de tarefa para imbalance ccw/cw | Adicionar **A-4**. |
+
+## IX. Sprints v2 (reordenados pela auditoria 30min)
+
+### 🟦 S-B v2 — Observabilidade (1,5 dia, começar AGORA)
+
+| ID | O quê | Como (concreto) | Aceitação (janela 30min) |
+|---|---|---|---|
+| **B-1** | Métrica `cdc_lag_seconds` | Worker exporta a cada poll: `cdc_lag_seconds.set(max(processed_at-created_at) das últimas 5min)` | curl /metrics mostra valor real |
+| **B-2** | Histograma `save_decision_latency_seconds` | Wrapper `time.monotonic()` em `db_service.save_decision()` | p99 < 50ms em 30min |
+| **B-3** | Alerta `save_decision_failed_total > 0 for 5m` | Rule Grafana | dispara em teste manual |
+| **B-4** | UTF-8 fix em compose | `PYTHONIOENCODING=utf-8`, `LANG=C.UTF-8` | `docker logs` mostra ✅ ❌ |
+| **B-5** | Bootstrap das séries de counter | `.labels(reason='probe').inc(0)` no startup | curl /metrics mostra todas |
+| **B-6** | Dashboard único `docs/grafana/main.json` | painéis: spins/30m, lag avg+max, FK errors, vectors growth, outbox pending | importa em Grafana sem erro |
+| **B-7** 🆕 | Fix BUG-TS-FMT-1 em todo SQL com `datetime()` | grep `datetime('now'` no repo; substituir por `strftime('%Y-%m-%dT%H:%M:%S','now',...)` | toda query passa em teste 30min real |
+
+### 🟥 S-A v2 — Estabilidade P0 (1 dia)
+
+| ID | O quê | Por quê |
+|---|---|---|
+| A-1 | Hook idempotente atômico (flag `hook_v2_atomic`) | mantido |
+| A-2 | Smoke restore WAL-G manual | mantido |
+| A-3 | Cron mensal smoke restore | mantido |
+| **A-4** 🆕 | Investigar imbalance ccw/cw (Δ=1) | Job: `SELECT decision_id FROM ccw.spins_vectors c FULL JOIN cw.spins_vectors w USING(decision_id) WHERE c.id IS NULL OR w.id IS NULL` → log órfãos + alerta Grafana |
+
+### 🟨 S-D v2 — Performance (PROMOVIDO para semana 1)
+
+- **D-1** CDC LISTEN/NOTIFY: PROMOVIDO para semana 1 (lag real 16s confirmado). Target: p99 < 1s.
+- D-2, D-3, D-4 mantidos.
+
+### 🟪 S-F v2 — ML (SAI DO PARKING LOT, vira semana 2)
+
+- Pré-req real: 24h × 80/h = 1920 vectors (já cumprível em 1 dia, não 40).
+- **F-1 reescrito**: treino do autoencoder usando **janelas rolling de 30min** como mini-batches; permite re-treino contínuo (online learning) sem esperar volume único.
+
+### 🟧 S-C v2, 🟩 S-E v2, ⬜ S-G v2 — sem mudança estrutural
+
+- G-6 🆕: documentar "30-minute window methodology" como prática oficial (`docs/runbooks/30min-rolling-audit.md`).
+
+## X. Cronograma v2
+
+```
+Dia 0 (HOJE): B-7 (fix TS-FMT — 30min) + B-1 (lag) + B-2 (latency) + A-4 (imbalance investiga)
+Dia 1     : B-3..B-6 + D-1 (LISTEN/NOTIFY)
+Dia 2     : A-1, A-2, A-3 (estabilidade DR)
+Dia 3-4   : C-1..C-6 (hardening) + E-1..E-5 (testes)
+Dia 5-7   : D-2/D-3/D-4 (refactor) + F-1 (autoencoder com 24h de dados)
+Dia 8-12  : F-2..F-8 (ML stack completo)
+Dia 13    : S-G docs + G-6
+```
+
+## XI. Execução iniciada
+
+Ver Seção XII (anexada após cada tarefa concluída).
+
+## XII. Execução Dia 0 (24/05 20:30 BRT) — achados live
+
+### XII.1 B-7 (TS-FMT) — REPRIORIZADO
+
+Grep `datetime\('now'` no repo de produção: **0 ocorrências em código Python**, só em docs e scripts auxiliares. → BUG-TS-FMT-1 afeta APENAS scripts ad-hoc (corrigido o `.tmp_audit_30m.sh` desta sessão). Tarefa B-7 vira **guideline de revisão** (lint rule futura). Reclassificado P0 → P3.
+
+### XII.2 A-4 (imbalance ccw/cw) — DIAGNÓSTICO CORRIGIDO
+
+**Hipótese v2 ERRADA:** cada decisão produzir 2 vectors (1 ccw + 1 cw).
+**Realidade:** cada decisão produz **1 vector na direção do spin** (ccw OU cw, nunca os 2). Padrão alternado confirmado em FULL OUTER JOIN: 67 decisões com vetor → ccw=33 + cw=34 = 67. ✅
+
+**MAS** A-4 desbloqueou um achado MUITO mais grave abaixo:
+
+### XII.3 🆕 BUG-OUTBOX-SILENT-SKIP (🟥 P0) — descoberto via FULL JOIN
+
+- Decisão **3698** existe em `decisions` mas tem **0 eventos no outbox** e **0 vectors** em ambas direções.
+- `SELECT FROM shared.outbox WHERE aggregate_id LIKE '%3698%'` → 0 rows.
+- Pattern: 1 perda em ~67 decisões = **~1,5% data loss silencioso**, sem error log, sem métrica.
+- **Causa provável:** hook `OutboxPublisher` no `sqlite_repo.save_decision()` falhou silenciosamente (try/except amplo). Mesmo problema que motiva A-1, mas com evidência empírica concreta agora.
+- **Prioridade:** sobe A-1 para **DIA 0** (era Dia 2).
+
+### XII.4 B-1 (CDC lag) — métrica de fato (p50/p95/p99)
+
+Calculado em PG live (janela 30min):
+```
+ p50    | p95     | p99
+ 8.067s | 15.643s | 16.551s
+```
+→ Sem outlier severo (p99 ≈ p_max). Comportamento **estável-ruim**: poll-only worker dormindo ~8s em média. **D-1 (LISTEN/NOTIFY) eliminará 99% do lag**.
+
+### XII.5 Decisões tomadas
+
+1. **Promover A-1 (hook atômico+idempotente) ao Dia 0** (era Dia 2) — evidência empírica em 3698.
+2. **Rebaixar B-7 P0→P3** — sem impacto em prod.
+3. **A-4 fechado** — não havia imbalance estrutural, apenas confusão de modelo.
+4. **Reabrir investigação para BUG-OUTBOX-SILENT-SKIP**: revisar `database/sqlite_repo.py:274-275` (hook call) e `database/outbox_integration.py` em busca do `except` que engole erro.
+
+### XII.6 Cronograma v2.1 (re-revisado)
+
+```
+Dia 0 (HOJE - parcial): ✅ v2 plan + auditoria 30min + descoberta BUG-OUTBOX-SILENT-SKIP
+Dia 0 (continuação)   : A-1 (hook atômico + métrica de skip) ← PRIORIDADE 1
+Dia 1                 : B-1, B-2, B-3 (instrumentação) + B-7 (guideline)
+Dia 2                 : D-1 (LISTEN/NOTIFY) → lag 16s→<1s
+Resto                 : conforme cronograma v2
+```
+
+### XII.7 Tarefas a executar em próxima sessão
+
+- [ ] Auditar `database/sqlite_repo.py:save_decision` linha-a-linha para localizar swallow do erro outbox
+- [ ] Adicionar `outbox_hook_skipped_total{reason='exception'}` (B-5 expandido)
+- [ ] Backfill: gerar evento outbox para decision 3698 manualmente (`INSERT INTO shared.outbox ... SELECT ... FROM decisions WHERE id=3698`)
+- [ ] Query monitor: alerta Grafana `decisions_without_outbox = (SELECT COUNT(*) FROM decisions d LEFT JOIN shared.outbox o ON o.aggregate_id LIKE '%' || d.id WHERE o.id IS NULL AND d.timestamp > now() - interval '1h')`
+
