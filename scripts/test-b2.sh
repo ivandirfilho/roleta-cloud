@@ -45,7 +45,7 @@ b2 account authorize "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}"
 echo "[2/4] Listando buckets..."
 b2 bucket list
 
-if ! b2 bucket list | awk '{print $2}' | grep -qx "${BUCKET}"; then
+if ! b2 bucket list | awk '{print $3}' | grep -qx "${BUCKET}"; then
   echo "[3/4] Bucket '${BUCKET}' nao existe — criando (private + SSE-B2)..."
   b2 bucket create --default-server-side-encryption=SSE-B2 "${BUCKET}" allPrivate
 else

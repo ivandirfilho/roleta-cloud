@@ -1,19 +1,24 @@
 # S4-BAK — Backup PG com WAL-G + Backblaze B2
 
-**Status: 60% — application key armazenada e .env esqueletizado no Debian.
-Aguarda do usuario: keyID + bucket name + endpoint.**
+**Status: 100% — B2 ATIVO e validado. Bucket pronto. WAL-G binario nao instalado ainda
+(proximo sprint: archive_command no PG).**
 
-## Estado atual em prod (Debian 187.45.181.75)
+## Estado atual em prod (Debian 187.45.181.75) — validado em 2026-05-24
 
-| Item | Valor / Path | Permissao |
+| Item | Valor / Path | Status |
 |---|---|---|
-| Application Key (secret) | `/root/secrets/b2_application_key` | `-rw------- root:root` |
-| WAL-G env esqueleto | `/etc/wal-g/env` | `-rw------- root:root` |
-| Test helper | `/usr/local/bin/test-b2.sh` | `-rwxr-xr-x` |
-| b2 CLI | `/usr/local/bin/b2` v4.7.0 | system |
-| Placeholders pendentes | 3x `TODO_PREENCHER_*` em `/etc/wal-g/env` | — |
+| Application Key (secret) | `/root/secrets/b2_application_key` | `-rw------- root:root` ✅ |
+| WAL-G env (preenchido) | `/etc/wal-g/env` | `-rw------- root:root` ✅ |
+| Test helper | `/usr/local/bin/test-b2.sh` | `-rwxr-xr-x` ✅ |
+| b2 CLI | `/usr/local/bin/b2` v4.7.0 | ✅ |
+| Bucket B2 | `roletacloubucket` (us-east-005) | ✅ private + SSE-B2 + lifecycle 30d |
+| Auth | Master Key — todas capabilities | ✅ |
+| Roundtrip upload+download | 52B sha256 idêntico | ✅ |
+| WAL-G binario | `/usr/local/bin/wal-g` | ❌ pendente |
+| archive_command no PG | postgresql.conf | ❌ pendente |
+| Cron backup-push diario | /etc/cron.d/walg-backup | ❌ pendente |
 
-**Para destrancar:** preencher os 3 placeholders e rodar `test-b2.sh`.
+**Para finalizar S4-BAK:** instalar binario WAL-G + configurar archive_command + cron (secao "Instalacao no Debian" abaixo).
 
 ## Por que B2
 
