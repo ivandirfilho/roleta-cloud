@@ -68,7 +68,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd /opt/roleta-cloud
+            cd /root/roleta-cloud
             
             # Backup do banco
             cp data/decisions.db data/decisions.db.bak.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
