@@ -13,8 +13,38 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13"]
 
+    # Sx-CI: Postgres service para testes que precisam de PG real (S1+).
+    # pgvector image inclui extensão vector pre-instalada; AGE não é necessário no CI
+    # (testes de grafo são integration, rodam em ambiente dedicado).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_DB: roleta_test
+          POSTGRES_USER: roleta
+          POSTGRES_PASSWORD: roleta_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roleta -d roleta_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ROLETA_PG_DSN: postgresql://roleta:roleta_ci_password@localhost:5432/roleta_test
+      ROLETA_TEST_PG_ENABLED: "1"
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Bootstrap PG schemas + extensions
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+          export PGPASSWORD=roleta_ci_password
+          psql -h localhost -U roleta -d roleta_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          psql -h localhost -U roleta -d roleta_test -c "CREATE SCHEMA IF NOT EXISTS cw; CREATE SCHEMA IF NOT EXISTS ccw; CREATE SCHEMA IF NOT EXISTS shared;"
+          psql -h localhost -U roleta -d roleta_test -c "SELECT extname, extversion FROM pg_extension;"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

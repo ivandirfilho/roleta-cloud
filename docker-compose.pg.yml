@@ -1,0 +1,60 @@
+# Roleta Cloud — stack PROD no Debian HostDime
+# Roda LADO A LADO do compose existente (roleta-cloud), em network separada.
+# Sprint S4 do plano_implentacao_pos_sessao_24_05.md (Debian-first).
+
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: roleta/postgres-stack:pg15-age15
+    container_name: roleta-pg
+    environment:
+      POSTGRES_DB: roleta
+      POSTGRES_USER: roleta
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?defina PG_PASSWORD via .env ou sops}
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=age
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=100
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - checkpoint_timeout=15min
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - log_checkpoints=on
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups/pg:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roleta -d roleta"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  pgdata:
+    name: roleta_pgdata_prod
