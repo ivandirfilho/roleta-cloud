@@ -24,6 +24,9 @@ services:
       - SSL_KEY=${SSL_KEY:-}
       - AUTH_ENABLED=${AUTH_ENABLED:-false}
       - ROLETA_API_KEY=${ROLETA_API_KEY:-}
+      # 🎯 ROOT CAUSE HOOK-1: sem essa var, o hook nunca consegue init
+      # (lia DSN como None e marcava _publisher_init_attempted=True para sempre)
+      - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
