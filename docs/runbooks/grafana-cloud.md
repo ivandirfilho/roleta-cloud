@@ -1,6 +1,32 @@
 # Sx-OBS — Grafana Cloud + Prometheus
 
-**Status: doc-only. Aguarda conta Grafana Cloud do usuario.**
+**Status: 100% — ATIVO em prod (validado 2026-05-24).
+Métricas + logs sendo ingeridos via Grafana Cloud sa-east-1.**
+
+## Estado atual em prod (Debian 187.45.181.75)
+
+| Item | Path / Valor | Status |
+|---|---|---|
+| Grafana Agent | `/usr/local/bin/grafana-agent` v0.42.0 (systemd) | ✅ active |
+| postgres-exporter | container `pg-exporter` em `roleta-cloud_default` | ✅ up, scrape OK |
+| Config | `/etc/grafana-agent/config.yml` (chmod 600) | ✅ |
+| Token Grafana Cloud | `/root/secrets/grafana_token` (chmod 600) | ✅ |
+| Region | `prod-sa-east-1` | ✅ |
+| Prom samples_in | 1700+/50s (failed=0) | ✅ |
+| Loki entries_sent | ativo, todos `dropped=0` | ✅ |
+
+## Setup completo em 1 comando (idempotente)
+
+```bash
+ssh root@187.45.181.75
+export PROM_USER=<seu_prom_user_id>      # ex: 3255266 (numerico)
+export LOKI_USER=<seu_loki_user_id>      # ex: 1623308 (numerico)
+export PROM_URL=https://prometheus-prod-40-prod-sa-east-1.grafana.net/api/prom/push
+export LOKI_URL=https://logs-prod-024.grafana.net/loki/api/v1/push
+cd /root/roleta-cloud && bash scripts/install-grafana-agent.sh
+```
+
+Pre-requisito: `/root/secrets/grafana_token` (chmod 600) com o token Grafana Cloud (mesmo p/ Prom e Loki).
 
 ## Por que Grafana Cloud Free
 
