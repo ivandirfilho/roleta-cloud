@@ -1,0 +1,45 @@
+# Roleta Cloud — stack DEV local (Windows)
+# Espelho 1:1 do que vai rodar no Debian em S4.
+
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: roleta/postgres-stack:pg15-age15
+    container_name: roleta-pg-dev
+    environment:
+      POSTGRES_DB: roleta
+      POSTGRES_USER: roleta
+      POSTGRES_PASSWORD: roleta_dev_only
+      # tunings para PG dev (overrride por env var)
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=timescaledb,age
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=32MB
+      - -c
+      - max_connections=50
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_duration_statement=500
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roleta -d roleta"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: roleta_pgdata_dev
