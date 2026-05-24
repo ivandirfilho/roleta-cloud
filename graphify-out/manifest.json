@@ -1,0 +1,112 @@
+{
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\main.py": {
+    "mtime": 1774741023.3748019,
+    "ast_hash": "71047acfe33f55559d7ede3c9027353c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\state.json": {
+    "mtime": 1775150376.8008037,
+    "ast_hash": "2995f80292d9a3b7e57367411c78dd29",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\models\\__init__.py": {
+    "mtime": 1769815260.370952,
+    "ast_hash": "dc1fa2b226d589fda28d5960e6ecf122",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\setup_server.sh": {
+    "mtime": 1769815260.3783648,
+    "ast_hash": "3c3739421e580d162d26bc6807a7a216",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\sim_temp\\sim_10models.py": {
+    "mtime": 1774863523.31949,
+    "ast_hash": "f26c24f69c9978f7753bb166cd53b863",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\sim_temp\\sim_15_models.py": {
+    "mtime": 1774903995.2532046,
+    "ast_hash": "c0fd713cc1ae767cfef75790ab196f50",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\sim_temp\\verify_scenarios.py": {
+    "mtime": 1774914693.7320867,
+    "ast_hash": "1b80bf31d8548539fb0acff9bbbd3e1f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
+    "mtime": 1775150325.4343927,
+    "ast_hash": "a3422c862a594543dbdac32925add1a5",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
+    "mtime": 1774783356.733436,
+    "ast_hash": "2e8230ae4f0f6c697cce20fb1540811b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\__init__.py": {
+    "mtime": 1769815260.375379,
+    "ast_hash": "bdb55d2fe860177ff2239af1f1c9a0b7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\state\\__init__.py": {
+    "mtime": 1769815260.3788886,
+    "ast_hash": "f2558d051d28c14cfd9438abb50b77fe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\sda17.py": {
+    "mtime": 1774950298.1928859,
+    "ast_hash": "ac7ba24cd051d6e29dc65bd25040c57e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\__init__.py": {
+    "mtime": 1769815260.3823104,
+    "ast_hash": "9a3ce4b72e1aa1cab741b899fd714ab0",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\Manutenabilidade_iso.md": {
+    "mtime": 1775150612.2083027,
+    "ast_hash": "111690d7584bfc97139b29091685e93b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\melhorias_pos_implementacao.md": {
+    "mtime": 1774784725.8400164,
+    "ast_hash": "5facab7e5c6c71637e93eab06bab2b23",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\plano_implanta\u00e7\u00e3o_c1_c2_c3_melhorado.md": {
+    "mtime": 1774740323.7792432,
+    "ast_hash": "1a83564dd30bd9161d8a76218f6f246e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\pos_implementacao_29_03.md": {
+    "mtime": 1774781941.6980433,
+    "ast_hash": "0627e83840ba358b608c3201dd3cc13e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\SECURITY.md": {
+    "mtime": 1770291255.972619,
+    "ast_hash": "b41baa60715eaac84e7df895ce18deaa",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sessao13_50_28_03.md": {
+    "mtime": 1774717322.8510973,
+    "ast_hash": "94e6b8c4e92232a90f2f639680f58a79",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\validacao_task_final_manha.md": {
+    "mtime": 1774880647.707802,
+    "ast_hash": "e2d395bcbf0553628ef8a7926698c807",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\validacao_task_resultado.md": {
+    "mtime": 1774867884.9619727,
+    "ast_hash": "6f21c9a1bdf90bd0fbb212c9a3a180be",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\valid_pos_task_31_03.md": {
+    "mtime": 1774950374.7510328,
+    "ast_hash": "a86c788601c51bb410fab3aedd0aa7be",
+    "semantic_hash": ""
+  }
+}

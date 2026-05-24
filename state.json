@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "last_number": 0,
   "last_direction": "",
   "timeline_cw": {
@@ -18,13 +18,21 @@
     "level": 1,
     "consecutive_hits": 0,
     "global_consecutive_hits": 0,
-    "total_bets": 0
+    "total_bets": 0,
+    "current_bet": 17,
+    "gale_display": "G1 S0 GS0",
+    "window_hits": 0,
+    "window_count": 0
   },
   "martingale_ccw": {
     "level": 1,
     "consecutive_hits": 0,
     "global_consecutive_hits": 0,
-    "total_bets": 0
+    "total_bets": 0,
+    "current_bet": 17,
+    "gale_display": "G1 S0 GS0",
+    "window_hits": 0,
+    "window_count": 0
   },
   "pending_prediction": {},
   "adaptive_state": {}

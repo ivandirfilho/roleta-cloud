@@ -63,3 +63,14 @@ def setup_logging(log_file: str = "roleta.log", level: int = logging.INFO):
     logging.getLogger("websockets").setLevel(logging.WARNING)
 
     return structlog.get_logger()
+
+
+def bind_strategy_version(version: str, git_tag: str | None = None) -> None:
+    """S3: bind context vars de strategia/git_tag em TODOS os logs subsequentes.
+
+    Usar no startup do app, lendo VERSION + strategy_versions.git_tag.
+    """
+    structlog.contextvars.bind_contextvars(
+        strategy_version=version,
+        git_tag=git_tag or version,
+    )

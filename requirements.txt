@@ -14,6 +14,13 @@ structlog>=24.0
 # Para futuro migration para SurrealDB:
 # surrealdb>=0.3.0
 
+# PostgreSQL stack (S2/S3/S5+): Alembic migrations + SQLAlchemy + driver psycopg2.
+# Mantemos sqlite3 (built-in) para SqliteDecisionRepository; SQLAlchemy
+# é só para Alembic gerenciar schemas PG. Não há acoplamento ainda em runtime.
+sqlalchemy>=2.0,<3.0
+alembic>=1.13,<2.0
+psycopg2-binary>=2.9,<3.0
+
 # Similarity search (opcional, ativar quando volume > 5k decisões)
 # lancedb>=0.5.0
 # pyarrow>=14.0
