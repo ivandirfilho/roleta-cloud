@@ -338,3 +338,142 @@ Resto                 : conforme cronograma v2
 - [ ] Backfill: gerar evento outbox para decision 3698 manualmente (`INSERT INTO shared.outbox ... SELECT ... FROM decisions WHERE id=3698`)
 - [ ] Query monitor: alerta Grafana `decisions_without_outbox = (SELECT COUNT(*) FROM decisions d LEFT JOIN shared.outbox o ON o.aggregate_id LIKE '%' || d.id WHERE o.id IS NULL AND d.timestamp > now() - interval '1h')`
 
+---
+
+# 🔍 VERSÃO 3 — Auditoria do v2 + execução (24/05 20:25 BRT)
+
+## XIII. Bugs/incoerencias do PRÓPRIO v2 (auto-audit)
+
+| # | Bug/Incoerência | Local | Severidade |
+|---|---|---|---|
+| V2-1 | **Dois cronogramas conflitantes**: §X (Dia 0–3) vs §XII.6 (v2.1) | linhas 273-281 vs 324-332 | 🟧 P1 |
+| V2-2 | A-4 listado em §IX como tarefa aberta, mas §XII.2 declara CLOSED | linha 255 | 🟨 P2 |
+| V2-3 | B-7 listado como 🆕 P0 em §IX, mas §XII.1 rebaixa P0→P3 | linhas 246, 329 | 🟨 P2 |
+| V2-4 | Snapshot §VI tem "imbalance leve" e "Vectors ccw=32, cw=33" sem nota de correção | linhas 207-209 | 🟨 P2 (misleading) |
+| V2-5 | §VII "BUG-IMBALANCE-CCW-CW verificar" é stale | linha 221 | 🟩 P3 |
+| V2-6 | §VIII row 2 crítica B-1, mas v2 já incorporou. Ruído redundante | linha 228 | 🟩 P3 |
+| V2-7 | A-1 prometido Dia 0 mas não lista sub-tarefas concretas (apenas "hook idempotente") | linhas 252, 328 | 🟧 P1 (não executável sem decompor) |
+| V2-8 | Decision 3698 backfill listado em XII.7 mas sem entrar em cronograma | linha 338 | 🟨 P2 |
+| V2-9 | Cronograma não mostra DEPENDÊNCIAS (ex.: A-1 precisa de B-5 antes para usar métrica) | n/a | 🟧 P1 |
+| V2-10 | **Sem tarefa para resetar counters em restart**: métricas Prom voltam a 0, perde memória de gaps | observado live | 🟧 P1 |
+| V2-11 | F-1 "online learning rolling 30min" é vago: faltam batch size, optimizer, persistência entre janelas | linha 265 | 🟨 P2 |
+| V2-12 | C-1 (instalar pg_cron) dependência para C-2/D-4/C-... não explicitada | §IX | 🟨 P2 |
+| V2-13 | Sem tarefa de **gap detector cumulativo** (compara MAX(decision_id) vs outbox count) | n/a | 🟧 P1 |
+
+## XIV. Melhorias estruturais propostas
+
+1. **Cronograma único v3 com dependências** (DAG textual).
+2. **A-1 decomposto** em A-1a (gap detector), A-1b (transação SAVEPOINT), A-1c (feature flag).
+3. **Novo G-7**: documentar todos os achados em CHANGELOG.
+4. **Novo B-8**: persistência de counters via Prom `multiprocess` mode OU substituir por gauges calculados a partir do DB (truth-source = PG, não memória do processo).
+5. **Novo M-1 (Monitor)**: script Python standalone que roda a cada 60s, consulta `MAX(decisions.id)` SQLite + `SELECT MAX(SPLIT_PART(aggregate_id, ':', 2)::int)` PG, expõe `decisions_outbox_gap_total` para Prom.
+
+## XV. Snapshot live v3 (20:25 BRT, janela 30min real)
+
+| Métrica | Valor | Comentário |
+|---|---|---|
+| Decisões 30min | 39 | estável ~80/h |
+| Outbox events 30min | 39 (38 proc, **1 pend**) | ✅ sem gaps mas 1 atrasado |
+| Lag avg / max 30min | 8,81s / **28,91s** | ⚠️ piorou (era 16s p99) |
+| Vectors ccw / cw | 35 / 37 | crescendo |
+| Decision atual | 3769 | live |
+| Counters Prom | `outbox_hook_published=3` | ⚠️ resetou em restart (era 39+) |
+| `dual_write_ok` logs | todos OK desde 23:13 | ✅ fix funciona |
+
+## XVI. Cronograma v3 único (dependência DAG)
+
+```
+                      [B-7 RESOLVIDO] → guideline
+                      [A-4 RESOLVIDO] → modelo correto documentado
+                      [BUG-OUTBOX-SILENT-SKIP fix1] ✅ commit abded6f
+
+NOW (Dia 0-cont):
+  M-1 (gap detector script) ─┬→ expoe gap_total ─→ alerta Grafana
+                              │
+  A-1a (gap monitor SQL)    ─┘
+  A-backfill-3698 (one-off INSERT)
+  B-5 (.labels probe inc(0)) ─→ bootstrap counters
+
+Dia 1:
+  B-1 (cdc_lag_seconds via pg-exporter ou worker)
+  B-2 (save_decision_latency_seconds Hist)
+  B-8 (counters via DB truth)
+  D-1 (LISTEN/NOTIFY) prioridade alta porque lag piorou para 28s
+
+Dia 2:
+  A-1b (SAVEPOINT atomic) com flag hook_v2_atomic
+  A-1c (rollout 10% canary)
+  A-2 (smoke restore WAL-G manual)
+
+Dia 3-4:
+  C-1 (pg_cron) → desbloqueia C-2 + D-4
+  C-3..C-6 (logrotate, healthcheck, audit excepts)
+  A-3 (cron mensal smoke)
+
+Dia 5-7:
+  E-1..E-5 (testes E2E)
+  D-2 (TTL cache session)
+  D-3 (split aggregate_id)
+
+Dia 8-12:
+  F-1 (autoencoder online rolling 30min mini-batches)
+  F-2..F-8
+
+Dia 13:
+  S-G v2 docs + G-6 + G-7 CHANGELOG
+```
+
+## XVII. Execução v3 — ações desta sessão
+
+(Atualizada inline após cada step)
+
+### XVII.1 ✅ A-backfill-3698 (one-off)
+
+- Lido decision 3698 do SQLite: `(spin_force=26, c4=0.25, m6=0.5, l12=0.333, sda=4, sdaF=9, gale=1, session_1779636372942, APOSTAR)`.
+- INSERT em `shared.outbox` com `aggregate_id='ccw:3698'`, payload válido, status='pending'.
+- CDC worker processou em <30s → `status='processed'`, **`ccw.spins_vectors` id=37 criado** para decision_id=3698.
+- **Gap fechado.** Total vectors agora: ccw=36, cw=37.
+
+### XVII.2 ✅ M-1 — Gap Detector implementado
+
+- Criado `tools/gap_detector.py` (Python standalone, 90 linhas, saída JSON, exit code 1=gap, 2=infra).
+- Algoritmo: `decisions[id] (60min) MINUS split_part(aggregate_id,':',2) (60min)`.
+- Deploy:
+  - Container: copiado para `/app/tools/gap_detector.py` (Dockerfile `COPY . .` já cobre nas futuras builds).
+  - Host Debian: `/usr/local/bin/roleta-gap-check.sh` wrapper + `crontab` `* * * * *`.
+  - Log: `/var/log/roleta/gap_detector.log` (rotacionar via C-3 futuramente).
+- Validado live: 2 execuções consecutivas, `gap_count=0` sustentado.
+
+### XVII.3 ⚠ B-1/B-8/D-1 — reagendados (decisão consciente)
+
+- D-1 (LISTEN/NOTIFY) **NOT executado nesta sessão**: requer mudança no worker + teste cuidadoso (psycopg2 polling muda toda arquitetura do loop). Promovido para próxima sessão dedicada.
+- B-1/B-8 (instrumentação de métricas): A janela 30min não tem volume suficiente para histogram p99 representativo ainda; será mais útil após D-1 (métrica mediria fix).
+
+### XVII.4 ✅ V2 incoerências — endereçadas
+
+- V2-1 (cronogramas conflitantes): §XVI é a única fonte da verdade agora.
+- V2-2/V2-3 (A-4/B-7 stale): registrados como RESOLVIDOS no DAG (§XVI top).
+- V2-7 (A-1 vago): decomposto em A-1a (✅ via M-1), A-1b (SAVEPOINT — Dia 2), A-1c (canary — Dia 2).
+- V2-8 (3698 backfill): EXECUTADO (§XVII.1).
+- V2-13 (gap detector ausente): EXECUTADO (§XVII.2).
+- V2-10 (counters resetam): mitigado parcialmente pelo M-1 que lê do DB (truth-source), não de memória do processo. B-8 oficial fica para depois.
+
+### XVII.5 Snapshot pós-execução (20:30 BRT)
+
+| Métrica | Antes | Depois |
+|---|---|---|
+| Decision 3698 vector | ❌ missing | ✅ ccw.spins_vectors id=37 |
+| Gap detector | inexistente | rodando cron 1min, gap=0 |
+| Vectors ccw / cw | 35 / 37 | 36 / 37 |
+| Backfill mecanismo | manual | documentado em §XVII.1 |
+
+### XVII.6 Próxima sessão (curtas, focadas)
+
+1. **D-1 LISTEN/NOTIFY** — 1 sessão dedicada, target lag p99 < 1s.
+2. **C-1 pg_cron** — instala extension + job cleanup outbox 7d.
+3. **A-1b SAVEPOINT** — atomicidade hook com flag `hook_v2_atomic`.
+4. **A-2 smoke restore WAL-G** — validação DR.
+5. **Alerta Grafana** baseado no log `gap_detector.log` (loki).
+
+
+
