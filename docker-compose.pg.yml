@@ -1,6 +1,10 @@
 # Roleta Cloud — stack PROD no Debian HostDime
 # Roda LADO A LADO do compose existente (roleta-cloud), em network separada.
 # Sprint S4 do plano_implentacao_pos_sessao_24_05.md (Debian-first).
+#
+# CDC worker (S5) e ativado apenas via profile:
+#   docker compose -f docker-compose.pg.yml --profile cdc --env-file .env.pg up -d
+# Por default, sobe apenas postgres.
 
 services:
   postgres:
@@ -54,6 +58,32 @@ services:
       options:
         max-size: "20m"
         max-file: "5"
+
+  # ----- S5: CDC worker -----
+  # Desligado por default. Ativar quando publisher (database/outbox_publisher.py)
+  # estiver integrado ao fluxo de escrita (feature_flag dual_write_pg=true).
+  # Subir com:
+  #   docker compose -f docker-compose.pg.yml --profile cdc --env-file .env.pg up -d
+  cdc-worker:
+    profiles: ["cdc"]
+    build:
+      context: .
+      dockerfile: docker/cdc-worker/Dockerfile
+    image: roleta/cdc-worker:latest
+    container_name: roleta-cdc-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ROLETA_PG_DSN: postgresql://roleta:${PG_PASSWORD:?}@postgres:5432/roleta
+      CDC_BATCH_SIZE: "100"
+      CDC_LOG_LEVEL: "INFO"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:
