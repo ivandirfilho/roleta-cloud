@@ -43,6 +43,9 @@ b2_application_key
 b2_*_key
 wal-g.env
 *.b2.env
+# WAL-G binário (download externo, ~65MB)
+wal-g/wal-g
+wal-g/*.tar.gz
 # Grafana / observability secrets
 grafana_token
 grafana-agent/config.yml

@@ -41,11 +41,21 @@ services:
       - log_min_duration_statement=500
       - -c
       - log_checkpoints=on
+      # S4-BAK-2: WAL archiving via wal-g -> Backblaze B2
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300
+      - -c
+      - archive_command=. /etc/wal-g/env && /usr/local/bin/wal-g wal-push %p
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backups/pg:/backups
+      # S4-BAK-2: wal-g binary + creds (host-side, NEVER commit /etc/wal-g/env)
+      - ./wal-g/wal-g:/usr/local/bin/wal-g:ro
+      - /etc/wal-g:/etc/wal-g:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U roleta -d roleta"]
       interval: 15s
