@@ -12,7 +12,6 @@ tests/
 .env
 state.json
 extension/
-tools/
 scripts/
 dead_code_*.md
 atual_structure_propose.md
