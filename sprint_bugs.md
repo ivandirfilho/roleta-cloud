@@ -315,11 +315,32 @@ VF-0 (tooling) ──┬──► VF-1 (CONFIGS-1) ──► commit+push
 
 | Sprint | Início | Fim | Resultado | Commit |
 |---|---|---|---|---|
-| VF-0 | _pending_ | | | |
-| VF-1 | _pending_ | | | |
-| VF-2 | _pending_ | | | |
-| VF-3 | _pending_ | | | |
-| VF-4 | _pending_ | | | |
-| VF-5 | _pending_ | | | |
-| VF-6 | _pending_ | | | |
-| VF-7 | _pending_ | | | |
+| VF-0 | 18:25 | 18:27 | ✅ apt sqlite3 jq strace; websocat binário; cap_add SYS_PTRACE; graphify presente | `02f1738` (parcial) |
+| VF-1 | 18:27 | 18:28 | ✅ `.gitkeep` em `server/configs/mesas/` commitado | `02f1738` |
+| VF-2 | 18:28 | 18:34 | ✅ `_get_publisher` com retry exp; **+ ROOT CAUSE descoberto: `ROLETA_PG_DSN` não estava no compose env**; corrigido | `02f1738` + `aad1d8b` |
+| VF-3 | 18:28 | 18:30 | ✅ `server/health_server.py` novo (porta 8766); métricas `outbox_*` no Prometheus; root logger `database` → INFO | `02f1738` |
+| VF-4 | 18:28 | 18:30 | ✅ healthcheck via `curl /health` em vez de TCP connect (elimina spam de `InvalidMessage`) | `02f1738` |
+| VF-5 | 18:29 | 18:32 | ✅ CDC worker faz `touch /tmp/cdc_alive` por loop; healthcheck compose monitora mtime < 120s | `02f1738` |
+| VF-6 | 18:32 | 18:34 | ✅ Probe E2E: hook publicou outbox row 9 → CDC processou em ~14s → `ccw.spins_vectors` row 1 com features `[19,0.5,0.5,0.333,4,23]` | validação E2E |
+| VF-7 | 18:34 | 18:35 | ✅ git stashes drop no servidor; commits limpos | `aad1d8b` |
+
+---
+
+# Parte G · Resultado Final (validado em prod)
+
+| Métrica | Antes | Depois |
+|---|---|---|
+| `_publisher_init_attempted` perma-fail | sim | **não** (retry x20, backoff 30s) |
+| `ROLETA_PG_DSN` no container `roleta-cloud` | **ausente** 🚨 | presente |
+| Outbox row criada por probe | sim | sim |
+| CDC processa em < 20s | depende | sim (~14s observado) |
+| spins_vectors materializada | parcial | sim (`cw` row 4, `ccw` row 1) |
+| Endpoint `/health` | inexistente | 200 OK com uptime+version |
+| Endpoint `/metrics` | inexistente | Prometheus exposition |
+| Logs poluídos por healthcheck WS | sim (a cada 30s) | não (healthcheck HTTP limpo) |
+| CDC healthcheck | inexistente | flag-file `/tmp/cdc_alive` < 120s |
+| `server/configs/mesas/` tracked | não | sim (`.gitkeep`) |
+| Logger `database.*` level | WARNING | INFO |
+
+**HEAD:** `aad1d8b` em local ↔ origin/main ↔ servidor (sincronizados).
+**Containers:** roleta-cloud, roleta-pg, roleta-cdc-worker, pg-exporter — **todos healthy**.
