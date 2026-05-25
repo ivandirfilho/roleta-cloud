@@ -830,3 +830,64 @@ Nenhum erro encontrado em logs (`docker logs --since 30m`), nenhum traceback, ne
 - **S-STRAT-6** (BUG-NOVO-09): se offsets >11.5 em >70% das amostras da próxima hora, subir `reg_rate` de 0.20 → 0.30 em `sda17.py`.
 - **S-CLEAN-2**: remover `handle_legacy_spin` do roteamento após 7 dias sem `[S-CLEAN-1]` warns.
 
+
+
+---
+
+## §14 — Sprint pós-§13: S-CFG-1 + auditoria 1h live (2026-05-24 22:35 BRT)
+
+### Stack MCP usada
+graphify (re-update) + filesystem + sequential-thinking + brave + memory
+
+### 🎯 Big finding — BUG-NOVO-07 era FALSO POSITIVO
+
+Coleta de 1h de dados live (`timestamp >= datetime('now','-60 min')`):
+- **103 decisions**, 92 APOSTAR + 11 PULAR
+- **49.4% accuracy** apostando (41 hits / 42 miss) — break-even saudável p/ Martingale
+- **KILL v3: 7/100 = 7.0%** ✅ dentro da faixa esperada 5-15%
+- Por direção: ccw 51.1% (45 apostas), cw 47.4% (38 apostas) — equilibrado
+
+A amostra anterior de 6-10 spins (33%/40% KILL) era estatisticamente insignificante. **S-STRAT-5 cancelado.**
+
+### 🔴 BUG-NOVO-11 (introduzido por mim em §12-13) → S-CFG-1 ✅ resolvido
+
+**Sintoma**: ao rodar `git pull` no servidor após push de §13, `state.json` (trackado no git) foi stashado para evitar conflito; o `state.json` da branch substituiu o runtime → app subiu com `_adaptive_state={}`, perdendo `recent_acc=0.488` (caiu a 0.0) e `sigmoid_off={}` por ~10 min.
+
+**Causa raiz**: `state.json` já estava em `.gitignore:87` mas continuava trackado por commit antigo. Toda alteração rumtime era detectada como diff → conflito em `git pull`.
+
+**Correção (S-CFG-1)**: `git rm --cached state.json` desacopla o arquivo do tracking sem deletá-lo no disco; deploys futuros não tocam mais o estado runtime.
+
+**Recovery executada**: `git stash@{0}` continha snapshot rico (5.4KB); `git checkout stash@{0} -- state.json` + `docker restart` recuperou todo estado adaptativo. Validado `/api/strategy` pós-restore: `recent_acc.cw=0.488`, `sigmoid_off` completo.
+
+### Auditoria delta (PG + bugs procurados)
+
+| Item | Estado | Conclusão |
+|---|---|---|
+| `spins_vectors` "duplicado" (cw=109, ccw=113) | ✅ intencional | schemas `cw`/`ccw` separados por design |
+| `outbox` PG | 222 processed, 0 pending | ✅ CDC drenando 100% |
+| `pg_replication_slots` 0 rows | ✅ esperado | wal-g usa `archive_command`, não logical slot |
+| Erros 30min em todos os containers | 0 ERROR / 0 Traceback / 0 FATAL | ✅ |
+| Disk `/` | 5.1G / 79G (7%) | ✅ folga 70G |
+| Backups B2 | 5 base backups (último `_33 @ 01:30:07Z`) | ✅ cron */30 confirmado |
+
+### Status final dos BUGs catalogados
+
+| BUG | Severidade | Status |
+|---|---|---|
+| BUG-NOVO-07 (KILL v3 alto) | — | ❌ **FALSO POSITIVO** (7% em 100 spins) |
+| BUG-NOVO-08 (counter zera) | 🟡 | ✅ S-OBS-7 §13 |
+| BUG-NOVO-09 (sigmoid topo) | 🟢 | estável em ~11.5, não piora — não mexer |
+| BUG-NOVO-10 (api null) | — | ❌ não é bug (intencional) |
+| BUG-NOVO-11 (state.json git) | 🔴 | ✅ S-CFG-1 |
+| BUG-NOVO-14 (spins dup) | — | ❌ não é bug (schemas cw/ccw) |
+| BUG-NOVO-15 (no slots) | — | ❌ não é bug (wal-g sem slot) |
+
+### Sprints implementadas nesta §14
+
+- **S-CFG-1**: `git rm --cached state.json` — desacopla runtime do tracking, evita acidentes de deploy futuros. *Por quê*: ISO/IEC 25010 §6.4 (Reliability/Fault Tolerance) — deploys nunca devem destruir estado runtime.
+
+### Sprints pendentes (carry-over → §15)
+
+- **S-CLEAN-2** (manter): remover `handle_legacy_spin` do roteamento após 7 dias sem warns `[S-CLEAN-1]`
+- **S-OBS-8** (novo, baixa prioridade): adicionar `/api/health/state` retornando `{adaptive_state_keys_count, bet_advisor_state, last_save_age_seconds}` para detectar perda de estado em monitor externo
+
