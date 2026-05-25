@@ -10,7 +10,8 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 RUN pip install --quiet --no-cache-dir \
-    "psycopg2-binary>=2.9,<3.0"
+    "psycopg2-binary>=2.9,<3.0" \
+    "prometheus-client>=0.20,<1.0"
 
 COPY workers/ /app/workers/
 
