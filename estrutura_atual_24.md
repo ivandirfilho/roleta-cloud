@@ -415,3 +415,120 @@ Aguardar 30-60 min de produção para medir efeito real:
 Se acc continuar < 47% após 1h, próxima sprint: **S-STRAT-5** — ajustar `OFFSET_REGULARIZER_RATE` de 0.20 → 0.30 ou estreitar banda para [9,11].
 
 **FIM da evolução.** Todas as sprints da §6 executadas, testadas (155 passed) e validadas live.
+
+---
+
+## 10. AUDITORIA PROFUNDA PÓS-DEPLOY (sessão 2026-05-24 22:03 BRT)
+
+Grafo regenerado: **1694 nós, 1794 edges, 156 comunidades** (`graphify-out/graph.json`).
+Stack MCP: graphify (rebuild) + filesystem + memory + sequential-thinking + brave + github.
+
+### 10.1 Validação live (60 min pós-deploy `9956aa3`)
+
+| Métrica | Valor | Comparação |
+|---|---|---|
+| `recent_acc.cw_last_100` | **44.8%** | era 40.7% (+4.1pp) ✅ |
+| `recent_acc.ccw_last_100` | **56.7%** | era 53.6% (+3.1pp) ✅ |
+| `sigmoid_off` range | 10.62 – 11.90 | banda saudável [8,12] ✅ |
+| `martingale.ccw.level` | **3** | v7 escalando (era 94.7% travado em G1) ✅ |
+| `mg_gale_decided` log | ativo (3 amostras visíveis) | `applied=3 streak=5 c4=0.50 score=3 conf=alta` ✅ |
+| Decisões 60min | 68 (66 APOSTAR + 2 PULAR) | throughput normal |
+| outbox pending | 0 | CDC saudável ✅ |
+| 0 errors em roleta-cloud | sim | ✅ |
+
+### 10.2 BUGS NOVOS encontrados (3)
+
+#### 🔴 BUG-NOVO-01 — Kill Switch v3 inerte (0 disparos em 60 min)
+
+**Esperado**: 5-15% das decisões = PULAR. **Real**: **0 PULAR via kill_switch** em 66 apostas.
+
+Distribuição real de `sda_score` 60min: `{0:2, 3:21, 4:42, 5:2, 6:1}` → **93% das decisões têm score ≥ 4**, então o critério `sda_score < 4` praticamente nunca cobre o domínio relevante. v3 ficou tão inerte quanto v2.
+
+**Causa raiz**: o critério foi calibrado assumindo distribuição uniforme. Na prática o gate Anti-Martingale `score >= 3` (em `bet_advisor.py`) já filtra a cauda baixa antes de chegar no kill switch.
+
+**Fix proposto (S-STRAT-5)**: usar `c4 < 0.35 AND recent_acc < 0.40` (recent_acc da direção corrente, já exposto em `/api/strategy`).
+
+#### 🔴 BUG-NOVO-02 — `c4_rate` não persiste em `decisions`
+
+Query `SELECT c4_rate FROM decisions` → **`no such column: c4_rate`**. O kill switch usa `c4` em runtime mas o INSERT em `message_handler.py` não grava a coluna. Impossível auditar post-mortem se v3 disparou ou não, ou ajustar threshold com base em dados reais.
+
+**Fix proposto (S-OBS-5)**: `ALTER TABLE decisions ADD COLUMN c4_rate REAL` + atualizar INSERT em `message_handler.py` para gravar `bet_decision.c4_rate`.
+
+#### 🔴 BUG-NOVO-03 — wal-g não inicializado no servidor
+
+`docker exec roleta-pg ls /var/lib/postgresql/wal-g` → diretório **não existe**. Backup contínuo wal-g NÃO está rodando. S-WAL-G da sessão anterior só criou o script de drill, não ativou archive_command.
+
+**Fix proposto (S-WALG-2)**: validar `postgresql.conf` (`archive_mode=on`, `archive_command='wal-g wal-push %p'`) + executar `wal-g backup-push /var/lib/postgresql/data` semanal via cron.
+
+### 10.3 MELHORIAS NOVAS (3)
+
+#### 🟡 MEL-NOVO-01 — `/api/strategy` sem timestamp do último spin
+
+Response atual não traz `last_spin_ts`. Operador precisa cruzar com `/health.ts` para saber se há estagnação. Adicionar `last_spin_ts` e `seconds_since_last_spin` no payload.
+
+#### 🟡 MEL-NOVO-02 — Falta métrica Prometheus `cdc_advisor_kill_switch_total`
+
+Mencionado na sessão anterior como "future". Sem essa métrica, não há alerta automático quando kill switch ficar muito ativo ou silencioso (como BUG-NOVO-01). Expor counter em `health_server.py` ou novo endpoint `/metrics`.
+
+#### 🟡 MEL-NOVO-03 — Mix de formatos `session_id` em decisões históricas
+
+Últimas 2h mostram 11 session_id distintos. 4 deles ainda no formato `session_<epoch>` (sessões legadas pré-S-MIG-2). Não é bug ativo (S-MIG-2 fechou a regressão), mas dashboards que agrupam por session_id precisam tolerar ambos formatos.
+
+### 10.4 Sprints propostas pós-auditoria
+
+#### 🚀 S-STRAT-5 — Recalibrar Kill Switch v3 → v4
+
+**O que**: alterar critério em `state/bet_advisor.py` de `c4<0.30 AND sda_score<4` para `c4<0.35 AND recent_acc<0.40` (acessar via `strategy.get_recent_acc(direction)`).
+
+**Por que**: BUG-NOVO-01 — v3 está inerte. `recent_acc` é o sinal mais correlacionado com performance futura observada na auditoria.
+
+**Como**:
+1. Adicionar getter `get_recent_acc(direction) -> float` em `strategies/sda17.py`.
+2. Em `bet_advisor.py:78-91`, substituir critério.
+3. Reescrever `tests/test_bet_advisor.py::TestKillSwitch` para v4.
+4. Deploy + monitorar 60min: target 5-15% de PULAR.
+
+#### 🚀 S-OBS-5 — Persistir `c4_rate` em `decisions`
+
+**O que**: migração SQLite + update do INSERT.
+
+**Por que**: BUG-NOVO-02 — sem isso é impossível auditar post-mortem.
+
+**Como**:
+```sql
+ALTER TABLE decisions ADD COLUMN c4_rate REAL DEFAULT NULL;
+```
+Update `message_handler.py` para incluir `c4_rate` no INSERT. Migration auto-aplicada no boot via `data/db.py:init_schema`.
+
+#### 🚀 S-WALG-2 — Ativar archive_mode wal-g
+
+**O que**: configurar PostgreSQL para enviar WAL incremental + base backup semanal.
+
+**Por que**: BUG-NOVO-03 — drill foi criado mas backup contínuo nunca foi habilitado. Recovery atual = só dumps lógicos.
+
+**Como**:
+1. Editar `docker-compose.pg.yml`: bind-mount `/var/lib/postgresql/wal-g` + env `WALG_FILE_PREFIX=/var/lib/postgresql/wal-g`.
+2. `postgresql.conf`: `archive_mode=on`, `archive_command='wal-g wal-push %p'`.
+3. Cron semanal: `0 3 * * 0 wal-g backup-push /var/lib/postgresql/data`.
+4. Validar com `wal-g backup-list` mostra ≥1 backup após 1 semana.
+
+#### 🚀 S-OBS-6 — Enriquecer `/api/strategy`
+
+**O que**: adicionar `last_spin_ts`, `seconds_since_last_spin`, `kill_switch_pulls_60min`, `gale_distribution_60min` no payload.
+
+**Por que**: MEL-NOVO-01 + MEL-NOVO-02 — operador precisa de visão temporal sem cruzar com outros endpoints.
+
+### 10.5 Ordem de execução recomendada
+
+1. **S-OBS-5** (zero risco — só adiciona coluna; desbloqueia auditoria de S-STRAT-5).
+2. **S-STRAT-5** (médio risco — muda critério em produção; cobrir com testes antes).
+3. **S-OBS-6** (zero risco — só leitura).
+4. **S-WALG-2** (médio risco — requer restart do postgres; planejar janela fora de pico).
+
+### 10.6 Commits desta sessão de auditoria
+
+- `9956aa3` feat S-STRAT-1..3, S-OBS-3..4, S-MIG-2, S-WALG-1 (deployed)
+- `af370e0` docs §9 evolução executada
+- **(este)** docs §10 auditoria pós-deploy + sprints S-STRAT-5 / S-OBS-5 / S-OBS-6 / S-WALG-2
+
+**FIM da auditoria pós-deploy.** 3 BUGs novos catalogados, 4 sprints listadas, baseline `acc_cw=44.8% / acc_ccw=56.7%` registrado para comparação futura.
