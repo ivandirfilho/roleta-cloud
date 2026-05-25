@@ -246,36 +246,36 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - AlertManager up + endpoint `/api/alerts/sink` registrado.
 - 183 testes passando.
 
-### Sprints concluídos (24/11 noite)
+### Sprints concluídos (24-25/05 noite/madrugada)
 
-- ✅ OBS-25-01 — patch outbox `spin_features` (commit `a5739b4`)
-- ✅ GALE-25-04 — `applied_gale_level` (commit `a5739b4`)
-- ✅ S-STRAT-13.1 — auto-promote opt-in (commit `58b4e36`)
-- ✅ S-OBS-15 — dashboard Grafana shadow grid (commit `58b4e36`)
-- ✅ S-STRAT-11 — CONFIRMADO já implementado em `bet_advisor.py` (thresholds dinâmicos por volatilidade EMA)
-- ✅ S-STRAT-14 — bandit ε-greedy entre shifts do shadow grid (commit `4bff786`, deployed)
-- ✅ S-OBS-15 v2 — 6 painéis de bandit adicionados ao dashboard Grafana (commit `6340a59`, provisionado)
-- ✅ S-STRAT-8 — feature store no PG `cw/ccw.spin_features` (commit `2e6edce`, migration aplicada, cdc-worker handler `spin_result` ativo, FeatureStoreReader exposto para bet_advisor/backtest harness)
-- ✅ S-STRAT-12 — regime similarity via pgvector (commit `a8ccc97`, deployed). Endpoint `/api/regime?direction=cw|ccw` retorna top-K spins similares por cosine distance + hit_rate via JOIN com spin_features. Validado live: avg_distance ~0.001 indica regime homogêneo.
-- ✅ S-STRAT-9 — backtest harness offline (commit `80b6bab`, deployed). `python -m tools.backtest_harness --direction cw --strategy {always_bet,skip_low_acc,skip_long_miss,skip_combo} --limit N`. Martingale 4-level, métricas profit/drawdown/streaks. Smoke-test live nas 5 últimas cw mostrou skip_low_acc reduzindo -16→-1 unidades vs always_bet.
-  - `_update_bandit_on_spin` em `state/game.py`: arms 1/3/5/10 alimentados por hit do head cw+ccw
-  - ε cold-start 1.0 → 0.10 quando min(arm.n) ≥ 10
-  - `recommended_shift` arg-max(mean) com prob 1-ε
-  - Métricas: `roleta_bandit_{epsilon,recommended_shift,arm_n,arm_mean,total_pulls}`
-  - Exposto em `/api/strategy.bandit`
-  - 194 testes passing (era 190)
+| Sprint | Commit | Status | Entrega |
+|---|---|---|---|
+| OBS-25-01 | `a5739b4` | ✅ | outbox `spin_features.meta` com `spin_number`/`centro_previsto` + novo evento `spin_result` |
+| GALE-25-04 | `a5739b4` | ✅ | `applied_gale_level` separado de `gale_level` |
+| S-STRAT-13.1 | `58b4e36` | ✅ | auto-promote opt-in (`SHADOW_AUTO_PROMOTE_ENABLED=1`), idempotente, +3 testes |
+| S-OBS-15 v1 | `58b4e36` | ✅ | dashboard Grafana shadow grid (11 painéis) |
+| S-STRAT-11 | (já existia) | ✅ | confirmado em `bet_advisor.py:48-180` — thresholds dinâmicos por volatilidade EMA |
+| S-STRAT-14 | `4bff786` | ✅ | bandit ε-greedy entre shifts; ε cold-start 1.0→0.10; métricas `roleta_bandit_*`; +4 testes |
+| S-OBS-15 v2 | `6340a59` | ✅ | 6 painéis de bandit no dashboard Grafana |
+| S-STRAT-8 | `2e6edce` | ✅ | feature store `cw/ccw.spin_features` + handler `spin_result` no cdc_worker + `FeatureStoreReader`; +9 testes |
+| S-STRAT-12 | `a8ccc97` | ✅ | regime similarity via pgvector (`/api/regime`); +6 testes |
+| S-STRAT-9 | `80b6bab` | ✅ | backtest harness offline (`tools/backtest_harness`); 4 estratégias built-in + martingale 4-level; +11 testes |
+| BUG-A1 | (operacional) | ✅ | replay de 30 eventos `spin_result` failed pré-deploy do handler S-STRAT-8 → `spin_features` saiu de 12 → 43 rows |
 
-## Próximos passos
- sugeridos (priorizados)
-1. **OBS-25-01** — ✅ **IMPLEMENTADO** (commit `a5739b4`): payload `spin_features.meta` agora inclui `spin_number`, `centro_previsto`, `applied_gale_level`; novo evento `spin_result` publicado pelo `maybe_publish_spin_result` após `db_service.update_result`, com `hit` e `actual_number`. Validado live: PG mostra `spin_features=3, spin_result=1` na janela 04:44 UTC. Backtest offline (S-STRAT-9) desbloqueado.
-2. Re-rodar engenharia reversa em janela ≥1 h após restart para coletar ≥60 spins e popular EMA real.
-3. **GALE-25-04** — ✅ **IMPLEMENTADO** (mesmo commit): meta espelha `applied_gale_level` separado de `gale_level`.
-4. Avançar **S-STRAT-11** (KILL dinâmico por volatilidade) já que kill_pulls=21 sugere uso ativo.
-5. Avançar **S-STRAT-8** (feature store no PG) — desbloqueia backtest offline (S-STRAT-9).
-6. **S-STRAT-13.1** — ✅ **IMPLEMENTADO** (commit `58b4e36`): `_maybe_auto_promote_shift` em `state/game.py`. Quando `sustained_spins ≥ 400` e `edge_ema > 0.04`, marca `suggestion.applied=True + auto_promoted=True` e empilha histórico em `_adaptive_state.auto_promotes` (últimas 20). **Opt-in** via `settings.shadow_auto_promote_enabled` (default `False` — env `SHADOW_AUTO_PROMOTE_ENABLED=1` para ligar). Idempotente para mesmo shift. Counter Prometheus `roleta_shadow_auto_promotes_total{shift}`. 3 testes novos (auto_promote_disabled_by_default, _fires_when_enabled, _idempotent).
-7. **S-OBS-15** — ✅ **IMPLEMENTADO** (mesmo commit): `obs/grafana/dashboards/roleta-shadow-grid.json` com 11 painéis (champion/suggested/alert/auto-promotes stats; shadow_acc + edge_pp por shift parametrizado por `$direction`; EMA + sustained timeseries; samples bargauge; topk edge table). Auto-provisionado via `dashboards.yml`. Validado live: `curl /metrics | grep auto_promote` retorna a métrica; `ls /var/lib/grafana/dashboards` mostra arquivo carregado.
-8. Receivers AlertManager Slack — adiar Telegram conforme decisão do usuário.
+**Total**: 11 sprints/correções, **220 testes verdes**, deploy live em todos.
 
 ---
 
-> **Metodologia**: 5 ciclos de auditoria realizados; cada ciclo executou `audit → classificar (real/falso) → propor correção → validar`. Esta versão consolida descobertas. Falsos bugs descartados com prova de inspeção do código fonte (`state/game.py:485-510`). Bugs reais classificados por severidade e direcionados a sprints existentes.
+## §9 Próximos sprints sugeridos (priorizados)
+
+1. **Treinar PCA autoencoder 6→4** com `scripts/train_autoencoder.py` para popular `ae_latent` em spins_vectors → melhora qualidade do `/api/regime`.
+2. **Re-rodar backtest harness com volume real** após `spin_features` atingir ≥100 rows/direção — agora temos 22+21, suficiente para 1ª calibração mas estatisticamente fraco.
+3. **Integrar `FeatureStoreReader` + `RegimeSimilarityReader` no `bet_advisor`** como sinais adicionais (não como bloqueio — humano-in-the-loop preservado).
+4. **Adicionar `--strategy bandit_recommended`** no harness que consulta `/api/strategy.bandit.recommended_shift`.
+5. **Receivers AlertManager Slack** (decidido: sem Telegram).
+6. **Painel Grafana dedicado** ao `/api/regime` (avg_distance + hit_rate over time).
+
+---
+
+> **Metodologia**: 5 ciclos de auditoria executados; cada ciclo `audit → classificar (real/falso) → propor correção → validar`. Esta versão consolida descobertas. Falsos bugs descartados com prova de inspeção do código fonte. Bugs reais classificados por severidade e direcionados a sprints existentes.
+
