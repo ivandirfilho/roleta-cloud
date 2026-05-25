@@ -101,3 +101,5 @@ post_audit.py
 
 # Manter backtest_from_db.py (ferramenta oficial)
 # Manter backtest_gale.py e backtest_techniques.py (referência)
+audit_*.txt
+

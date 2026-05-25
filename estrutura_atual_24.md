@@ -532,3 +532,124 @@ Update `message_handler.py` para incluir `c4_rate` no INSERT. Migration auto-apl
 - **(este)** docs §10 auditoria pós-deploy + sprints S-STRAT-5 / S-OBS-5 / S-OBS-6 / S-WALG-2
 
 **FIM da auditoria pós-deploy.** 3 BUGs novos catalogados, 4 sprints listadas, baseline `acc_cw=44.8% / acc_ccw=56.7%` registrado para comparação futura.
+
+---
+
+## 11. EXECUÇÃO DAS SPRINTS DA §10 + RE-AUDITORIA (sessão 2026-05-24 22:08 BRT)
+
+Grafo: sem mudanças topológicas (`No code-graph topology changes detected`).
+
+### 11.1 RE-AUDITORIA correcionou achados anteriores
+
+#### ❌ BUG-NOVO-02 era **FALSO POSITIVO**
+
+A coluna existe como `tr_c4_rate` (não `c4_rate`). Schema `decisions`:
+```sql
+tr_c4_rate REAL,  -- triple-rate c4 (ültimos 4)
+tr_m6_rate REAL,
+tr_l12_rate REAL,
+```
+`message_handler.py:379` já grava corretamente. **S-OBS-5 CANCELADO** — sem trabalho necessário.
+
+#### ✅ BUG-NOVO-01 **não se confirmou** com dados próprios
+
+Análise corrigida (90min pré-deploy `9956aa3`):
+- 54 decisões tinham `tr_c4_rate < 0.30 AND sda_score < 4` → 0 pulls porque rodavam KILL **v2** (`c4==0 AND score<=2`).
+- Apenas ~5 dessas 54 satisfariam v2; o resto é "falha verdadeira do v2".
+- **Pós-deploy (12 decisões em 12 min)**: amostra ainda muito pequena.
+- Em ~45s após o segundo deploy desta sessão, o novo endpoint `/api/strategy` capturou **1º pull real do KILL v3** — v3 NÃO está inerte, era falta de visibilidade.
+
+**S-STRAT-5 ADIADO**: precisamos de ≥1h de dados com v3 + counter ativo antes de recalibrar.
+
+### 11.2 Sprints implementadas (commit `4e4f012`, deployed)
+
+#### ✅ S-OBS-6 — Enriquecer `/api/strategy`
+
+**O que mudou**:
+- `state/bet_advisor.py::TripleRateAdvisor.__init__` — contadores `_kill_pulls_total` + `_last_kill_ts`.
+- Novo método `get_kill_stats() → {pulls_total, last_pull_ts}`.
+- KILL v3 branch incrementa o counter quando dispara.
+- `server/message_handler.py:__init__` — novo campo `self.last_spin_ts: Optional[float]`.
+- `message_handler.process_message` — atualiza `last_spin_ts = time.time()` após `process_spin()`.
+- `server/websocket.py::_strategy_snapshot` — adiciona `kill_switch`, `last_spin_ts`, `seconds_since_last_spin`.
+
+**Novo payload** validado live (45s pós-deploy):
+```json
+{
+  "session_id": "11690591",
+  "last_spin_ts": 1779671666.198,
+  "seconds_since_last_spin": 0.1,
+  "kill_switch": {"pulls_total": 1, "last_pull_ts": 1779671666.203},
+  "recent_acc": {"cw_last_100": 0.444, "ccw_last_100": 0.486},
+  "sigmoid_off": {"ccw_off2": 11.87, "ccw_off3": 10.57, "cw_off2": 11.42, "cw_off3": 11.23}
+}
+```
+
+Teste novo: `test_kill_switch_increments_counter` → 148 passed.
+
+#### ✅ S-WALG-2 — Script de ativação wal-g com base backup a cada 30 min
+
+**Decisão de arquitetura aceita pelo operador**: backup semanal era inviável; janela de 30 min para DB pequeno (~50MB) é trivial e dá RPO efetivo ≤ 30 min mesmo se WAL stream falhar.
+
+**Arquivo**: `scripts/walg-enable-30min.sh` — idempotente, 6 passos:
+1. Verifica wal-g binary.
+2. Cria `/var/lib/postgresql/wal-g` no container.
+3. Append em `postgresql.conf`: `archive_mode=on`, `archive_command='wal-g wal-push %p'`, `archive_timeout=60`.
+4. Restart postgres.
+5. Valida `SHOW archive_mode` = on.
+6. Instala cron `*/30 * * * *` para `wal-g backup-push`.
+
+**NÃO executado nesta sessão** porque requer 1 restart do postgres — planejar janela de baixo tráfego. Pronto para `bash scripts/walg-enable-30min.sh` quando operador autorizar.
+
+#### ⏭️ S-OBS-5 — CANCELADO (já existe como `tr_c4_rate`)
+
+#### ⏭️ S-STRAT-5 — ADIADO (precisa de ≥1h de dados pós S-OBS-6)
+
+### 11.3 Novos achados durante implementação (BUG-NOVO-04..06)
+
+#### 🟡 BUG-NOVO-04 — `handle_legacy_spin` ignora Kill Switch
+
+`server/message_handler.py:607`:
+```python
+acao = "APOSTAR" if result.should_bet else "PULAR"
+```
+No caminho legacy (`handle_legacy_spin`, usado se cliente envia spin sem `type`), o `acao` ignora completamente `advice.should_bet`. O fluxo principal (`process_novo_resultado`, linha 257) **respeita** o veto, mas o legacy não. Hoje praticamente todo o tráfego usa o caminho principal (Master Extractor envia `type=novo_resultado`), então impacto é baixo, mas é débito técnico real.
+
+**Fix proposto (S-CLEAN-1)**: deprecar `handle_legacy_spin` OU portar o gate completo (kill switch + martingale) para ele.
+
+#### 🟡 BUG-NOVO-05 — `import time` repetido inline em hot path
+
+`bet_advisor.py::analyze` e `message_handler.py::process_message` têm `import time as _t` dentro de funções chamadas a cada spin. Python cacheia, mas é cosmético ruim. Mover para topo do módulo (em próximo PR limpando — hoje deixei inline para minimizar diff e risco).
+
+#### 🟡 BUG-NOVO-06 — 8 testes legados quebrados na raíz/`archive/`
+
+`tests/test_core.py` e `tests/test_db_query.py` (+ 6 em `archive/`) falham na coleta:
+```
+ERROR tests/test_core.py
+ERROR tests/test_db_query.py
+```
+Não foram quebrados nesta sessão (preexistem). Pytest precisa de `--ignore` na CI. **Fix proposto (S-TEST-1)**: deletar testes de `archive/` e arrumar/deletar os 2 da raiz.
+
+### 11.4 Sprints adicionais propostas
+
+| Sprint | Prioridade | Por quê |
+|---|---|---|
+| **S-CLEAN-1** — desativar `handle_legacy_spin` | Média | BUG-NOVO-04 |
+| **S-TEST-1** — limpar testes legados | Baixa | BUG-NOVO-06 |
+| **S-STRAT-5** (re-agendada) — recalibrar KILL v3 se `pulls_total/decisions_60min` < 3% | Alta após 1h | depende de dados via S-OBS-6 |
+| **S-WALG-2-EXEC** — rodar `bash scripts/walg-enable-30min.sh` | Alta | requer janela |
+
+### 11.5 Commits desta sessão
+
+- `7cda32e` docs §10 auditoria pós-deploy (sessão anterior)
+- **`4e4f012`** feat S-OBS-6 + S-WALG-2 (esta sessão) — 6 files changed, 148 passed
+- (este commit) docs §11 re-auditoria + execução
+
+### 11.6 Estado live no fim da sessão
+
+- `roleta-cloud` v4.4.0 uptime ~1 min, healthy
+- `/api/strategy` retornando payload enriquecido com `kill_switch`, `last_spin_ts`, `seconds_since_last_spin`
+- **KILL v3 confirmado disparando** (1º pull em ~45s pós-deploy)
+- 0 errors, 148 testes verdes
+
+**FIM da §11.** S-OBS-6 deployed e validado; S-WALG-2 script pronto aguardando janela; S-OBS-5 e BUG-NOVO-02 cancelados como falsos positivos; S-STRAT-5 adiado para após coleta de baseline de `kill_switch.pulls_total`.
