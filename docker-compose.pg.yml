@@ -20,7 +20,11 @@ services:
     command:
       - postgres
       - -c
-      - shared_preload_libraries=age
+      - shared_preload_libraries=age,pg_stat_statements
+      - -c
+      - pg_stat_statements.max=5000
+      - -c
+      - pg_stat_statements.track=top
       - -c
       - shared_buffers=2GB
       - -c

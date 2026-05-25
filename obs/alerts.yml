@@ -1,0 +1,57 @@
+groups:
+  - name: roleta_state_health
+    interval: 30s
+    rules:
+      - alert: RoletaAdaptiveStateLost
+        expr: roleta_adaptive_state_keys_count < 5
+        for: 2m
+        labels: { severity: critical, component: state }
+        annotations:
+          summary: "Adaptive state perdido (keys={{ $value }})"
+          description: "BUG-NOVO-11 detector: _adaptive_state caiu para <5 chaves por 2min."
+
+      - alert: RoletaSigmoidEmpty
+        expr: roleta_sigmoid_off_populated == 0
+        for: 2m
+        labels: { severity: critical, component: state }
+        annotations:
+          summary: "sigmoid_off vazio"
+          description: "Strategy adaptativa zerada. Verificar deploy/state.json."
+
+      - alert: RoletaStateFileStale
+        expr: roleta_state_file_age_seconds > 300
+        for: 2m
+        labels: { severity: warning, component: state }
+        annotations:
+          summary: "state.json sem update há {{ $value }}s"
+
+      - alert: RoletaNoSpinsRecent
+        expr: roleta_seconds_since_last_spin > 300
+        for: 1m
+        labels: { severity: warning, component: ingestion }
+        annotations:
+          summary: "Sem spins há {{ $value }}s"
+
+      - alert: RoletaAccuracyDegraded
+        expr: (roleta_recent_acc_cw < 0.30) or (roleta_recent_acc_ccw < 0.30)
+        for: 10m
+        labels: { severity: info, component: strategy }
+        annotations:
+          summary: "Accuracy < 30% por 10min"
+
+      - alert: RoletaMetricsScrapeErrors
+        expr: increase(roleta_metrics_scrape_errors_total[5m]) > 0
+        for: 5m
+        labels: { severity: warning, component: observability }
+        annotations:
+          summary: "Erros em refresh de métricas custom"
+
+  - name: roleta_target_health
+    interval: 30s
+    rules:
+      - alert: RoletaTargetDown
+        expr: up{job="roleta-cloud"} == 0
+        for: 1m
+        labels: { severity: critical, component: app }
+        annotations:
+          summary: "Target roleta-cloud DOWN há 1min"

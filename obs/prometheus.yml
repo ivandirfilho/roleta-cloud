@@ -1,0 +1,23 @@
+# Roleta Cloud — Prometheus config (S-OBS-10 §18)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: roleta-debian-prod
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: roleta-cloud
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["roleta-cloud:8766"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: roleta-cloud

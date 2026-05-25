@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: roleta
+    orgId: 1
+    folder: Roleta
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
