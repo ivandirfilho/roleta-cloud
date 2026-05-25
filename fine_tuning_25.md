@@ -256,6 +256,7 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - ✅ S-STRAT-14 — bandit ε-greedy entre shifts do shadow grid (commit `4bff786`, deployed)
 - ✅ S-OBS-15 v2 — 6 painéis de bandit adicionados ao dashboard Grafana (commit `6340a59`, provisionado)
 - ✅ S-STRAT-8 — feature store no PG `cw/ccw.spin_features` (commit `2e6edce`, migration aplicada, cdc-worker handler `spin_result` ativo, FeatureStoreReader exposto para bet_advisor/backtest harness)
+- ✅ S-STRAT-12 — regime similarity via pgvector (commit `a8ccc97`, deployed). Endpoint `/api/regime?direction=cw|ccw` retorna top-K spins similares por cosine distance + hit_rate via JOIN com spin_features. Validado live: avg_distance ~0.001 indica regime homogêneo.
   - `_update_bandit_on_spin` em `state/game.py`: arms 1/3/5/10 alimentados por hit do head cw+ccw
   - ε cold-start 1.0 → 0.10 quando min(arm.n) ≥ 10
   - `recommended_shift` arg-max(mean) com prob 1-ε
