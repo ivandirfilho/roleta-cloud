@@ -431,3 +431,22 @@ Ordem mantida, mas:
 - **BUG-V3-01** (crítico): inverter cálculo de `sda_thr`.
 - **BUG-V3-04**: `improve_keep` com delta ≥ 2×improve_thr aplica nudge a favor (push gradient).
 
+
+### Execução §AUDIT-V3 (2026-05-25 00:12)
+
+**Commit**: `f24f9a6` — fix(strategy): BUG-V3-01/03/04
+
+**Deploy live (validado)**:
+- `vol_ema`: cw=0.30, ccw=0.30 (baseline pós-restart)
+- `threshold_c4`: 0.30/0.30 (correto)
+- `threshold_sda`: **4/4** ← antes do fix subia para 6 com vol alta; agora descerá para 2-3 quando regime ficar errático (KILL fica MENOS sensível em regime caótico, como deve ser)
+- `batch_runs`: persistido cw=1, ccw=1 (com 1 pullback histórico em ccw)
+- `batch_last_action`: cw=improve_keep, ccw=pullback ← persistência v1.8 OK
+
+**Bugs pendentes (não-bloqueadores)**:
+- BUG-V3-02 (MEDIUM) — recalibrar `vol_ema` baseline: requer estudo histórico, adiado.
+- BUG-V3-05 (LOW) — persistir vol_ema em state.json: adiado, restart raro.
+- BUG-V3-06 (LOW) — backtest harness passar direction: adiado, harness é experimental.
+
+**Próximo monitor**: acompanhar próximas 2h. Se acc subir acima de 0.48 sustentado em regime de vol alta (vs 0.35 do vale 02h anterior), fix BUG-V3-01 está validado.
+
