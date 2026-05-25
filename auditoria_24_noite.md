@@ -78,13 +78,48 @@ Sistema **VERDE** 🟢 antes da auditoria.
 
 ---
 
-## 3. Implementação dos fixes (será preenchido após código)
+## 3. Implementação dos fixes
 
-(ver §4)
+### `state/game.py`
+- `save()` — version bump 1.7.0 → **1.9.0**; adicionados campos `shadow_hits_cw`, `shadow_hits_ccw`, `shadow_grid` (int keys → str na serialização).
+- `load()` — restaura os três campos com conversão `str → int` nos keys; tolerante a state.json antigo (cai no default de `__post_init__`).
+- `reset_session()` — limpa `shadow_grid` e `shadow_hits_cw/ccw` ao trocar dealer/mesa.
+
+### `tests/test_shadow_grid.py` (+3 novos testes)
+- `test_shadow_grid_persists_roundtrip` — save → reload preserva 10 hits em shifts 3 e 10.
+- `test_shadow_grid_load_tolerant_to_missing_field` — state v1.7 sem shadow_grid carrega gracefully.
+- `test_reset_session_clears_shadow_grid` — todos os shifts + legacy hits zerados após reset.
+
+### Validação local
+- **175 passed**, 7 skipped, 1 xfailed (era 172 → +3).
 
 ---
 
-## 4. Resultado dos fixes — _será atualizado após execução_
+## 4. Resultado live pós-deploy
+
+```
+state.json:
+  version       = 1.9.0
+  shadow_grid   = present (keys: '1','3','5','10')
+  shadow_hits_* = present
+
+/api/shadow:
+  design        = shadow_grid_v1
+  shifts        = [1, 3, 5, 10]
+  alert         = ok
+  challengers   = 4 (rampup pós-restart)
+
+containers: all healthy
+prom rules:  11 ativas em 3 grupos
+firing:      0
+```
+
+**Commits:**
+- `4275ce7` — feat S-STRAT-13 + S-OBS-14 (sessão anterior)
+- `db44679` — fix PromQL `max/min` → `or`
+- `a05aa99` — fix shadow_grid persist + reset (esta auditoria)
+
+**Status final: VERDE 🟢. 2 bugs corrigidos. Sistema com persistência completa do shadow grid.**
 
 ---
 
