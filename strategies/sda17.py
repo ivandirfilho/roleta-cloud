@@ -99,6 +99,17 @@ class SDA17Strategy(StrategyBase):
         # QW-3 — métrica de resets de martingale (preenchida externamente, mas vive aqui
         # para persistir no adaptive_state).
         self._mg_resets: Dict[str, int] = {"cw": 0, "ccw": 0}
+        # S-STRAT-7 — Auto-tune batch (4 spins por sentido, isolado).
+        # Contadores e histórico para tunelamento em lote, INDEPENDENTES por direção.
+        self._pending_spins: Dict[str, int] = {"cw": 0, "ccw": 0}
+        self._last_tune_ts: Dict[str, float] = {"cw": 0.0, "ccw": 0.0}
+        self._batch_acc_history: Dict[str, List[Tuple[float, float, float]]] = {
+            "cw": [], "ccw": []
+        }  # (acc_last_4, acc_prev_4, delta) — máx 50 entradas por dir
+        self._batch_pullback_total: Dict[str, int] = {"cw": 0, "ccw": 0}
+        self._batch_runs_total: Dict[str, int] = {"cw": 0, "ccw": 0}
+        self._batch_last_action: Dict[str, str] = {"cw": "init", "ccw": "init"}
+        self._batch_last_delta: Dict[str, float] = {"cw": 0.0, "ccw": 0.0}
         # Config TOML — carregada uma vez (singleton).
         self._cfg = get_strategy_config()
     
@@ -700,7 +711,87 @@ class SDA17Strategy(StrategyBase):
 
         self._sigmoid_off[f"{dk}_off2"] = off2
         self._sigmoid_off[f"{dk}_off3"] = off3
-    
+
+    def _batch_auto_tune(self, dk: str, min_warmup: int) -> None:
+        """S-STRAT-7 — Auto-tune em LOTE de 4 spins por sentido (isolado).
+
+        Cada chamada:
+          1. Valida warmup mínimo (>= 8 hits no buffer).
+          2. Compara acc(últimos 4) vs acc(4 anteriores).
+          3. Aplica pull-back, improve-keep ou explore-nudge.
+          4. Atualiza métricas e batch_acc_history.
+
+        INVARIANTES:
+          - Nunca cruza dados entre cw e ccw.
+          - Sempre respeita clamp [OFFSET_MIN, OFFSET_MAX].
+          - Falha silenciosa (já protegida pelo try/except do caller).
+        """
+        import time as _t
+        hits = self._recent_hits.get(dk, [])
+        if len(hits) < 8 or len(hits) < min_warmup:
+            self._batch_last_action[dk] = "skip_warmup"
+            logger.info("[BATCH-SKIP] dk=%s len=%d warmup=%d", dk, len(hits), min_warmup)
+            return
+
+        last_4 = hits[-4:]
+        prev_4 = hits[-8:-4]
+        acc_last = sum(last_4) / 4.0
+        acc_prev = sum(prev_4) / 4.0
+        delta = acc_last - acc_prev
+
+        # volatility do batch ([0,1] dado binário, simplificada — DRY com S-STRAT-11)
+        window = hits[-min(30, len(hits)):]
+        n = len(window)
+        mean_w = sum(window) / n
+        var_w = sum((x - mean_w) ** 2 for x in window) / n
+        std_w = var_w ** 0.5
+
+        pullback_rate = float(self._cfg.get("sda17.auto_tune_batch", "pullback_rate", 0.15))
+        improve_thr = float(self._cfg.get("sda17.auto_tune_batch", "improvement_threshold", 0.10))
+        degrade_thr = float(self._cfg.get("sda17.auto_tune_batch", "degrade_threshold", -0.10))
+        lr_batch = float(self._cfg.get("sda17.auto_tune_batch", "lr_batch", 0.30))
+
+        off2 = self._sigmoid_off.get(f"{dk}_off2", float(self.BAYESIAN_DEFAULT))
+        off3 = self._sigmoid_off.get(f"{dk}_off3", float(self.BAYESIAN_DEFAULT))
+
+        action = "explore"
+        if delta <= degrade_thr:
+            # Piorou: pull-back forçado em direção ao prior.
+            off2 += (self.PRIOR_CENTER - off2) * pullback_rate
+            off3 += (self.PRIOR_CENTER - off3) * pullback_rate
+            self._batch_pullback_total[dk] += 1
+            action = "pullback"
+            logger.info("[BATCH-PULLBACK] dk=%s delta=%.3f off2=%.2f off3=%.2f",
+                        dk, delta, off2, off3)
+        elif delta >= improve_thr:
+            # Melhorou: mantém trajetória (no-op em offsets).
+            action = "improve_keep"
+            logger.info("[BATCH-IMPROVE] dk=%s delta=%.3f mantido", dk, delta)
+        else:
+            # Estável: nudge pequeno proporcional ao gradient implícito
+            # (sinal=último miss ou hit, magnitude=lr_batch * volatility).
+            magnitude = lr_batch * std_w * (1 if last_4[-1] == 0 else -1)
+            off2 += magnitude * 0.3
+            off3 += magnitude * 0.3
+            action = "explore_nudge"
+            logger.info("[BATCH-EXPLORE] dk=%s delta=%.3f std=%.3f nudge=%.3f",
+                        dk, delta, std_w, magnitude)
+
+        # Clamp duro (respeita limites globais existentes).
+        off2 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off2))
+        off3 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off3))
+        self._sigmoid_off[f"{dk}_off2"] = off2
+        self._sigmoid_off[f"{dk}_off3"] = off3
+
+        # Métricas estado para /api/batch_tune e Prometheus.
+        self._batch_runs_total[dk] += 1
+        self._batch_last_action[dk] = action
+        self._batch_last_delta[dk] = delta
+        self._last_tune_ts[dk] = _t.time()
+        self._batch_acc_history[dk].append((acc_last, acc_prev, delta))
+        if len(self._batch_acc_history[dk]) > 50:
+            self._batch_acc_history[dk] = self._batch_acc_history[dk][-50:]
+
     def update_adaptive(self, direction: str, c1: int, actual_result: int,
                         wheel_sequence: List[int]) -> None:
         """
@@ -720,9 +811,29 @@ class SDA17Strategy(StrategyBase):
         
         # v4.3: M02-PctSigmoid feedback
         self._pct_sigmoid_update(direction, c1, actual_result)
+
+        # ============================================================
+        # S-STRAT-7 — Auto-tune batch a cada 4 spins (POR SENTIDO)
+        # ============================================================
+        # Contador isolado por direção. Incrementa SEMPRE (mesmo se warmup
+        # ou freeze internos cancelaram a adaptação spin-a-spin), garantindo
+        # que o tune por lote dispare exatamente a cada N spins.
+        # CW e CCW NUNCA compartilham buffer/contador (INV-1 reforçado).
+        dk = self._dk(direction)
+        try:
+            self._pending_spins[dk] += 1
+            enabled = bool(self._cfg.get("sda17.auto_tune_batch", "enabled", True))
+            batch_size = int(self._cfg.get("sda17.auto_tune_batch", "batch_size", 4))
+            min_warmup = int(self._cfg.get("sda17.auto_tune_batch", "min_warmup_spins", 16))
+            if enabled and self._pending_spins[dk] >= batch_size:
+                self._batch_auto_tune(dk, min_warmup)
+                self._pending_spins[dk] = 0
+        except Exception as exc:
+            logger.exception("[BATCH-TUNE-ERR] dk=%s err=%s", dk, exc)
+            self._batch_last_action[dk] = "error"
     
     def get_adaptive_state(self) -> Dict[str, Any]:
-        """Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)."""
+        """Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)."""
         return {
             "cw_history": self.cw_history,
             "ccw_history": self.ccw_history,
@@ -733,7 +844,21 @@ class SDA17Strategy(StrategyBase):
             "cooldown": self._cooldown,
             "drift_freeze": self._drift_freeze,
             "mg_resets": self._mg_resets,
-            "version": "1.7",
+            # S-STRAT-7 — batch tune state (versão dict para forward-compat).
+            "batch_tune_state": {
+                "version": 1,
+                "pending_spins": dict(self._pending_spins),
+                "last_tune_ts": dict(self._last_tune_ts),
+                "batch_pullback_total": dict(self._batch_pullback_total),
+                "batch_runs_total": dict(self._batch_runs_total),
+                "batch_last_action": dict(self._batch_last_action),
+                "batch_last_delta": dict(self._batch_last_delta),
+                "batch_acc_history": {
+                    dk: list(self._batch_acc_history.get(dk, []))[-50:]
+                    for dk in ("cw", "ccw")
+                },
+            },
+            "version": "1.8",
         }
 
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
@@ -796,6 +921,81 @@ class SDA17Strategy(StrategyBase):
                     self._mg_resets[dk] = max(0, int(raw_mg.get(dk, 0)))
                 except (ValueError, TypeError):
                     pass
+        # S-STRAT-7: restaurar batch tune state (backward-compat: ausente → defaults).
+        raw_bt = state.get("batch_tune_state", {})
+        if isinstance(raw_bt, dict):
+            ps = raw_bt.get("pending_spins", {})
+            if isinstance(ps, dict):
+                for dk in ("cw", "ccw"):
+                    try:
+                        self._pending_spins[dk] = max(0, int(ps.get(dk, 0)))
+                    except (ValueError, TypeError):
+                        pass
+            lt = raw_bt.get("last_tune_ts", {})
+            if isinstance(lt, dict):
+                for dk in ("cw", "ccw"):
+                    try:
+                        self._last_tune_ts[dk] = float(lt.get(dk, 0.0))
+                    except (ValueError, TypeError):
+                        pass
+            pt = raw_bt.get("batch_pullback_total", {})
+            if isinstance(pt, dict):
+                for dk in ("cw", "ccw"):
+                    try:
+                        self._batch_pullback_total[dk] = max(0, int(pt.get(dk, 0)))
+                    except (ValueError, TypeError):
+                        pass
+            rt = raw_bt.get("batch_runs_total", {})
+            if isinstance(rt, dict):
+                for dk in ("cw", "ccw"):
+                    try:
+                        self._batch_runs_total[dk] = max(0, int(rt.get(dk, 0)))
+                    except (ValueError, TypeError):
+                        pass
+            la = raw_bt.get("batch_last_action", {})
+            if isinstance(la, dict):
+                for dk in ("cw", "ccw"):
+                    v = la.get(dk, "init")
+                    if isinstance(v, str):
+                        self._batch_last_action[dk] = v
+            ld = raw_bt.get("batch_last_delta", {})
+            if isinstance(ld, dict):
+                for dk in ("cw", "ccw"):
+                    try:
+                        self._batch_last_delta[dk] = float(ld.get(dk, 0.0))
+                    except (ValueError, TypeError):
+                        pass
+            bh = raw_bt.get("batch_acc_history", {})
+            if isinstance(bh, dict):
+                for dk in ("cw", "ccw"):
+                    seq = bh.get(dk, [])
+                    if isinstance(seq, list):
+                        validated = []
+                        for item in seq[-50:]:
+                            if isinstance(item, (list, tuple)) and len(item) == 3:
+                                try:
+                                    validated.append(
+                                        (float(item[0]), float(item[1]), float(item[2]))
+                                    )
+                                except (ValueError, TypeError):
+                                    continue
+                        self._batch_acc_history[dk] = validated
+
+    def get_batch_tune_snapshot(self) -> Dict[str, Any]:
+        """S-STRAT-7 — snapshot leve para /api/batch_tune."""
+        return {
+            "pending_spins": dict(self._pending_spins),
+            "batch_size": int(self._cfg.get("sda17.auto_tune_batch", "batch_size", 4)),
+            "last_tune_ts": dict(self._last_tune_ts),
+            "batch_pullback_total": dict(self._batch_pullback_total),
+            "batch_runs_total": dict(self._batch_runs_total),
+            "batch_last_action": dict(self._batch_last_action),
+            "batch_last_delta": dict(self._batch_last_delta),
+            "batch_acc_history_tail": {
+                dk: list(self._batch_acc_history.get(dk, []))[-10:]
+                for dk in ("cw", "ccw")
+            },
+        }
     
     def _circ_dist(self, a: int, b: int, wheel_sequence: List[int]) -> int:
         """Distância circular entre dois números na roda."""

@@ -44,19 +44,37 @@ class TripleRateAdvisor:
     """
     
     MIN_DATA = 2
-    
+
+    # S-STRAT-11 — KILL v4 thresholds dinâmicos (clamps duros).
+    KILL_V4_C4_MIN = 0.20
+    KILL_V4_C4_MAX = 0.35
+    KILL_V4_SDA_MIN = 2
+    KILL_V4_SDA_MAX = 6
+    KILL_V4_VOL_WINDOW = 30
+    KILL_V4_EMA_ALPHA = 0.10
+
     def __init__(self):
         """Inicializa o advisor."""
         # S-OBS-6: counter in-process de disparos do Kill Switch v3+
         # Resetado apenas em restart do processo (estado vivo, sem SQL)
         self._kill_pulls_total: int = 0
         self._last_kill_ts: float = 0.0
+        # S-STRAT-11: EMA de volatility por direção (compartilhada caso não venha direction).
+        self._vol_ema: dict = {"cw": 0.30, "ccw": 0.30, "global": 0.30}
+        self._kill_thr_c4: dict = {"cw": 0.30, "ccw": 0.30, "global": 0.30}
+        self._kill_thr_sda: dict = {"cw": 4, "ccw": 4, "global": 4}
 
     def get_kill_stats(self) -> dict:
         """S-OBS-6: snapshot do estado do Kill Switch para /api/strategy."""
         return {
             "pulls_total": self._kill_pulls_total,
             "last_pull_ts": self._last_kill_ts if self._last_kill_ts else None,
+            # S-STRAT-11: thresholds dinâmicos visíveis.
+            "kill_v4": {
+                "vol_ema": dict(self._vol_ema),
+                "threshold_c4": dict(self._kill_thr_c4),
+                "threshold_sda": dict(self._kill_thr_sda),
+            },
         }
 
     def state_dict(self) -> dict:
@@ -77,14 +95,16 @@ class TripleRateAdvisor:
             self._kill_pulls_total = 0
             self._last_kill_ts = 0.0
     
-    def analyze(self, performance: List[bool], sda_score: int = 3) -> BetAdvice:
+    def analyze(self, performance: List[bool], sda_score: int = 3,
+                direction: Optional[str] = None) -> BetAdvice:
         """
         Analisa performance e retorna recomendação.
-        
+
         Args:
             performance: Lista de resultados (True=acertou, False=errou), índice 0 = mais recente
             sda_score: Score de confiança do SDA17-R (1-6)
-        
+            direction: "cw"/"ccw" (S-STRAT-11) — usado para threshold dinâmico isolado.
+
         Returns:
             BetAdvice com recomendação
         """
@@ -92,8 +112,35 @@ class TripleRateAdvisor:
         c4 = self._calculate_rate(performance, 4)
         m6 = self._calculate_rate(performance, 6)
         l12 = self._calculate_rate(performance, 12)
-        
-        # Dados insuficientes → apostar (sem histórico para vetar)
+
+        # ============================================
+        # S-STRAT-11 — KILL v4: thresholds DINÂMICOS por sentido
+        # ============================================
+        # Volatilidade do batch (binário 0/1) suavizada por EMA.
+        dk = direction if direction in ("cw", "ccw") else "global"
+        if len(performance) >= 4:
+            window = performance[: min(self.KILL_V4_VOL_WINDOW, len(performance))]
+            n = len(window)
+            mean_w = sum(1 for x in window if x) / n
+            var_w = sum((1.0 - mean_w if x else 0.0 - mean_w) ** 2 for x in window) / n
+            std_w = var_w ** 0.5
+            prev = self._vol_ema.get(dk, 0.30)
+            self._vol_ema[dk] = self.KILL_V4_EMA_ALPHA * std_w + (1.0 - self.KILL_V4_EMA_ALPHA) * prev
+            vol = self._vol_ema[dk]
+            # Threshold dinâmico: mais volátil → mais permissivo (não vetar à toa).
+            c4_thr = 0.30 - 0.5 * (vol - 0.30)
+            sda_thr = 4 + round(vol * 4)
+            c4_thr = max(self.KILL_V4_C4_MIN, min(self.KILL_V4_C4_MAX, c4_thr))
+            sda_thr = max(self.KILL_V4_SDA_MIN, min(self.KILL_V4_SDA_MAX, sda_thr))
+            self._kill_thr_c4[dk] = round(c4_thr, 4)
+            self._kill_thr_sda[dk] = int(sda_thr)
+        else:
+            c4_thr = 0.30
+            sda_thr = 4
+            self._kill_thr_c4[dk] = 0.30
+            self._kill_thr_sda[dk] = 4
+
+        # Dados insuficientes → apostar (sem histórico para filtro)
         if len(performance) < self.MIN_DATA:
             return BetAdvice(
                 should_bet=True,
@@ -103,22 +150,22 @@ class TripleRateAdvisor:
                 m6_rate=m6,
                 l12_rate=l12
             )
-        
+
         # ============================================
-        # S-STRAT-3 — KILL SWITCH v3: critério mais sensivel
+        # KILL SWITCH v4 (S-STRAT-11): thresholds dinâmicos por direção.
+        # Fallback ao v3 fixo quando direction não vier.
         # ============================================
-        # v2 anterior so vetava com c4==0 AND sda_score<=2, virtualmente nunca
-        # disparava (260 spins observados na ultima hora: 0 pulls por kill).
-        # v3: pula quando rolling c4 e score indicam degradacao real.
-        if len(performance) >= 4 and c4 < 0.30 and sda_score < 4:
-            # S-OBS-6: incrementa counter para exposicao em /api/strategy
+        if len(performance) >= 4 and c4 < c4_thr and sda_score < sda_thr:
             import time as _t
             self._kill_pulls_total += 1
             self._last_kill_ts = _t.time()
             return BetAdvice(
                 should_bet=False,
                 confidence="baixa",
-                reason=f"🛑 KILL v3: c4={c4:.0%} < 30% + Score SDA={sda_score} < 4",
+                reason=(
+                    f"🛑 KILL v4 [{dk}]: c4={c4:.0%} < {c4_thr:.0%} + "
+                    f"SDA={sda_score} < {sda_thr} (vol={self._vol_ema.get(dk, 0):.2f})"
+                ),
                 c4_rate=c4,
                 m6_rate=m6,
                 l12_rate=l12

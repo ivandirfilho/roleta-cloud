@@ -475,14 +475,18 @@ class GameState:
         """
         Retorna recomendação de aposta baseada no Kill Switch Advisor.
         Analisa a performance da direção alvo + qualidade dos dados SDA.
-        
+
         Args:
             sda_score: Score de confiança do SDA17-R (1-6)
-        
+
         Returns:
             BetAdvice com should_bet, confidence, reason e rates
         """
-        return self.bet_advisor.analyze(self.target_performance, sda_score=sda_score)
+        # S-STRAT-11: direção alvo (oposta à última) para threshold dinâmico isolado.
+        target_dir = "ccw" if self.last_direction == "horario" else "cw"
+        return self.bet_advisor.analyze(
+            self.target_performance, sda_score=sda_score, direction=target_dir
+        )
 
     # ==================================================================== #
     # v4.4 Quick Wins INV-3 — Stake modulation                              #

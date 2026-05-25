@@ -46,6 +46,16 @@ def set_state_provider(provider) -> None:
     global _STATE_PROVIDER
     _STATE_PROVIDER = provider
 
+
+# S-STRAT-7: provider opcional para snapshot do auto-tune batch.
+_BATCH_TUNE_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_batch_tune_provider(provider) -> None:
+    """S-STRAT-7: registra callable() -> dict para /api/batch_tune."""
+    global _BATCH_TUNE_PROVIDER
+    _BATCH_TUNE_PROVIDER = provider
+
 try:
     from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Gauge, Counter  # type: ignore
     _METRICS_AVAILABLE = True
@@ -68,6 +78,20 @@ if _METRICS_AVAILABLE:
             "recent_acc_ccw": Gauge("roleta_recent_acc_ccw", "Accuracy rolling 100 spins direcao CCW"),
             "seconds_since_spin": Gauge("roleta_seconds_since_last_spin", "Segundos desde ultimo spin processado"),
             "scrape_errors": Counter("roleta_metrics_scrape_errors_total", "Falhas ao atualizar metricas durante scrape"),
+            # S-STRAT-7: métricas do auto-tune batch (4 spins por sentido).
+            "batch_runs_cw": Gauge("roleta_batch_tune_runs_cw_total", "Total runs do auto-tune batch (direcao CW)"),
+            "batch_runs_ccw": Gauge("roleta_batch_tune_runs_ccw_total", "Total runs do auto-tune batch (direcao CCW)"),
+            "batch_pullback_cw": Gauge("roleta_batch_tune_pullback_cw_total", "Pull-backs aplicados (CW)"),
+            "batch_pullback_ccw": Gauge("roleta_batch_tune_pullback_ccw_total", "Pull-backs aplicados (CCW)"),
+            "batch_delta_cw": Gauge("roleta_batch_tune_last_delta_cw", "Delta acc(last4)-acc(prev4) ultimo tune CW"),
+            "batch_delta_ccw": Gauge("roleta_batch_tune_last_delta_ccw", "Delta acc(last4)-acc(prev4) ultimo tune CCW"),
+            "batch_pending_cw": Gauge("roleta_batch_tune_pending_cw", "Spins pendentes ate proximo tune CW"),
+            "batch_pending_ccw": Gauge("roleta_batch_tune_pending_ccw", "Spins pendentes ate proximo tune CCW"),
+            # S-STRAT-11: thresholds dinâmicos do KILL v4.
+            "kill_thr_c4_cw": Gauge("roleta_kill_threshold_c4_cw", "Threshold c4 dinamico KILL v4 (CW)"),
+            "kill_thr_c4_ccw": Gauge("roleta_kill_threshold_c4_ccw", "Threshold c4 dinamico KILL v4 (CCW)"),
+            "kill_thr_sda_cw": Gauge("roleta_kill_threshold_sda_cw", "Threshold sda dinamico KILL v4 (CW)"),
+            "kill_thr_sda_ccw": Gauge("roleta_kill_threshold_sda_ccw", "Threshold sda dinamico KILL v4 (CCW)"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -102,6 +126,24 @@ def _refresh_custom_metrics() -> None:
             sec = sg.get("seconds_since_last_spin")
             if sec is not None:
                 _PROM_METRICS["seconds_since_spin"].set(float(sec))
+            # S-STRAT-11: KILL v4 dynamic thresholds via strategy provider
+            ks = sg.get("kill_stats") or {}
+            kv4 = ks.get("kill_v4") or {}
+            thr_c4 = kv4.get("threshold_c4") or {}
+            thr_sda = kv4.get("threshold_sda") or {}
+            for dk in ("cw", "ccw"):
+                if dk in thr_c4:
+                    _PROM_METRICS[f"kill_thr_c4_{dk}"].set(float(thr_c4[dk]))
+                if dk in thr_sda:
+                    _PROM_METRICS[f"kill_thr_sda_{dk}"].set(float(thr_sda[dk]))
+        # S-STRAT-7: batch tune metrics.
+        if _BATCH_TUNE_PROVIDER is not None:
+            bt = _BATCH_TUNE_PROVIDER() or {}
+            for dk in ("cw", "ccw"):
+                _PROM_METRICS[f"batch_runs_{dk}"].set(float(bt.get("batch_runs_total", {}).get(dk, 0)))
+                _PROM_METRICS[f"batch_pullback_{dk}"].set(float(bt.get("batch_pullback_total", {}).get(dk, 0)))
+                _PROM_METRICS[f"batch_delta_{dk}"].set(float(bt.get("batch_last_delta", {}).get(dk, 0)))
+                _PROM_METRICS[f"batch_pending_{dk}"].set(float(bt.get("pending_spins", {}).get(dk, 0)))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()
@@ -171,7 +213,6 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
         if self.path == "/api/state":
-            # S-OBS-8: saúde do estado adaptativo persistido (para monitor externo)
             if _STATE_PROVIDER is None:
                 self.send_response(503)
                 self.send_header("Content-Type", "application/json")
@@ -180,6 +221,28 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = _STATE_PROVIDER()
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
+            return
+        if self.path == "/api/batch_tune":
+            # S-STRAT-7: snapshot do auto-tune em lote (4 spins por sentido).
+            if _BATCH_TUNE_PROVIDER is None:
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"batch_tune provider not registered"}')
+                return
+            try:
+                payload = _BATCH_TUNE_PROVIDER()
                 body = json.dumps(payload, default=str).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

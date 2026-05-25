@@ -1,0 +1,323 @@
+# Implementação Noite 24-05 → Evolução de Inteligência da Estratégia
+**Versão:** 1.0
+**Data:** 2026-05-25 ~02:35 UTC
+**Autor:** YOLO Orchestrator (claude-opus-4.7)
+**Foco:** tornar a estratégia mais inteligente, atualizando a CADA 4 SPINS POR SENTIDO (isoladamente cw vs ccw), sem nunca misturar direções.
+
+---
+
+## 0. Estado live no momento do plano
+| Métrica | Valor |
+|---|---|
+| recent_acc.cw_last_100 | 0.453 |
+| recent_acc.ccw_last_100 | 0.456 |
+| recent_hits_len cw / ccw | 86 / 90 |
+| sigmoid_off cw_off2 / off3 | 10.10 / 10.06 |
+| sigmoid_off ccw_off2 / off3 | 10.99 / 10.96 |
+| KILL pulls hoje | 10 (era 1 em §17 — pulou 10× em ~6h) |
+| Decisions hoje | 200 |
+| pg_stat_statements | ATIVO (§18) |
+
+**Observações que motivam o plano:**
+- `recent_acc` caiu de 0.49/0.50 (§17) para 0.453/0.456 (§18 →) — degradação real.
+- KILL disparou 10× hoje → threshold fixo (`c4<0.30 AND sda<4`) está agressivo demais.
+- sigmoid_off ccw (10.99/10.96) bem diferente de cw (10.10/10.06) → confirma que **direções têm regimes próprios** e precisam ser tratadas isoladamente.
+- 200 decisions/dia ≈ 10k em 50 dias → backtest harness é viável.
+
+---
+
+## 1. Princípios invioláveis do plano
+1. **Isolamento por sentido.** Toda mudança SOMA estado independente para `cw` e `ccw`. Nunca usar média global; nunca cruzar buffers entre direções.
+2. **Atualização em lote de 4 spins por sentido.** Mantém o feedback spin-a-spin atual de `_recent_hits` (necessário para acc) MAS o **auto-tune de sigmoid** dispara só quando `pending_spins[dk] == 4`. Cada direção tem seu próprio contador.
+3. **Backward-compat.** `state.json` antigo (sem `_pending_spins`) carrega sem erro e inicializa contadores em 0.
+4. **Sempre persistir.** Tudo que muda em runtime entra em `state_dict()` + `load_state()` com versionamento.
+5. **Backtest antes de produção.** Toda mudança de algoritmo passa por replay sobre as últimas 5-10k decisões antes de promover.
+6. **Métricas em /metrics + Grafana.** Cada novo loop expõe pelo menos 1 gauge para visualizar no Prometheus.
+
+---
+
+## 2. Sprints planejadas (ordem de execução)
+
+### Fase 1 — S-DBA-1 — Indexar top queries (0.5d) ⭐ QUICK WIN
+**Por que primeiro:** habilitamos `pg_stat_statements` em §18. Já temos dados (`SELECT total_exec_time DESC LIMIT 10`). Indexar é trivial e acelera CDC → loop de feedback mais rápido para as próximas sprints.
+
+**Passos:**
+1. Coletar `pg_stat_statements` top 10 por `total_exec_time` após 2h de coleta (já temos 30min).
+2. Para cada query identificar tabela + colunas no WHERE/ORDER BY/JOIN.
+3. Criar índices `CONCURRENTLY` (sem lock) com `IF NOT EXISTS`.
+4. Validar via `EXPLAIN ANALYZE` antes/depois.
+5. Adicionar migration em `db/migrations/2026-05-25_idx_hot_queries.sql`.
+
+**Acceptance:**
+- Top 5 queries têm tempo médio ≤ 50% do baseline.
+- Sem regressão em `pg_stat_statements.mean_exec_time` global.
+
+---
+
+### Fase 2 — S-STRAT-9 — Backtest Harness Offline (2d, MÍNIMO inline 0.5d)
+**Por que segundo:** S-STRAT-7/10/11 dependem disso para validar antes de promover.
+
+**Versão MÍNIMA (entregue nesta noite):**
+- Script `scripts/backtest_strategy.py`:
+  - Lê `decisions.db` (path configurável) ordenado por `timestamp`.
+  - Replica `analyze()` + `update_adaptive()` em uma **cópia limpa** da estratégia (sem efeitos colaterais).
+  - Aceita CLI: `--from "2026-05-24"`, `--to "2026-05-25"`, `--strategy-config <yaml>`, `--out report.json`.
+  - Saída: acc cw/ccw por intervalo de 100 spins, sigmoid_off trajetória, kill rate, miss-distance distribution.
+- Modo `--ab`: roda 2 configs (incumbent vs challenger) e gera diff.
+
+**Versão FULL (próxima sprint):**
+- Web UI para comparar runs.
+- Replay multi-mesa (futuro).
+
+**Acceptance:**
+- Backtest reproduz acc real ± 2pp em janela equivalente.
+- Roda 5k spins em < 30s.
+- Determinístico (seed fixo se houver aleatoriedade).
+
+---
+
+### Fase 3 — S-STRAT-7 — Auto-tuning sigmoid em batches de 4 por sentido (2-3d) ⭐ CERNE DO PEDIDO
+**Modelo conceitual (alinhado à instrução do usuário):**
+- Cada sentido tem um **contador** `_pending_spins[dk]` (0..3).
+- A cada `update_adaptive(dk, ...)`:
+  1. Atualizar `_recent_hits[dk]` (como hoje, spin a spin).
+  2. Incrementar `_pending_spins[dk]`.
+  3. Executar a adaptação sigmoid **CONTINUA** spin-a-spin (compatibilidade).
+  4. Quando `_pending_spins[dk] == 4`: disparar **AUTO-TUNE BATCH** (passo 5).
+  5. Resetar `_pending_spins[dk] = 0` e gravar timestamp em `_last_tune_ts[dk]`.
+
+**AUTO-TUNE BATCH (algoritmo):**
+- Calcular `acc_last_4[dk]` = média dos últimos 4 de `_recent_hits[dk]`.
+- Calcular `acc_prev_4[dk]` = média dos 4 anteriores (`_recent_hits[dk][-8:-4]`).
+- Calcular `delta = acc_last_4 - acc_prev_4`.
+- Se `delta < -0.10` (piorou ≥ 10pp): **pull-back forçado** ambos os offsets em direção a `PRIOR_CENTER`:
+  `off += (PRIOR_CENTER - off) * BATCH_PULLBACK_RATE` (default 0.15).
+- Se `delta > +0.10` (melhorou ≥ 10pp): **manter trajetória** (no-op extra — só log).
+- Se `|delta| ≤ 0.10`: **explore-exploit**: aplicar nudge pequeno proporcional ao gradient implícito:
+  Estimar gradient via 4 últimas misses: para cada miss, `err_dir` (cw/ccw) → `nudge[off2/off3] += sign * LR_BATCH * |delta|`.
+- Aplicar `clamp [OFFSET_MIN, OFFSET_MAX]` (já existe).
+- Persistir `_pending_spins`, `_last_tune_ts`, `_batch_acc_history[dk]` (últimas 50 tuplas `(acc_last_4, acc_prev_4)`).
+
+**Defaults conservadores (configuráveis via `app_config.yaml`):**
+```yaml
+sda17.auto_tune_batch:
+  enabled: true
+  batch_size: 4              # AS PER USER REQUEST
+  pullback_rate: 0.15
+  improvement_threshold: 0.10
+  degrade_threshold: -0.10
+  lr_batch: 0.30
+  min_warmup_spins: 16       # só ativa após 16 spins na direção
+```
+
+**Métricas Prometheus novas:**
+- `roleta_batch_tune_runs_total{direction="cw|ccw"}` — Counter.
+- `roleta_batch_tune_last_delta{direction}` — Gauge (-1..+1).
+- `roleta_batch_tune_pullback_total{direction}` — Counter (vezes que entrou em pullback).
+
+**Testes:**
+- `tests/test_batch_tune.py`:
+  - T1: contador isolado (cw cresce, ccw=0).
+  - T2: dispara tune exatamente no 4º spin do sentido.
+  - T3: 4 hits seguidos → improve path (mantém).
+  - T4: 4 misses seguidos depois de 4 hits → pull-back (offsets aproximam de 10).
+  - T5: backward compat — load_state sem `_pending_spins` → defaults 0.
+  - T6: clamp respeitado mesmo com nudge agressivo.
+
+**Acceptance:**
+- Backtest sobre últimas 5k decisions com S-STRAT-7 vs incumbent mostra **acc ≥ 0.46 (vs 0.453 hoje)** sem regressão em outras métricas (kill rate ≤ 12% por hora).
+- 6 testes passam.
+- Métricas aparecem em `/metrics`.
+
+---
+
+### Fase 4 — S-STRAT-11 — KILL v4 com threshold dinâmico (1-2d)
+**Problema atual:** `c4 < 0.30 AND sda_score < 4` é estático. Hoje gerou 10 disparos em ~6h (regime ruim).
+
+**Solução:**
+- Calcular `volatility[dk]` = std-dev de `_recent_hits[dk]` (últimos 30 spins).
+- Threshold `c4_kill[dk] = 0.30 - 0.5 * (volatility[dk] - 0.30)` (mais permissivo se já está volátil).
+- Threshold `sda_kill[dk] = 4 + round(volatility[dk] * 4)` (mais alto se está volátil).
+- Clamp `c4_kill ∈ [0.20, 0.35]`, `sda_kill ∈ [2, 6]`.
+- A condição de KILL passa a usar os thresholds dinâmicos POR DIREÇÃO.
+
+**Métricas:**
+- `roleta_kill_threshold_c4{direction}` — Gauge.
+- `roleta_kill_threshold_sda{direction}` — Gauge.
+
+**Testes:** 4 cenários no `tests/test_kill_v4.py`.
+
+**Acceptance:**
+- Backtest mostra kill rate ≤ 8% em regime estável e ≤ 15% em regime volátil (vs 10 disparos hoje sem controle).
+
+---
+
+### Fase 5 — S-STRAT-10 — A/B Shadow Mode (2d)
+**O quê:** Estratégia "challenger" recebe os mesmos spins, calcula `analyze()` mas NÃO emite aposta — só registra em `decisions_shadow` (nova tabela SQLite + tabela Postgres `shared.decisions_shadow`).
+
+**Esquema:**
+```sql
+CREATE TABLE decisions_shadow (
+  id INTEGER PRIMARY KEY,
+  ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+  variant TEXT,                -- nome do challenger
+  spin_direction TEXT,
+  should_bet BOOLEAN,
+  predicted_class INTEGER,
+  hit BOOLEAN,
+  details JSON
+);
+```
+
+**Loop:** `MessageHandler` chama `challenger.analyze()` em paralelo (try/except — falha não derruba aposta real). Após resultado, grava em shadow.
+
+**Comparação:** endpoint `/api/ab` retorna acc_incumbent vs acc_challenger nas últimas N horas.
+
+**Acceptance:**
+- 1 variant rodando em paralelo sem impactar latência (≤ 5ms a mais).
+- Tabela cresce; `/api/ab` retorna diff.
+
+---
+
+### Fase 6 — S-STRAT-8 — Feature Store no PG (3-4d)
+**O quê:** Tabela `shared.spin_features` com features pré-computadas (lag-N hits, direção streak, regime volatility, last_kill_age, cooldown_state) atualizada via CDC trigger pós-decision.
+
+**Por que vale a pena:** elimina cálculo redundante em `analyze()`, abre porta para ML futuro.
+
+**Risco médio:** mudança em hot path. Sai por último das prioritárias.
+
+---
+
+### Fase 7 — S-STRAT-12 — Embeddings via pgvector (4-5d)
+**O quê:** Codificar cada janela de 50 spins como vetor (one-hot da direção + bucket de offset + bucket de acc), gravar em `shared.spin_embeddings` com `vector(64)`. Em `analyze()`, buscar k-NN para encontrar "regimes parecidos" e ponderar prediction.
+
+**Pré-req:** Feature store (Fase 6) + 10k+ spins históricos.
+
+**Risco:** alto. Fica como roadmap futuro, não execução nesta noite.
+
+---
+
+## 3. Ordem de execução nesta noite
+| Ordem | Sprint | Tempo estimado real | Status |
+|---|---|---|---|
+| 1 | S-DBA-1 indexação top queries | 30min | ⏳ pending |
+| 2 | S-STRAT-9 backtest MÍNIMO | 1h | ⏳ pending |
+| 3 | S-STRAT-7 batch-4 auto-tune | 2h | ⏳ pending |
+| 4 | S-STRAT-11 KILL v4 dinâmico | 1h | ⏳ pending |
+| 5 | (S-STRAT-10) shadow mode skeleton | 30min | ⏳ pending |
+| 6 | Auditoria pós-implementação | 30min | ⏳ pending |
+
+**Fases 6 e 7** ficam para próxima janela (não cabem nesta noite).
+
+---
+
+## 4. Riscos & mitigações
+| Risco | Mitigação |
+|---|---|
+| Auto-tune brigar com pullback existente (linha 692-695 sda17.py) | Pullback batch só dispara se `|off - PRIOR_CENTER|` JÁ está dentro da banda; fora da banda, deixa o regularizador atual fazer o trabalho |
+| Counter perdido em restart | Persistir em `state_dict()` + load tolerante a ausência |
+| Tunelamento agressivo destruindo offsets bons | `min_warmup_spins=16` antes de ativar |
+| KILL v4 com std-dev mal calibrada | Backtest antes; clamp duro em thresholds |
+| Shadow mode adicionar latência ao hot path | Try/except + timeout 50ms; fail-safe drop |
+| pg_stat_statements ainda sem dados suficientes | Esperar 1-2h de coleta antes de tirar conclusões; aplicar índices óbvios primeiro |
+
+---
+
+## 5. Acceptance global da noite
+- ✅ Todos os arquivos commitados e deployados.
+- ✅ App roda sem regressão (healthcheck, 156 tests).
+- ✅ `recent_acc` em backtest ≥ 0.46 com S-STRAT-7.
+- ✅ KILL rate em backtest ≤ 12% com S-STRAT-11.
+- ✅ Métricas novas em `/metrics`.
+- ✅ Documentação atualizada (este arquivo §AUDIT e §RESULTADOS).
+
+
+---
+
+## §AUDIT — Auditoria do Plano v1 (versão 2 do documento)
+**Data:** 2026-05-25 ~02:42 UTC
+**Método:** sequential-thinking sobre cada Fase + cross-check com `strategies/sda17.py`, `state/bet_advisor.py`, `state/game.py`, `server/websocket.py`, `tests/test_quick_wins.py`.
+
+### BUGS encontrados no PLANO (antes da implementação)
+
+#### 🔴 BUG-PLANO-01 — `acc_prev_4` indefinido nos primeiros 8 spins
+**Onde:** Fase 3, AUTO-TUNE BATCH, fórmula `acc_prev_4 = _recent_hits[dk][-8:-4]`.
+**Problema:** Quando `len(_recent_hits[dk]) < 8`, o slice retorna lista vazia → `mean([])` = ZeroDivisionError. Mesmo após warmup de 16, no PRIMEIRO disparo (spin 16) `prev_4` está bem definido (spins 9-12) mas no spin 16 do FRESH state pós-restart sem persistência, quebra.
+**Correção v2:** Se `len(_recent_hits[dk]) < 8`, **PULAR** o batch tune; resetar contador; logar `[BATCH-SKIP] warmup_insufficient dk=%s len=%d`. Adicionar `min_warmup_spins: 16` checado ANTES do slice.
+
+#### 🔴 BUG-PLANO-02 — Contador `_pending_spins` zera mas auto-tune não roda se `update_adaptive` falhar
+**Problema:** Se houver exceção em `analyze()` ou no bloco de batch, `_pending_spins[dk]` pode ficar inconsistente.
+**Correção v2:** Wrapper `try/finally` — incrementa contador no `try`; o reset só acontece quando o batch **realmente** executa. Adicionar `_batch_failures[dk]` counter para diagnóstico.
+
+#### 🟡 BUG-PLANO-03 — `delta` baseado SÓ em acc não captura regime
+**Problema:** Dois cenários distintos retornam mesmo `delta = 0`:
+  - 4 hits + 4 hits seguidos (regime estável, acc=1.0 vs 1.0).
+  - 2 hits + 2 hits alternados (regime volátil, acc=0.5 vs 0.5).
+**Correção v2:** Auxiliar `volatility_batch[dk] = std([hits])` × multiplicador no `lr_batch`. **Reaproveita** o std-dev que S-STRAT-11 calcula → DRY: extrair função `_compute_window_stats(dk, n)` compartilhada.
+
+#### 🟡 BUG-PLANO-04 — Backtest harness não isola `_drift_freeze`/`_cooldown` por execução
+**Problema:** Se rodar 2 backtests em sequência no mesmo processo Python, estado da classe vaza.
+**Correção v2:** Backtest cria NOVA instância de `SDA17Strategy()` por execução. Documentar isso e adicionar assert em `tests/test_backtest_isolation.py`.
+
+#### 🟡 BUG-PLANO-05 — `decisions.db` SQLite local NÃO contém `actual_result` em todos schemas
+**Problema:** A tabela `decisions` tem `spin_number` (input) mas o resultado real do spin pode estar em outra tabela (`spins` ou `outcomes`). Sem `actual_result`, replay não consegue calcular hit.
+**Verificação necessária:** rodar `.schema decisions` E `.schema spins` no `decisions.db` real ANTES de codar o backtest. Provável que precise JOIN com tabela de outcomes.
+**Correção v2:** Backtest valida em runtime se consegue resolver `actual_result` para cada decision; aborta com mensagem clara se schema não permitir replay.
+
+#### 🟡 BUG-PLANO-06 — KILL v4: volatility instável com janela pequena
+**Problema:** `std-dev` sobre 30 binários (0/1) é ruidoso. Pode disparar threshold change a cada spin.
+**Correção v2:** Aplicar EMA(α=0.10) sobre volatility OU usar janela 50 com decay. Documentar como `kill_v4.volatility_window=50`, `kill_v4.ema_alpha=0.10`.
+
+#### 🟡 BUG-PLANO-07 — Shadow mode pode vazar memória se challenger tiver bug
+**Problema:** Cada `analyze()` shadow guarda estado próprio (`_recent_hits`, etc) em instância separada. Se challenger for criado a cada spin sem reciclar, vazamento.
+**Correção v2:** Shadow é instância ÚNICA persistente, gerenciada pelo `MessageHandler` (singleton). Sair gracefully se exceção; counter `roleta_shadow_failures_total`.
+
+#### 🟢 BUG-PLANO-08 — `min_warmup_spins=16` é genérico mas tempo varia entre direções
+**Problema:** cw e ccw podem ter contagens muito diferentes. 16 ccw spins podem demorar muito mais que 16 cw em regime assimétrico.
+**Correção v2:** Tudo bem — exatamente esse é o ponto do **isolamento por sentido**. Sem mudança, só explicar no doc.
+
+#### 🟢 BUG-PLANO-09 — Métrica `roleta_batch_tune_last_delta` precisa label de direção
+**Correção v2:** Já planejado com `{direction}` no doc original. Apenas reforçar no código que `Gauge(..., ["direction"])`.
+
+#### 🔴 BUG-PLANO-10 — pg_stat_statements `mean_exec_time` ainda muito jovem
+**Onde:** Fase 1.
+**Problema:** Só 30min de dados → top 10 vai ser dominado por queries de boot (CREATE EXTENSION, healthcheck setup). Indexar isso é inútil.
+**Correção v2:** Esperar pelo menos **2h** de coleta. Filtrar por `calls >= 10` E `total_exec_time >= 100ms`. Recortar primeiras 30min via `pg_stat_statements_reset()` antes da janela de medição.
+
+### MELHORIAS adicionadas na v2
+
+#### 🆕 MEL-01 — Endpoint `/api/batch_tune` para inspeção
+Retorna por direção: `pending_spins`, `last_tune_ts`, `last_delta`, `last_action` (skip/pullback/improve/explore), `batch_acc_history`. Sem aumentar overhead — só leitura de campos já em memória.
+
+#### 🆕 MEL-02 — Feature flag global `SDA17_AUTO_TUNE_BATCH_ENABLED`
+Env var lida no boot. Permite desligar S-STRAT-7 sem redeploy se algo der errado em produção. Default: `true`.
+
+#### 🆕 MEL-03 — Migration `down` para S-DBA-1
+Cada `CREATE INDEX CONCURRENTLY` ganha um `-- DOWN` com `DROP INDEX CONCURRENTLY IF EXISTS`. Rollback fica trivial.
+
+#### 🆕 MEL-04 — Backtest reporta também **`hit_rate` por hora-do-dia**
+Útil para validar tese da `auto-tune sigmoid por hora-do-dia` (S-STRAT-7 long-term).
+
+#### 🆕 MEL-05 — Persistência do contador num **dicionário versionado**
+`state.json` ganha `batch_tune_state: {version: 1, pending_spins: {cw: N, ccw: M}, last_tune_ts: {cw: t1, ccw: t2}}`. Backward-compat: chave ausente → defaults.
+
+### Plano de execução AJUSTADO (v2)
+Ordem mantida, mas:
+1. **S-DBA-1** vira "**coletar 2h** + indexar" → faz coleta passiva enquanto S-STRAT-9 e S-STRAT-7 são implementados. Indexa no final da noite com dados ricos.
+2. **S-STRAT-9** valida schema do `decisions.db` (BUG-PLANO-05) ANTES de codar o replay; aborta limpo se incompatível.
+3. **S-STRAT-7** implementa correções BUG-PLANO-01/02/03/05; expõe `/api/batch_tune` (MEL-01); feature flag (MEL-02); persistência versionada (MEL-05).
+4. **S-STRAT-11** usa volatility EMA (BUG-PLANO-06).
+5. **Shadow mode** entra como skeleton só (instância única + try/except + 1 endpoint), implementação completa fica para próxima janela.
+
+### Checks pré-implementação rodados
+- ✅ `strategies/sda17.py:614-616` — `_recent_hits` append confirmado spin-a-spin (não muda).
+- ✅ `strategies/sda17.py:631-635` — pullback já existente com decay 50/50.
+- ✅ `strategies/sda17.py:692-695` — regularizador anti-drift (S-STRAT-1) já em produção; auto-tune batch NÃO sobrepõe (executa em ramo lógico diferente).
+- ✅ `state/game.py:save/load` — já inclui `bet_advisor_state` (§13). Adicionar `batch_tune_state` é seguro.
+- ✅ `server/websocket.py:46+,104+` — providers `set_strategy_provider` e `set_state_provider` registrados; novo `/api/batch_tune` segue o mesmo padrão.
+- ⚠ `decisions.db` schema TEM `spin_direction` mas **`actual_result` ainda não verificado** — validar no Passo 1 da implementação.
+
+---
+
+## §IMPLEMENTAÇÃO — Em execução
+(será preenchido com cada PR conforme execução)

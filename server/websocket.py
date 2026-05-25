@@ -91,6 +91,7 @@ try:
                 },
             },
             "kill_switch": kill_stats,  # S-OBS-6
+            "kill_stats": kill_stats,   # S-STRAT-11: alias para health_server consumir thresholds
             "ts": int(now),
         }
 
@@ -98,6 +99,24 @@ try:
     logger.info("strategy_provider_registered for /api/strategy")
 except Exception as _e:  # noqa: BLE001
     logger.warning(f"strategy_provider_register_failed: {_e}")
+
+
+# S-STRAT-7: provider de snapshot do auto-tune batch para /api/batch_tune
+try:
+    from server.health_server import set_batch_tune_provider as _set_bt_p
+
+    def _batch_tune_snapshot():
+        try:
+            if hasattr(strategy, "get_batch_tune_snapshot"):
+                return strategy.get_batch_tune_snapshot()
+        except Exception:  # noqa: BLE001
+            pass
+        return {}
+
+    _set_bt_p(_batch_tune_snapshot)
+    logger.info("batch_tune_provider_registered for /api/batch_tune")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"batch_tune_provider_register_failed: {_e}")
 
 
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state

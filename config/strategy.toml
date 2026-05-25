@@ -60,3 +60,17 @@ window = 50                  # buffer mínimo para detectar
 threshold = 0.15             # |rate_inicial - rate_recente| > threshold
 freeze_spins = 5
 soft_reset_weight = 0.5      # 0.5 * cur + 0.5 * default
+
+# S-STRAT-7 — Auto-tune batch a cada N spins POR SENTIDO (isolado).
+# A cada N spins acumulados em uma direção (cw OU ccw), comparar acc(últimos N)
+# vs acc(N anteriores) e ajustar sigmoid_off com pull-back / explore-nudge / improve-keep.
+# INV-1 reforçado: cw e ccw têm contadores e estados INDEPENDENTES.
+[sda17.auto_tune_batch]
+enabled = true
+batch_size = 4                 # ← Pedido literal: "a cada 4 jogadas em cada sentido"
+min_warmup_spins = 16          # só ativa após 16 spins na direção (16 cw OU 16 ccw)
+pullback_rate = 0.15           # quanto puxar em direção ao PRIOR_CENTER quando piora
+improvement_threshold = 0.10   # delta acc para considerar "melhorou" (no-op em offset)
+degrade_threshold = -0.10      # delta acc para considerar "piorou" (aplica pull-back)
+lr_batch = 0.30                # learning rate do nudge explore (modulado por volatility)
+

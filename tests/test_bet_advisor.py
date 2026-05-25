@@ -36,12 +36,12 @@ class TestTripleRateAdvisor:
         advice = advisor.analyze(perf, sda_score=2)
         assert advice.should_bet is False
         assert advice.confidence == "baixa"
-        assert "KILL v3" in advice.reason
+        assert "KILL v" in advice.reason
 
     def test_kill_switch_not_active_with_good_sda(self, advisor):
-        """v3: c4=0% mas sda_score>=4 → apostar (sinal forte vence)."""
+        """KILL v4: c4=0% mas sda_score >= threshold_sda dinâmico → apostar."""
         perf = [False, False, False, False]
-        advice = advisor.analyze(perf, sda_score=4)
+        advice = advisor.analyze(perf, sda_score=6)
         assert advice.should_bet is True
 
     def test_kill_switch_not_active_with_hits(self, advisor):
@@ -55,7 +55,7 @@ class TestTripleRateAdvisor:
         perf = [True, False, False, False]
         advice = advisor.analyze(perf, sda_score=3)
         assert advice.should_bet is False
-        assert "KILL v3" in advice.reason
+        assert "KILL v" in advice.reason
 
     def test_kill_switch_increments_counter(self, advisor):
         """S-OBS-6: counter incrementa a cada disparo de KILL v3."""
