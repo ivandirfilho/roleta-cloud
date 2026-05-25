@@ -2,7 +2,7 @@
   "title": "Roleta Cloud — Shadow Grid (S-OBS-15)",
   "uid": "roleta-shadow",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "15s",
   "time": { "from": "now-3h", "to": "now" },
   "templating": {
@@ -47,6 +47,24 @@
     { "id": 30, "type": "bargauge", "title": "Samples per shift ($direction)", "gridPos": {"x":0,"y":20,"w":12,"h":6},
       "targets": [{"expr":"roleta_shadow_samples_n{direction=\"$direction\"}","legendFormat":"shift={{shift}}"}] },
     { "id": 31, "type": "table", "title": "Top-edge per shift (snapshot)", "gridPos": {"x":12,"y":20,"w":12,"h":6},
-      "targets": [{"expr":"topk(4, roleta_shadow_edge_pp)","format":"table","instant":true}] }
+      "targets": [{"expr":"topk(4, roleta_shadow_edge_pp)","format":"table","instant":true}] },
+
+    { "id": 40, "type": "stat", "title": "Bandit ε (epsilon)", "gridPos": {"x":0,"y":26,"w":4,"h":4},
+      "targets": [{"expr":"roleta_bandit_epsilon"}],
+      "fieldConfig":{"defaults":{"decimals":2,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"orange","value":0.5},{"color":"red","value":0.9}]}}} },
+    { "id": 41, "type": "stat", "title": "Bandit recommended shift", "gridPos": {"x":4,"y":26,"w":4,"h":4},
+      "targets": [{"expr":"roleta_bandit_recommended_shift"}],
+      "fieldConfig":{"defaults":{"thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]}}} },
+    { "id": 42, "type": "stat", "title": "Bandit total pulls", "gridPos": {"x":8,"y":26,"w":4,"h":4},
+      "targets": [{"expr":"roleta_bandit_total_pulls"}] },
+    { "id": 43, "type": "bargauge", "title": "Pulls por braço (n)", "gridPos": {"x":12,"y":26,"w":12,"h":4},
+      "targets": [{"expr":"roleta_bandit_arm_n","legendFormat":"shift={{shift}}"}] },
+
+    { "id": 44, "type": "timeseries", "title": "Mean reward por braço", "gridPos": {"x":0,"y":30,"w":12,"h":8},
+      "targets": [{"expr":"roleta_bandit_arm_mean","legendFormat":"shift={{shift}}"}],
+      "fieldConfig":{"defaults":{"unit":"percentunit","min":0,"max":1}} },
+    { "id": 45, "type": "timeseries", "title": "Bandit ε over time", "gridPos": {"x":12,"y":30,"w":12,"h":8},
+      "targets": [{"expr":"roleta_bandit_epsilon","legendFormat":"epsilon"}],
+      "fieldConfig":{"defaults":{"min":0,"max":1.05}} }
   ]
 }
