@@ -268,6 +268,15 @@ class GameState:
         # Reset Martingale
         self.martingale_cw = MartingaleState()
         self.martingale_ccw = MartingaleState()
+
+        # BUG-A24-13: Reset Shadow grid (S-STRAT-13) + legacy shadow_hits.
+        # Sem isso, trocar dealer/mesa contamina o champion detection.
+        self.shadow_hits_cw = deque(maxlen=100)
+        self.shadow_hits_ccw = deque(maxlen=100)
+        self.shadow_grid = {
+            s: {"cw": deque(maxlen=100), "ccw": deque(maxlen=100)}
+            for s in self.SHADOW_SHIFTS
+        }
         
         # Reset Prediction pendente
         self.pending_prediction = {}
@@ -699,13 +708,21 @@ class GameState:
         return result
 
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.7 - Quick Wins INV-3) com escrita atômica."""
+        """Salva estado em arquivo JSON (v1.9 - S-STRAT-13 shadow grid) com escrita atômica."""
         import os
         import tempfile
         
         path = path or settings.state_file
+        # BUG-A24-01: serializa shadow_grid (keys int → str para JSON).
+        shadow_grid_serializable = {
+            str(shift): {
+                "cw": list(sides.get("cw", [])),
+                "ccw": list(sides.get("ccw", [])),
+            }
+            for shift, sides in (self.shadow_grid or {}).items()
+        }
         data = {
-            "version": "1.7.0",
+            "version": "1.9.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
@@ -719,6 +736,10 @@ class GameState:
             "pending_prediction": self.pending_prediction,
             "adaptive_state": self._adaptive_state,
             "bet_advisor_state": self.bet_advisor.state_dict(),
+            # S-STRAT-13 persistence (BUG-A24-01)
+            "shadow_hits_cw": list(self.shadow_hits_cw),
+            "shadow_hits_ccw": list(self.shadow_hits_ccw),
+            "shadow_grid": shadow_grid_serializable,
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -811,6 +832,23 @@ class GameState:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))
             except Exception as _e:
                 logger.warning(f"S-OBS-7: falha ao restaurar bet_advisor_state: {_e}")
+            # S-STRAT-13 / BUG-A24-01: restaurar shadow grid (keys str → int).
+            try:
+                sh_cw = data.get("shadow_hits_cw", [])
+                sh_ccw = data.get("shadow_hits_ccw", [])
+                gs.shadow_hits_cw = deque(sh_cw, maxlen=100)
+                gs.shadow_hits_ccw = deque(sh_ccw, maxlen=100)
+                sg_raw = data.get("shadow_grid", {}) or {}
+                for shift_key, sides in sg_raw.items():
+                    try:
+                        shift_int = int(shift_key)
+                    except (TypeError, ValueError):
+                        continue
+                    if shift_int in gs.shadow_grid:
+                        gs.shadow_grid[shift_int]["cw"] = deque(sides.get("cw", []), maxlen=100)
+                        gs.shadow_grid[shift_int]["ccw"] = deque(sides.get("ccw", []), maxlen=100)
+            except Exception as _e:
+                logger.warning(f"S-STRAT-13: falha ao restaurar shadow_grid: {_e}")
             return gs
         except Exception as e:
             logger.error(f"Falha ao carregar state.json: {e}")

@@ -100,3 +100,68 @@ def test_alert_triggers_when_shadow_beats_incumbent(gs):
         gs.shadow_grid[10]["cw"].appendleft(True)
     snap = gs.get_shadow_stats()
     assert snap["alert"] == "shadow_beating_incumbent"
+
+
+# --------- BUG-A24-01 / BUG-A24-13 — persistencia & reset ----------
+
+def test_shadow_grid_persists_roundtrip(tmp_path):
+    """BUG-A24-01: save() -> load() preserva shadow_grid e shadow_hits."""
+    import json
+    from state.game import GameState
+    p = tmp_path / "state.json"
+
+    gs = GameState()
+    for _ in range(10):
+        gs.shadow_grid[3]["cw"].appendleft(True)
+        gs.shadow_grid[10]["ccw"].appendleft(False)
+    gs.shadow_hits_cw.appendleft(True)
+    gs.shadow_hits_cw.appendleft(False)
+    gs.save(path=p)
+
+    raw = json.loads(p.read_text(encoding="utf-8"))
+    assert raw["version"].startswith("1.9")
+    # keys serializados como str no JSON
+    assert "3" in raw["shadow_grid"]
+    assert "10" in raw["shadow_grid"]
+    assert len(raw["shadow_grid"]["3"]["cw"]) == 10
+
+    gs2 = GameState.load(path=p)
+    assert len(gs2.shadow_grid[3]["cw"]) == 10
+    assert all(gs2.shadow_grid[3]["cw"])
+    assert len(gs2.shadow_grid[10]["ccw"]) == 10
+    assert not any(gs2.shadow_grid[10]["ccw"])
+    assert len(gs2.shadow_hits_cw) == 2
+
+
+def test_shadow_grid_load_tolerant_to_missing_field(tmp_path):
+    """load() deve aceitar state.json antigo sem shadow_grid (graceful)."""
+    import json
+    from state.game import GameState
+    p = tmp_path / "state.json"
+    p.write_text(json.dumps({"version": "1.7.0", "last_number": 0}), encoding="utf-8")
+    gs = GameState.load(path=p)
+    # Grid deve ter sido inicializado pelo __post_init__
+    assert set(gs.shadow_grid.keys()) == {1, 3, 5, 10}
+    assert len(gs.shadow_grid[5]["cw"]) == 0
+
+
+def test_reset_session_clears_shadow_grid(tmp_path, monkeypatch):
+    """BUG-A24-13: reset_session deve limpar shadow_grid + shadow_hits."""
+    from state.game import GameState
+    from app_config.settings import settings
+    p = tmp_path / "state.json"
+    monkeypatch.setattr(settings, "state_file", p)
+
+    gs = GameState()
+    for _ in range(20):
+        gs.shadow_grid[1]["cw"].appendleft(True)
+        gs.shadow_grid[5]["ccw"].appendleft(True)
+        gs.shadow_hits_cw.appendleft(True)
+        gs.shadow_hits_ccw.appendleft(True)
+
+    gs.reset_session()
+    for shift in (1, 3, 5, 10):
+        assert len(gs.shadow_grid[shift]["cw"]) == 0
+        assert len(gs.shadow_grid[shift]["ccw"]) == 0
+    assert len(gs.shadow_hits_cw) == 0
+    assert len(gs.shadow_hits_ccw) == 0
