@@ -254,6 +254,7 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - ✅ S-OBS-15 — dashboard Grafana shadow grid (commit `58b4e36`)
 - ✅ S-STRAT-11 — CONFIRMADO já implementado em `bet_advisor.py` (thresholds dinâmicos por volatilidade EMA)
 - ✅ S-STRAT-14 — bandit ε-greedy entre shifts do shadow grid (commit `4bff786`, deployed)
+- ✅ S-OBS-15 v2 — 6 painéis de bandit adicionados ao dashboard Grafana (commit `6340a59`, provisionado)
   - `_update_bandit_on_spin` em `state/game.py`: arms 1/3/5/10 alimentados por hit do head cw+ccw
   - ε cold-start 1.0 → 0.10 quando min(arm.n) ≥ 10
   - `recommended_shift` arg-max(mean) com prob 1-ε
