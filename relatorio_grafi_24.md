@@ -495,3 +495,56 @@ Adicionar `logger.exception(...)` nos bare-excepts de `tools/backfill_decision.p
 ---
 
 **FIM do relatório.** Auditoria de auditoria aplicada. SSH/credenciais explicitamente fora-de-escopo. Execução em XII.B-F.
+
+
+## XIII. EVOLUÇÃO EXECUTADA (resultado real, 2026-05-25 00:11Z)
+
+### XIII.A S-BAK-1 (wal-g) — COMPLETO EM PRODUÇÃO
+- Binário wal-g v3.0.5 instalado em /root/roleta-cloud/wal-g/wal-g (bind ativo)
+- PG recreado: docker compose up -d --force-recreate postgres
+- Primeiro basebackup OK: base_000000010000000000000020 no B2
+- wal-g backup-list mostra 3 backups
+- Cron /etc/cron.d/walg-backup (02:00 UTC daily)
+
+### XIII.B S-MIG-1 (alembic 0005) — COMPLETO
+- migrations/versions/0005_outbox_notify.py (upgrade/downgrade idempotentes)
+- alembic stamp 0005_outbox_notify aplicado (trigger ja existia via SQL standalone)
+
+### XIII.C S-OBS-2 (cdc /metrics) — COMPLETO + VALIDADO LIVE
+- workers/cdc_worker.py: 4 Counters + 1 Gauge expostos em CDC_METRICS_PORT (8767)
+  - cdc_notify_received_total, cdc_notify_wakeups_total
+  - cdc_batch_events_processed_total, cdc_listen_reconnect_total
+  - cdc_listen_state (1=LISTEN ativo, 0=polling-only)
+- docker/cdc-worker/Dockerfile: prometheus-client>=0.20 instalado
+- docker-compose.pg.yml: cdc-worker expoe 127.0.0.1:8767:8767
+- /etc/grafana-agent/config.yml: novo job cdc-worker (backup config.yml.bak-*)
+- Validacao: 4 targets up (postgres, roleta-cloud, node, cdc-worker)
+
+### XIII.D BUG DESCOBERTO + FIX (nao constava do relatorio original)
+- Sintoma: apos restart do PG, cdc-worker ficava em loop infinito
+  `listen_notify_wait_error error=server closed the connection unexpectedly`.
+- Fix em workers/cdc_worker.py:
+  - Global _listen_conn_dead
+  - _wait_for_notify detecta conn_listen.closed / OperationalError / InterfaceError
+  - main_loop tem bloco que chama _setup_listen se _listen_conn_dead=True
+- Validacao live (docker compose restart postgres): sequencia
+  `pg_connection_lost -> listen_conn_lost -> listen_reconnect_attempt -> listen_notify_enabled`
+  Metric cdc_listen_reconnect_total=1, cdc_listen_state=1. Sem loop.
+
+### XIII.E S-CLEAN-1 lite — COMPLETO
+- .dockerignore: adicionados graphify-out/, wal-g/, .tmp_*
+
+### XIII.F S-LOG-1 mini — CANCELADA (nao-necessaria)
+- Auditoria: bare-excepts em tools/gap_detector.py sao tmpfile-cleanup (com raise)
+  ou print estruturado com exc. Sem silent-skip real.
+
+### XIII.G Pendentes nao-criticos
+- Dashboard Grafana com paineis dos counters CDC
+- Alert rules: cdc_listen_state==0 for 5m / rate(cdc_listen_reconnect_total[10m])>0.1
+- Wal-g restore drill em ambiente isolado
+
+### XIII.H Commits desta evolucao
+- ebf78d1 feat(S-BAK-1,S-MIG-1,S-OBS-2,S-CLEAN-1): wal-g + alembic + cdc /metrics + dockerignore
+- 6fe7cce fix(S-OBS-2): install prometheus-client in cdc-worker image
+
+FIM da evolucao XIII. Tudo planejado em XII.A-F executado e validado live. SSH/credenciais respeitadas como fora-de-escopo.
