@@ -74,8 +74,41 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # S-OBS-16: AlertManager — recebe alertas do Prometheus e os encaminha
+  # via webhook para roleta-cloud (/api/alerts/sink). Sem Telegram nesta v1.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: roleta-alertmanager
+    restart: unless-stopped
+    mem_limit: 128m
+    mem_reservation: 32m
+    user: "65534:65534"
+    volumes:
+      - ./obs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # PLAN-V2-06: volume persistente para silences/notification log
+      - alertmanager-data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.external-url=http://localhost:9093
+    ports:
+      - "127.0.0.1:9093:9093"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
 volumes:
   prometheus-data:
     driver: local
   grafana-data:
+    driver: local
+  alertmanager-data:
     driver: local

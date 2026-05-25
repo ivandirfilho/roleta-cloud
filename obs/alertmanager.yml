@@ -1,0 +1,42 @@
+# Roleta Cloud — AlertManager config (S-OBS-16, sem Telegram nesta v1)
+#
+# Receiver unico: webhook para roleta-cloud:8766/api/alerts/sink
+# que apenas loga + conta no Prometheus (roleta_alertmanager_webhook_received_total).
+#
+# Quando quiser ligar Telegram/Slack no futuro, basta:
+# 1) adicionar bot_token/chat_id em receivers/
+# 2) adicionar regra de routing por severity em route/routes
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: roleta-webhook-default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  routes:
+    - matchers:
+        - severity = critical
+      receiver: roleta-webhook-default
+      group_wait: 10s
+      repeat_interval: 15m
+    - matchers:
+        - severity = warning
+      receiver: roleta-webhook-default
+      group_interval: 10m
+      repeat_interval: 2h
+
+receivers:
+  - name: roleta-webhook-default
+    webhook_configs:
+      - url: http://roleta-cloud:8766/api/alerts/sink
+        send_resolved: true
+        max_alerts: 0
+
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ["alertname"]

@@ -280,3 +280,105 @@ Durante a janela de validação live (~10 min pós-restart), `/api/shadow` mostr
 
 **Status final V2: VERDE 🟢. 1 bug de silent data loss eliminado. Plano das próximas 6 tasks endurecido em 6 pontos.**
 
+---
+
+## 8. §AUDIT-V3 — Auditoria profunda pré-S-STRAT-13.1 + AlertManager
+**Timestamp:** 2026-05-25 ~04:30 UTC
+**Stack MCP:** graphify (regen) + filesystem + sequential-thinking + memory + brave.
+**Escopo:** revisão profunda do shadow grid + plano de implementação simultânea de S-STRAT-13.1 (auto-suggestion) e S-OBS-16 (AlertManager, **sem Telegram** por decisão do usuário).
+
+### 8.1 Bugs novos encontrados
+
+#### 🔴 BUG-A24-V3-17 — Incumbent baseline ruidoso (maxlen=12 vs shadow=100)
+- **Severidade:** alta semântica.
+- **Onde:** `state/game.py::get_shadow_stats` linhas 456-457 (antes).
+- **Causa raiz:** `inc_cw/ccw` calculados sobre `performance_sda17_cw/ccw` que têm `maxlen=12`. Shadow grid tem `maxlen=100`. Comparar acc de 12 amostras contra 100 produz `edge_pp` extremamente volátil — incumbent oscila ±20pp entre spins enquanto shadow oscila ±2pp. Champion detection falsifica positivos quando incumbent acabou de errar 5 seguidas (acc=58% real cai para 25% em janela curta).
+- **Impacto:** S-STRAT-13.1 ficaria **inviável** sem isso — sustained_edge contaria janelas onde "challenger > incumbent" só por flutuação da janela curta.
+- **Fix:** novos deques `incumbent_shadow_cw/ccw` com `maxlen=100`, alimentados em paralelo no `check_prediction`, persistidos em `save/load`, resetados em `reset_session`. `get_shadow_stats` agora usa esses.
+- **Status:** ✅ corrigido (+ regression test `test_incumbent_shadow_populated_on_check_prediction`).
+
+#### 🟡 BUG-A24-V3-18 — `__post_init__` com `if not self.shadow_grid` duplicado
+- **Severidade:** cosmético/refator.
+- **Causa raiz:** primeiro `if` sempre executava `= {}` (sempre falsy depois), segundo `if` redundante. Confunde leitor e era branco de defesa contra `None`.
+- **Fix:** colapsado em um único bloco com `default_factory` explícito.
+- **Status:** ✅ corrigido.
+
+#### 🟡 BUG-A24-V3-21 — `_adaptive_state` não é resetado em `reset_session`
+- **Severidade:** média (visível só após S-STRAT-13.1 ativar suggestion).
+- **Causa raiz:** `reset_session` reseta deques e Martingale mas mantém `_adaptive_state` intacto. Após mudar dealer, sigmoid_off antigo + `shadow_ema` antigo + `suggested_shift` antigo vazam para a nova sessão.
+- **Fix:** `reset_session` agora limpa `_adaptive_state["shadow_ema"]` e `_adaptive_state["suggested_shift"]` (mantém sigmoid_off porque é benéfico cross-dealer).
+- **Status:** ✅ corrigido (+ test `test_reset_session_clears_shadow_adaptive_state`).
+
+#### 🟡 BUG-A24-V3-22 — Inconsistência alert vs champion eligibility
+- **Severidade:** média (gera "alert sem champion identificado").
+- **Causa raiz:** `champion` requer `n>=30` em **ambas** direções; `beats_inc` (que dispara alert) só requer em **uma**. Operador via alert ativo mas champion=None.
+- **Fix:** `beats_inc` agora também exige `n>=30` em ambas direções **e** compara médias `(cw+ccw)/2`.
+- **Status:** ✅ corrigido (test `test_alert_triggers_when_shadow_beats_incumbent` atualizado).
+
+### 8.2 Implementações desta janela
+
+#### 🚀 S-STRAT-13.1 — Auto-suggestion via EMA + histerese
+- **Algoritmo:** para cada shift, `edge_ema = (1-α)·ema + α·edge_avg_raw`, α=0.05.
+- **Sustained counter:**
+  - `edge_ema > 0.04` AND maduro (n≥50 ambas direções): `sustained += 1`
+  - `edge_ema < 0.02`: `sustained = max(0, sustained-1)`
+  - Banda morta `0.02-0.04` evita thrashing (PLAN-V2-01).
+- **Suggestion emite quando:** `sustained ≥ 200` AND `edge_ema > 0.04` AND n≥50 ambas direções.
+- **Persistência:** `_adaptive_state["shadow_ema"]` (por shift) + `_adaptive_state["suggested_shift"]` (top-level). Já persistidos via campo existente.
+- **Sem auto-apply:** suggestion fica em `/api/shadow.suggestion` para humano avaliar. Nada toca incumbent.
+- **Métricas novas:**
+  - `roleta_shadow_edge_ema{shift}`
+  - `roleta_shadow_sustained_spins{shift}`
+  - `roleta_shadow_suggested_shift` (gauge, 0 se nenhum)
+
+#### 🚀 S-OBS-16 — AlertManager via webhook (sem Telegram)
+- **Decisão do usuário:** `"mas nao vamos usar telegram agora"` → receiver = webhook único para `roleta-cloud:8766/api/alerts/sink`.
+- **Endpoint novo:** `POST /api/alerts/sink` em `server/health_server.py` (do_POST handler). Apenas loga `alertmanager_webhook status=... sev=... name=... summary=...` + incrementa `roleta_alertmanager_webhook_received_total{severity,alertname}`.
+- **Compose:** novo service `alertmanager` (prom/alertmanager:v0.27.0) com volume `alertmanager-data:/alertmanager` (PLAN-V2-06 — silences/notification log sobrevivem restart).
+- **Prometheus:** bloco `alerting.alertmanagers` apontando `alertmanager:9093`.
+- **Config:** `obs/alertmanager.yml` com routing por severity (critical=10s wait, warning=10min group, repeat 1h). Inhibit rule critical→warning.
+- **Quando ligar Telegram no futuro:** basta adicionar `telegram_configs` no receiver — todo o tubo já está testado.
+
+### 8.3 Tabela de patches V2 aplicados
+
+| Patch | Status | Local |
+|---|---|---|
+| PLAN-V2-01 (EMA+histerese) | ✅ Implementado | `state/game.py::get_shadow_stats` |
+| PLAN-V2-04 (cold-start ε) | ⏸ Adiado | depende de S-STRAT-14 (não nesta janela) |
+| PLAN-V2-05 (Telegram fallback) | ❌ Removido | usuário decidiu não usar Telegram |
+| PLAN-V2-06 (volume alertmanager) | ✅ Implementado | `docker-compose.obs.yml` |
+| PLAN-V2-02 (cw/ccw.spin_features) | ⏸ Adiado | requer S-STRAT-8 inteiro |
+| PLAN-V2-03 (worker async) | ⏸ Adiado | requer S-STRAT-12 inteiro |
+
+### 8.4 Mudanças de arquivos
+
+| Arquivo | Mudança |
+|---|---|
+| `state/game.py` | +incumbent_shadow_cw/ccw, EMA+sustained+suggestion no get_shadow_stats, reset_session limpa _adaptive_state shadow, save v2.0.0, post_init unificado |
+| `server/health_server.py` | +3 métricas (edge_ema, sustained, suggested_shift) + Counter alerts_received + endpoint `POST /api/alerts/sink` |
+| `docker-compose.obs.yml` | +service alertmanager + volume alertmanager-data |
+| `obs/alertmanager.yml` | NOVO — receiver webhook único |
+| `obs/prometheus.yml` | +bloco `alerting.alertmanagers` |
+| `tests/test_shadow_grid.py` | 12 → **17** testes (+5: ema, suggestion emerge, no_sugg, reset_clears, incumbent_populated) |
+
+### 8.5 Validação local
+
+```
+181 passed, 7 skipped, 1 xfailed, 10 warnings in 0.80s   (anterior: 176)
+test_shadow_grid.py: 17 passed (anterior: 12)
+```
+
+### 8.6 Deploy plan (executado abaixo no servidor Debian)
+
+1. `git pull` em `/root/roleta-cloud`
+2. Subir alertmanager: `docker compose -f docker-compose.yml -f docker-compose.pg.yml -f docker-compose.obs.yml up -d alertmanager`
+3. Reload Prometheus para enxergar alertmanager (`curl -X POST localhost:9090/-/reload`)
+4. Rebuild + restart `roleta-cloud` para carregar:
+   - novo `incumbent_shadow_*`
+   - endpoint `/api/alerts/sink`
+   - state.json v2.0.0 (compatível com v1.9 via load tolerant)
+5. Smoke-test: `/api/shadow` retorna `suggestion: null` (cold-start) + `challengers[].edge_ema=0.0`
+6. Smoke-test webhook: `curl localhost:9093/-/ready` + amplificar contador via regra "always firing" (não fizemos pra não poluir; smoke-test futuro).
+
+
+

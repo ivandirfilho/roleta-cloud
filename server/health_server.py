@@ -108,6 +108,12 @@ if _METRICS_AVAILABLE:
             "shadow_n": Gauge("roleta_shadow_samples_n", "Samples observados pelo challenger", ["shift", "direction"]),
             "shadow_champion_shift": Gauge("roleta_shadow_champion_shift", "Shift do challenger campeao (0 se nenhum elegivel)"),
             "shadow_alert": Gauge("roleta_shadow_alert", "1 se algum challenger bate incumbent com n>=30"),
+            # S-STRAT-13.1: suggestion automatica baseada em EMA+histerese
+            "shadow_suggested_shift": Gauge("roleta_shadow_suggested_shift", "Shift sugerido pelo auto-promote (0 se nenhum)"),
+            "shadow_edge_ema": Gauge("roleta_shadow_edge_ema", "EMA do edge medio (alpha=0.05) por shift", ["shift"]),
+            "shadow_sustained": Gauge("roleta_shadow_sustained_spins", "Contador sustained_edge por shift", ["shift"]),
+            # S-OBS-16: receiver webhook do AlertManager
+            "alerts_received": Counter("roleta_alertmanager_webhook_received_total", "Total de alertas recebidos via webhook do AlertManager", ["severity", "alertname"]),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -175,6 +181,13 @@ def _refresh_custom_metrics() -> None:
             champ = sh.get("champion") or {}
             _PROM_METRICS["shadow_champion_shift"].set(float(champ.get("shift") or 0))
             _PROM_METRICS["shadow_alert"].set(1.0 if sh.get("alert") == "shadow_beating_incumbent" else 0.0)
+            # S-STRAT-13.1: expor EMA + sustained + suggestion
+            for c in challengers:
+                shift = str(c.get("shift"))
+                _PROM_METRICS["shadow_edge_ema"].labels(shift=shift).set(float(c.get("edge_ema", 0.0)))
+                _PROM_METRICS["shadow_sustained"].labels(shift=shift).set(float(c.get("sustained_spins", 0)))
+            sug = sh.get("suggestion") or {}
+            _PROM_METRICS["shadow_suggested_shift"].set(float(sug.get("shift") or 0))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()
@@ -313,6 +326,47 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
             self.wfile.write(b"roleta-cloud health server")
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self) -> None:  # noqa: N802
+        # S-OBS-16: receiver webhook do AlertManager. Apenas loga + conta.
+        if self.path == "/api/alerts/sink":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                raw = self.rfile.read(length) if length > 0 else b"{}"
+                payload = json.loads(raw or b"{}")
+                alerts = payload.get("alerts", []) or []
+                for a in alerts:
+                    labels = a.get("labels", {}) or {}
+                    severity = labels.get("severity", "unknown")
+                    alertname = labels.get("alertname", "unknown")
+                    status = a.get("status", "?")
+                    summary = (a.get("annotations") or {}).get("summary", "")
+                    logger.warning(
+                        "alertmanager_webhook status=%s sev=%s name=%s summary=%s",
+                        status, severity, alertname, summary,
+                    )
+                    if _PROM_METRICS and "alerts_received" in _PROM_METRICS:
+                        try:
+                            _PROM_METRICS["alerts_received"].labels(
+                                severity=severity, alertname=alertname
+                            ).inc()
+                        except Exception:  # noqa: BLE001
+                            pass
+                body = json.dumps({"received": len(alerts)}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("alertmanager_webhook_error: %s", exc)
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
         self.send_response(404)
         self.end_headers()

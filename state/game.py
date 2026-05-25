@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, ClassVar, Tuple
@@ -198,6 +199,10 @@ class GameState:
     shadow_hits_ccw: deque = field(default_factory=lambda: deque(maxlen=100))
     # Cada shift mantém deque cw + ccw (maxlen=100). Inicializado em __post_init__.
     shadow_grid: Dict[int, Dict[str, deque]] = field(default_factory=dict)
+    # BUG-A24-V3-17: incumbent paralelo com mesma janela do shadow (maxlen=100)
+    # para baseline justo no champion detection.
+    incumbent_shadow_cw: deque = field(default_factory=lambda: deque(maxlen=100))
+    incumbent_shadow_ccw: deque = field(default_factory=lambda: deque(maxlen=100))
     
     # Calibração removida (momentum desabilitado)
     
@@ -220,16 +225,19 @@ class GameState:
 
     def __post_init__(self) -> None:
         # S-STRAT-13: inicializa deques por shift (4 challengers paralelos).
-        # BUG-A24-V2-09: tratar None explicito (default_factory ja garante dict
-        # mas em load custom pode chegar None).
+        # BUG-A24-V2-09 / V3-18: tratar None explicito + colapsar if duplicado.
         if not self.shadow_grid:
-            self.shadow_grid = {}
-        if not self.shadow_grid:
-            for s in self.SHADOW_SHIFTS:
-                self.shadow_grid[s] = {
-                    "cw": deque(maxlen=100),
-                    "ccw": deque(maxlen=100),
-                }
+            self.shadow_grid = {
+                s: {"cw": deque(maxlen=100), "ccw": deque(maxlen=100)}
+                for s in self.SHADOW_SHIFTS
+            }
+        # BUG-A24-V3-17: incumbent paralelo (maxlen=100) para comparacao justa
+        # com shadow_grid. performance_sda17 (maxlen=12) e curto demais para
+        # baseline confiavel do champion detection.
+        if not hasattr(self, "incumbent_shadow_cw") or self.incumbent_shadow_cw is None:
+            self.incumbent_shadow_cw = deque(maxlen=100)
+        if not hasattr(self, "incumbent_shadow_ccw") or self.incumbent_shadow_ccw is None:
+            self.incumbent_shadow_ccw = deque(maxlen=100)
 
     def reset_session(self, keep_last_number: bool = False) -> Dict[str, Any]:
         """
@@ -281,6 +289,13 @@ class GameState:
             s: {"cw": deque(maxlen=100), "ccw": deque(maxlen=100)}
             for s in self.SHADOW_SHIFTS
         }
+        # BUG-A24-V3-17: reset incumbent_shadow (paralelo maxlen=100).
+        self.incumbent_shadow_cw = deque(maxlen=100)
+        self.incumbent_shadow_ccw = deque(maxlen=100)
+        # BUG-A24-V3-21: limpar estado adaptativo de shadow (EMA + suggestion)
+        # ao trocar dealer/mesa para nao vazar sinais antigos.
+        self._adaptive_state.pop("shadow_ema", None)
+        self._adaptive_state.pop("suggested_shift", None)
         
         # Reset Prediction pendente
         self.pending_prediction = {}
@@ -353,8 +368,11 @@ class GameState:
         # SEMPRE adicionar ao histórico SDA17 (base para Triple Rate)
         if direction in ("cw", "horario"):
             self.performance_sda17_cw.appendleft(hit)
+            # BUG-A24-V3-17: incumbent paralelo maxlen=100 (baseline justo p/ shadow)
+            self.incumbent_shadow_cw.appendleft(hit)
         else:
             self.performance_sda17_ccw.appendleft(hit)
+            self.incumbent_shadow_ccw.appendleft(hit)
 
         # S-STRAT-10 v2 / S-STRAT-13 — Shadow grid: registra hit para cada
         # rotação testada (1, 3, 5, 10). Mantém legacy shadow_hits_cw/ccw
@@ -443,18 +461,24 @@ class GameState:
         }
 
     def get_shadow_stats(self) -> Dict[str, Any]:
-        """S-STRAT-13 — snapshot do shadow grid (rotações 1/3/5/10) vs incumbent.
+        """S-STRAT-13 + S-STRAT-13.1 — snapshot shadow grid + auto-suggestion.
 
-        Retorna por shift: acc cw/ccw, edge_pp vs incumbent, n. Identifica
-        challenger campeão (maior média acc com n>=30 em ambas direções).
+        Retorna por shift: acc cw/ccw, edge_pp vs incumbent (janela paralela
+        maxlen=100, BUG-V3-17), n. Identifica challenger campeao e gera
+        suggestion automatica via EMA + histerese (S-STRAT-13.1).
         """
         def stats(perf_deq) -> Dict[str, Any]:
             n = len(perf_deq)
             hits = sum(1 for x in perf_deq if x)
             return {"n": n, "hits": hits, "acc": (hits / n) if n else 0.0}
 
-        inc_cw = stats(self.performance_sda17_cw)
-        inc_ccw = stats(self.performance_sda17_ccw)
+        # BUG-A24-V3-17: usa incumbent_shadow (maxlen=100) em vez de
+        # performance_sda17 (maxlen=12) para baseline justo.
+        inc_cw = stats(self.incumbent_shadow_cw)
+        inc_ccw = stats(self.incumbent_shadow_ccw)
+
+        # S-STRAT-13.1: bootstrap do estado EMA persistido.
+        shadow_state = self._adaptive_state.setdefault("shadow_ema", {})
 
         challengers: List[Dict[str, Any]] = []
         for shift in self.SHADOW_SHIFTS:
@@ -463,9 +487,24 @@ class GameState:
             sd_ccw = stats(grid.get("ccw", deque()))
             edge_cw = round((sd_cw["acc"] - inc_cw["acc"]) * 100, 1)
             edge_ccw = round((sd_ccw["acc"] - inc_ccw["acc"]) * 100, 1)
+
+            # S-STRAT-13.1: EMA do edge medio (alpha=0.05) + sustained counter
+            # com banda morta anti-thrashing (PLAN-V2-01).
+            edge_avg_raw = ((sd_cw["acc"] - inc_cw["acc"]) + (sd_ccw["acc"] - inc_ccw["acc"])) / 2.0
+            sk = str(shift)
+            ema_entry = shadow_state.setdefault(sk, {"ema": 0.0, "sustained": 0})
+            alpha = 0.05
+            ema_entry["ema"] = float(ema_entry.get("ema", 0.0)) * (1 - alpha) + edge_avg_raw * alpha
+            mature = sd_cw["n"] >= 50 and sd_ccw["n"] >= 50
+            if mature and ema_entry["ema"] > 0.04:
+                ema_entry["sustained"] = int(ema_entry.get("sustained", 0)) + 1
+            elif ema_entry["ema"] < 0.02:
+                ema_entry["sustained"] = max(0, int(ema_entry.get("sustained", 0)) - 1)
+            # BUG-A24-V3-22: alinhar criterio do alert com champion
+            # (n>=30 em ambas direcoes em vez de apenas uma).
             beats_inc = (
-                (sd_cw["n"] >= 30 and sd_cw["acc"] > inc_cw["acc"])
-                or (sd_ccw["n"] >= 30 and sd_ccw["acc"] > inc_ccw["acc"])
+                sd_cw["n"] >= 30 and sd_ccw["n"] >= 30
+                and (sd_cw["acc"] + sd_ccw["acc"]) / 2 > (inc_cw["acc"] + inc_ccw["acc"]) / 2
             )
             challengers.append({
                 "shift": shift,
@@ -474,6 +513,8 @@ class GameState:
                 "ccw": sd_ccw,
                 "edge_pp_cw": edge_cw,
                 "edge_pp_ccw": edge_ccw,
+                "edge_ema": round(ema_entry["ema"], 5),
+                "sustained_spins": ema_entry["sustained"],
                 "avg_acc": round((sd_cw["acc"] + sd_ccw["acc"]) / 2, 4),
                 "beats_incumbent": beats_inc,
             })
@@ -481,6 +522,29 @@ class GameState:
         eligible = [c for c in challengers if c["cw"]["n"] >= 30 and c["ccw"]["n"] >= 30]
         champion = max(eligible, key=lambda c: c["avg_acc"], default=None)
         any_beats = any(c["beats_incumbent"] for c in challengers)
+
+        # S-STRAT-13.1: gera/atualiza suggestion quando algum challenger
+        # acumula sustained>=200 com edge_ema mantido. Sem auto-apply.
+        SUSTAIN_THRESHOLD = 200
+        promotable = [c for c in challengers
+                      if c["sustained_spins"] >= SUSTAIN_THRESHOLD
+                      and c["edge_ema"] > 0.04
+                      and c["cw"]["n"] >= 50 and c["ccw"]["n"] >= 50]
+        suggestion = None
+        if promotable:
+            top = max(promotable, key=lambda c: c["edge_ema"])
+            suggestion = {
+                "shift": top["shift"],
+                "edge_ema": top["edge_ema"],
+                "sustained_spins": top["sustained_spins"],
+                "applied": False,
+                "ts": time.time(),
+            }
+            # Persiste para sobreviver restart
+            self._adaptive_state["suggested_shift"] = suggestion
+        else:
+            # Mantem suggestion antiga se ainda presente (humano nao aplicou)
+            suggestion = self._adaptive_state.get("suggested_shift")
 
         return {
             "design": "shadow_grid_v1",
@@ -491,6 +555,7 @@ class GameState:
                 "shift": champion["shift"] if champion else None,
                 "avg_acc": champion["avg_acc"] if champion else None,
             } if champion else {"shift": None, "avg_acc": None},
+            "suggestion": suggestion,
             "baseline_random": 17.0 / 37.0,
             "alert": "shadow_beating_incumbent" if any_beats else "ok",
             # Legacy fields para retrocompatibilidade do dashboard antigo.
@@ -719,7 +784,7 @@ class GameState:
         return result
 
     def save(self, path: Optional[Path] = None) -> None:
-        """Salva estado em arquivo JSON (v1.9 - S-STRAT-13 shadow grid) com escrita atômica."""
+        """Salva estado em arquivo JSON (v2.0 - S-STRAT-13.1 EMA+suggestion) com escrita atômica."""
         import os
         import tempfile
         
@@ -733,7 +798,7 @@ class GameState:
             for shift, sides in (self.shadow_grid or {}).items()
         }
         data = {
-            "version": "1.9.0",
+            "version": "2.0.0",
             "last_number": self.last_number,
             "last_direction": self.last_direction,
             "timeline_cw": self.timeline_cw.to_dict(),
@@ -751,6 +816,9 @@ class GameState:
             "shadow_hits_cw": list(self.shadow_hits_cw),
             "shadow_hits_ccw": list(self.shadow_hits_ccw),
             "shadow_grid": shadow_grid_serializable,
+            # BUG-A24-V3-17: persistir incumbent_shadow paralelo
+            "incumbent_shadow_cw": list(self.incumbent_shadow_cw),
+            "incumbent_shadow_ccw": list(self.incumbent_shadow_ccw),
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -858,6 +926,9 @@ class GameState:
                     if shift_int in gs.shadow_grid:
                         gs.shadow_grid[shift_int]["cw"] = deque(sides.get("cw", []), maxlen=100)
                         gs.shadow_grid[shift_int]["ccw"] = deque(sides.get("ccw", []), maxlen=100)
+                # BUG-A24-V3-17: restaurar incumbent_shadow (compat: vazio se ausente)
+                gs.incumbent_shadow_cw = deque(data.get("incumbent_shadow_cw", []), maxlen=100)
+                gs.incumbent_shadow_ccw = deque(data.get("incumbent_shadow_ccw", []), maxlen=100)
             except Exception as _e:
                 logger.warning(f"S-STRAT-13: falha ao restaurar shadow_grid: {_e}")
             return gs

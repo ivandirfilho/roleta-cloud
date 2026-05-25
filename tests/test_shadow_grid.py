@@ -91,13 +91,15 @@ def test_champion_emerges_with_enough_samples(gs):
 
 
 def test_alert_triggers_when_shadow_beats_incumbent(gs):
-    """Alert deve disparar quando algum challenger bate incumbent com n>=30."""
-    # Incumbent: acc baixo
+    """Alert deve disparar quando algum challenger bate incumbent com n>=30 em ambas."""
+    # BUG-V3-17: incumbent agora usa incumbent_shadow_cw/ccw (maxlen=100)
     for _ in range(40):
-        gs.performance_sda17_cw.appendleft(False)
-    # Shadow shift=10 cw: acc alto, n>=30
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+    # BUG-V3-22: precisa n>=30 em AMBAS direcoes para disparar
     for _ in range(30):
         gs.shadow_grid[10]["cw"].appendleft(True)
+        gs.shadow_grid[10]["ccw"].appendleft(True)
     snap = gs.get_shadow_stats()
     assert snap["alert"] == "shadow_beating_incumbent"
 
@@ -119,7 +121,7 @@ def test_shadow_grid_persists_roundtrip(tmp_path):
     gs.save(path=p)
 
     raw = json.loads(p.read_text(encoding="utf-8"))
-    assert raw["version"].startswith("1.9")
+    assert raw["version"].startswith("2.")
     # keys serializados como str no JSON
     assert "3" in raw["shadow_grid"]
     assert "10" in raw["shadow_grid"]
@@ -198,3 +200,72 @@ def test_check_prediction_after_restart_uses_str_keys():
     # outros shifts cw devem estar populados (False, pois target nao bate)
     assert len(gs.shadow_grid[1]["cw"]) == 1
     assert gs.shadow_grid[1]["cw"][0] is False
+
+
+# --------- S-STRAT-13.1: EMA + sustained edge + suggestion ----------
+
+def test_shadow_ema_updates_on_get_stats(gs):
+    """EMA deve ser inicializada e atualizada por shift no _adaptive_state."""
+    # popula challenger 3 com edge alto vs incumbent baixo
+    for _ in range(50):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[3]["cw"].appendleft(True)
+        gs.shadow_grid[3]["ccw"].appendleft(True)
+    snap = gs.get_shadow_stats()
+    ch3 = [c for c in snap["challengers"] if c["shift"] == 3][0]
+    assert ch3["edge_ema"] > 0.0
+    # EMA com alpha=0.05 numa unica chamada: edge*0.05 = 1.0*0.05 = 0.05
+    assert abs(ch3["edge_ema"] - 0.05) < 0.001
+    assert ch3["sustained_spins"] == 1  # >0.04 → incrementou
+
+
+def test_suggestion_emerges_after_sustained(gs):
+    """Suggestion deve aparecer quando sustained_spins atinge 200."""
+    for _ in range(50):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[5]["cw"].appendleft(True)
+        gs.shadow_grid[5]["ccw"].appendleft(True)
+    # Forca sustained ate o threshold via chamadas repetidas
+    for _ in range(210):
+        snap = gs.get_shadow_stats()
+    assert snap["suggestion"] is not None
+    assert snap["suggestion"]["shift"] == 5
+    assert snap["suggestion"]["applied"] is False
+
+
+def test_no_suggestion_when_edge_below_threshold(gs):
+    """Edge ~0.03 (banda morta) nao deve gerar suggestion mesmo apos 200 chamadas."""
+    for _ in range(50):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[1]["cw"].appendleft(False)
+        gs.shadow_grid[1]["ccw"].appendleft(False)
+    for _ in range(210):
+        snap = gs.get_shadow_stats()
+    assert snap.get("suggestion") is None
+
+
+def test_reset_session_clears_shadow_adaptive_state(gs):
+    """BUG-V3-21: reset_session limpa shadow_ema + suggested_shift do _adaptive_state."""
+    gs._adaptive_state["shadow_ema"] = {"5": {"ema": 0.1, "sustained": 50}}
+    gs._adaptive_state["suggested_shift"] = {"shift": 5, "applied": False}
+    gs.reset_session()
+    assert "shadow_ema" not in gs._adaptive_state
+    assert "suggested_shift" not in gs._adaptive_state
+    # incumbent_shadow tambem deve estar zerado
+    assert len(gs.incumbent_shadow_cw) == 0
+    assert len(gs.incumbent_shadow_ccw) == 0
+
+
+def test_incumbent_shadow_populated_on_check_prediction(gs):
+    """BUG-V3-17: incumbent_shadow_cw/ccw cresce no check_prediction."""
+    gs.store_prediction(numbers=[7], direction="horario", center=7, bet_placed=False)
+    gs.check_prediction(actual_number=7)
+    assert len(gs.incumbent_shadow_cw) == 1
+    assert gs.incumbent_shadow_cw[0] is True
+    gs.store_prediction(numbers=[7], direction="anti_horario", center=7, bet_placed=False)
+    gs.check_prediction(actual_number=15)  # miss
+    assert len(gs.incumbent_shadow_ccw) == 1
+    assert gs.incumbent_shadow_ccw[0] is False
