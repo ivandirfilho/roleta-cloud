@@ -597,37 +597,27 @@ class MessageHandler:
         logger.info("Estado enviado para dashboard")
 
     async def handle_legacy_spin(self, websocket: WebSocketServerProtocol, data: Dict, trace: TraceContext):
-        # Tentar processar como SpinInput direto
-        spin = SpinInput(**data)
-        self.game_state.process_spin(spin.numero, spin.direcao)
-        self.game_state.save()
+        """DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.
 
-        result = self.strategy.analyze(
-            self.game_state.target_timeline,
-            self.game_state.last_number,
-            roulette.WHEEL_SEQUENCE
+        Master Extractor sempre envia type='novo_resultado'; este path é dead-code
+        defensivo. Resposta agora avisa o cliente para migrar e NÃO processa o spin
+        (evita risco de aposta sem gate de risco — vide BUG-NOVO-04).
+        """
+        logger.warning(
+            "[S-CLEAN-1] handle_legacy_spin invocado (cliente sem 'type'); "
+            "ignorando — kill-switch e martingale não cobrem este path"
         )
-
-        acao = "APOSTAR" if result.should_bet else "PULAR"
-
-        overlay_response = {
-            "type": "sugestao",
-            "data": {
-                "acao": acao,
-                "numeros": result.numbers,
-                "centro": result.center,
-                "centros": result.details.get("centers", [result.center]),
-                "regiao": result.visual,
-                "ultimo_numero": self.game_state.last_number,
-                "confianca": int(result.score / 6 * 100),  # Legacy: sem Triple Rate
-                "martingale": "1x",
-                "estrategia": self.strategy.name,
-                "trace_id": spin.trace_id,
-                "t_server": now_ms()
-            }
-        }
-        await websocket.send(json.dumps(overlay_response))
+        await websocket.send(json.dumps({
+            "type": "error",
+            "error": "legacy_spin_deprecated",
+            "message": (
+                "Spin sem 'type' não é mais aceito. "
+                "Use type='novo_resultado' com payload completo."
+            ),
+            "t_server": now_ms(),
+        }))
         if trace:
+            trace.step("legacy_spin_rejected", {"reason": "deprecated"})
             logger.info(trace.to_log_line())
 
     async def handle_extrair_mesa(self, websocket: WebSocketServerProtocol, data: Dict, trace: TraceContext):

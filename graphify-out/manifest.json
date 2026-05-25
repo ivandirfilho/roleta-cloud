@@ -35,13 +35,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
-    "mtime": 1779670584.3602073,
-    "ast_hash": "834b642c826745d98d39f97b3d52cf62",
+    "mtime": 1779671516.1917107,
+    "ast_hash": "1fdf503821fbec5e2770624938ea245d",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
-    "mtime": 1779670634.3193147,
-    "ast_hash": "7e46b430b5bec3c835c6f3c7aee17a5d",
+    "mtime": 1779671502.8468466,
+    "ast_hash": "b406b0ec736596fca67774da7e984c58",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\__init__.py": {
@@ -157,6 +157,11 @@
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\walg-restore-drill.sh": {
     "mtime": 1779670634.2782774,
     "ast_hash": "e4a6334f789b86a731799424faed9cc1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\walg-enable-30min.sh": {
+    "mtime": 1779671532.4116387,
+    "ast_hash": "968b68cceb895aa1c8d7bc4763e99d1f",
     "semantic_hash": ""
   }
 }

@@ -9,7 +9,7 @@
       "source_file": "main.py",
       "source_location": "L1",
       "id": "main_py",
-      "community": 7,
+      "community": 156,
       "norm_label": "main.py"
     },
     {
@@ -18,7 +18,7 @@
       "source_file": "main.py",
       "source_location": "L41",
       "id": "roleta_cloud_main_handle_shutdown",
-      "community": 7,
+      "community": 156,
       "norm_label": "handle_shutdown()"
     },
     {
@@ -27,7 +27,7 @@
       "source_file": "main.py",
       "source_location": "L69",
       "id": "roleta_cloud_main_main",
-      "community": 7,
+      "community": 156,
       "norm_label": "main()"
     },
     {
@@ -36,7 +36,7 @@
       "source_file": "main.py",
       "source_location": "L42",
       "id": "roleta_cloud_main_rationale_42",
-      "community": 7,
+      "community": 156,
       "norm_label": "handler para shutdown graceful."
     },
     {
@@ -45,7 +45,7 @@
       "source_file": "main.py",
       "source_location": "L70",
       "id": "roleta_cloud_main_rationale_70",
-      "community": 7,
+      "community": 156,
       "norm_label": "ponto de entrada principal."
     },
     {
@@ -404,6 +404,32 @@
       "id": "c_users_windows_desktop_roleta_cloud_scripts_walg_backup_daily_sh__entry",
       "community": 146,
       "norm_label": "walg-backup-daily.sh script"
+    },
+    {
+      "label": "walg-enable-30min.sh",
+      "file_type": "code",
+      "source_file": "scripts/walg-enable-30min.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "id": "scripts_walg_enable_30min_sh",
+      "community": 157,
+      "norm_label": "walg-enable-30min.sh"
+    },
+    {
+      "label": "walg-enable-30min.sh script",
+      "file_type": "code",
+      "source_file": "scripts/walg-enable-30min.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "id": "c_users_windows_desktop_roleta_cloud_scripts_walg_enable_30min_sh__entry",
+      "community": 157,
+      "norm_label": "walg-enable-30min.sh script"
     },
     {
       "label": "walg-restore-drill.sh",
@@ -1515,7 +1541,7 @@
       "label": ".is_duplicate_spin()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L39",
+      "source_location": "L40",
       "id": "server_message_handler_messagehandler_is_duplicate_spin",
       "community": 7,
       "norm_label": ".is_duplicate_spin()"
@@ -1524,7 +1550,7 @@
       "label": ".process_message()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L47",
+      "source_location": "L48",
       "id": "server_message_handler_messagehandler_process_message",
       "community": 7,
       "norm_label": ".process_message()"
@@ -1533,7 +1559,7 @@
       "label": ".handle_new_result()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L132",
+      "source_location": "L133",
       "id": "server_message_handler_messagehandler_handle_new_result",
       "community": 7,
       "norm_label": ".handle_new_result()"
@@ -1542,7 +1568,7 @@
       "label": ".handle_initial_history()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L498",
+      "source_location": "L502",
       "id": "server_message_handler_messagehandler_handle_initial_history",
       "community": 7,
       "norm_label": ".handle_initial_history()"
@@ -1551,7 +1577,7 @@
       "label": ".handle_history_correction()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L523",
+      "source_location": "L527",
       "id": "server_message_handler_messagehandler_handle_history_correction",
       "community": 7,
       "norm_label": ".handle_history_correction()"
@@ -1560,7 +1586,7 @@
       "label": ".handle_new_session()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L553",
+      "source_location": "L557",
       "id": "server_message_handler_messagehandler_handle_new_session",
       "community": 7,
       "norm_label": ".handle_new_session()"
@@ -1569,7 +1595,7 @@
       "label": ".handle_get_state()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L583",
+      "source_location": "L587",
       "id": "server_message_handler_messagehandler_handle_get_state",
       "community": 7,
       "norm_label": ".handle_get_state()"
@@ -1578,7 +1604,7 @@
       "label": ".handle_legacy_spin()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L595",
+      "source_location": "L599",
       "id": "server_message_handler_messagehandler_handle_legacy_spin",
       "community": 7,
       "norm_label": ".handle_legacy_spin()"
@@ -1587,7 +1613,7 @@
       "label": ".handle_extrair_mesa()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L629",
+      "source_location": "L633",
       "id": "server_message_handler_messagehandler_handle_extrair_mesa",
       "community": 7,
       "norm_label": ".handle_extrair_mesa()"
@@ -1596,7 +1622,7 @@
       "label": ".handle_listar_mesas()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L643",
+      "source_location": "L647",
       "id": "server_message_handler_messagehandler_handle_listar_mesas",
       "community": 7,
       "norm_label": ".handle_listar_mesas()"
@@ -1605,7 +1631,7 @@
       "label": ".handle_get_mesa_config()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L651",
+      "source_location": "L655",
       "id": "server_message_handler_messagehandler_handle_get_mesa_config",
       "community": 7,
       "norm_label": ".handle_get_mesa_config()"
@@ -1623,8 +1649,8 @@
       "label": "Verifica se \u00e9 um spin duplicado (mesmo n\u00famero no mesmo segundo).",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L40",
-      "id": "server_message_handler_rationale_40",
+      "source_location": "L41",
+      "id": "server_message_handler_rationale_41",
       "community": 7,
       "norm_label": "verifica se e um spin duplicado (mesmo numero no mesmo segundo)."
     },
@@ -1632,8 +1658,8 @@
       "label": "Processa uma mensagem recebida.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L48",
-      "id": "server_message_handler_rationale_48",
+      "source_location": "L49",
+      "id": "server_message_handler_rationale_49",
       "community": 7,
       "norm_label": "processa uma mensagem recebida."
     },
@@ -1641,8 +1667,8 @@
       "label": "Processa extra\u00e7\u00e3o de mesa e salva config.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L630",
-      "id": "server_message_handler_rationale_630",
+      "source_location": "L634",
+      "id": "server_message_handler_rationale_634",
       "community": 7,
       "norm_label": "processa extracao de mesa e salva config."
     },
@@ -1650,8 +1676,8 @@
       "label": "Retorna lista de mesas configuradas.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L644",
-      "id": "server_message_handler_rationale_644",
+      "source_location": "L648",
+      "id": "server_message_handler_rationale_648",
       "community": 7,
       "norm_label": "retorna lista de mesas configuradas."
     },
@@ -1659,8 +1685,8 @@
       "label": "Retorna config de uma mesa espec\u00edfica.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L652",
-      "id": "server_message_handler_rationale_652",
+      "source_location": "L656",
+      "id": "server_message_handler_rationale_656",
       "community": 7,
       "norm_label": "retorna config de uma mesa especifica."
     },
@@ -1670,7 +1696,7 @@
       "source_file": "server/websocket.py",
       "source_location": "L1",
       "id": "server_websocket_py",
-      "community": 7,
+      "community": 156,
       "norm_label": "websocket.py"
     },
     {
@@ -1679,79 +1705,79 @@
       "source_file": "server/websocket.py",
       "source_location": "L46",
       "id": "server_websocket_strategy_snapshot",
-      "community": 7,
+      "community": 156,
       "norm_label": "_strategy_snapshot()"
     },
     {
       "label": "broadcast_heartbeat()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L89",
+      "source_location": "L103",
       "id": "server_websocket_broadcast_heartbeat",
-      "community": 7,
+      "community": 156,
       "norm_label": "broadcast_heartbeat()"
     },
     {
       "label": "handler()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L140",
+      "source_location": "L154",
       "id": "server_websocket_handler",
-      "community": 7,
+      "community": 156,
       "norm_label": "handler()"
     },
     {
       "label": "get_ssl_context()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L172",
+      "source_location": "L186",
       "id": "server_websocket_get_ssl_context",
-      "community": 7,
+      "community": 156,
       "norm_label": "get_ssl_context()"
     },
     {
       "label": "start_server()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L190",
+      "source_location": "L204",
       "id": "server_websocket_start_server",
-      "community": 7,
+      "community": 156,
       "norm_label": "start_server()"
     },
     {
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L90",
-      "id": "server_websocket_rationale_90",
-      "community": 7,
+      "source_location": "L104",
+      "id": "server_websocket_rationale_104",
+      "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo."
     },
     {
       "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L141",
-      "id": "server_websocket_rationale_141",
-      "community": 7,
+      "source_location": "L155",
+      "id": "server_websocket_rationale_155",
+      "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -"
     },
     {
       "label": "Cria contexto SSL se habilitado.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L173",
-      "id": "server_websocket_rationale_173",
-      "community": 7,
+      "source_location": "L187",
+      "id": "server_websocket_rationale_187",
+      "community": 156,
       "norm_label": "cria contexto ssl se habilitado."
     },
     {
       "label": "Inicia o servidor WebSocket.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L191",
-      "id": "server_websocket_rationale_191",
-      "community": 7,
+      "source_location": "L205",
+      "id": "server_websocket_rationale_205",
+      "community": 156,
       "norm_label": "inicia o servidor websocket."
     },
     {
@@ -1760,7 +1786,7 @@
       "source_file": "server/__init__.py",
       "source_location": "L1",
       "id": "server_init_py",
-      "community": 7,
+      "community": 156,
       "norm_label": "__init__.py"
     },
     {
@@ -6012,11 +6038,92 @@
       "norm_label": "parte g \u00b7 resultado final (validado em prod)"
     },
     {
+      "label": "Verifica se \u00e9 um spin duplicado (mesmo n\u00famero no mesmo segundo).",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L40",
+      "community": 7,
+      "norm_label": "verifica se e um spin duplicado (mesmo numero no mesmo segundo).",
+      "id": "server_message_handler_rationale_40"
+    },
+    {
+      "label": "Processa uma mensagem recebida.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L48",
+      "community": 7,
+      "norm_label": "processa uma mensagem recebida.",
+      "id": "server_message_handler_rationale_48"
+    },
+    {
+      "label": "Processa extra\u00e7\u00e3o de mesa e salva config.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L630",
+      "community": 7,
+      "norm_label": "processa extracao de mesa e salva config.",
+      "id": "server_message_handler_rationale_630"
+    },
+    {
+      "label": "Retorna lista de mesas configuradas.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L644",
+      "community": 7,
+      "norm_label": "retorna lista de mesas configuradas.",
+      "id": "server_message_handler_rationale_644"
+    },
+    {
+      "label": "Retorna config de uma mesa espec\u00edfica.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L652",
+      "community": 7,
+      "norm_label": "retorna config de uma mesa especifica.",
+      "id": "server_message_handler_rationale_652"
+    },
+    {
+      "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L90",
+      "community": 156,
+      "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
+      "id": "server_websocket_rationale_90"
+    },
+    {
+      "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L141",
+      "community": 156,
+      "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
+      "id": "server_websocket_rationale_141"
+    },
+    {
+      "label": "Cria contexto SSL se habilitado.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L173",
+      "community": 156,
+      "norm_label": "cria contexto ssl se habilitado.",
+      "id": "server_websocket_rationale_173"
+    },
+    {
+      "label": "Inicia o servidor WebSocket.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L191",
+      "community": 156,
+      "norm_label": "inicia o servidor websocket.",
+      "id": "server_websocket_rationale_191"
+    },
+    {
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
       "source_location": "L44",
-      "community": 7,
+      "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
       "id": "server_websocket_rationale_44"
     },
@@ -6025,7 +6132,7 @@
       "file_type": "rationale",
       "source_file": "server/websocket.py",
       "source_location": "L95",
-      "community": 7,
+      "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
       "id": "server_websocket_rationale_95"
     },
@@ -6034,7 +6141,7 @@
       "file_type": "rationale",
       "source_file": "server/websocket.py",
       "source_location": "L127",
-      "community": 7,
+      "community": 156,
       "norm_label": "cria contexto ssl se habilitado.",
       "id": "server_websocket_rationale_127"
     },
@@ -6043,7 +6150,7 @@
       "file_type": "rationale",
       "source_file": "server/websocket.py",
       "source_location": "L145",
-      "community": 7,
+      "community": 156,
       "norm_label": "inicia o servidor websocket.",
       "id": "server_websocket_rationale_145"
     },
@@ -6421,7 +6528,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L1",
-      "community": 90,
+      "community": 83,
       "norm_label": "final_refatoracao_proposta.md",
       "id": "final_refatoracao_proposta_md"
     },
@@ -15115,7 +15222,7 @@
       "file_type": "rationale",
       "source_file": "main.py",
       "source_location": "L37",
-      "community": 7,
+      "community": 156,
       "norm_label": "handler para shutdown graceful.",
       "id": "roleta_cloud_main_rationale_37"
     },
@@ -15124,7 +15231,7 @@
       "file_type": "rationale",
       "source_file": "main.py",
       "source_location": "L65",
-      "community": 7,
+      "community": 156,
       "norm_label": "ponto de entrada principal.",
       "id": "roleta_cloud_main_rationale_65"
     },
@@ -15660,12 +15767,22 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "scripts/walg-enable-30min.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "scripts_walg_enable_30min_sh",
+      "target": "c_users_windows_desktop_roleta_cloud_scripts_walg_enable_30min_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/walg-restore-drill.sh",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scripts_walg_restore_drill_sh",
-      "target": "c_users_windows_desktop_roleta_cloud_scripts_walg_restore_drill_sh__entry",
-      "confidence_score": 1.0
+      "target": "c_users_windows_desktop_roleta_cloud_scripts_walg_restore_drill_sh__entry"
     },
     {
       "relation": "contains",
@@ -18047,6 +18164,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/message_handler.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_41",
+      "target": "server_message_handler_messagehandler_is_duplicate_spin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
       "source_location": "L40",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -18156,11 +18283,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/message_handler.py",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_49",
+      "target": "server_message_handler_messagehandler_process_message",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
       "source_location": "L48",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "server_message_handler_rationale_48",
       "target": "server_message_handler_messagehandler_process_message"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
+      "source_location": "L634",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_634",
+      "target": "server_message_handler_messagehandler_handle_extrair_mesa",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -18196,6 +18343,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/message_handler.py",
+      "source_location": "L648",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_648",
+      "target": "server_message_handler_messagehandler_handle_listar_mesas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
       "source_location": "L644",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -18221,6 +18378,16 @@
       "confidence_score": 1.0,
       "source": "server_message_handler_rationale_588",
       "target": "server_message_handler_messagehandler_handle_listar_mesas"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
+      "source_location": "L656",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_656",
+      "target": "server_message_handler_messagehandler_handle_get_mesa_config",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -18258,9 +18425,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L46",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_py",
-      "target": "server_websocket_strategy_snapshot",
-      "confidence_score": 1.0
+      "target": "server_websocket_strategy_snapshot"
     },
     {
       "relation": "contains",
@@ -18339,11 +18506,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L90",
+      "source_location": "L104",
       "weight": 1.0,
-      "source": "server_websocket_rationale_90",
+      "source": "server_websocket_rationale_104",
       "target": "server_websocket_broadcast_heartbeat",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_90",
+      "target": "server_websocket_broadcast_heartbeat"
     },
     {
       "relation": "rationale_for",
@@ -18359,11 +18536,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L141",
+      "source_location": "L155",
       "weight": 1.0,
-      "source": "server_websocket_rationale_141",
+      "source": "server_websocket_rationale_155",
       "target": "server_websocket_handler",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L141",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_141",
+      "target": "server_websocket_handler"
     },
     {
       "relation": "rationale_for",
@@ -18390,11 +18577,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L173",
+      "source_location": "L187",
       "weight": 1.0,
-      "source": "server_websocket_rationale_173",
+      "source": "server_websocket_rationale_187",
       "target": "server_websocket_get_ssl_context",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L173",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_173",
+      "target": "server_websocket_get_ssl_context"
     },
     {
       "relation": "rationale_for",
@@ -18410,9 +18607,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L191",
+      "source_location": "L205",
       "weight": 1.0,
-      "source": "server_websocket_rationale_191",
+      "source": "server_websocket_rationale_205",
       "target": "server_websocket_start_server",
       "confidence_score": 1.0
     },
@@ -18425,6 +18622,16 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "server_init_py",
+      "target": "server_websocket_start_server"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L191",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_191",
       "target": "server_websocket_start_server"
     },
     {
@@ -19186,9 +19393,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L706",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_706",
-      "target": "strategies_sda17_sda17strategy_update_adaptive",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_update_adaptive"
     },
     {
       "relation": "rationale_for",
@@ -19216,9 +19423,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L725",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_725",
-      "target": "strategies_sda17_sda17strategy_get_adaptive_state",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -19246,9 +19453,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L740",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_740",
-      "target": "strategies_sda17_sda17strategy_load_adaptive_state",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_load_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -19276,9 +19483,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L801",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_801",
-      "target": "strategies_sda17_sda17strategy_circ_dist",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_circ_dist"
     },
     {
       "relation": "rationale_for",
@@ -19306,9 +19513,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L813",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_813",
-      "target": "strategies_sda17_sda17strategy_wheel_index",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_wheel_index"
     },
     {
       "relation": "rationale_for",
@@ -19336,9 +19543,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L828",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_828",
-      "target": "strategies_sda17_sda17strategy_apply_force",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_apply_force"
     },
     {
       "relation": "rationale_for",
@@ -33352,5 +33559,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "af370e0f968ed58414eb4ba34ae1f0675b038d3f"
+  "built_at_commit": "1fa7b27f46f94cabb6cbdb29d30446b47f731848"
 }

@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-24)
 
 ## Corpus Check
-- 31 files · ~52,314 words
+- 32 files · ~52,725 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1694 nodes · 1794 edges · 156 communities (141 shown, 15 thin omitted)
+- 1705 nodes · 1804 edges · 158 communities (142 shown, 16 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `af370e0f`
+- Built from commit: `1fa7b27f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -164,6 +164,8 @@
 - [[_COMMUNITY_Community 152|Community 152]]
 - [[_COMMUNITY_Community 153|Community 153]]
 - [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 28 edges
@@ -181,7 +183,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (156 total, 15 thin omitted)
+## Communities (158 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -212,8 +214,8 @@ Cohesion: 0.06
 Nodes (34): 1. Resumo das Sessoes Pos-Deploy SmartGale v5, 2.1 O Problema, 2.2 Impacto, 2.3 Correcao Necessaria, 2. BUG CRITICO ENCONTRADO: get_gale() Nunca e Chamado em Producao, 3.1 CW (Predicoes feitas em spins AH → alvo Horario), 3.2 CCW (Predicoes feitas em spins H → alvo Anti-Horario), 3.3 Comparacao entre Direcoes (+26 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.05
-Nodes (31): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., MessageHandler, Manipulador de mensagens WebSocket. (+23 more)
+Cohesion: 0.09
+Nodes (18): MessageHandler, Manipulador de mensagens WebSocket., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Processa uma mensagem recebida., Processa uma mensagem recebida., Processa extração de mesa e salva config., Retorna lista de mesas configuradas. (+10 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.10
@@ -480,7 +482,7 @@ Cohesion: 0.20
 Nodes (10): 16.1 Provisionamento via docker-compose, 16.2 Arquivos de config que o agente DEVE criar (estrutura pronta, sem secrets concretos), 16.3 Caddy routes para observability (apenas IP whitelist Ivandir), 16. Observability Stack na VM — Prometheus + Loki + Grafana + Alertmanager, code:yaml (version: "3.8"), code:yaml (global:), code:yaml (groups:), code:yaml (route:) (+2 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (8): code:python (class Stage(Protocol):), code:sql (ALTER TABLE decisions ADD COLUMN shadow_strategy_id TEXT;), code:python (class AdamSigmoidUpdater:), ETAPA 2.1 — Stage Protocol pipeline (T2.1) — 2d, ETAPA 2.2 — Shadow Mode infra (T2.2) — 2d, ETAPA 2.3 — Adam-Sigmoid substitui PCT-Sigmoid (T2.3) — 1.5d, ETAPA 2.4 — Hot Center Filter dual (T2.4) — 0.5d, FASE 2 — Estrutural (6 dias) — 🟡 amarelo (mudança de algoritmo — shadow obrigatório)
 
 ### Community 84 - "Community 84"
@@ -508,7 +510,7 @@ Cohesion: 0.15
 Nodes (13): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────) (+5 more)
 
 ### Community 90 - "Community 90"
-Cohesion: 0.22
+Cohesion: 0.25
 Nodes (8): code:python (class DirectionalThompson:), code:python (class DirectionalCalibrator:), code:python (class FractionalKellySizer:), ETAPA 3.1' — Thompson Bernoulli DUAL (T3.1 CORRIGIDO) — 2d, ETAPA 3.2' — Calibrator 2-MODELOS (T3.2 CORRIGIDO) — 1.5d, ETAPA 3.3 — PID auto-calibration dual (T3.3) — 1d, ETAPA 3.4 — ¼-Kelly bet sizing (T3.4) — 2d, FASE 3 — Profundo (7 dias) — 🟡 amarelo+ (shadow obrigatório, métrica gate)
 
 ### Community 91 - "Community 91"
@@ -719,22 +721,26 @@ Nodes (5): XXI.1 ✅ S-H executado integralmente, XXI.2 ✅ S-J (backfill tool) 
 Cohesion: 0.33
 Nodes (6): Dia 1 (manhã, 4h) — base infraestrutural, Dia 1 (tarde, 4h) — quick wins críticos (modulação de stake), Dia 2 (manhã, 4h) — risk control, Dia 2 (tarde, 4h) — adaptive control, Dia 3 (4h) — ativação gradual em PROD, 🎬 Plano de execução sugerido (3 dias)
 
+### Community 156 - "Community 156"
+Cohesion: 0.09
+Nodes (22): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., broadcast_heartbeat(), get_ssl_context() (+14 more)
+
 ## Knowledge Gaps
-- **924 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-restore-drill.sh script`, `ShadowPrediction` (+919 more)
+- **925 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+920 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `🆕 SEÇÕES ADICIONADAS NA v2.0 (auditoria cruzada)` connect `Community 70` to `Community 128`, `Community 99`, `Community 105`, `Community 106`, `Community 107`, `Community 81`, `Community 82`, `Community 114`, `Community 127`?**
   _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **Why does `SDA17Strategy` connect `Community 65` to `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`?**
+  _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
-  _1034 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1044 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
