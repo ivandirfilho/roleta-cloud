@@ -19,7 +19,7 @@
 | `/api/shadow` | 4 challengers ativos, alert=ok |
 | Alerts firing | 0 |
 | state.json | 7,894 B |
-| outbox pending | (query falhou — schema corrigido nesta auditoria) |
+| outbox pending | (query usou coluna inexistente; corrigido em §7.4 V2) |
 | PG sizes (top) | spins_vectors cw 936 kB, ccw 936 kB, outbox 296 kB |
 
 Sistema **VERDE** 🟢 antes da auditoria.
@@ -210,3 +210,73 @@ firing:      0
 **Ordem recomendada de execução:** S-OBS-16 → S-STRAT-13.1 → S-OBS-15 → S-STRAT-8 → S-STRAT-12 → S-STRAT-14.
 
 ---
+
+---
+
+## 7. §AUDIT-V2 — Meta-auditoria deste documento + plano + código pós-fix
+**Timestamp:** 2026-05-25 ~04:05 UTC
+**Stack MCP:** graphify (regen) + filesystem + sequential-thinking + memory + brave.
+
+### 7.1 Bugs encontrados nesta auditoria-V2
+
+#### 🔴 BUG-A24-V2-10 — `check_prediction` descarta hits silenciosamente após restart
+- **Severidade:** **alta** (silent data loss).
+- **Onde:** `state/game.py::check_prediction` (linha ~351).
+- **Causa raiz:** `json.dumps` converte `int` keys de dict para `str` automaticamente. Quando `pending_prediction` (que contém `shadow_numbers_by_shift` com keys int) é persistido em `state.json` e depois restaurado, os keys voltam como str. O loop `for shift, sh_nums in shadow_by_shift.items()` itera com `shift="1"`, e o lookup `self.shadow_grid["1"]` cai no `except KeyError: continue` → o hit é **descartado sem log**.
+- **Impacto:** se houver crash/restart entre `store_prediction` e `check_prediction` do mesmo spin, esse spin nunca é registrado no shadow grid. Em produção 24×7 com 1 restart/dia, perdemos ≥ 1 amostra/dia/shift. Silent.
+- **Fix:** normalizar `shift_int = int(shift)` antes do lookup; `try/except` envolvendo a conversão.
+- **Teste de regressão:** `test_check_prediction_after_restart_uses_str_keys`.
+- **Status:** ✅ corrigido.
+
+#### 🟡 BUG-A24-V2-09 — `__post_init__` falha se `shadow_grid=None` explícito
+- **Severidade:** baixa (não atinge runtime atual, mas defensivo).
+- **Fix:** tratar `None` antes de iterar.
+- **Status:** ✅ corrigido.
+
+### 7.2 Bugs no PLANO (próximas tasks) — patches no doc
+
+| ID | Task afetada | Issue | Patch aplicado abaixo |
+|---|---|---|---|
+| PLAN-V2-01 | S-STRAT-13.1 | Sem hysteresis → thrashing entre challengers quando `edge ≈ 0.04` | Adicionar EMA + histerese (enter > 0.04, exit < 0.02) |
+| PLAN-V2-02 | S-STRAT-8 | Schema `shared.spin_features` viola convenção (resto do projeto usa schemas separados `cw/ccw`) | Trocar para `cw.spin_features` + `ccw.spin_features` |
+| PLAN-V2-03 | S-STRAT-12 | Trigger síncrono em INSERT bloqueia hot path | Substituir por worker async lendo outbox |
+| PLAN-V2-04 | S-STRAT-14 | Cold-start: challengers com n<10 podem ser ignorados | Forçar ε=1.0 enquanto algum braço tem n<10 |
+| PLAN-V2-05 | S-OBS-16 | Assume bot Telegram existente — não validado | Adicionar passo "criar bot novo via @BotFather" como fallback |
+| PLAN-V2-06 | S-OBS-16 | Silences do AlertManager perdidos em restart | Adicionar volume `alertmanager-data:/alertmanager` |
+
+### 7.3 Patches do plano (substitui texto em §5)
+
+- **S-STRAT-13.1 — Item 1 (atualizado):** "Calcular `edge_ema` (α=0.05) por challenger. Incrementa `sustained_edge_spins` SOMENTE quando `edge_ema > 0.04`. Decrementa quando `edge_ema < 0.02` (banda morta anti-thrashing). Promove sugestão quando `sustained_edge_spins ≥ 200` E `edge_ema > 0.04` E n≥50 por direção."
+- **S-STRAT-8 — Item 1 (atualizado):** "Migrations: `cw.spin_features` + `ccw.spin_features` (paridade com `cw/ccw.spins` e `cw/ccw.spins_vectors`). Schema `shared` reservado para tabelas cross-direction (outbox, strategy_versions)."
+- **S-STRAT-12 — Item 2 (atualizado):** "Worker assíncrono `cdc_embedding_worker.py` lê outbox `shared.spin_events`, computa embedding, faz UPSERT em `cw/ccw.spins_vectors`. **Sem trigger síncrono** no INSERT (mantém latência do hot path < 5 ms)."
+- **S-STRAT-14 — Item 2 (atualizado):** "Cold-start ε=1.0 até cada braço ter n≥10. Depois, ε=0.10 normal. Garante exploração inicial obrigatória."
+- **S-OBS-16 — Item 3 (atualizado):** "Receiver Telegram: 1) verificar se existe bot via `secrets/telegram_bot_token`; 2) se NÃO existe, criar novo via @BotFather, salvar em `secrets/`, atualizar `.env`. Volume `alertmanager-data:/alertmanager` para persistir silences/notification log."
+
+### 7.4 Correção do §0
+- **Linha 22** "outbox pending | (query falhou — schema corrigido nesta auditoria)" → texto enganoso. Schema NÃO foi corrigido — apenas a query usei a coluna errada (`direction`, que não existe em `shared.outbox`). Corrigido para refletir a verdade.
+
+### 7.5 Observação operacional importante (NÃO é bug)
+Durante a janela de validação live (~10 min pós-restart), `/api/shadow` mostrou todos os challengers com `n=0`. Inicialmente pareceu bug, mas a investigação revelou:
+- `last_number=8`, `performance_sda17_ccw_len=1` → sistema processou spins
+- Logs: `DRIFT-DETECTED dir=cw freezing 5 spins` (03:57) e `dir=ccw` (04:04)
+- Durante `drift_freeze`, `store_prediction` **não é chamado** → `pending_prediction` fica vazio → shadow grid não cresce.
+
+**Comportamento esperado.** Mas merece nota: a hipótese off-by-N do shadow grid é diluída em janelas de drift frequente. Pode justificar uma futura S-STRAT-13.2 que use spins observados (não apenas os com predição ativa) para enriquecer o grid mais rapidamente.
+
+### 7.6 Resultado dos fixes V2
+
+| Item | Antes | Depois |
+|---|---|---|
+| `check_prediction` int/str keys | KeyError silencioso após restart | Normaliza com `int(shift)` |
+| `__post_init__` defensividade | Falha em `shadow_grid=None` | Trata None gracefully |
+| Testes | 11 (test_shadow_grid) | **12** (+1 regressão V2-10) |
+| Suite total | 175 | **176** |
+| Plano (próximas 6 tasks) | 6 itens com gaps | 6 itens com gaps endereçados |
+| Documento | §0 com afirmação incorreta | corrigido |
+
+### 7.7 Commits
+- `00a7d3e` — docs(audit): resultado pós-deploy V1
+- `<próx commit>` — fix(state) + docs(audit): V2 normaliza keys + plano endurecido
+
+**Status final V2: VERDE 🟢. 1 bug de silent data loss eliminado. Plano das próximas 6 tasks endurecido em 6 pontos.**
+

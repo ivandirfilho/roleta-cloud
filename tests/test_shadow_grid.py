@@ -165,3 +165,36 @@ def test_reset_session_clears_shadow_grid(tmp_path, monkeypatch):
         assert len(gs.shadow_grid[shift]["ccw"]) == 0
     assert len(gs.shadow_hits_cw) == 0
     assert len(gs.shadow_hits_ccw) == 0
+
+
+def test_check_prediction_after_restart_uses_str_keys():
+    """BUG-A24-V2-10: JSON desserializa int keys como str. check_prediction
+    deve normalizar shift -> int para nao descartar silenciosamente."""
+    from state.game import GameState
+    from core.roulette import roulette
+    gs = GameState()
+    wheel = list(roulette.WHEEL_SEQUENCE)
+    idx_map = {n: i for i, n in enumerate(wheel)}
+    target = wheel[(idx_map[0] + 3) % len(wheel)]  # +3 rotation of 0
+    # Simula pending_prediction restaurado de JSON (keys str)
+    gs.pending_prediction = {
+        "numbers": [0],
+        "direction": "horario",
+        "center": 0,
+        "centers": [0],
+        "bet_placed": False,
+        "shadow_numbers_by_shift": {
+            "1": [wheel[(idx_map[0] + 1) % len(wheel)]],
+            "3": [target],
+            "5": [wheel[(idx_map[0] + 5) % len(wheel)]],
+            "10": [wheel[(idx_map[0] + 10) % len(wheel)]],
+        },
+    }
+    gs.last_number = 17
+    gs.check_prediction(actual_number=target)
+    # shift=3 cw deve ter hit=True (nao descartado por KeyError silencioso)
+    assert len(gs.shadow_grid[3]["cw"]) == 1
+    assert gs.shadow_grid[3]["cw"][0] is True
+    # outros shifts cw devem estar populados (False, pois target nao bate)
+    assert len(gs.shadow_grid[1]["cw"]) == 1
+    assert gs.shadow_grid[1]["cw"][0] is False

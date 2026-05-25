@@ -220,6 +220,10 @@ class GameState:
 
     def __post_init__(self) -> None:
         # S-STRAT-13: inicializa deques por shift (4 challengers paralelos).
+        # BUG-A24-V2-09: tratar None explicito (default_factory ja garante dict
+        # mas em load custom pode chegar None).
+        if not self.shadow_grid:
+            self.shadow_grid = {}
         if not self.shadow_grid:
             for s in self.SHADOW_SHIFTS:
                 self.shadow_grid[s] = {
@@ -358,12 +362,19 @@ class GameState:
         shadow_by_shift = pred.get("shadow_numbers_by_shift") or {}
         side_key = "cw" if direction in ("cw", "horario") else "ccw"
         for shift, sh_nums in shadow_by_shift.items():
+            # BUG-A24-V2-10: JSON serializa int keys como str. Se este
+            # pending_prediction veio de state.json restaurado, shift é str
+            # e o lookup shadow_grid[shift] cai no except silenciosamente.
+            try:
+                shift_int = int(shift)
+            except (TypeError, ValueError):
+                continue
             sh_hit = actual_number in sh_nums
             try:
-                self.shadow_grid[shift][side_key].appendleft(sh_hit)
+                self.shadow_grid[shift_int][side_key].appendleft(sh_hit)
             except KeyError:
                 continue
-            if shift == 5:
+            if shift_int == 5:
                 if side_key == "cw":
                     self.shadow_hits_cw.appendleft(sh_hit)
                 else:
