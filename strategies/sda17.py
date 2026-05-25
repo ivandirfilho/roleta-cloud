@@ -767,7 +767,10 @@ class SDA17Strategy(StrategyBase):
             # Melhorou: mantém trajetória; em melhoria FORTE (≥ 2× threshold),
             # aplica push leve a favor para reforçar a tendência vencedora.
             # BUG-V3-04 fix: não desperdiça sinal forte de delta=+0.50.
-            if delta >= 2.0 * improve_thr:
+            # BUG-V3-08 fix: anti-oscilação — não faz push se último foi pullback
+            # (evita flip-flop pullback↔push em regime volátil).
+            last_action = self._batch_last_action.get(dk, "init")
+            if delta >= 2.0 * improve_thr and last_action != "pullback":
                 # Direção do push: usa média de hits do batch como sinal positivo
                 # (off ↓ aumenta agressividade). Magnitude conservadora.
                 push = lr_batch * 0.5 * std_w
@@ -777,7 +780,7 @@ class SDA17Strategy(StrategyBase):
                 logger.info("[BATCH-IMPROVE-PUSH] dk=%s delta=%.3f push=%.3f", dk, delta, push)
             else:
                 action = "improve_keep"
-                logger.info("[BATCH-IMPROVE] dk=%s delta=%.3f mantido", dk, delta)
+                logger.info("[BATCH-IMPROVE] dk=%s delta=%.3f mantido (last=%s)", dk, delta, last_action)
         else:
             # Estável: nudge pequeno proporcional ao gradient médio do batch.
             # BUG-V3-03 fix: usa média de misses do batch como sinal (não só último).

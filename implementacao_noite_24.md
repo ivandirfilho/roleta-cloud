@@ -450,3 +450,47 @@ Ordem mantida, mas:
 
 **Próximo monitor**: acompanhar próximas 2h. Se acc subir acima de 0.48 sustentado em regime de vol alta (vs 0.35 do vale 02h anterior), fix BUG-V3-01 está validado.
 
+
+---
+
+## §ENG-REV-V2 (snapshot 2026-05-25 00:19)
+
+### Validação do fix BUG-V3-01 (deploy 00:11)
+- **Pós-fix (id > 4044)**: n=10, acc=**0.70** (7/10) ← **+27pp vs últimas 30 pré-fix (0.43)**
+- **horario** 30: 0.4000 → **0.4667** (+6.67pp)
+- **anti-horario** 30: 0.4333 → **0.4667** (+3.34pp)
+- **overall**: 2932 → 2943, acc 0.4744 → **0.4750**
+- **recent_acc cw_last_100**: 0.46 → **0.50** 🎯
+
+### Estado live agora
+- batch_runs: cw=2, ccw=2 — **2 pullbacks totais** (cw=1, ccw=1)
+- batch_last_action: cw=pullback (delta -0.25), ccw=improve_push (delta +0.25)
+- vol_ema: cw=0.334, ccw=0.346 (regime moderado-volátil)
+- threshold_sda: cw=4, ccw=4 ✅ (antes do fix subiria para 6)
+- sigmoid evoluiu: cw_off3 11.45, ccw_off2 11.25 (batch tune ativo)
+
+### Hora 03h (pós-deploy)
+- AH: n=10, acc=**0.800** 🚀
+- H: n=10, acc=**0.500**
+- **Média: 0.65** vs **0.358 do vale das 02h** = **+29pp**
+
+---
+
+## §AUDIT-V4 (auditoria pós-deploy V3 — 2026-05-25 00:19)
+
+### Bugs encontrados (3 novos + revisão dos pendentes)
+
+| ID | Severidade | Local | Status |
+|----|------------|-------|--------|
+| **BUG-V3-02** 🟡 MED | `vol_ema` baseline 0.30 baixo demais para sinal binário | **FIX nesta janela** |
+| **BUG-V3-05** 🟢 LOW | `vol_ema`/thresholds não persistidos em state.json | **FIX nesta janela** |
+| **BUG-V3-08** 🟡 MED (NOVO) | Batch tune sem anti-oscilação → push pode disparar após pullback recente | **FIX nesta janela** |
+| **BUG-V3-09** 🟢 LOW (NOVO) | `improve_push` usa `std_w` mas não verifica magnitude máxima | adiado |
+| **BUG-V3-10** 🟢 LOW (NOVO) | `_batch_acc_history` não persistido — perdido em restart | adiado |
+| BUG-V3-06 | falso positivo — backtest já passa `direction` corretamente | n/a |
+
+### Fixes desta janela
+- **BUG-V3-02**: vol_ema baseline=0.45 (realista para Bernoulli p≈0.5); fórmulas thresholds recentralizadas em 0.45.
+- **BUG-V3-05**: `state_dict`/`load_state` agora persistem `vol_ema`, `kill_thr_c4`, `kill_thr_sda`.
+- **BUG-V3-08**: `improve_push` só dispara se `last_action != "pullback"` (anti flip-flop).
+

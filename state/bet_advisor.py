@@ -59,8 +59,10 @@ class TripleRateAdvisor:
         # Resetado apenas em restart do processo (estado vivo, sem SQL)
         self._kill_pulls_total: int = 0
         self._last_kill_ts: float = 0.0
-        # S-STRAT-11: EMA de volatility por direção (compartilhada caso não venha direction).
-        self._vol_ema: dict = {"cw": 0.30, "ccw": 0.30, "global": 0.30}
+        # S-STRAT-11 (BUG-V3-02 fix): EMA de volatility por direção.
+        # Baseline 0.45 (mais realista para sinal binário com acc≈0.45-0.50)
+        # — antes era 0.30 que considerava ruído normal como "alta volatility".
+        self._vol_ema: dict = {"cw": 0.45, "ccw": 0.45, "global": 0.45}
         self._kill_thr_c4: dict = {"cw": 0.30, "ccw": 0.30, "global": 0.30}
         self._kill_thr_sda: dict = {"cw": 4, "ccw": 4, "global": 4}
 
@@ -78,19 +80,34 @@ class TripleRateAdvisor:
         }
 
     def state_dict(self) -> dict:
-        """S-OBS-7: estado serializavel para persistir em state.json (sobrevive restart)."""
+        """S-OBS-7 + BUG-V3-05: estado serializavel persiste vol_ema e thresholds."""
         return {
             "kill_pulls_total": int(self._kill_pulls_total),
             "last_kill_ts": float(self._last_kill_ts),
+            "vol_ema": dict(self._vol_ema),
+            "kill_thr_c4": dict(self._kill_thr_c4),
+            "kill_thr_sda": dict(self._kill_thr_sda),
         }
 
     def load_state(self, data: dict) -> None:
-        """S-OBS-7: restaura counter apos restart. Tolera dict vazio/None."""
+        """S-OBS-7 + BUG-V3-05: restaura counter + vol_ema. Tolera dict vazio/None."""
         if not data:
             return
         try:
             self._kill_pulls_total = int(data.get("kill_pulls_total", 0))
             self._last_kill_ts = float(data.get("last_kill_ts", 0.0))
+            vol = data.get("vol_ema") or {}
+            for k in ("cw", "ccw", "global"):
+                if k in vol:
+                    self._vol_ema[k] = float(vol[k])
+            thr_c4 = data.get("kill_thr_c4") or {}
+            for k in ("cw", "ccw", "global"):
+                if k in thr_c4:
+                    self._kill_thr_c4[k] = float(thr_c4[k])
+            thr_sda = data.get("kill_thr_sda") or {}
+            for k in ("cw", "ccw", "global"):
+                if k in thr_sda:
+                    self._kill_thr_sda[k] = int(thr_sda[k])
         except (TypeError, ValueError):
             self._kill_pulls_total = 0
             self._last_kill_ts = 0.0
@@ -127,12 +144,11 @@ class TripleRateAdvisor:
             prev = self._vol_ema.get(dk, 0.30)
             self._vol_ema[dk] = self.KILL_V4_EMA_ALPHA * std_w + (1.0 - self.KILL_V4_EMA_ALPHA) * prev
             vol = self._vol_ema[dk]
-            # Threshold dinâmico: mais volátil → KILL MENOS sensível (ambos os
-            # eixos ficam mais permissivos, exigindo sinal mais fraco para vetar).
-            # BUG-V3-01 fix: sda_thr também decresce com vol (antes crescia, gerando
-            # over-KILL em regime errático — observado no vale das 02h hoje).
-            c4_thr = 0.30 - 0.5 * (vol - 0.30)
-            sda_thr = 4 - round((vol - 0.30) * 4)
+            # Threshold dinâmico (BUG-V3-02 fix): baseline vol=0.45 é o regime
+            # estável. Vol > 0.45 ⇒ regime errático ⇒ KILL menos sensível.
+            # BUG-V3-01 fix: sda_thr DECRESCE com vol (antes crescia).
+            c4_thr = 0.30 - 0.5 * (vol - 0.45)
+            sda_thr = 4 - round((vol - 0.45) * 4)
             c4_thr = max(self.KILL_V4_C4_MIN, min(self.KILL_V4_C4_MAX, c4_thr))
             sda_thr = max(self.KILL_V4_SDA_MIN, min(self.KILL_V4_SDA_MAX, sda_thr))
             self._kill_thr_c4[dk] = round(c4_thr, 4)

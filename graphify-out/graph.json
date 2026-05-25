@@ -1876,7 +1876,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L261",
       "id": "strategies_sda17_sda17strategy_predict_robust",
-      "community": 116,
+      "community": 10,
       "norm_label": "._predict_robust()"
     },
     {
@@ -1903,7 +1903,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L420",
       "id": "strategies_sda17_sda17strategy_bayesian_brute_force",
-      "community": 87,
+      "community": 116,
       "norm_label": "._bayesian_brute_force()"
     },
     {
@@ -1966,7 +1966,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L533",
       "id": "strategies_sda17_sda17strategy_get_warmup",
-      "community": 65,
+      "community": 101,
       "norm_label": "._get_warmup()"
     },
     {
@@ -2018,7 +2018,7 @@
       "label": ".update_adaptive()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L795",
+      "source_location": "L808",
       "id": "strategies_sda17_sda17strategy_update_adaptive",
       "community": 138,
       "norm_label": ".update_adaptive()"
@@ -2027,7 +2027,7 @@
       "label": ".get_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L835",
+      "source_location": "L848",
       "id": "strategies_sda17_sda17strategy_get_adaptive_state",
       "community": 143,
       "norm_label": ".get_adaptive_state()"
@@ -2036,7 +2036,7 @@
       "label": ".load_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L864",
+      "source_location": "L877",
       "id": "strategies_sda17_sda17strategy_load_adaptive_state",
       "community": 143,
       "norm_label": ".load_adaptive_state()"
@@ -2045,7 +2045,7 @@
       "label": ".get_batch_tune_snapshot()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L984",
+      "source_location": "L997",
       "id": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
       "community": 142,
       "norm_label": ".get_batch_tune_snapshot()"
@@ -2054,25 +2054,25 @@
       "label": "._circ_dist()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1000",
+      "source_location": "L1013",
       "id": "strategies_sda17_sda17strategy_circ_dist",
-      "community": 101,
+      "community": 87,
       "norm_label": "._circ_dist()"
     },
     {
       "label": "._wheel_index()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1012",
+      "source_location": "L1025",
       "id": "strategies_sda17_sda17strategy_wheel_index",
-      "community": 10,
+      "community": 116,
       "norm_label": "._wheel_index()"
     },
     {
       "label": "._apply_force()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1021",
+      "source_location": "L1034",
       "id": "strategies_sda17_sda17strategy_apply_force",
       "community": 10,
       "norm_label": "._apply_force()"
@@ -2101,7 +2101,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L262",
       "id": "strategies_sda17_rationale_262",
-      "community": 116,
+      "community": 10,
       "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:"
     },
     {
@@ -2128,7 +2128,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L421",
       "id": "strategies_sda17_rationale_421",
-      "community": 87,
+      "community": 116,
       "norm_label": "bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh"
     },
     {
@@ -2191,7 +2191,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L534",
       "id": "strategies_sda17_rationale_534",
-      "community": 65,
+      "community": 101,
       "norm_label": "qw-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5)."
     },
     {
@@ -2243,8 +2243,8 @@
       "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L797",
-      "id": "strategies_sda17_rationale_797",
+      "source_location": "L810",
+      "id": "strategies_sda17_rationale_810",
       "community": 138,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his"
     },
@@ -2252,8 +2252,8 @@
       "label": "Retorna estado adaptativo para persist\u00eancia (v1.8 \u2014 S-STRAT-7 batch tune).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L836",
-      "id": "strategies_sda17_rationale_836",
+      "source_location": "L849",
+      "id": "strategies_sda17_rationale_849",
       "community": 143,
       "norm_label": "retorna estado adaptativo para persistencia (v1.8 \u2014 s-strat-7 batch tune)."
     },
@@ -2261,8 +2261,8 @@
       "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L865",
-      "id": "strategies_sda17_rationale_865",
+      "source_location": "L878",
+      "id": "strategies_sda17_rationale_878",
       "community": 143,
       "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com"
     },
@@ -2270,8 +2270,8 @@
       "label": "S-STRAT-7 \u2014 snapshot leve para /api/batch_tune.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L985",
-      "id": "strategies_sda17_rationale_985",
+      "source_location": "L998",
+      "id": "strategies_sda17_rationale_998",
       "community": 142,
       "norm_label": "s-strat-7 \u2014 snapshot leve para /api/batch_tune."
     },
@@ -2279,26 +2279,26 @@
       "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1001",
-      "id": "strategies_sda17_rationale_1001",
-      "community": 101,
+      "source_location": "L1014",
+      "id": "strategies_sda17_rationale_1014",
+      "community": 87,
       "norm_label": "distancia circular entre dois numeros na roda."
     },
     {
       "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1013",
-      "id": "strategies_sda17_rationale_1013",
-      "community": 10,
+      "source_location": "L1026",
+      "id": "strategies_sda17_rationale_1026",
+      "community": 116,
       "norm_label": "retorna o indice de um numero na sequencia da roda."
     },
     {
       "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1028",
-      "id": "strategies_sda17_rationale_1028",
+      "source_location": "L1041",
+      "id": "strategies_sda17_rationale_1041",
       "community": 10,
       "norm_label": "aplica forca ao numero, retorna numero resultado."
     },
@@ -6101,6 +6101,69 @@
       "norm_label": "parte g \u00b7 resultado final (validado em prod)"
     },
     {
+      "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L797",
+      "community": 138,
+      "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
+      "id": "strategies_sda17_rationale_797"
+    },
+    {
+      "label": "Retorna estado adaptativo para persist\u00eancia (v1.8 \u2014 S-STRAT-7 batch tune).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L836",
+      "community": 143,
+      "norm_label": "retorna estado adaptativo para persistencia (v1.8 \u2014 s-strat-7 batch tune).",
+      "id": "strategies_sda17_rationale_836"
+    },
+    {
+      "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L865",
+      "community": 143,
+      "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com",
+      "id": "strategies_sda17_rationale_865"
+    },
+    {
+      "label": "S-STRAT-7 \u2014 snapshot leve para /api/batch_tune.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L985",
+      "community": 142,
+      "norm_label": "s-strat-7 \u2014 snapshot leve para /api/batch_tune.",
+      "id": "strategies_sda17_rationale_985"
+    },
+    {
+      "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1001",
+      "community": 87,
+      "norm_label": "distancia circular entre dois numeros na roda.",
+      "id": "strategies_sda17_rationale_1001"
+    },
+    {
+      "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1013",
+      "community": 116,
+      "norm_label": "retorna o indice de um numero na sequencia da roda.",
+      "id": "strategies_sda17_rationale_1013"
+    },
+    {
+      "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1028",
+      "community": 10,
+      "norm_label": "aplica forca ao numero, retorna numero resultado.",
+      "id": "strategies_sda17_rationale_1028"
+    },
+    {
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
@@ -6150,7 +6213,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L251",
-      "community": 116,
+      "community": 10,
       "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:",
       "id": "strategies_sda17_rationale_251"
     },
@@ -6177,7 +6240,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L410",
-      "community": 87,
+      "community": 116,
       "norm_label": "bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh",
       "id": "strategies_sda17_rationale_410"
     },
@@ -6240,7 +6303,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L523",
-      "community": 65,
+      "community": 101,
       "norm_label": "qw-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5).",
       "id": "strategies_sda17_rationale_523"
     },
@@ -6312,7 +6375,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L801",
-      "community": 101,
+      "community": 87,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_801"
     },
@@ -6537,7 +6600,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L786",
-      "community": 101,
+      "community": 87,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_786"
     },
@@ -6546,7 +6609,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L798",
-      "community": 10,
+      "community": 116,
       "norm_label": "retorna o indice de um numero na sequencia da roda.",
       "id": "strategies_sda17_rationale_798"
     },
@@ -6942,7 +7005,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L176",
-      "community": 89,
+      "community": 132,
       "norm_label": "2. estado atual auditado (snapshot 23/05)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_estado_atual_auditado_snapshot_23_05"
     },
@@ -6951,7 +7014,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L178",
-      "community": 89,
+      "community": 132,
       "norm_label": "2.1 conformidade com invariante de isolamento \u2014 codigo verificado linha-a-linha",
       "id": "roleta_cloud_final_refatoracao_proposta_2_1_conformidade_com_invariante_de_isolamento_c\u00f3digo_verificado_linha_a_linha"
     },
@@ -6960,7 +7023,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L192",
-      "community": 89,
+      "community": 132,
       "norm_label": "2.2 performance producao 23/05 (132 decisoes, 118 finalizadas, db `/app/data/decisions.db` no container)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_2_performance_produ\u00e7\u00e3o_23_05_132_decis\u00f5es_118_finalizadas_db_app_data_decisions_db_no_container"
     },
@@ -6969,7 +7032,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L194",
-      "community": 89,
+      "community": 132,
       "norm_label": "code:block2 (direcao)",
       "id": "roleta_cloud_final_refatoracao_proposta_codeblock_2"
     },
@@ -6978,7 +7041,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L213",
-      "community": 89,
+      "community": 132,
       "norm_label": "2.3 score iso 25010 baseline \u2192 target v5.0",
       "id": "roleta_cloud_final_refatoracao_proposta_2_3_score_iso_25010_baseline_target_v5_0"
     },
@@ -7509,7 +7572,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L928",
-      "community": 132,
+      "community": 60,
       "norm_label": "8. checklist de execucao (ordem cronologica exata)",
       "id": "roleta_cloud_final_refatoracao_proposta_8_checklist_de_execu\u00e7\u00e3o_ordem_cronol\u00f3gica_exata"
     },
@@ -7518,7 +7581,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L930",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 1 \u2014 fase 0",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_1_fase_0"
     },
@@ -7527,7 +7590,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L937",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 2 \u2014 fase 1",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_2_fase_1"
     },
@@ -7536,7 +7599,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L945",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 3-4 \u2014 fase 2 (shadow comeca)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_3_4_fase_2_shadow_come\u00e7a"
     },
@@ -7545,7 +7608,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L951",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 5 \u2014 fase 3 (shadow continuo)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_5_fase_3_shadow_cont\u00ednuo"
     },
@@ -7554,7 +7617,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L956",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 6 \u2014 fase 3.4 + fase 4",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_6_fase_3_4_fase_4"
     },
@@ -7563,7 +7626,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L964",
-      "community": 132,
+      "community": 60,
       "norm_label": "semana 7+ \u2014 fase 5 (opcional, sob aprovacao separada)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_7_fase_5_opcional_sob_aprova\u00e7\u00e3o_separada"
     },
@@ -15645,7 +15708,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L221",
-      "community": 116,
+      "community": 10,
       "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:",
       "id": "strategies_sda17_rationale_221"
     },
@@ -15672,7 +15735,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L374",
-      "community": 87,
+      "community": 116,
       "norm_label": "bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh",
       "id": "strategies_sda17_rationale_374"
     },
@@ -15726,7 +15789,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L538",
-      "community": 101,
+      "community": 87,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_538"
     },
@@ -15735,7 +15798,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L550",
-      "community": 10,
+      "community": 116,
       "norm_label": "retorna o indice de um numero na sequencia da roda.",
       "id": "strategies_sda17_rationale_550"
     },
@@ -18835,9 +18898,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L108",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_py",
-      "target": "server_websocket_batch_tune_snapshot",
-      "confidence_score": 1.0
+      "target": "server_websocket_batch_tune_snapshot"
     },
     {
       "relation": "contains",
@@ -18928,9 +18991,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L169",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_rationale_169",
-      "target": "server_websocket_broadcast_heartbeat",
-      "confidence_score": 1.0
+      "target": "server_websocket_broadcast_heartbeat"
     },
     {
       "relation": "rationale_for",
@@ -18978,9 +19041,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L220",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_rationale_220",
-      "target": "server_websocket_handler",
-      "confidence_score": 1.0
+      "target": "server_websocket_handler"
     },
     {
       "relation": "rationale_for",
@@ -19039,9 +19102,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L252",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_rationale_252",
-      "target": "server_websocket_get_ssl_context",
-      "confidence_score": 1.0
+      "target": "server_websocket_get_ssl_context"
     },
     {
       "relation": "rationale_for",
@@ -19089,9 +19152,9 @@
       "source_file": "server/websocket.py",
       "source_location": "L270",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "server_websocket_rationale_270",
-      "target": "server_websocket_start_server",
-      "confidence_score": 1.0
+      "target": "server_websocket_start_server"
     },
     {
       "relation": "imports",
@@ -19340,9 +19403,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L715",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy",
-      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune"
     },
     {
       "relation": "method",
@@ -19380,9 +19443,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L984",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy",
-      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot"
     },
     {
       "relation": "method",
@@ -19484,9 +19547,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L124",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_124",
-      "target": "strategies_sda17_sda17strategy_analyze",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_analyze"
     },
     {
       "relation": "rationale_for",
@@ -19514,9 +19577,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L262",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_262",
-      "target": "strategies_sda17_sda17strategy_predict_robust",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_predict_robust"
     },
     {
       "relation": "rationale_for",
@@ -19555,9 +19618,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L344",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_344",
-      "target": "strategies_sda17_sda17strategy_get_adaptive_offset",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_adaptive_offset"
     },
     {
       "relation": "rationale_for",
@@ -19618,9 +19681,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L363",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_363",
-      "target": "strategies_sda17_sda17strategy_bayesian_error_vector",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_bayesian_error_vector"
     },
     {
       "relation": "rationale_for",
@@ -19659,9 +19722,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L421",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_421",
-      "target": "strategies_sda17_sda17strategy_bayesian_brute_force",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_bayesian_brute_force"
     },
     {
       "relation": "rationale_for",
@@ -19700,9 +19763,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L447",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_447",
-      "target": "strategies_sda17_sda17strategy_circ_dir",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_circ_dir"
     },
     {
       "relation": "rationale_for",
@@ -19764,9 +19827,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L822",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy_update_adaptive",
-      "target": "strategies_sda17_dk",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_dk"
     },
     {
       "relation": "calls",
@@ -19818,9 +19881,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L472",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_472",
-      "target": "strategies_sda17_sda17strategy_recent_hit_rate",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_recent_hit_rate"
     },
     {
       "relation": "rationale_for",
@@ -19838,9 +19901,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L486",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_486",
-      "target": "strategies_sda17_sda17strategy_should_minimize",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_should_minimize"
     },
     {
       "relation": "rationale_for",
@@ -19858,9 +19921,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L500",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_500",
-      "target": "strategies_sda17_sda17strategy_get_stake_weight",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_stake_weight"
     },
     {
       "relation": "rationale_for",
@@ -19878,9 +19941,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L519",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_519",
-      "target": "strategies_sda17_sda17strategy_get_mg_max",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_mg_max"
     },
     {
       "relation": "rationale_for",
@@ -19909,9 +19972,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L534",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_534",
-      "target": "strategies_sda17_sda17strategy_get_warmup",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_warmup"
     },
     {
       "relation": "rationale_for",
@@ -19940,9 +20003,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L546",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_546",
-      "target": "strategies_sda17_sda17strategy_get_effective_offset",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_effective_offset"
     },
     {
       "relation": "rationale_for",
@@ -19971,9 +20034,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L560",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_560",
-      "target": "strategies_sda17_sda17strategy_detect_drift",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_detect_drift"
     },
     {
       "relation": "rationale_for",
@@ -19991,9 +20054,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L574",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_574",
-      "target": "strategies_sda17_sda17strategy_record_mg_reset",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_record_mg_reset"
     },
     {
       "relation": "rationale_for",
@@ -20044,9 +20107,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L580",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_580",
-      "target": "strategies_sda17_sda17strategy_pct_sigmoid_update",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_pct_sigmoid_update"
     },
     {
       "relation": "rationale_for",
@@ -20075,9 +20138,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L829",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy_update_adaptive",
-      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune"
     },
     {
       "relation": "rationale_for",
@@ -20085,8 +20148,18 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L716",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_716",
-      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L810",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_810",
+      "target": "strategies_sda17_sda17strategy_update_adaptive",
       "confidence_score": 1.0
     },
     {
@@ -20095,9 +20168,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L797",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_797",
-      "target": "strategies_sda17_sda17strategy_update_adaptive",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_update_adaptive"
     },
     {
       "relation": "rationale_for",
@@ -20133,11 +20206,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L836",
+      "source_location": "L849",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_836",
+      "source": "strategies_sda17_rationale_849",
       "target": "strategies_sda17_sda17strategy_get_adaptive_state",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L836",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_836",
+      "target": "strategies_sda17_sda17strategy_get_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20173,11 +20256,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L865",
+      "source_location": "L878",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_865",
+      "source": "strategies_sda17_rationale_878",
       "target": "strategies_sda17_sda17strategy_load_adaptive_state",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L865",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_865",
+      "target": "strategies_sda17_sda17strategy_load_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20213,10 +20306,30 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L998",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_998",
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L985",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_985",
-      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1014",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_1014",
+      "target": "strategies_sda17_sda17strategy_circ_dist",
       "confidence_score": 1.0
     },
     {
@@ -20225,9 +20338,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L1001",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_1001",
-      "target": "strategies_sda17_sda17strategy_circ_dist",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_circ_dist"
     },
     {
       "relation": "rationale_for",
@@ -20263,11 +20376,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1013",
+      "source_location": "L1026",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_1013",
+      "source": "strategies_sda17_rationale_1026",
       "target": "strategies_sda17_sda17strategy_wheel_index",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1013",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_1013",
+      "target": "strategies_sda17_sda17strategy_wheel_index"
     },
     {
       "relation": "rationale_for",
@@ -20303,11 +20426,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1028",
+      "source_location": "L1041",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_1028",
+      "source": "strategies_sda17_rationale_1041",
       "target": "strategies_sda17_sda17strategy_apply_force",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1028",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_1028",
+      "target": "strategies_sda17_sda17strategy_apply_force"
     },
     {
       "relation": "rationale_for",
@@ -34331,5 +34464,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a77c6abfe3e15ae77bfbd44586cb3167b37af9e0"
+  "built_at_commit": "fc111649a6dace4867cf97170a9936501a021be1"
 }
