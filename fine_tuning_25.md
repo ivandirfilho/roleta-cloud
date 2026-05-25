@@ -252,8 +252,8 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 3. **GALE-25-04** — ✅ **IMPLEMENTADO** (mesmo commit): meta espelha `applied_gale_level` separado de `gale_level`.
 4. Avançar **S-STRAT-11** (KILL dinâmico por volatilidade) já que kill_pulls=21 sugere uso ativo.
 5. Avançar **S-STRAT-8** (feature store no PG) — desbloqueia backtest offline (S-STRAT-9).
-6. Avançar **S-STRAT-13.1** promoção automática do champion uma vez que EMA esteja populado.
-7. Painel Grafana **S-OBS-15** dedicado ao shadow grid (já temos métricas Prometheus expostas).
+6. **S-STRAT-13.1** — ✅ **IMPLEMENTADO** (commit `58b4e36`): `_maybe_auto_promote_shift` em `state/game.py`. Quando `sustained_spins ≥ 400` e `edge_ema > 0.04`, marca `suggestion.applied=True + auto_promoted=True` e empilha histórico em `_adaptive_state.auto_promotes` (últimas 20). **Opt-in** via `settings.shadow_auto_promote_enabled` (default `False` — env `SHADOW_AUTO_PROMOTE_ENABLED=1` para ligar). Idempotente para mesmo shift. Counter Prometheus `roleta_shadow_auto_promotes_total{shift}`. 3 testes novos (auto_promote_disabled_by_default, _fires_when_enabled, _idempotent).
+7. **S-OBS-15** — ✅ **IMPLEMENTADO** (mesmo commit): `obs/grafana/dashboards/roleta-shadow-grid.json` com 11 painéis (champion/suggested/alert/auto-promotes stats; shadow_acc + edge_pp por shift parametrizado por `$direction`; EMA + sustained timeseries; samples bargauge; topk edge table). Auto-provisionado via `dashboards.yml`. Validado live: `curl /metrics | grep auto_promote` retorna a métrica; `ls /var/lib/grafana/dashboards` mostra arquivo carregado.
 8. Receivers AlertManager Slack — adiar Telegram conforme decisão do usuário.
 
 ---
