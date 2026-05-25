@@ -361,3 +361,49 @@ def test_auto_promote_idempotent(monkeypatch, gs):
         gs._update_shadow_ema_on_spin()
     assert len(gs._adaptive_state.get("auto_promotes") or []) == first_len
 
+
+# ---------- S-STRAT-14 bandit ε-greedy ----------
+
+def test_bandit_initializes_with_cold_start_epsilon(gs):
+    """Sem amostras, bandit deve reportar ε=1.0 e nenhum recommended_shift fixo."""
+    gs._update_bandit_on_spin()  # sem dados ainda
+    snap = gs.get_bandit_stats()
+    assert snap["design"] == "epsilon_greedy_v1"
+    assert snap["epsilon"] == 1.0
+    assert snap["total_pulls"] == 0
+
+
+def test_bandit_arms_grow_with_spins(gs):
+    """Cada spin (com hits/misses no shadow_grid) deve incrementar arm.n."""
+    for shift in gs.SHADOW_SHIFTS:
+        for _ in range(5):
+            gs.shadow_grid[shift]["cw"].appendleft(True)
+            gs.shadow_grid[shift]["ccw"].appendleft(False)
+    # Cada chamada consome o head — 1 chamada conta 1 cw + 1 ccw por shift.
+    gs._update_bandit_on_spin()
+    snap = gs.get_bandit_stats()
+    for shift in gs.SHADOW_SHIFTS:
+        arm = snap["arms"][str(shift)]
+        assert arm["n"] == 2  # cw + ccw
+        assert arm["rewards"] == 1.0  # cw=hit, ccw=miss
+
+
+def test_bandit_switches_to_exploit_after_warmup(gs):
+    """Após cada braço ter n>=10, epsilon deve cair para 0.10."""
+    for _ in range(6):  # 6 spins × 2 obs/shift = 12 obs/shift ≥ 10
+        for shift in gs.SHADOW_SHIFTS:
+            gs.shadow_grid[shift]["cw"].appendleft(True)
+            gs.shadow_grid[shift]["ccw"].appendleft(False)
+        gs._update_bandit_on_spin()
+    snap = gs.get_bandit_stats()
+    assert snap["epsilon"] == 0.10
+    assert snap["recommended_shift"] in [int(s) for s in snap["arms"].keys()]
+
+
+def test_bandit_reset_session_clears(gs):
+    """reset_session deve limpar bandit do _adaptive_state."""
+    gs._adaptive_state["bandit"] = {"arms": {"1": {"n": 5, "rewards": 3.0}}, "epsilon": 0.5, "recommended_shift": 1, "total_pulls": 5}
+    gs.reset_session()
+    assert "bandit" not in gs._adaptive_state
+
+

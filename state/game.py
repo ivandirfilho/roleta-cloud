@@ -296,6 +296,9 @@ class GameState:
         # ao trocar dealer/mesa para nao vazar sinais antigos.
         self._adaptive_state.pop("shadow_ema", None)
         self._adaptive_state.pop("suggested_shift", None)
+        # S-STRAT-14: reset bandit no reset de sessão (evita contaminação cross-dealer).
+        self._adaptive_state.pop("bandit", None)
+        self._adaptive_state.pop("auto_promotes", None)
         
         # Reset Prediction pendente
         self.pending_prediction = {}
@@ -404,6 +407,8 @@ class GameState:
         # em vez de ~100min (200 spins reais). Suggestion prematura. Agora
         # roda 1x por spin aqui.
         self._update_shadow_ema_on_spin()
+        # S-STRAT-14: bandit ε-greedy entre challengers do shadow grid.
+        self._update_bandit_on_spin()
         
         # APENAS adicionar ao histórico BET se realmente apostou
         if bet_placed:
@@ -586,6 +591,99 @@ class GameState:
                 _hs._PROM_METRICS["shadow_auto_promotes"].labels(shift=str(top["shift"])).inc()
         except Exception:  # noqa: BLE001
             pass
+
+    # ---------- S-STRAT-14: bandit ε-greedy entre shifts do shadow grid ----------
+
+    def _update_bandit_on_spin(self) -> None:
+        """S-STRAT-14 — atualiza bandit ε-greedy com o último spin de cada shift.
+
+        Para cada shift, lê o head do shadow_grid (mais recente) e contabiliza
+        como reward (HIT=+1). Trata cw e ccw como observações independentes do
+        mesmo braço (cada braço acumula até 2 observações por spin: 1 cw + 1 ccw).
+
+        ε decai com volume:
+          - cold-start ε=1.0 enquanto algum braço tem n<10 (exploração total).
+          - ε=0.10 quando todos têm n>=10 (exploitação predominante).
+
+        Recommendation: arg-max(mean_reward) com prob (1-ε), aleatório com prob ε.
+        Não APLICA — apenas registra em `_adaptive_state.bandit.recommended_shift`
+        (humano-in-the-loop, alinhado com S-STRAT-13.1).
+        """
+        import random as _r
+        bandit = self._adaptive_state.setdefault("bandit", {
+            "arms": {str(s): {"n": 0, "rewards": 0.0} for s in self.SHADOW_SHIFTS},
+            "epsilon": 1.0,
+            "recommended_shift": None,
+            "total_pulls": 0,
+        })
+        # Garantia retrocompat: novos shifts entram com state vazio.
+        for s in self.SHADOW_SHIFTS:
+            bandit["arms"].setdefault(str(s), {"n": 0, "rewards": 0.0})
+
+        # Cada shift consome o último resultado registrado em shadow_grid (head).
+        for shift in self.SHADOW_SHIFTS:
+            grid = self.shadow_grid.get(shift, {})
+            for dk in ("cw", "ccw"):
+                q = grid.get(dk)
+                if not q:
+                    continue
+                # Head (most recent) — appendleft é usado, então índice 0.
+                reward = 1.0 if q[0] else 0.0
+                arm = bandit["arms"][str(shift)]
+                arm["n"] += 1
+                arm["rewards"] += reward
+                bandit["total_pulls"] += 1
+
+        # ε-schedule: cold-start até cada braço ter n>=10.
+        min_n = min(a["n"] for a in bandit["arms"].values())
+        if min_n < 10:
+            bandit["epsilon"] = 1.0
+        else:
+            bandit["epsilon"] = 0.10
+
+        # Recomendação: arg-max mean com prob 1-ε, random com prob ε.
+        means = {
+            sk: (a["rewards"] / a["n"]) if a["n"] > 0 else 0.0
+            for sk, a in bandit["arms"].items()
+        }
+        eps = bandit["epsilon"]
+        if _r.random() < eps:
+            choice = _r.choice(list(bandit["arms"].keys()))
+        else:
+            choice = max(means.items(), key=lambda kv: kv[1])[0]
+        try:
+            bandit["recommended_shift"] = int(choice)
+        except (TypeError, ValueError):
+            bandit["recommended_shift"] = None
+        bandit["means_snapshot"] = {sk: round(v, 4) for sk, v in means.items()}
+
+    def get_bandit_stats(self) -> Dict[str, Any]:
+        """S-STRAT-14 — snapshot do bandit para /api/strategy e métricas."""
+        bandit = self._adaptive_state.get("bandit") or {}
+        if not bandit:
+            return {
+                "design": "epsilon_greedy_v1",
+                "epsilon": 1.0,
+                "arms": {},
+                "recommended_shift": None,
+                "total_pulls": 0,
+            }
+        arms_out = {}
+        for sk, a in bandit.get("arms", {}).items():
+            n = int(a.get("n", 0))
+            r = float(a.get("rewards", 0.0))
+            arms_out[sk] = {
+                "n": n,
+                "rewards": r,
+                "mean": round(r / n, 5) if n > 0 else 0.0,
+            }
+        return {
+            "design": "epsilon_greedy_v1",
+            "epsilon": float(bandit.get("epsilon", 1.0)),
+            "arms": arms_out,
+            "recommended_shift": bandit.get("recommended_shift"),
+            "total_pulls": int(bandit.get("total_pulls", 0)),
+        }
 
     def get_shadow_stats(self) -> Dict[str, Any]:
         """S-STRAT-13 + S-STRAT-13.1 — snapshot shadow grid + auto-suggestion.

@@ -114,6 +114,12 @@ if _METRICS_AVAILABLE:
             "shadow_sustained": Gauge("roleta_shadow_sustained_spins", "Contador sustained_edge por shift", ["shift"]),
             # S-STRAT-13.1 promoção automática: contador de promoções aplicadas
             "shadow_auto_promotes": Counter("roleta_shadow_auto_promotes_total", "Total de auto-promotes do shadow grid", ["shift"]),
+            # S-STRAT-14: bandit ε-greedy
+            "bandit_epsilon": Gauge("roleta_bandit_epsilon", "Bandit epsilon corrente"),
+            "bandit_recommended_shift": Gauge("roleta_bandit_recommended_shift", "Shift recomendado pelo bandit (0 se nenhum)"),
+            "bandit_n": Gauge("roleta_bandit_arm_n", "Pulls por braço", ["shift"]),
+            "bandit_mean": Gauge("roleta_bandit_arm_mean", "Mean reward por braço", ["shift"]),
+            "bandit_total_pulls": Gauge("roleta_bandit_total_pulls", "Total de pulls do bandit"),
             # S-OBS-16: receiver webhook do AlertManager
             "alerts_received": Counter("roleta_alertmanager_webhook_received_total", "Total de alertas recebidos via webhook do AlertManager", ["severity", "alertname"]),
         }
@@ -190,6 +196,17 @@ def _refresh_custom_metrics() -> None:
                 _PROM_METRICS["shadow_sustained"].labels(shift=shift).set(float(c.get("sustained_spins", 0)))
             sug = sh.get("suggestion") or {}
             _PROM_METRICS["shadow_suggested_shift"].set(float(sug.get("shift") or 0))
+        # S-STRAT-14: bandit ε-greedy metrics
+        if _STRATEGY_PROVIDER is not None:
+            sg = _STRATEGY_PROVIDER() or {}
+            bandit = sg.get("bandit") or {}
+            if bandit:
+                _PROM_METRICS["bandit_epsilon"].set(float(bandit.get("epsilon", 1.0)))
+                _PROM_METRICS["bandit_recommended_shift"].set(float(bandit.get("recommended_shift") or 0))
+                _PROM_METRICS["bandit_total_pulls"].set(float(bandit.get("total_pulls", 0)))
+                for sk, a in (bandit.get("arms") or {}).items():
+                    _PROM_METRICS["bandit_n"].labels(shift=str(sk)).set(float(a.get("n", 0)))
+                    _PROM_METRICS["bandit_mean"].labels(shift=str(sk)).set(float(a.get("mean", 0.0)))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()

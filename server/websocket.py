@@ -61,6 +61,13 @@ try:
         last_spin_ts = getattr(message_handler, "last_spin_ts", None)
         now = _time.time()
         sec_since = round(now - last_spin_ts, 1) if last_spin_ts else None
+        # S-STRAT-14: bandit snapshot
+        bandit_stats = {}
+        try:
+            if hasattr(game_state, "get_bandit_stats"):
+                bandit_stats = game_state.get_bandit_stats()
+        except Exception:  # noqa: BLE001
+            pass
         return {
             "session_id": getattr(message_handler, "current_session_id", None),
             "last_number": game_state.last_number,
@@ -92,6 +99,7 @@ try:
             },
             "kill_switch": kill_stats,  # S-OBS-6
             "kill_stats": kill_stats,   # S-STRAT-11: alias para health_server consumir thresholds
+            "bandit": bandit_stats,     # S-STRAT-14
             "ts": int(now),
         }
 
