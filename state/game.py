@@ -4,7 +4,7 @@ import json
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, ClassVar
+from typing import Optional, List, Dict, Any, ClassVar, Tuple
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -192,10 +192,12 @@ class GameState:
     performance_bet_cw: deque = field(default_factory=lambda: deque(maxlen=12))
     performance_bet_ccw: deque = field(default_factory=lambda: deque(maxlen=12))
 
-    # S-STRAT-10 MVP — Shadow challenger (random baseline 17/37).
-    # Compara accuracy do incumbent vs random — se diff < 4pp, há problema.
+    # S-STRAT-10 v2 / S-STRAT-13 — Shadow grid: 4 challengers paralelos com
+    # rotações distintas no wheel europeu (off-by-N hypothesis sweep).
     shadow_hits_cw: deque = field(default_factory=lambda: deque(maxlen=100))
     shadow_hits_ccw: deque = field(default_factory=lambda: deque(maxlen=100))
+    # Cada shift mantém deque cw + ccw (maxlen=100). Inicializado em __post_init__.
+    shadow_grid: Dict[int, Dict[str, deque]] = field(default_factory=dict)
     
     # Calibração removida (momentum desabilitado)
     
@@ -212,7 +214,19 @@ class GameState:
     
     # M15-ADA: Estado adaptativo (v1.6+)
     _adaptive_state: Dict[str, Any] = field(default_factory=dict)
-    
+
+    # S-STRAT-13: rotações testadas em paralelo no shadow grid.
+    SHADOW_SHIFTS: ClassVar[Tuple[int, ...]] = (1, 3, 5, 10)
+
+    def __post_init__(self) -> None:
+        # S-STRAT-13: inicializa deques por shift (4 challengers paralelos).
+        if not self.shadow_grid:
+            for s in self.SHADOW_SHIFTS:
+                self.shadow_grid[s] = {
+                    "cw": deque(maxlen=100),
+                    "ccw": deque(maxlen=100),
+                }
+
     def reset_session(self, keep_last_number: bool = False) -> Dict[str, Any]:
         """
         Reseta estado para nova sessão/dealer.
@@ -329,14 +343,22 @@ class GameState:
         else:
             self.performance_sda17_ccw.appendleft(hit)
 
-        # S-STRAT-10 MVP — registra shadow_hit (random challenger).
-        shadow_numbers = pred.get("shadow_numbers", [])
-        if shadow_numbers:
-            shadow_hit = actual_number in shadow_numbers
-            if direction in ("cw", "horario"):
-                self.shadow_hits_cw.appendleft(shadow_hit)
-            else:
-                self.shadow_hits_ccw.appendleft(shadow_hit)
+        # S-STRAT-10 v2 / S-STRAT-13 — Shadow grid: registra hit para cada
+        # rotação testada (1, 3, 5, 10). Mantém legacy shadow_hits_cw/ccw
+        # apontando para o shift=5 para retrocompatibilidade do dashboard.
+        shadow_by_shift = pred.get("shadow_numbers_by_shift") or {}
+        side_key = "cw" if direction in ("cw", "horario") else "ccw"
+        for shift, sh_nums in shadow_by_shift.items():
+            sh_hit = actual_number in sh_nums
+            try:
+                self.shadow_grid[shift][side_key].appendleft(sh_hit)
+            except KeyError:
+                continue
+            if shift == 5:
+                if side_key == "cw":
+                    self.shadow_hits_cw.appendleft(sh_hit)
+                else:
+                    self.shadow_hits_ccw.appendleft(sh_hit)
         
         # APENAS adicionar ao histórico BET se realmente apostou
         if bet_placed:
@@ -366,20 +388,24 @@ class GameState:
             sda_score: Score do SDA (para tracking)
             sda_centers: Lista de centros [C1, C2, C3] — SDA-21
         """
-        # S-STRAT-10 v2 — Shadow challenger PARAMÉTRICO: mesmos N números do
-        # incumbent mas ROTACIONADOS +5 posições no wheel europeu. Testa
-        # hipótese: "estratégia está off-by-5 no centro?" Se shadow bate mais,
-        # ajustar sigmoid_off; se incumbent bate mais, calibração está OK.
+        # S-STRAT-10 v2 / S-STRAT-13 — Shadow grid PARAMÉTRICO: mesmos N
+        # números do incumbent rotacionados por cada shift em SHADOW_SHIFTS.
+        # Testa sweep da hipótese "estratégia está off-by-N no centro?".
+        shadow_by_shift: Dict[int, List[int]] = {}
+        shadow_numbers: List[int] = []
         try:
             wheel = list(roulette.WHEEL_SEQUENCE)
             wheel_size = len(wheel)
-            shift = 5
             idx_map = {n: i for i, n in enumerate(wheel)}
-            shadow_numbers = [
-                wheel[(idx_map[n] + shift) % wheel_size]
-                for n in numbers if n in idx_map
-            ]
+            for shift in self.SHADOW_SHIFTS:
+                rotated = [
+                    wheel[(idx_map[n] + shift) % wheel_size]
+                    for n in numbers if n in idx_map
+                ]
+                shadow_by_shift[shift] = rotated
+            shadow_numbers = shadow_by_shift.get(5, [])
         except Exception:
+            shadow_by_shift = {}
             shadow_numbers = []
 
         self.pending_prediction = {
@@ -393,34 +419,69 @@ class GameState:
             "tr_reason": tr_reason,
             "sda_score": sda_score,
             "shadow_numbers": shadow_numbers,
+            "shadow_numbers_by_shift": shadow_by_shift,
         }
-    
+
     def get_shadow_stats(self) -> Dict[str, Any]:
-        """S-STRAT-10 v2 — snapshot shadow paramétrico (wheel rotation +5) vs incumbent."""
+        """S-STRAT-13 — snapshot do shadow grid (rotações 1/3/5/10) vs incumbent.
+
+        Retorna por shift: acc cw/ccw, edge_pp vs incumbent, n. Identifica
+        challenger campeão (maior média acc com n>=30 em ambas direções).
+        """
         def stats(perf_deq) -> Dict[str, Any]:
             n = len(perf_deq)
             hits = sum(1 for x in perf_deq if x)
             return {"n": n, "hits": hits, "acc": (hits / n) if n else 0.0}
 
-        sd_cw = stats(self.shadow_hits_cw)
-        sd_ccw = stats(self.shadow_hits_ccw)
         inc_cw = stats(self.performance_sda17_cw)
         inc_ccw = stats(self.performance_sda17_ccw)
+
+        challengers: List[Dict[str, Any]] = []
+        for shift in self.SHADOW_SHIFTS:
+            grid = self.shadow_grid.get(shift, {})
+            sd_cw = stats(grid.get("cw", deque()))
+            sd_ccw = stats(grid.get("ccw", deque()))
+            edge_cw = round((sd_cw["acc"] - inc_cw["acc"]) * 100, 1)
+            edge_ccw = round((sd_ccw["acc"] - inc_ccw["acc"]) * 100, 1)
+            beats_inc = (
+                (sd_cw["n"] >= 30 and sd_cw["acc"] > inc_cw["acc"])
+                or (sd_ccw["n"] >= 30 and sd_ccw["acc"] > inc_ccw["acc"])
+            )
+            challengers.append({
+                "shift": shift,
+                "design": f"wheel_rotation_+{shift}",
+                "cw": sd_cw,
+                "ccw": sd_ccw,
+                "edge_pp_cw": edge_cw,
+                "edge_pp_ccw": edge_ccw,
+                "avg_acc": round((sd_cw["acc"] + sd_ccw["acc"]) / 2, 4),
+                "beats_incumbent": beats_inc,
+            })
+
+        eligible = [c for c in challengers if c["cw"]["n"] >= 30 and c["ccw"]["n"] >= 30]
+        champion = max(eligible, key=lambda c: c["avg_acc"], default=None)
+        any_beats = any(c["beats_incumbent"] for c in challengers)
+
         return {
-            "design": "wheel_rotation_+5",
-            "shadow": {"cw": sd_cw, "ccw": sd_ccw},
+            "design": "shadow_grid_v1",
+            "shifts": list(self.SHADOW_SHIFTS),
             "incumbent": {"cw": inc_cw, "ccw": inc_ccw},
-            "edge_pp": {
-                "cw": round((inc_cw["acc"] - sd_cw["acc"]) * 100, 1),
-                "ccw": round((inc_ccw["acc"] - sd_ccw["acc"]) * 100, 1),
-            },
+            "challengers": challengers,
+            "champion": {
+                "shift": champion["shift"] if champion else None,
+                "avg_acc": champion["avg_acc"] if champion else None,
+            } if champion else {"shift": None, "avg_acc": None},
             "baseline_random": 17.0 / 37.0,
-            "alert": (
-                "shadow_beating_incumbent"
-                if (sd_cw["acc"] > inc_cw["acc"] and sd_cw["n"] >= 30)
-                or (sd_ccw["acc"] > inc_ccw["acc"] and sd_ccw["n"] >= 30)
-                else "ok"
-            ),
+            "alert": "shadow_beating_incumbent" if any_beats else "ok",
+            # Legacy fields para retrocompatibilidade do dashboard antigo.
+            "shadow": {
+                "cw": next((c["cw"] for c in challengers if c["shift"] == 5), {"n": 0, "hits": 0, "acc": 0.0}),
+                "ccw": next((c["ccw"] for c in challengers if c["shift"] == 5), {"n": 0, "hits": 0, "acc": 0.0}),
+            },
+            "edge_pp": {
+                "cw": next((c["edge_pp_cw"] for c in challengers if c["shift"] == 5), 0.0),
+                "ccw": next((c["edge_pp_ccw"] for c in challengers if c["shift"] == 5), 0.0),
+            },
         }
 
     def get_performance_stats(self) -> Dict[str, Any]:

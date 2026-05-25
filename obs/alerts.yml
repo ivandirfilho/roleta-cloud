@@ -46,6 +46,44 @@ groups:
         annotations:
           summary: "Erros em refresh de métricas custom"
 
+  - name: roleta_strategy_alerts
+    interval: 30s
+    rules:
+      # S-OBS-14 — Shadow grid: alerta quando algum challenger bate incumbent
+      # de forma sustentada.
+      - alert: RoletaShadowBeatingIncumbent
+        expr: roleta_shadow_alert == 1
+        for: 15m
+        labels: { severity: warning, component: strategy }
+        annotations:
+          summary: "Shadow challenger batendo incumbent há 15min (shift campeão={{ $value }})"
+          description: "Investigar /api/shadow — pode haver off-by-N no sigmoid_off."
+
+      # KILL switch disparando demais — sinal de threshold mal calibrado.
+      - alert: RoletaKillPullsHigh
+        expr: increase(roleta_kill_pulls_total[1h]) > 30
+        for: 5m
+        labels: { severity: warning, component: kill_switch }
+        annotations:
+          summary: "KILL v4 disparou {{ $value }}× na última hora"
+          description: "Volume anormal. Conferir thresholds dinâmicos vs regime de vol."
+
+      # Volatilidade extrema sustentada — pode indicar dealer/mesa anômala.
+      - alert: RoletaVolatilityExtreme
+        expr: (max(roleta_recent_acc_cw, roleta_recent_acc_ccw) > 0.65) or (min(roleta_recent_acc_cw, roleta_recent_acc_ccw) < 0.30)
+        for: 10m
+        labels: { severity: info, component: strategy }
+        annotations:
+          summary: "Acc fora da faixa [0.30, 0.65] por 10min (vol regime extremo)"
+
+      # Batch tune pull-backs em rajada — estratégia oscilando.
+      - alert: RoletaBatchTunePullbackBurst
+        expr: (increase(roleta_batch_tune_pullback_cw_total[30m]) + increase(roleta_batch_tune_pullback_ccw_total[30m])) > 6
+        for: 5m
+        labels: { severity: warning, component: strategy }
+        annotations:
+          summary: "Mais de 6 pull-backs em 30min — possível oscilação"
+
   - name: roleta_target_health
     interval: 30s
     rules:

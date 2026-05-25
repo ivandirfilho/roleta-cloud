@@ -637,3 +637,57 @@ Análise via `pg_stat_statements` + `pg_stat_user_tables`:
 - **S-STRAT-8**: feature store PG (continua adiado).
 - **S-STRAT-12**: pgvector embeddings (continua adiado).
 
+
+
+---
+
+## §22. S-STRAT-13 (Shadow Grid) + S-OBS-14 (AlertManager rules) — 2026-05-25 03:36
+
+**Stack MCP**: graphify (regen) + filesystem + sequential-thinking + memory + brave.
+
+### S-STRAT-13 — Shadow grid multi-rotação
+Substitui o shadow único `+5` por **4 challengers paralelos** rotacionando o wheel europeu em `{+1, +3, +5, +10}`. Cada um mantém deques `cw` + `ccw` (maxlen=100) e acompanha hit independente.
+
+**Mudanças:**
+- `state/game.py`:
+  - `SHADOW_SHIFTS: ClassVar[Tuple[int, ...]] = (1, 3, 5, 10)`
+  - `shadow_grid: Dict[int, Dict[str, deque]]` inicializado em `__post_init__`.
+  - `store_prediction` gera `shadow_numbers_by_shift` para todos os shifts; mantém `shadow_numbers` (=shift 5) para retrocompatibilidade.
+  - `check_prediction` registra hit em cada `shadow_grid[shift][side]`.
+  - `get_shadow_stats` retorna `design="shadow_grid_v1"`, `challengers: [{shift, design, cw, ccw, edge_pp_cw, edge_pp_ccw, avg_acc, beats_incumbent}]`, `champion: {shift, avg_acc}` (eligível quando n≥30 em ambas direções), `alert: "shadow_beating_incumbent"` se qualquer challenger bate.
+- `server/health_server.py`: 5 novas métricas Prometheus (`roleta_shadow_acc{shift,direction}`, `roleta_shadow_edge_pp{shift,direction}`, `roleta_shadow_samples_n{shift,direction}`, `roleta_shadow_champion_shift`, `roleta_shadow_alert`).
+- `tests/test_shadow_grid.py`: 8 testes cobrindo init, geração de grid, hits por shift, snapshot, legacy, eligibility, champion, alert.
+
+**Hipótese testada:** se shift=1 vence, sigmoid_off está off-by-1 (errinho fino); shift=3 → drift moderado; shift=5 → falha estrutural; shift=10 → estratégia possivelmente inversa.
+
+### S-OBS-14 — AlertManager rules
+Adicionado grupo `roleta_strategy_alerts` em `obs/alerts.yml`:
+- `RoletaShadowBeatingIncumbent` — `roleta_shadow_alert == 1` por 15min (severity=warning).
+- `RoletaKillPullsHigh` — `increase(roleta_kill_pulls_total[1h]) > 30` (severity=warning).
+- `RoletaVolatilityExtreme` — acc fora de [0.30, 0.65] por 10min (severity=info).
+- `RoletaBatchTunePullbackBurst` — `> 6 pull-backs em 30min` (severity=warning).
+
+### Auditoria pré-deploy
+| ID | Severidade | Item | Mitigação |
+|---|---|---|---|
+| V13-01 | baixo | Mais deques na GameState → +400 bools no state in-memory | maxlen=100 cada, irrelevante |
+| V13-02 | médio | `_SHADOW_PROVIDER` chamado no scrape → custo extra | get_shadow_stats é O(4·100), <0.5ms; sem I/O |
+| V13-03 | médio | `edge_pp` inverteu sinal (agora `challenger - incumbent`) → docs antigos podem confundir | Legacy `edge_pp` no top-level também invertido — checar Grafana ao final |
+| V13-04 | baixo | Falha graceful se `roulette.WHEEL_SEQUENCE` indisponível | bloco try retorna `shadow_by_shift = {}` |
+| V13-05 | baixo | Alertas com `for: 15m` podem demorar a disparar em rampup curto | ok — evita falsos positivos |
+
+### Testes
+- **172 passed**, 7 skipped, 1 xfailed (era 164 → +8 do shadow grid).
+
+### Próximos passos sugeridos (10)
+1. **S-STRAT-13.1** — promoção automática: se champion sustenta `avg_acc - incumbent_avg > 0.04` por 200 spins, escrever sugestão em `_adaptive_state.suggested_shift` (sem auto-aplicar).
+2. **S-STRAT-8** — feature store no PG (lag features dos últimos 50-100 spins) + scoring batch (3-4d).
+3. **S-STRAT-12** — embeddings de spins via pgvector + similaridade de regimes (infra ivfflat pronta; 4-5d).
+4. **S-OBS-15** — painel Grafana específico do shadow grid (heatmap shift × direction).
+5. **S-OBS-16** — receivers do AlertManager (Slack/Telegram/email).
+6. **S-STRAT-14** — bandit ε-greedy entre challengers vencedores (após 13.1 estabilizar).
+7. **S-DBA-2** — particionar tabela `decisions` por dia (preventivo, ainda 362 rows mas crescerá).
+8. **S-SEC-1** — rotacionar senha PG e injetar via Vault/SOPS (atualmente em env var).
+9. **S-INF-1** — backup wal-g testado com restore-drill (validar recuperação real).
+10. **S-QA-1** — chaos test: dropar conexão WS por 60s e validar reconexão sem perda de spins.
+

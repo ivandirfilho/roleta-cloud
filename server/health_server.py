@@ -102,6 +102,12 @@ if _METRICS_AVAILABLE:
             "kill_thr_c4_ccw": Gauge("roleta_kill_threshold_c4_ccw", "Threshold c4 dinamico KILL v4 (CCW)"),
             "kill_thr_sda_cw": Gauge("roleta_kill_threshold_sda_cw", "Threshold sda dinamico KILL v4 (CW)"),
             "kill_thr_sda_ccw": Gauge("roleta_kill_threshold_sda_ccw", "Threshold sda dinamico KILL v4 (CCW)"),
+            # S-STRAT-13: shadow grid (4 challengers paralelos)
+            "shadow_acc": Gauge("roleta_shadow_acc", "Shadow challenger accuracy (rolling 100)", ["shift", "direction"]),
+            "shadow_edge_pp": Gauge("roleta_shadow_edge_pp", "Shadow edge (pp): challenger_acc - incumbent_acc", ["shift", "direction"]),
+            "shadow_n": Gauge("roleta_shadow_samples_n", "Samples observados pelo challenger", ["shift", "direction"]),
+            "shadow_champion_shift": Gauge("roleta_shadow_champion_shift", "Shift do challenger campeao (0 se nenhum elegivel)"),
+            "shadow_alert": Gauge("roleta_shadow_alert", "1 se algum challenger bate incumbent com n>=30"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -154,6 +160,21 @@ def _refresh_custom_metrics() -> None:
                 _PROM_METRICS[f"batch_pullback_{dk}"].set(float(bt.get("batch_pullback_total", {}).get(dk, 0)))
                 _PROM_METRICS[f"batch_delta_{dk}"].set(float(bt.get("batch_last_delta", {}).get(dk, 0)))
                 _PROM_METRICS[f"batch_pending_{dk}"].set(float(bt.get("pending_spins", {}).get(dk, 0)))
+        # S-STRAT-13: shadow grid metrics (labelled por shift+direction).
+        if _SHADOW_PROVIDER is not None:
+            sh = _SHADOW_PROVIDER() or {}
+            challengers = sh.get("challengers") or []
+            for c in challengers:
+                shift = str(c.get("shift"))
+                for dk in ("cw", "ccw"):
+                    side = c.get(dk) or {}
+                    _PROM_METRICS["shadow_acc"].labels(shift=shift, direction=dk).set(float(side.get("acc", 0.0)))
+                    _PROM_METRICS["shadow_n"].labels(shift=shift, direction=dk).set(float(side.get("n", 0)))
+                _PROM_METRICS["shadow_edge_pp"].labels(shift=shift, direction="cw").set(float(c.get("edge_pp_cw", 0.0)))
+                _PROM_METRICS["shadow_edge_pp"].labels(shift=shift, direction="ccw").set(float(c.get("edge_pp_ccw", 0.0)))
+            champ = sh.get("champion") or {}
+            _PROM_METRICS["shadow_champion_shift"].set(float(champ.get("shift") or 0))
+            _PROM_METRICS["shadow_alert"].set(1.0 if sh.get("alert") == "shadow_beating_incumbent" else 0.0)
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()
