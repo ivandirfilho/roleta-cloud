@@ -33,7 +33,7 @@ def fetch_features(dsn: str, min_rows: int):
                 # Cast vector -> float[] para evitar depender do adaptador
                 # pgvector no psycopg2 (que costuma devolver str).
                 cur.execute(
-                    f"SELECT raw_features::float[] FROM {schema}.spins_vectors "
+                    f"SELECT raw_features::text FROM {schema}.spins_vectors "
                     f"WHERE raw_features IS NOT NULL ORDER BY id DESC LIMIT 50000;"
                 )
                 for (vec,) in cur.fetchall():
