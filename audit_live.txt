@@ -1,0 +1,29 @@
+=== containers ===
+roleta-cloud: Up 3 minutes (healthy)
+roleta-cdc-worker: Up 53 minutes (healthy)
+roleta-pg: Up 52 minutes (healthy)
+=== health ===
+{"status": "ok", "uptime_sec": 225, "version": "4.4.0", "ts": 1779671024}
+=== strategy ===
+{"session_id": "c4edfd54", "last_number": 16, "last_direction": "horario", "timeline": {"cw_size": 31, "ccw_size": 31}, "sigmoid_off": {"ccw_off2": 11.900738377097548, "ccw_off3": 10.624413521549796, "cw_off2": 11.487793809511944, "cw_off3": 11.146893875785688}, "recent_acc": {"cw_last_100": 0.448, "ccw_last_100": 0.567}, "cooldown": {"cw": {"c2": 2, "c3": 0}, "ccw": {"c2": 3, "c3": 0}}, "drift_freeze": {"cw": 0, "ccw": 0}, "martingale": {"cw": {"level": 1, "consecutive_hits": 1, "global_streak": 5}, "ccw": {"level": 3, "consecutive_hits": 0, "global_streak": 5}}, "ts": 1779671024}
+=== decisoes 60min ===
+=== KILL v3 fired ===
+0
+=== mg_gale_decided last ===
+2026-05-25T01:01:17.002765Z [info     ] mg_gale_decided desired=3 max=3 applied=3 streak=3 c4=0.50 score=3 conf=alta [state.game]
+2026-05-25T01:02:08.962599Z [info     ] mg_gale_decided desired=3 max=3 applied=3 streak=4 c4=0.75 score=3 conf=alta [state.game]
+2026-05-25T01:02:54.925232Z [info     ] mg_gale_decided desired=3 max=3 applied=3 streak=5 c4=0.50 score=3 conf=alta [state.game]
+=== errors roleta ===
+=== errors cdc ===
+2026-05-25 00:11:00,708 ERROR pg_connection_lost error=server closed the connection unexpectedly
+2026-05-25 00:11:05,748 WARNING listen_conn_lost error=server closed the connection unexpectedly
+=== outbox 60min ===
+       0 |        66
+
+=== disk ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda1        79G  5.1G   70G   7% /
+/dev/vda1        79G  5.1G   70G   7% /
+=== mem ===
+               total        used        free      shared  buff/cache   available
+Mem:            6926        1484        1938          67        4277        5442

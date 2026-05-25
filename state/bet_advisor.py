@@ -47,7 +47,17 @@ class TripleRateAdvisor:
     
     def __init__(self):
         """Inicializa o advisor."""
-        pass
+        # S-OBS-6: counter in-process de disparos do Kill Switch v3+
+        # Resetado apenas em restart do processo (estado vivo, sem SQL)
+        self._kill_pulls_total: int = 0
+        self._last_kill_ts: float = 0.0
+
+    def get_kill_stats(self) -> dict:
+        """S-OBS-6: snapshot do estado do Kill Switch para /api/strategy."""
+        return {
+            "pulls_total": self._kill_pulls_total,
+            "last_pull_ts": self._last_kill_ts if self._last_kill_ts else None,
+        }
     
     def analyze(self, performance: List[bool], sda_score: int = 3) -> BetAdvice:
         """
@@ -83,6 +93,10 @@ class TripleRateAdvisor:
         # disparava (260 spins observados na ultima hora: 0 pulls por kill).
         # v3: pula quando rolling c4 e score indicam degradacao real.
         if len(performance) >= 4 and c4 < 0.30 and sda_score < 4:
+            # S-OBS-6: incrementa counter para exposicao em /api/strategy
+            import time as _t
+            self._kill_pulls_total += 1
+            self._last_kill_ts = _t.time()
             return BetAdvice(
                 should_bet=False,
                 confidence="baixa",

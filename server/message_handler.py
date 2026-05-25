@@ -33,6 +33,7 @@ class MessageHandler:
         self.current_session_id: str = str(uuid.uuid4())[:8]
         self.last_decision_id: Optional[int] = None
         self.last_spin_hash: str = ""
+        self.last_spin_ts: Optional[float] = None  # S-OBS-6: epoch float do último spin
         self._decision_count: int = 0
         self.extractor_service = ExtractorService(configs_path)
 
@@ -216,6 +217,9 @@ class MessageHandler:
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
+            # S-OBS-6: registra timestamp epoch para /api/strategy
+            import time as _t_obs6
+            self.last_spin_ts = _t_obs6.time()
             trace.step("processed", {
                 "numero": numero,
                 "direcao": direcao,

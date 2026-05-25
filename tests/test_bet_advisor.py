@@ -57,6 +57,16 @@ class TestTripleRateAdvisor:
         assert advice.should_bet is False
         assert "KILL v3" in advice.reason
 
+    def test_kill_switch_increments_counter(self, advisor):
+        """S-OBS-6: counter incrementa a cada disparo de KILL v3."""
+        before = advisor.get_kill_stats()["pulls_total"]
+        advisor.analyze([True, False, False, False], sda_score=3)  # KILL
+        advisor.analyze([True, False, False, False], sda_score=3)  # KILL
+        advisor.analyze([True, True, True, True], sda_score=5)     # BET (não conta)
+        after = advisor.get_kill_stats()
+        assert after["pulls_total"] == before + 2
+        assert after["last_pull_ts"] is not None and after["last_pull_ts"] > 0
+
     def test_growing_trend_alta(self, advisor):
         """Tendência crescente → confiança alta."""
         perf = [True, True, True, False, False, True, False, False, False, False, False, False]

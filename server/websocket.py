@@ -44,16 +44,29 @@ try:
     from server.health_server import set_strategy_provider as _set_sp
 
     def _strategy_snapshot():
+        import time as _time
         adp = strategy.get_adaptive_state() if hasattr(strategy, "get_adaptive_state") else {}
         mg_cw = game_state.martingale_cw
         mg_ccw = game_state.martingale_ccw
         recent_hits = adp.get("recent_hits", {})
         def _acc(buf):
             return round(sum(buf) / len(buf), 3) if buf else None
+        # S-OBS-6: kill switch counter + last spin ts
+        kill_stats = {"pulls_total": 0, "last_pull_ts": None}
+        try:
+            if hasattr(game_state, "bet_advisor") and hasattr(game_state.bet_advisor, "get_kill_stats"):
+                kill_stats = game_state.bet_advisor.get_kill_stats()
+        except Exception:  # noqa: BLE001
+            pass
+        last_spin_ts = getattr(message_handler, "last_spin_ts", None)
+        now = _time.time()
+        sec_since = round(now - last_spin_ts, 1) if last_spin_ts else None
         return {
             "session_id": getattr(message_handler, "current_session_id", None),
             "last_number": game_state.last_number,
             "last_direction": game_state.last_direction,
+            "last_spin_ts": last_spin_ts,
+            "seconds_since_last_spin": sec_since,
             "timeline": {
                 "cw_size": game_state.timeline_cw.size,
                 "ccw_size": game_state.timeline_ccw.size,
@@ -77,7 +90,8 @@ try:
                     "global_streak": mg_ccw.global_consecutive_hits,
                 },
             },
-            "ts": int(__import__("time").time()),
+            "kill_switch": kill_stats,  # S-OBS-6
+            "ts": int(now),
         }
 
     _set_sp(_strategy_snapshot)
