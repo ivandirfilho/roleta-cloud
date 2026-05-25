@@ -52,17 +52,25 @@ class MartingaleState:
         return f"G{self.level} S{self.consecutive_hits} GS{self.global_consecutive_hits}"
     
     def get_gale(self, score: int = 3, c4_rate: float = 0.5, confidence: str = "media") -> int:
-        """SmartGale v6: Anti-Martingale com confiança. Retorna 1, 2 ou 3."""
+        """SmartGale v7 (S-STRAT-2): Anti-Martingale com escalação por streak.
+        
+        Mudança v6→v7: removido bloqueio `confidence==alta → max_gale=1` que
+        prendia 94.7% das apostas em G1. Estudo live (260 decisões, 2026-05-25)
+        mostrou que com confidence=alta o Anti-Martingale nunca escalava.
+        
+        Nova lógica:
+        - max_gale=1 se sinal fraco (c4 < 0.25 OU sda_score < 3 OU confidence==baixa)
+        - Caso contrário, max_gale=3 e o nível efetivo segue o streak global
+        - Streak global cross-direction continua sendo o gatilho (>=2 → G2, >=3 → G3)
+        """
         max_gale = 3
         
-        # Regra 6 — Proteção por confiança (spike regression)
-        if confidence == "alta":
+        # S-STRAT-2: Proteção só em sinais REALMENTE fracos.
+        if confidence == "baixa":
             max_gale = 1
-        elif confidence == "baixa":
+        if c4_rate < 0.25:
             max_gale = 1
-        
-        # Regra 4 — C4 advisor (threshold 0.15)
-        if c4_rate < 0.15:
+        if score < 3:
             max_gale = 1
         
         # Regra 2 — Anti-Martingale: streak global decide escalação
@@ -75,6 +83,15 @@ class MartingaleState:
             desired = 1
         
         self.level = min(desired, max_gale)
+        # Canary estruturado para grep em produção (decisao auditavel).
+        try:
+            import logging as _lg
+            _lg.getLogger(__name__).info(
+                "mg_gale_decided desired=%d max=%d applied=%d streak=%d c4=%.2f score=%d conf=%s",
+                desired, max_gale, self.level, streak, c4_rate, score, confidence
+            )
+        except Exception:
+            pass
         return self.level
     
     def update(self, hit: bool, global_hit: bool = None) -> Dict[str, Any]:

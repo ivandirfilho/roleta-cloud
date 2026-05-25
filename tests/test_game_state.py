@@ -47,15 +47,20 @@ class TestSmartGaleV4:
     def test_get_gale_confidence_ceiling(self):
         mg = MartingaleState()
         mg.global_consecutive_hits = 5  # wants to raise via global streak
-        # v6: score no longer limits gale, confidence does
-        assert mg.get_gale(score=1, confidence="media") == 3  # media allows G3
-        assert mg.get_gale(score=3, confidence="alta") == 1   # alta forces G1
-        assert mg.get_gale(score=5, confidence="baixa") == 1  # baixa forces G1
+        # v7 (S-STRAT-2): score < 3 OR c4 < 0.25 OR confidence==baixa → max_gale=1.
+        # confidence=alta NÃO força mais G1 (motivo: 94.7% das apostas ficavam em
+        # G1 em produção — Anti-Martingale nunca escalava).
+        assert mg.get_gale(score=1, confidence="media") == 1   # score baixo trava
+        assert mg.get_gale(score=3, confidence="alta") == 3    # v7: alta liberta
+        assert mg.get_gale(score=5, confidence="baixa") == 1   # baixa força G1
 
     def test_get_gale_c4_rate_override(self):
         mg = MartingaleState()
         mg.global_consecutive_hits = 5
-        assert mg.get_gale(score=6, c4_rate=0.10) == 1  # c4_rate < 15% forces ceiling 1
+        # v7: threshold elevado de 0.15 → 0.25
+        assert mg.get_gale(score=6, c4_rate=0.10) == 1
+        assert mg.get_gale(score=6, c4_rate=0.20) == 1   # v7 novo limite
+        assert mg.get_gale(score=6, c4_rate=0.30) == 3   # acima do limite escala
 
     def test_get_gale_streak_raises(self):
         mg = MartingaleState()

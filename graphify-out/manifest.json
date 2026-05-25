@@ -35,8 +35,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
-    "mtime": 1779643616.3493674,
-    "ast_hash": "354ff43ccfe2fd2d031f81b7bfdb89fb",
+    "mtime": 1779660499.2158947,
+    "ast_hash": "c06e0a60d591960de27d36ffb37a27b6",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
@@ -69,44 +69,9 @@
     "ast_hash": "111690d7584bfc97139b29091685e93b",
     "semantic_hash": ""
   },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\melhorias_pos_implementacao.md": {
-    "mtime": 1774784725.8400164,
-    "ast_hash": "5facab7e5c6c71637e93eab06bab2b23",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\plano_implanta\u00e7\u00e3o_c1_c2_c3_melhorado.md": {
-    "mtime": 1774740323.7792432,
-    "ast_hash": "1a83564dd30bd9161d8a76218f6f246e",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\pos_implementacao_29_03.md": {
-    "mtime": 1774781941.6980433,
-    "ast_hash": "0627e83840ba358b608c3201dd3cc13e",
-    "semantic_hash": ""
-  },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\SECURITY.md": {
     "mtime": 1770291255.972619,
     "ast_hash": "b41baa60715eaac84e7df895ce18deaa",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sessao13_50_28_03.md": {
-    "mtime": 1774717322.8510973,
-    "ast_hash": "94e6b8c4e92232a90f2f639680f58a79",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\validacao_task_final_manha.md": {
-    "mtime": 1774880647.707802,
-    "ast_hash": "e2d395bcbf0553628ef8a7926698c807",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\validacao_task_resultado.md": {
-    "mtime": 1774867884.9619727,
-    "ast_hash": "6f21c9a1bdf90bd0fbb212c9a3a180be",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\valid_pos_task_31_03.md": {
-    "mtime": 1774950374.7510328,
-    "ast_hash": "a86c788601c51bb410fab3aedd0aa7be",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0001_baseline.py": {
@@ -154,24 +119,9 @@
     "ast_hash": "01c78f3707b7c79b1b48b604b6f7c3a5",
     "semantic_hash": ""
   },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\final_refatoracao_proposta.md": {
-    "mtime": 1779641648.9013183,
-    "ast_hash": "4ad1c5cb218a903108527338884311bd",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\melhor_simples_Estrategia_23_05.md": {
-    "mtime": 1779566348.394362,
-    "ast_hash": "b06554c70492a137b640e7fc4fc52882",
-    "semantic_hash": ""
-  },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\plano_implentacao_pos_sessao_24_05.md": {
     "mtime": 1779641522.8780823,
     "ast_hash": "b123671f6b5a2fba81bd74dd090edee3",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\plano_mudan\u00e7a_tecnologica_24_05.md": {
-    "mtime": 1779642078.4815595,
-    "ast_hash": "cc5c97089a6e143406340a7b0d528b48",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\pos_implantacao_24_05.md": {
@@ -179,29 +129,29 @@
     "ast_hash": "b0a02ba1528e866f600bd67322e57f1f",
     "semantic_hash": ""
   },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\proposta_refatoracao_23_05.md": {
-    "mtime": 1779561129.8610103,
-    "ast_hash": "aca5c1d240bc4f1ffbde46cad7669fec",
-    "semantic_hash": ""
-  },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sess\u00e3o_24_05.md": {
     "mtime": 1779641648.1387491,
     "ast_hash": "de4406d1658963dd5777a70b29382287",
     "semantic_hash": ""
   },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\skilss_emelhoras.md": {
-    "mtime": 1779507442.867898,
-    "ast_hash": "65863e0333dc9283e6ab884309ab4c4c",
-    "semantic_hash": ""
-  },
-  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\solicita\u00e7\u00e3o_de_estrutura_azure.md": {
-    "mtime": 1779641648.3858652,
-    "ast_hash": "32dad3344037197931ab2c0b3ed2eead",
-    "semantic_hash": ""
-  },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprint_bugs.md": {
     "mtime": 1779658522.7620442,
     "ast_hash": "7e61ad12819217027ebca7a23254668c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\007_outbox_notify_trigger.sql": {
+    "mtime": 1779666365.4864948,
+    "ast_hash": "241491867a8ee6325251833b711e64d4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprints_evolucao_pos_24_05.md": {
+    "mtime": 1779666702.2268636,
+    "ast_hash": "7bdf4259f910835a0f7a0ced2ec8b41f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0005_outbox_notify.py": {
+    "mtime": 1779667594.7934973,
+    "ast_hash": "b683e8e19cd7abbc9e3def3eb0c717de",
     "semantic_hash": ""
   }
 }

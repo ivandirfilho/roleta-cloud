@@ -563,7 +563,7 @@ class MessageHandler:
             reset_info = self.game_state.reset_session(keep_last_number=keep_last)
 
             # Criar nova sessão no DB
-            new_session_id = f"session_{now_ms()}"
+            new_session_id = uuid.uuid4().hex[:8]  # S-MIG-2: UUID em vez de session_<epoch_ms>
             db_service.create_session(new_session_id)
             self.current_session_id = new_session_id
 

@@ -26,6 +26,16 @@ logger = logging.getLogger(__name__)
 _STARTED_AT = time.time()
 _VERSION: str = "unknown"
 
+# S-OBS-3: provider opcional para introspecção viva da estratégia.
+# Setado por server.websocket no boot; se ausente, /api/strategy retorna 503.
+_STRATEGY_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_strategy_provider(provider) -> None:
+    """Registra callable() -> dict para /api/strategy. Idempotente."""
+    global _STRATEGY_PROVIDER
+    _STRATEGY_PROVIDER = provider
+
 try:
     from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST  # type: ignore
     _METRICS_AVAILABLE = True
@@ -71,6 +81,27 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+            return
+        if self.path == "/api/strategy":
+            if _STRATEGY_PROVIDER is None:
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"strategy provider not registered"}')
+                return
+            try:
+                payload = _STRATEGY_PROVIDER()
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
         if self.path == "/":
             self.send_response(200)

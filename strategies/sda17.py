@@ -679,6 +679,21 @@ class SDA17Strategy(StrategyBase):
                 off2 += adj * 0.5
                 off3 += adj * 0.5
 
+        # ---- S-STRAT-1: Regularizador anti-drift ----
+        # Estudo live (260 decisões, 2026-05-25): offset=13 entregou 34.8% acc
+        # vs 50%+ para offsets 10-12. O sigmoid permitia drift até a borda.
+        # Quando |off - PRIOR_CENTER| > REG_BAND, puxa de volta para o prior
+        # com taxa REG_RATE adicional ao passo sigmoid normal.
+        reg_band = float(self.PRIOR_CENTER) + 2.0  # 12
+        reg_band_low = float(self.PRIOR_CENTER) - 2.0  # 8
+        reg_rate = 0.20
+        for _name, _val in (("off2", off2), ("off3", off3)):
+            pass  # placeholder para clareza
+        if off2 > reg_band or off2 < reg_band_low:
+            off2 += (self.PRIOR_CENTER - off2) * reg_rate
+        if off3 > reg_band or off3 < reg_band_low:
+            off3 += (self.PRIOR_CENTER - off3) * reg_rate
+
         # Clamp
         off2 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off2))
         off3 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off3))

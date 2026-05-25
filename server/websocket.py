@@ -39,6 +39,52 @@ if game_state._adaptive_state:
 configs_path = os.path.join(os.path.dirname(__file__), "configs")
 message_handler = MessageHandler(game_state, strategy, state_lock, configs_path)
 
+# S-OBS-3: registra provider de introspecção da estratégia no health_server.
+try:
+    from server.health_server import set_strategy_provider as _set_sp
+
+    def _strategy_snapshot():
+        adp = strategy.get_adaptive_state() if hasattr(strategy, "get_adaptive_state") else {}
+        mg_cw = game_state.martingale_cw
+        mg_ccw = game_state.martingale_ccw
+        recent_hits = adp.get("recent_hits", {})
+        def _acc(buf):
+            return round(sum(buf) / len(buf), 3) if buf else None
+        return {
+            "session_id": getattr(message_handler, "current_session_id", None),
+            "last_number": game_state.last_number,
+            "last_direction": game_state.last_direction,
+            "timeline": {
+                "cw_size": game_state.timeline_cw.size,
+                "ccw_size": game_state.timeline_ccw.size,
+            },
+            "sigmoid_off": adp.get("sigmoid_off", {}),
+            "recent_acc": {
+                "cw_last_100": _acc(recent_hits.get("cw", [])),
+                "ccw_last_100": _acc(recent_hits.get("ccw", [])),
+            },
+            "cooldown": adp.get("cooldown", {}),
+            "drift_freeze": adp.get("drift_freeze", {}),
+            "martingale": {
+                "cw": {
+                    "level": mg_cw.level,
+                    "consecutive_hits": mg_cw.consecutive_hits,
+                    "global_streak": mg_cw.global_consecutive_hits,
+                },
+                "ccw": {
+                    "level": mg_ccw.level,
+                    "consecutive_hits": mg_ccw.consecutive_hits,
+                    "global_streak": mg_ccw.global_consecutive_hits,
+                },
+            },
+            "ts": int(__import__("time").time()),
+        }
+
+    _set_sp(_strategy_snapshot)
+    logger.info("strategy_provider_registered for /api/strategy")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"strategy_provider_register_failed: {_e}")
+
 
 async def broadcast_heartbeat():
     """Envia estado atual para todos os clientes a cada 1 segundo."""

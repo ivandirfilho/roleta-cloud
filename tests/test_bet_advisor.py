@@ -31,24 +31,31 @@ class TestTripleRateAdvisor:
         assert advice.confidence == "alta"
 
     def test_kill_switch_activates(self, advisor):
-        """0/4 acertos + SDA score ≤ 2 → KILL SWITCH."""
+        """v3 (S-STRAT-3): c4 < 30% + sda_score < 4 → KILL."""
         perf = [False, False, False, False]
         advice = advisor.analyze(perf, sda_score=2)
         assert advice.should_bet is False
         assert advice.confidence == "baixa"
-        assert "KILL SWITCH" in advice.reason
+        assert "KILL v3" in advice.reason
 
     def test_kill_switch_not_active_with_good_sda(self, advisor):
-        """0/4 acertos mas SDA score > 2 → apostar (confiando nos dados)."""
+        """v3: c4=0% mas sda_score>=4 → apostar (sinal forte vence)."""
         perf = [False, False, False, False]
-        advice = advisor.analyze(perf, sda_score=3)
+        advice = advisor.analyze(perf, sda_score=4)
         assert advice.should_bet is True
 
     def test_kill_switch_not_active_with_hits(self, advisor):
-        """1/4 acertos + SDA baixo → apostar (C4 > 0)."""
-        perf = [True, False, False, False]
+        """v3: 2/4 = 50% > 30% → apostar mesmo com sda baixo."""
+        perf = [True, True, False, False]
         advice = advisor.analyze(perf, sda_score=1)
         assert advice.should_bet is True
+
+    def test_kill_switch_v3_low_acc_low_score(self, advisor):
+        """v3 novo: 1/4 = 25% < 30% + sda<4 → kill (cobre caso que v2 deixava passar)."""
+        perf = [True, False, False, False]
+        advice = advisor.analyze(perf, sda_score=3)
+        assert advice.should_bet is False
+        assert "KILL v3" in advice.reason
 
     def test_growing_trend_alta(self, advisor):
         """Tendência crescente → confiança alta."""

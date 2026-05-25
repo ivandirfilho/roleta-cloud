@@ -1,0 +1,63 @@
+# Roleta Cloud — alert rules (S-OBS-4)
+# Aplicar manualmente no Grafana Cloud → Alerting → Alert rules.
+# Datasource: Prometheus "grafanacloud-roletacloud-prom".
+
+groups:
+  - name: roleta-cloud-cdc
+    interval: 30s
+    rules:
+      - alert: CdcListenChannelDown
+        expr: cdc_listen_state == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: cdc-worker
+        annotations:
+          summary: "CDC LISTEN canal caído por 5min"
+          description: "O worker CDC está em modo polling-only — não há mais NOTIFY/LISTEN ativo no PG. Pode haver atraso na propagação outbox→tabelas finais."
+
+      - alert: CdcListenReconnectStorm
+        expr: rate(cdc_listen_reconnect_total[15m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: cdc-worker
+        annotations:
+          summary: "CDC reconectando demais"
+          description: "Mais de 6 reconnects/hora no canal LISTEN."
+
+      - alert: OutboxBacklogGrowing
+        expr: pg_stat_user_tables_n_live_tup{schemaname="shared", relname="outbox"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "Outbox PG acumulando rows nao processadas"
+          description: "Mais de 1000 rows na shared.outbox. CDC pode estar lento ou parado."
+
+  - name: roleta-cloud-strategy
+    interval: 30s
+    rules:
+      - alert: NoSpinsIngested
+        expr: rate(cdc_notify_received_total[10m]) == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: roleta-cloud
+        annotations:
+          summary: "Nenhum spin ingerido em 10 min"
+          description: "Pipeline parado: extractor desconectado ou app nao gravando outbox."
+
+  - name: roleta-cloud-host
+    interval: 1m
+    rules:
+      - alert: DiskUsageHigh
+        expr: 100 * (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "Disco {{ $labels.mountpoint }} > 85% no host"
+          description: "Pode comprometer wal-g archive_command e logs."

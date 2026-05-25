@@ -274,7 +274,8 @@ class TestConfidenceInGale:
         mg = MartingaleState()
         mg.global_consecutive_hits = 5
         mg.get_gale(score=5, c4_rate=0.8, confidence="alta")
-        assert mg.level == 1, "Confiança 'alta' deve forçar G1"
+        # S-STRAT-2 (v7): confidence=alta NÃO força mais G1; só "baixa" e sinais fracos.
+        assert mg.level == 3, "v7: confidence='alta' com sinal forte deve permitir G3"
 
     def test_confidence_media_allows_escalation(self):
         """'media' (estável) → permite G2/G3 normalmente."""
@@ -291,29 +292,31 @@ class TestConfidenceInGale:
         assert mg.level == 1, "Confiança 'baixa' deve forçar G1"
 
     def test_confidence_media_with_c4_low_still_g1(self):
-        """'media' mas c4_rate < 0.15 → G1 (Regra 4 prevalece)."""
+        """'media' mas c4_rate < 0.25 → G1 (v7: threshold elevado de 0.15→0.25)."""
         mg = MartingaleState()
         mg.global_consecutive_hits = 3
-        mg.get_gale(score=4, c4_rate=0.10, confidence="media")
-        assert mg.level == 1, "C4 rate baixo deve forçar G1 mesmo com 'media'"
+        mg.get_gale(score=4, c4_rate=0.20, confidence="media")
+        assert mg.level == 1, "v7: c4_rate < 0.25 deve forçar G1 mesmo com 'media'"
 
 
 class TestScoreNoLongerLimitsGale:
-    """T8: Score não é mais fator na decisão de gale (SmartGale v6)."""
+    """T8 (v7): Score < 3 AGORA limita gale (S-STRAT-2). v6 ignorava score totalmente,
+    mas o estudo live mostrou que streak global pode escalar em situações de baixa
+    confiança SDA. v7 trava em G1 quando score < 3."""
 
-    def test_score_2_allows_g3_with_streak(self):
-        """Score baixo (2) com streak alto → G3 (antes era limitado a G1)."""
+    def test_score_2_traps_g1_with_streak(self):
+        """Score baixo (2) com streak alto → G1 (v7: score < 3 trava)."""
         mg = MartingaleState()
         mg.global_consecutive_hits = 3
         mg.get_gale(score=2, c4_rate=0.5, confidence="media")
-        assert mg.level == 3, "Score 2 não deve mais limitar gale"
+        assert mg.level == 1, "v7: score < 3 deve travar em G1"
 
-    def test_score_1_allows_g2_with_streak(self):
-        """Score mínimo (1) com streak 2 → G2."""
+    def test_score_1_traps_g1_with_streak(self):
+        """Score mínimo (1) com streak 2 → G1 (v7: score < 3 trava)."""
         mg = MartingaleState()
         mg.global_consecutive_hits = 2
         mg.get_gale(score=1, c4_rate=0.5, confidence="media")
-        assert mg.level == 2, "Score 1 não deve mais limitar gale"
+        assert mg.level == 1, "v7: score < 3 deve travar em G1"
 
     def test_score_6_without_streak_stays_g1(self):
         """Score alto (6) sem streak → G1 (score não libera gale)."""
@@ -322,9 +325,9 @@ class TestScoreNoLongerLimitsGale:
         mg.get_gale(score=6, c4_rate=0.8, confidence="media")
         assert mg.level == 1, "Score alto sem streak não deve liberar gale"
 
-    def test_score_irrelevant_confidence_decides(self):
-        """Score=5 + streak=3 + 'alta' → G1 (confiança domina, não score)."""
+    def test_score_high_with_alta_now_escalates(self):
+        """Score=5 + streak=3 + 'alta' → G3 (v7: confiança alta JÁ NÃO bloqueia)."""
         mg = MartingaleState()
         mg.global_consecutive_hits = 3
         mg.get_gale(score=5, c4_rate=0.8, confidence="alta")
-        assert mg.level == 1, "Confiança 'alta' deve dominar sobre score e streak"
+        assert mg.level == 3, "v7: alta + streak + score alto deve escalar para G3"

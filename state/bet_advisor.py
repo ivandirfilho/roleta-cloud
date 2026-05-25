@@ -77,14 +77,16 @@ class TripleRateAdvisor:
             )
         
         # ============================================
-        # KILL SWITCH: Só veta catástrofe absoluta
+        # S-STRAT-3 — KILL SWITCH v3: critério mais sensivel
         # ============================================
-        # Condição: ZERO acertos em 4+ rounds E dados ruins do SDA
-        if len(performance) >= 4 and c4 == 0 and sda_score <= 2:
+        # v2 anterior so vetava com c4==0 AND sda_score<=2, virtualmente nunca
+        # disparava (260 spins observados na ultima hora: 0 pulls por kill).
+        # v3: pula quando rolling c4 e score indicam degradacao real.
+        if len(performance) >= 4 and c4 < 0.30 and sda_score < 4:
             return BetAdvice(
                 should_bet=False,
                 confidence="baixa",
-                reason=f"🛑 KILL SWITCH: 0/4 acertos + Score SDA={sda_score}",
+                reason=f"🛑 KILL v3: c4={c4:.0%} < 30% + Score SDA={sda_score} < 4",
                 c4_rate=c4,
                 m6_rate=m6,
                 l12_rate=l12
