@@ -143,8 +143,91 @@ def _apply_spin_features(cur: Any, payload: dict[str, Any]) -> None:
     cur.execute(sql, (decision_id, raw, Json(meta)))
 
 
+def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
+    """S-STRAT-8: insere row em cw|ccw.spin_features com lag features.
+
+    Calcula via window query no próprio schema (acc_10, acc_50, streaks,
+    last_20_hits) antes de inserir esta nova linha.
+    """
+    direction = payload.get("direction")
+    if direction not in ALLOWED_DIRECTIONS:
+        raise ValueError(f"invalid direction: {direction!r}")
+    decision_id = payload.get("decision_id")
+    hit = payload.get("hit")
+    if not isinstance(hit, bool):
+        raise ValueError(f"hit must be bool, got {hit!r}")
+    meta = payload.get("meta") or {}
+    spin_number = payload.get("actual_number")
+    if isinstance(meta, dict):
+        spin_number = meta.get("spin_number", spin_number)
+    centro_previsto = (meta or {}).get("centro_previsto") if isinstance(meta, dict) else None
+    gale_level = (meta or {}).get("applied_gale_level") if isinstance(meta, dict) else None
+
+    schema = "cw" if direction == "cw" else "ccw"
+
+    # Window query: pega últimos 50 hits do mesmo schema para computar lags.
+    cur.execute(
+        f"""
+        SELECT hit
+        FROM {schema}.spin_features
+        ORDER BY id DESC
+        LIMIT 50;
+        """
+    )
+    rows = cur.fetchall()
+    # cur usa RealDictCursor → cada row é dict-like
+    hits_desc = [bool(r["hit"]) for r in rows if r.get("hit") is not None]
+    last_50 = hits_desc  # mais recentes primeiro
+    last_10 = last_50[:10]
+    last_20 = last_50[:20]
+
+    def _acc(seq: list[bool]) -> float | None:
+        return (sum(1 for x in seq if x) / len(seq)) if seq else None
+
+    acc_10 = _acc(last_10)
+    acc_50 = _acc(last_50)
+    # Streak ANTES deste spin (sequência consecutiva mais recente).
+    streak_miss = 0
+    streak_hit = 0
+    for prev in hits_desc:
+        if prev:
+            if streak_miss > 0:
+                break
+            streak_hit += 1
+        else:
+            if streak_hit > 0:
+                break
+            streak_miss += 1
+
+    last_20_with_now = ([hit] + last_20)[:20]
+
+    cur.execute(
+        f"""
+        INSERT INTO {schema}.spin_features
+            (decision_id, spin_number, hit, centro_previsto, gale_level,
+             recent_acc_10, recent_acc_50, streak_miss, streak_hit,
+             last_20_hits, meta)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        """,
+        (
+            decision_id,
+            spin_number,
+            hit,
+            centro_previsto,
+            gale_level,
+            acc_10,
+            acc_50,
+            streak_miss,
+            streak_hit,
+            last_20_with_now,
+            Json(meta if isinstance(meta, dict) else {}),
+        ),
+    )
+
+
 HANDLERS = {
     "spin_features": _apply_spin_features,
+    "spin_result": _apply_spin_result,
 }
 
 
