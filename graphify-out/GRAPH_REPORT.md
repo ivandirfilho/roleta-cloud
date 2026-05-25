@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 34 files · ~56,527 words
+- 35 files · ~61,130 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1809 nodes · 1913 edges · 165 communities (145 shown, 20 thin omitted)
+- 1854 nodes · 1957 edges · 181 communities (160 shown, 21 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9153e1f6`
+- Built from commit: `3027b1b4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -173,6 +173,22 @@
 - [[_COMMUNITY_Community 162|Community 162]]
 - [[_COMMUNITY_Community 163|Community 163]]
 - [[_COMMUNITY_Community 164|Community 164]]
+- [[_COMMUNITY_Community 165|Community 165]]
+- [[_COMMUNITY_Community 166|Community 166]]
+- [[_COMMUNITY_Community 167|Community 167]]
+- [[_COMMUNITY_Community 168|Community 168]]
+- [[_COMMUNITY_Community 169|Community 169]]
+- [[_COMMUNITY_Community 170|Community 170]]
+- [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
+- [[_COMMUNITY_Community 175|Community 175]]
+- [[_COMMUNITY_Community 176|Community 176]]
+- [[_COMMUNITY_Community 177|Community 177]]
+- [[_COMMUNITY_Community 178|Community 178]]
+- [[_COMMUNITY_Community 179|Community 179]]
+- [[_COMMUNITY_Community 180|Community 180]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -190,7 +206,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (165 total, 20 thin omitted)
+## Communities (181 total, 21 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -205,8 +221,8 @@ Cohesion: 0.05
 Nodes (42): 1. RESUMO DO PROBLEMA, 2.1 Fluxo de dados do overlay, 2.2 Sequência temporal do bug, 2.3 Bug no modo expandido, 2. ANÁLISE DE CAUSA RAIZ, 3. BUGS IDENTIFICADOS, 4.1 Abordagem: Helper function DRY, 4.2 CSS: Visibilidade no modo expandido (+34 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.05
-Nodes (42): 1. RESUMO EXECUTIVO, 2.1 Fase 1: CORE (`strategies/sda17.py`), 2.2 Fase 2: ESTADO (`state/game.py`), 2.3 Fase 3: SERVIDOR (`server/`), 2.4 Fase 4: FRONTEND (Opcional), 2.5 Fase 5: TESTES, 2.6 Fase 6: VALIDAÇÃO, 2.7 Tarefas Extras (Não Planejadas) (+34 more)
+Cohesion: 0.22
+Nodes (9): 4.1 Resumo, 4.3 Bugs Altos, 4.4 Bugs Médios, 4.5 Bugs Baixos / Info, 4. BUGS ENCONTRADOS — VARREDURA PÓS-IMPLANTAÇÃO, BUG-POST-005 — `_adaptive_state` dinâmico no dataclass `GameState`, BUG-POST-006 — Restauração adaptativa sem error handling, code:python (@dataclass) (+1 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.05
@@ -237,8 +253,8 @@ Cohesion: 0.25
 Nodes (6): Analisa timeline e prediz próxima força usando pipeline robusto., Analisa timeline e prediz próxima força usando pipeline robusto., Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Analisa timeline e prediz próxima força usando pipeline robusto.
 
 ### Community 11 - "Community 11"
-Cohesion: 0.06
-Nodes (33): 6.1 Motivação, 6.2 Especificação, 6.3 Display Atual vs Proposto, 6.4 Análise de Impacto, 6.5 Tarefas de Implantação, 6.6 Detalhamento das Tasks, 6.7 Dependências, 6.8 Estimativa de Impacto (+25 more)
+Cohesion: 0.13
+Nodes (15): 6.6 Detalhamento das Tasks, code:python (# Extrair números de C1 (raio 3) para destaque no frontend), code:python ("c1_numbers": c1_nums,), code:javascript (regiao.textContent = sugestao.regiao ||), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:css (/* M15-ADA: Destaque visual do centro C1 */) (+7 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.07
@@ -257,8 +273,8 @@ Cohesion: 0.12
 Nodes (17): 4.1.1 Mudanças nas Constantes (linhas 24-32), 4.1.2 Novo Método: `_get_adaptive_offset(direction)`, 4.1.3 Novo Método: `update_adaptive(direction, c1, actual_result)`, 4.1.4 Mudanças no `analyze()` (linhas 117-175), 4.1.5 Atualização do `details` no Retorno, 4.1.6 Métodos a REMOVER, 4.1.7 Novo Método: Serialização do Estado Adaptativo, 4.1.8 Atualização da Assinatura de `analyze()` (+9 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.23
-Nodes (4): circ_dir(), M12_PercentileBand, Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
+Cohesion: 0.14
+Nodes (6): M05_AdaptiveEWMA, M10_MAD_Robust, M12_PercentileBand, EWMA com alpha adaptativo: erro maior → alpha maior → resposta mais rápida., MAD (Median Absolute Deviation) para identificar outliers e ajustar só com dados, Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
 
 ### Community 17 - "Community 17"
 Cohesion: 0.26
@@ -268,9 +284,13 @@ Nodes (9): circ_dist(), clamp(), coverage_set(), error_pct(), M11_BayesianPoster
 Cohesion: 0.18
 Nodes (11): 5.1 Adequação Funcional (Functional Suitability), 5.2 Confiabilidade (Reliability), 5.3 Manutenibilidade (Maintainability), 5.4 Eficiência de Desempenho (Performance Efficiency), 5.5 Compatibilidade (Compatibility), 5.6 Usabilidade (Usability), 5.7 Segurança (Security), 5.8 Portabilidade (Portability) (+3 more)
 
+### Community 19 - "Community 19"
+Cohesion: 0.20
+Nodes (6): circ_dir(), M01_PercentualLinear, M03_PercentualThreshold, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Ajuste linear baseado em % do erro. Hit: tighten 5% para center=10. Miss: mover
+
 ### Community 20 - "Community 20"
-Cohesion: 0.17
-Nodes (7): BaseModel, M03_PercentualThreshold, M14_GradientDescent, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Gradiente numérico: testa off±1 contra últimas 3 jogadas, step na direção do gra, Classe base para todos os modelos., Chamado após cada jogada com feedback.
+Cohesion: 0.18
+Nodes (7): BaseModel, M08_DampedPID, M15_EnsembleVote, PID com anti-windup e filtro derivativo para prevenir oscilação., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec, Classe base para todos os modelos., Chamado após cada jogada com feedback.
 
 ### Community 21 - "Community 21"
 Cohesion: 0.20
@@ -285,8 +305,8 @@ Cohesion: 0.20
 Nodes (10): 6.1 Checklist de Validação Local (conforme `deployci_cd.md` §2), 6.2 Arquivos Modificados (para commit), 6.3 Commit Sugerido, 6.4 Migração de Dados, 6.5 Rollback Plan, code:block16 (core/engine.py           +11 linhas  (BUG-TASK-001)), code:block17 (fix(v4.0.3): correções auditoria Bayesiana — 9 bugs), code:block18 (Migração automática no startup:) (+2 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.21
-Nodes (6): M04_EMA_ErrorTracking, M09_Kalman, M15_EnsembleVote, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec
+Cohesion: 0.27
+Nodes (4): M04_EMA_ErrorTracking, M09_Kalman, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo.
 
 ### Community 25 - "Community 25"
 Cohesion: 0.22
@@ -352,6 +372,10 @@ Nodes (4): 1.1 Objetivo, 1.2 Motivação (Resultados do Estudo), 1.3 Princípio 
 Cohesion: 0.50
 Nodes (4): 6.1 Testes Unitários, 6.2 Testes de Integração, 6.3 Teste de Regressão, 6. PLANO DE TESTES
 
+### Community 45 - "Community 45"
+Cohesion: 0.17
+Nodes (12): 6.1 Motivação, 6.2 Especificação, 6.3 Display Atual vs Proposto, 6.4 Análise de Impacto, 6.5 Tarefas de Implantação, 6.7 Dependências, 6.8 Estimativa de Impacto, 6. FEATURE: DESTAQUE BOLD DO CENTRO C1 NO FRONTEND (+4 more)
+
 ### Community 46 - "Community 46"
 Cohesion: 0.50
 Nodes (4): 4.1 Bugs Funcionais, 4. BUGS IDENTIFICADOS, BUG-FUNC-001: DB Nao Armazena off_c3 [SEVERIDADE: MEDIA], BUG-FUNC-002: Fallback SDA-19 com Offset Zero [SEVERIDADE: BAIXA]
@@ -377,8 +401,8 @@ Cohesion: 0.04
 Nodes (44): 14. Onde a Parte 1 envelheceu mal (e o que muda), 15.1 MCPs — nova lista prioritária, 15.2 MCPs que descartei depois da auditoria, 15.3 Skills do Copilot CLI — refinamento da lista, 15. Stack tecnológica revisada (foco em "o que funciona"), 16.1 Critérios objetivos, 16.2 Veredito, 16.3 Recomendação prática (+36 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.05
-Nodes (42): code:sql (LOAD 'age'; SET search_path TO ag_catalog, public;), code:python (@circuit_breaker(threshold=5, window=60, recovery=300)), code:python (import hashlib, datetime), code:mermaid (flowchart TB), code:bash (gh pr checks 5  # confirmar green), code:bash (pip install alembic), code:yaml (jobs:), code:bash (az keyvault create --name roleta-kv --location brazilsouth) (+34 more)
+Cohesion: 0.09
+Nodes (22): code:bash (gh pr checks 5  # confirmar green), code:bash (pip install alembic), code:yaml (jobs:), S0 — Deploy QWs v4.4, S10 — Cold regions opt-in, S12 — Métricas com z-binomial, S14 — Adoption v5.0.0, S1 — DecisionRepo + paridade (+14 more)
 
 ### Community 57 - "Community 57"
 Cohesion: 0.05
@@ -393,8 +417,8 @@ Cohesion: 0.08
 Nodes (23): 0 · Resumo Executivo, 1.1 · SQLite — `data/decisions.db` · tabela `decisions`, 1.2 · Postgres (réplica analítica) — estado real, 1.3 · Root cause — porque o hook não disparou, 1.4 · Mitigações aplicadas nesta auditoria, 1.5 · Recomendação para próximo sprint, 1 · Engenharia Reversa das Últimas 6 Jogadas, 2 · Auditoria Item-a-Item · Plano `plano_implentacao_pos_sessao_24_05.md` (+15 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.12
-Nodes (16): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+8 more)
+Cohesion: 0.09
+Nodes (23): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+15 more)
 
 ### Community 61 - "Community 61"
 Cohesion: 0.07
@@ -405,8 +429,8 @@ Cohesion: 0.11
 Nodes (18): A. Mapa de alinhamento QW ↔ v5.0 (compatibilidade temporal), 🔍 AUDITORIA PROFUNDA vs `final_refatoracao_proposta.md` v5.0, B. Findings da auditoria (20 itens classificados por severidade), C. Gates de promoção dos QW (subset do v5.0 Gates 1-8), code:python (def get_adaptive_state(self):), code:python (from pydantic import BaseModel, Field), code:python (def analyze(self, ...):), code:python (# adicionar em strategies/sda17.py e state/game.py:) (+10 more)
 
 ### Community 63 - "Community 63"
-Cohesion: 0.04
-Nodes (44): A1.1 — Bugs e erros lógicos, A1.2 — Gaps de cobertura, A1.3 — Conflitos com decisões prévias, A2.1 — Bugs/gaps remanescentes, A2.2 — Conflitos detectados em V2, A2.3 — Riscos identificados em V2, A3.0 TL;DR (3 bullets + 1 decisão), A3.1 Análise comparativa (Azure-first VF atual vs Local-first proposto) (+36 more)
+Cohesion: 0.12
+Nodes (16): S0 — Deploy Quick Wins v4.4 em produção, S10 — Cold regions feature (default OFF), S11 — Shadow predictor, S12 — Métricas shadow + dashboard, S13 — Canário 10% → 50%, S14 — Adoption full, S1 — DecisionRepo interface, S2 — Alembic migrations (+8 more)
 
 ### Community 64 - "Community 64"
 Cohesion: 0.09
@@ -509,8 +533,8 @@ Cohesion: 0.17
 Nodes (12): 0. Sumário executivo, code:block1 (Semana 1: S-B (2d) + S-A (1d) + S-G em paralelo (0,5d)), I.1 Pontos verificados live e CONFIRMADOS, I.2 Achados NOVOS desta auditoria, II.1 Riscos identificados nos próprios sprints, II.2 Reordenação aplicada após auto-crítica, PARTE I — Auditoria do `organizacao_de_arquivos.md`, PARTE II — Auditoria do Sprint Plan (auto-crítica) (+4 more)
 
 ### Community 89 - "Community 89"
-Cohesion: 0.15
-Nodes (13): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────) (+5 more)
+Cohesion: 0.25
+Nodes (8): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────), code:block3 (Sem1     Sem2     Sem3     Sem4     Sem5     Sem6), 📜 DIRETIVAS INEGOCIÁVEIS DO PROJETO, 🎯 FINAL — Refatoração Proposta Roleta Cloud v5.0, Visão consolidada (Gantt textual)
 
 ### Community 90 - "Community 90"
 Cohesion: 0.25
@@ -677,8 +701,8 @@ Cohesion: 0.29
 Nodes (5): Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off
 
 ### Community 132 - "Community 132"
-Cohesion: 0.29
-Nodes (7): 8. Checklist de execução (ordem cronológica exata), Semana 1 — Fase 0, Semana 2 — Fase 1, Semana 3-4 — Fase 2 (shadow começa), Semana 5 — Fase 3 (shadow contínuo), Semana 6 — Fase 3.4 + Fase 4, Semana 7+ — Fase 5 (opcional, sob aprovação separada)
+Cohesion: 0.05
+Nodes (42): 0. TL;DR para o agente provisionador, 10. 🔗 Referências cruzadas, 1. 🔎 Auditoria da solicitação v2.0 (bugs + melhorias), 2. 🎯 Arquitetura alvo v3.0, 3. 📋 Nomenclatura obrigatória (use EXATAMENTE), 4.10 — Backup automático do `state.json` + `pg_dump` semanal, 4.11 — Sync de modelos ML (AZ-BUG-13), 4.1 — Bootstrap (RG + VNet + NSG + DNS) (+34 more)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.29
@@ -742,27 +766,79 @@ Nodes (6): Aplica força ao número, retorna número resultado., Aplica força a
 
 ### Community 161 - "Community 161"
 Cohesion: 0.05
-Nodes (37): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica — como cada decisão é tomada, §2 Engenharia reversa — janela live disponível, §3 Ciclo 1 — auditoria + correção (outbox observabilidade), §4 Ciclo 2 — `incumbent_shadow` rampup tardio, §5 Ciclo 3 — `shadow_ema = None` aparentemente travado, §6 Ciclo 4 — Gale level inconsistente em logs vs PG, §7 Ciclo 5 — KILL v4 thresholds dinâmicos: documentação ausente (+29 more)
+Nodes (39): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica — como cada decisão é tomada, §2 Engenharia reversa — janela live disponível, §3 Ciclo 1 — auditoria + correção (outbox observabilidade), §4 Ciclo 2 — `incumbent_shadow` rampup tardio, §5 Ciclo 3 — `shadow_ema = None` aparentemente travado, §6 Ciclo 4 — Gale level inconsistente em logs vs PG, §7 Ciclo 5 — KILL v4 thresholds dinâmicos: documentação ausente (+31 more)
+
+### Community 163 - "Community 163"
+Cohesion: 0.25
+Nodes (8): 2.1 Fase 1: CORE (`strategies/sda17.py`), 2.2 Fase 2: ESTADO (`state/game.py`), 2.3 Fase 3: SERVIDOR (`server/`), 2.4 Fase 4: FRONTEND (Opcional), 2.5 Fase 5: TESTES, 2.6 Fase 6: VALIDAÇÃO, 2.7 Tarefas Extras (Não Planejadas), 2. CHECKLIST DE TAREFAS — PLANO vs EXECUÇÃO
+
+### Community 164 - "Community 164"
+Cohesion: 0.25
+Nodes (8): 3.1 Adequação Funcional, 3.2 Eficiência de Desempenho, 3.3 Confiabilidade, 3.4 Segurança, 3.5 Manutenibilidade, 3.6 Portabilidade, 3.7 Pontuação ISO Atualizada, 3. CONFORMIDADE ISO/IEC 25010
+
+### Community 165 - "Community 165"
+Cohesion: 0.29
+Nodes (7): 5.1 Status do Deploy (29/03/2026 00:07 UTC), 5.2 Logs de Processamento (Primeiros 11 spins), 5.3 Erros em Produção, 5.4 Verificação WSS Externo, 5. VALIDAÇÃO EM PRODUÇÃO, code:block6 (Container:   roleta-cloud), code:block7 (00:07:09 [7ms]  received → processed → saved → analyzed → tr)
+
+### Community 166 - "Community 166"
+Cohesion: 0.33
+Nodes (6): 4.2 Bugs Críticos (Correção Imediata), BUG-POST-001 — `self._wheel` não inicializado, BUG-POST-002 — Serialização JSON de tuplas em `ccw_history`, code:python (# Em __init__(), adicionar após linha 54:), code:python (self.ccw_history = [tuple(x) if isinstance(x, list) else x), code:python (def load_adaptive_state(self, state: Dict[str, Any]) -> None)
+
+### Community 167 - "Community 167"
+Cohesion: 0.40
+Nodes (4): 1. RESUMO EXECUTIVO, 7. ANOTAÇÕES PÓS-IMPLANTAÇÃO PARA `Manutenabilidade_iso.md`, 8. PRIORIDADES DE PRÓXIMOS PASSOS, Pós-Implantação M15-ADA — Auditoria 29/03/2026
+
+### Community 168 - "Community 168"
+Cohesion: 0.17
+Nodes (11): A1.1 — Bugs e erros lógicos, A1.2 — Gaps de cobertura, A1.3 — Conflitos com decisões prévias, A2.1 — Bugs/gaps remanescentes, A2.2 — Conflitos detectados em V2, A2.3 — Riscos identificados em V2, 🔍 AUDITORIA 1 — Bugs, gaps, conflitos detectados em V1, 🔎 AUDITORIA 2 — Segunda passada crítica em V2 (+3 more)
+
+### Community 169 - "Community 169"
+Cohesion: 0.22
+Nodes (9): A3.4 Sprints NOVAS / REESCRITAS, code:block15 (FROM pgvector/pgvector:pg15), S0.5 — Stack local Docker-Compose completa **(NOVA, vem ANTES de S4)**, S4-BAK — **REVISADO**: WAL-G + Blob no lugar de PITR nativo, S4 — **REESCRITA**: Azure VM + Docker Compose (substitui "Flexible Server"), S-AGE-CHECK — Confirmação técnica AGE em Azure **(NOVA, paralela a S0.5)**, S-CUTOVER — Promoção dev→prod **(NOVA, substitui Sx-LATENCY)**, Sx-LATENCY — **DEPRECATED**, fundida em S-CUTOVER (+1 more)
+
+### Community 170 - "Community 170"
+Cohesion: 0.22
+Nodes (9): code:mermaid (flowchart TB), 🏁 VERSÃO FINAL — Plano definitivo consolidado, VF.0 Premissas finais, VF.1 Lista mestre de sprints (ordenada, com dependências), VF.3 Mudanças no servidor Debian (consolidado), VF.4 Mudanças no GitHub (consolidado), VF.5 Self-audit final da Versão Final, VF.6 Mapa visual final (+1 more)
+
+### Community 171 - "Community 171"
+Cohesion: 0.67
+Nodes (3): code:javascript (el.resultCenter.textContent = result.centro;), code:javascript (el.resultCenter.innerHTML = `<b>${result.centro}</b> <small>), F04 — Dashboard: Bold no campo centro
+
+### Community 172 - "Community 172"
+Cohesion: 0.67
+Nodes (3): code:javascript (el.resultRegion.textContent = result.numeros?.join(', ') || ), code:javascript (const c1Set = new Set(result.c1_numbers || []);), F05 — Dashboard: Bold nos números de C1
+
+### Community 173 - "Community 173"
+Cohesion: 0.25
+Nodes (8): A3.0 TL;DR (3 bullets + 1 decisão), A3.1 Análise comparativa (Azure-first VF atual vs Local-first proposto), A3.2 Achado crítico **B32** — AGE não está na allowlist Azure PG Flexible, A3.3 Outros achados A3, A3.5 Lista mestre atualizada (delta vs VF), A3.6 Self-audit da auditoria (sanity check), A3.7 Recomendação final, 🧪 AUDITORIA A3 — "Toda infra local-first e depois subir como Docker pra Azure"
+
+### Community 174 - "Community 174"
+Cohesion: 0.40
+Nodes (5): 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), code:block2 (DIREÇÃO)
+
+### Community 176 - "Community 176"
+Cohesion: 0.67
+Nodes (3): code:bash (az keyvault create --name roleta-kv --location brazilsouth), code:python (from azure.identity import DefaultAzureCredential), Sx-SEC — Azure Key Vault
 
 ## Knowledge Gaps
-- **952 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+947 more)
+- **980 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+975 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
-  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
+- **Why does `4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO` connect `Community 95` to `Community 0`, `Community 79`, `Community 15`, `Community 111`, `Community 21`, `Community 118`, `Community 119`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `MessageHandler` connect `Community 7` to `Community 156`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
-  _1124 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1152 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
-- **Should `Community 3` be split into smaller, more focused modules?**
-  _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
+- **Should `Community 4` be split into smaller, more focused modules?**
+  _Cohesion score 0.047619047619047616 - nodes in this community are weakly interconnected._

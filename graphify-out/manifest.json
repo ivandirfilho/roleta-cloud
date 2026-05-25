@@ -165,13 +165,18 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\fine_tuning_25.md": {
-    "mtime": 1779686109.7582927,
-    "ast_hash": "978558f4d857423871dae7add863a1ec",
+    "mtime": 1779686532.9603195,
+    "ast_hash": "10b62f0c1e76e04f8a49cce506e24f24",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0006_spin_features.py": {
     "mtime": 1779685674.934471,
     "ast_hash": "a08433b9ea2682ad29b5496c77f44a16",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\maquina_azure_agora_25.md": {
+    "mtime": 1779687670.3982568,
+    "ast_hash": "11f7e9ca84a97b3f5a5dc25d78faaa3f",
     "semantic_hash": ""
   }
 }
