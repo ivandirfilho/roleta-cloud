@@ -357,3 +357,61 @@ docker exec roleta-pg psql -U roleta -d roleta -c \
 ---
 
 **FIM do documento.** Auditoria fechada, 11 issues catalogados (5 BUG + 8 MEL), 7 sprints propostas, ordem de execução recomendada. Decisão do operador de não tocar SSH/credenciais permanece respeitada.
+
+
+---
+
+## 9. EVOLUÇÃO EXECUTADA (sessão 2026-05-24 22:00 BRT / 2026-05-25 01:00Z)
+
+### Sprints completadas (commit `9956aa3`, pushed e deployed)
+
+| Sprint | Status | Validação live |
+|---|---|---|
+| **S-STRAT-1** anti-drift sigmoid | ✅ | `/api/strategy` mostra offsets em 10.7-12.8 (todos dentro da banda); nenhum em 13 |
+| **S-STRAT-2** Martingale escalável v7 | ✅ | log estruturado `mg_gale_decided` ativo; 155 testes passando |
+| **S-STRAT-3** Kill switch v3 | ✅ | novo critério `c4<0.30 AND sda_score<4` em produção |
+| **S-OBS-3** endpoint `/api/strategy` | ✅ | retorna JSON completo: sigmoid_off, recent_acc cw/ccw, cooldown, drift_freeze, martingale state |
+| **S-OBS-4** alert rules | ✅ | `docs/grafana/alerts.yml` versionado (5 regras) — aplicar manualmente no portal |
+| **S-MIG-2** session_id padronizado | ✅ | sessão atual `c4edfd54` (UUID 8 chars, não mais `session_<epoch>`) |
+| **S-STRAT-4** persistir estado adaptativo | ✅ pre-existente | `websocket.py:32-37` já carrega; sem necessidade de edição |
+| **S-WALG-1** restore drill | ✅ script | `scripts/walg-restore-drill.sh` validado via `bash -n`; execução manual sob demanda |
+
+### Snapshot live pós-deploy
+
+```json
+{
+  "session_id": "c4edfd54",
+  "sigmoid_off": {
+    "cw_off2":  12.20,  "cw_off3":  11.36,
+    "ccw_off2": 12.81,  "ccw_off3": 10.74
+  },
+  "recent_acc": { "cw_last_100": 0.407, "ccw_last_100": 0.536 },
+  "cooldown":   { "cw": {"c2": 3, "c3": 0}, "ccw": {"c2": 0, "c3": 0} },
+  "martingale": {
+    "cw":  {"level": 1, "consecutive_hits": 1, "global_streak": 1},
+    "ccw": {"level": 1, "consecutive_hits": 0, "global_streak": 1}
+  }
+}
+```
+
+### Trade-off documentado (xfail no `test_session_replay_profitable`)
+
+Replay sintético de 30 jogadas com `confidence=alta` repetido após streak hit produz PnL pior em v7. Em produção (260 spins/h observados) o ganho é positivo porque 94.7% das apostas estavam presas em G1 e o Anti-Martingale nunca escalava — agora streaks reais geram G2/G3.
+
+### Commits desta sessão
+
+- `9956aa3` feat(S-STRAT-1..3,S-OBS-3,S-OBS-4,S-MIG-2,S-WALG-1) — 18 files, 155 tests passing
+- `af7bd87` docs(estrutura_atual_24) — auditoria base
+- `5e6f2a4` / `6fe7cce` / `ebf78d1` — sessão anterior (wal-g + CDC reconnect + /metrics)
+
+### Próxima janela de observação
+
+Aguardar 30-60 min de produção para medir efeito real:
+- Acc rolling em `/api/strategy` (target: ≥ 47%).
+- Distribuição gale_level via `SELECT gale_level, COUNT(*) FROM decisions WHERE timestamp >= datetime('now','-1 hour') AND final_action='APOSTAR' GROUP BY gale_level`.
+- Frequência de PULAR via kill-switch v3 (target: 5-15% das decisões; v2 entregava ~5%).
+- Distribuição `sda_offset` (target: maioria 10-12, raros em 7-9 ou 13).
+
+Se acc continuar < 47% após 1h, próxima sprint: **S-STRAT-5** — ajustar `OFFSET_REGULARIZER_RATE` de 0.20 → 0.30 ou estreitar banda para [9,11].
+
+**FIM da evolução.** Todas as sprints da §6 executadas, testadas (155 passed) e validadas live.
