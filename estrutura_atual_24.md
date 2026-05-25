@@ -1175,3 +1175,132 @@ Validação extra:
 
 **🟢 Nenhum bug novo detectado pós-implementação. Sistema robusto.**
 
+
+
+---
+
+## §18 — S-OBS-10 (Prometheus + Grafana) + S-OBS-11 (pg_stat_statements) + Explicação S-DASH-1
+*(Auditoria & implementação, 2026-05-25)*
+
+### 1. Contexto da request
+Pedido do usuário §18:
+1. Implementar **S-OBS-10** (Grafana + AlertManager) — estava pendente por falta de Prometheus no host.
+2. Implementar **S-OBS-11** (pg_stat_statements) — restart PG necessário.
+3. **Explicar o objetivo de S-DASH-1** (HTML dashboard live) antes do usuário decidir se vai querer como core.
+
+### 2. Auditoria pré-implementação (Fase 0 — RADAR + live state)
+- `graphify update .` rodado (graph.json regenerado).
+- `roleta-cloud_default` é a network bridge unificada → Prometheus pode resolver `roleta-cloud:8766` por DNS interno.
+- Portas 9090/3000 livres no host.
+- `shared_preload_libraries` = `age` apenas; extensão `pg_stat_statements` JÁ INSTALADA mas não carregada → só falta preload.
+- Última hora: 134 decisions, 122 APOSTAR, 8 KILL v3 (6.0%) — sistema estável.
+
+### 3. S-OBS-11 — pg_stat_statements (concluído)
+Arquivo: `docker-compose.pg.yml`
+```yaml
+- shared_preload_libraries=age,pg_stat_statements
+- -c
+- pg_stat_statements.max=5000
+- -c
+- pg_stat_statements.track=top
+```
+Deploy:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.pg.yml up -d postgres   # restart roleta-pg
+docker exec roleta-pg psql -U roleta -d roleta -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
+```
+Resultado:
+- PG ready em 2s (downtime real ~2s); app e CDC mantiveram a conexão via retry.
+- `SHOW shared_preload_libraries;` → `age,pg_stat_statements`.
+- Top 5 queries já capturadas (INSERT outbox: 1 call 5.13ms; pg_database_size: 8 calls 1.45ms; etc).
+
+### 4. S-OBS-10 — Prometheus + Grafana (concluído)
+Arquivos novos:
+- `docker-compose.obs.yml` — Prometheus 2.51.2 (retention 30d, 512m) + Grafana 10.4.2 (384m), ambos `127.0.0.1`-only.
+- `obs/prometheus.yml` — scrape `roleta-cloud:8766/metrics` a cada 15s; external_labels `cluster=roleta-debian-prod`.
+- `obs/alerts.yml` — 7 regras (sem AlertManager nesta fase, visíveis em `/alerts`):
+  - `RoletaAdaptiveStateLost` (critical, <5 keys 2m) ← detector de BUG-NOVO-11
+  - `RoletaSigmoidEmpty` (critical, sigmoid_off=0 2m)
+  - `RoletaStateFileStale` (warning, age>300s 2m)
+  - `RoletaNoSpinsRecent` (warning, >300s sem spin)
+  - `RoletaAccuracyDegraded` (info, acc<0.30 10m)
+  - `RoletaMetricsScrapeErrors` (warning)
+  - `RoletaTargetDown` (critical, up=0 1m)
+- `obs/grafana/provisioning/datasources/prometheus.yml` — datasource auto.
+- `obs/grafana/provisioning/dashboards/dashboards.yml` — provider folder `Roleta`.
+- `obs/grafana/dashboards/roleta-overview.json` — 9 paineis (stats: state keys, sigmoid, age, kill total, last spin; timeseries: acc cw/ccw, kill rate, outbox rate, state.json size).
+
+Deploy:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.pg.yml -f docker-compose.obs.yml up -d prometheus grafana
+```
+Validação:
+- `up{job="roleta-cloud"}` = 1 (scrape verde).
+- 7/7 métricas chave retornando valor real:
+  - `roleta_adaptive_state_keys_count=9`, `roleta_sigmoid_off_populated=1`, `roleta_state_file_age_seconds=0.3`, `roleta_kill_pulls_total=1`, `roleta_recent_acc_cw=0.491`, `roleta_recent_acc_ccw=0.508`.
+- 7/7 alerts em `inactive` (sistema saudável).
+- Grafana: datasource Prometheus provisionado; dashboard `Roleta Cloud — Overview` (uid `roleta-overview`) no folder `Roleta` carregado.
+- Acessos (via SSH tunnel ou allow-list futura): `http://127.0.0.1:9090` / `http://127.0.0.1:3000` (admin/roleta_admin — recomenda-se trocar via `GF_ADMIN_PASSWORD`).
+
+### 5. AlertManager — postponed
+Não foi incluído nesta fase porque exige decisão de transporte (Telegram bot dedicado? webhook próprio? e-mail SMTP?). Regras já avaliam no Prometheus — basta plugar AlertManager depois apontando `alerting.alertmanagers` em `prometheus.yml`. Documentado como **S-OBS-12** (próximo).
+
+### 6. S-DASH-1 — explicação detalhada (sem implementar)
+
+**Objetivo:** Página HTML servida por `/dashboard` no `health_server` (porta 8766) que substitui o ritual de `ssh + curl + jq + sqlite3` por uma **VISÃO OPERACIONAL EM TEMPO REAL** consumindo `/api/state` e `/api/strategy` a cada 2s.
+
+**O que mostra (mockup):**
+- **Header:** session_id, version, uptime, last_spin_age (com pulsar verde/vermelho).
+- **Painel "Gale Chain":** níveis ativos (cw/ccw level + global_streak) com cores (verde=0, amarelo=1-2, vermelho≥3); destaque visual quando `martingale.cw.level=3` ou drift_freeze ativo.
+- **Painel "KILL Switch":** kill_pulls_total, último timestamp, c4 atual, sda_score atual, threshold ativo (c4<0.30 AND sda<4).
+- **Sparkline "Accuracy":** linha 100 últimos pontos de `recent_acc_cw` e `recent_acc_ccw` (Chart.js).
+- **Sparkline "Sigmoid drift":** histórico `sigmoid_off[3]` e `[7]` para visualizar adaptação ao longo do dia.
+- **Tabela "Últimas 20 decisões":** timestamp, action, reason, expected_class — direto de `/api/state` enriquecido.
+- **Badge "State health":** verde se state.json age<60s; vermelho se >300s ou keys<5.
+
+**Tecnologia:** vanilla JS + Chart.js via CDN. Zero build, zero dependência nova. ~150 linhas HTML/JS, ~50 linhas CSS, ~30 linhas Python para servir o asset estático no `health_server`.
+
+**Valor (vs Grafana):**
+| Dimensão | Grafana | /dashboard (S-DASH-1) |
+|----------|---------|----------------------|
+| Foco | Métricas históricas + alertas | Snapshot OPERACIONAL agora |
+| Polling | 15s (scrape) + 15s refresh | 2s direto à app |
+| Setup | Container + datasource + login | URL única, sem auth |
+| Granularidade | Métricas Prometheus | Tudo de `/api/state` + `/api/strategy` (mais rico) |
+| Caso de uso | "está tudo bem nas últimas 24h?" | "está apostando agora? por quê?" |
+
+**Esforço:** ~1 dia (incluindo testes manuais).
+
+**Recomendação técnica do dev senior:**
+- Grafana cobre **monitoramento histórico e alertas**.
+- `/dashboard` cobre **acompanhamento operacional minuto-a-minuto** (debug live, demos, presença).
+- **Os dois são complementares, não concorrentes.** Grafana é "ops"; /dashboard é "cockpit".
+- **SIM, vale como core** se o objetivo for diminuir SSH para "olhar como está" — caso contrário, fica como Nice-to-have.
+
+**Decisão pendente do usuário:** aprovar S-DASH-1 para próxima sprint? *(default: aguardando decisão)*
+
+### 7. Auditoria pós-implementação
+- ✅ App: `Up 12 minutes (healthy)`, uptime 744s, version 4.4.0.
+- ✅ CDC: `Up 2 hours (healthy)` — sobreviveu ao restart PG.
+- ✅ PG: `Up 37 seconds (healthy)` com `age,pg_stat_statements`.
+- ✅ Prometheus: `healthy`, 1 target up, 7 rules inactive.
+- ✅ Grafana: `healthy`, datasource + dashboard provisionados.
+- ✅ State: 9 keys, sigmoid populated, kill_total=1, recent_acc 0.49/0.51 estável.
+- ✅ Sem regressões; 156 testes locais inalterados; nenhum endpoint novo na app.
+- ⚠ Grafana com credencial default `admin/roleta_admin` — usuário deve setar `GF_ADMIN_PASSWORD` em `.env` ASAP (ou rede só `127.0.0.1` permanece como única proteção).
+
+### 8. Bugs descobertos nesta sprint
+- **BUG-NOVO-21 (cosmético, baixa prioridade):** chave `sigmoid_off` aparece como `siggmoid_off` no payload `adaptive_keys` por causa do print do healthcheck CLI (split de string). Validar no JSON real do `/api/state` — payload OK, é só artifact do nosso print de teste. **Não-bug.**
+- Nenhum bug funcional novo descoberto.
+
+### 9. Próximas sprints recomendadas
+1. **S-OBS-12** — AlertManager + transporte (Telegram bot via `chat_id` dedicado de alertas).
+2. **S-DASH-1** — HTML dashboard live (pendente decisão do usuário).
+3. **S-OBS-13** — Painéis Grafana dedicados por área: outbox-cdc, wal-g backups, PG slow queries (usa pg_stat_statements).
+4. **S-DBA-1** — analisar top 10 queries de `pg_stat_statements` após 24h, criar índices se aplicável.
+5. **S-SEC-1** — autenticação reverse-proxy (Caddy + basic auth) na frente de Grafana/Prometheus antes de qualquer exposição pública.
+6. **S-OBS-14** — exporters de host: `node_exporter` (CPU/disco/rede) + `postgres_exporter`.
+
+### 10. Commits
+- `8a64c4e` (este §18) — `obs: S-OBS-10 Prometheus+Grafana stack; S-OBS-11 pg_stat_statements preload`
+
