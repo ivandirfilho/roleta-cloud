@@ -653,3 +653,124 @@ Não foram quebrados nesta sessão (preexistem). Pytest precisa de `--ignore` na
 - 0 errors, 148 testes verdes
 
 **FIM da §11.** S-OBS-6 deployed e validado; S-WALG-2 script pronto aguardando janela; S-OBS-5 e BUG-NOVO-02 cancelados como falsos positivos; S-STRAT-5 adiado para após coleta de baseline de `kill_switch.pulls_total`.
+
+---
+
+## 12. EXECUÇÃO SPRINTS §11 + MEGA-DESCOBERTA WAL-G (sessão 2026-05-24 22:19 BRT)
+
+Stack MCP: graphify (no topology change) + filesystem + memory + brave + sequential-thinking + github.
+
+### 12.1 MEGA-descoberta: wal-g já estava 100% configurado com Backblaze B2!
+
+BUG-NOVO-03 (§10) era **falso positivo**. Inspeção ao vivo:
+
+```bash
+$ docker exec roleta-pg cat /etc/wal-g/env
+export AWS_ACCESS_KEY_ID=...
+export WALG_S3_PREFIX=s3://roletacloubucket
+export AWS_ENDPOINT=https://s3.us-east-005.backblazeb2.com
+export WALG_COMPRESSION_METHOD=brotli
+
+$ wal-g backup-list
+base_000000010000000000000002  2026-05-24T20:46:30Z
+base_000000010000000000000006  2026-05-24T20:48:38Z
+base_000000010000000000000020  2026-05-25T00:05:27Z
+```
+
+O diretório `/var/lib/postgresql/wal-g` não existia porque wal-g manda **direto para o B2** (sem disco local). `archive_mode=on`, `archive_command=. /etc/wal-g/env && wal-g wal-push %p` já ativos.
+
+**Sprint S-WALG-2 da §10 estava 90% redundante** — só faltava trocar a frequência do cron.
+
+### 12.2 Sprints executadas (commit `820ce1d`, deployed)
+
+#### ✅ S-WALG-2-EXEC — cron `*/30 * * * *`
+
+Alterado `/etc/cron.d/walg-backup` no servidor:
+```diff
+-0 2 * * * root /root/roleta-cloud/scripts/walg-backup-daily.sh   # antigo: 1×/dia
++*/30 * * * * root /root/roleta-cloud/scripts/walg-backup-daily.sh # novo: 48×/dia
+```
+
+`service cron reload`. Backup imediato validado: **`base_000000010000000000000030` criado às 01:20:39Z** (32 min após o anterior).
+
+RPO efetivo agora: **≤ 30 min** sem precisar contar com WAL streaming.
+
+#### ✅ S-CLEAN-1 — `handle_legacy_spin` deprecado
+
+BUG-NOVO-04 (§11) resolvido. Path legacy agora retorna erro e não processa o spin:
+```python
+await websocket.send({"type": "error", "error": "legacy_spin_deprecated", ...})
+```
+Master Extractor sempre envia `type='novo_resultado'`, então impacto = zero em produção. Risco eliminado de aposta sem kill-switch + martingale.
+
+#### ✅ S-TEST-1 — `pytest.ini` novo
+
+```ini
+[pytest]
+testpaths = tests
+norecursedirs = archive .git .venv graphify-out docs scripts dashboard backup_pg
+asyncio_mode = strict
+```
+
+Resultado: **148 → 156 passed** (8 testes órfãos recuperados: `test_core.py` + `test_db_query.py`). Não havia bug nos testes; era colisão de coleta com pastas `archive/*/tests`.
+
+### 12.3 Estado live após deploy `820ce1d`
+
+```json
+{
+  "session_id": "56b2b45f",
+  "last_spin_ts": 1779672105.12,
+  "seconds_since_last_spin": 1.2,
+  "sigmoid_off": {"cw_off2": 10.83, "cw_off3": 11.53, "ccw_off2": 11.80, "ccw_off3": 10.71},
+  "recent_acc": {"cw_last_100": 0.475, "ccw_last_100": 0.452}
+}
+```
+
+KILL v3 nos 10 minutos pré-deploy desta sessão: **4 disparos em 10 decisões = 40%**. É alto mas amostra muito pequena (σ enorme); decisão sobre recalibrar permanece para depois de ≥1h de dados.
+
+### 12.4 BUGs novos catalogados nesta auditoria
+
+#### 🟡 BUG-NOVO-07 — KILL v3 pode estar agressivo demais
+
+4/10 decisões = PULAR em 10 min observados. Se mantiver 40%, perdemos volume e o objetivo de v3 ("pular catástrofe") vira "pular média". Recalibrar SE `pulls_total/(decisions_60min) > 20%` após 1h.
+
+**Fix proposto (S-STRAT-5 reativado)**: subir limiar para `c4 < 0.20 AND sda_score < 4` ou compor com `recent_acc < 0.40`.
+
+#### 🟡 BUG-NOVO-08 — `_kill_pulls_total` zera no restart
+
+Counter é in-process; cada deploy reseta para 0. Não é crítico (rolling 60min basta para decisão), mas dashboards de "PULLs por hora" precisarão cruzar `process_uptime` com pulls.
+
+**Fix proposto (S-OBS-7)**: persistir counter junto com `_adaptive_state` (já carregado/salvo no boot).
+
+#### 🟡 BUG-NOVO-09 — sigmoid_off `cw_off3` está fora da banda regularizada
+
+`cw_off3 = 11.53` no snapshot. Banda regularizada é [8, 12], ainda DENTRO mas próximo do topo. ccw_off2 = 11.80 idem. Observar nas próximas horas se o regularizador está voltando para 10 ou se está colado em 11.5-12.
+
+**Fix proposto (S-STRAT-6, opcional)**: aumentar `reg_rate` 0.20 → 0.30 se offsets ficarem >11.5 em mais de 70% das amostras de 1h.
+
+### 12.5 Sprints futuras consolidadas
+
+| Sprint | Status | Trigger |
+|---|---|---|
+| **S-STRAT-5** v3→v4 limiar | Aguarda 1h dados | se `pulls/dec > 20%` |
+| **S-OBS-7** persist kill counter | Opcional | quando tiver dashboards Grafana |
+| **S-STRAT-6** reg_rate 0.30 | Aguarda 1h dados | se offsets >11.5 em >70% |
+| **S-CLEAN-2** remover handle_legacy_spin de roteamento | Baixa | quando confirmado 0 warns em 7 dias |
+
+### 12.6 Commits desta sessão
+
+- **`820ce1d`** feat S-CLEAN-1 + S-TEST-1 + S-WALG-2-EXEC — 8 files, 156 passed
+- (este) docs §12 + descoberta wal-g + 3 BUGs novos
+
+### 12.7 Estado final consolidado
+
+| Área | Estado |
+|---|---|
+| App roleta-cloud | v4.4.0 healthy, KILL v3 ativo, /api/strategy enriquecido |
+| CDC worker | up, 0 errors |
+| PostgreSQL | up, archive_mode=on, base backup a cada 30min (B2) |
+| Tests | 156 passed, 7 skipped, 1 xfailed |
+| RPO PG | ≤ 30 min (era 24h) |
+| Histórico backup | 4 base backups no B2 (incluindo o `_30` criado nesta sessão) |
+
+**FIM §12.** 3 sprints da §11 executadas e validadas live; mega-descoberta de wal-g já produtivo poupou esforço; 3 BUGs novos catalogados como observação para o próximo ciclo.
