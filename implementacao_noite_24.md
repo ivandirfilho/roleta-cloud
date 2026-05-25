@@ -494,3 +494,33 @@ Ordem mantida, mas:
 - **BUG-V3-05**: `state_dict`/`load_state` agora persistem `vol_ema`, `kill_thr_c4`, `kill_thr_sda`.
 - **BUG-V3-08**: `improve_push` só dispara se `last_action != "pullback"` (anti flip-flop).
 
+
+### Execução §AUDIT-V4 (2026-05-25 00:20)
+
+**Commit**: `b4da93c`
+
+**Validação live pós-deploy**:
+- `vol_ema`: cw=**0.45**, ccw=**0.45** ✅ (novo baseline correto)
+- `threshold_c4`: 0.30/0.30 ✅
+- `threshold_sda`: 4/4 ✅
+- `recent_acc cw_last_100`: 0.50 → **0.51** ↗
+- `batch_runs`: persistido cw=2, ccw=2 (com 1 pullback cada) ← persistência v1.8 + state.json OK
+- `batch_last_action`: cw=pullback, ccw=improve_push — anti-oscilação V3-08 efetivo na próxima iteração
+
+**Grafo Graphify atualizado**: 1752 nodes, 1852 edges, 159 communities.
+
+**Sprints da noite — resumo da janela 00:00–00:16 (16min)**:
+1. ✅ Plano implementacao_noite_24.md v1 + v2 (10 bugs do plano + 5 melhorias)
+2. ✅ S-STRAT-7 batch-4 auto-tune deployed
+3. ✅ S-STRAT-11 KILL v4 dynamic deployed
+4. ✅ S-STRAT-9 backtest harness deployed (overall_acc=0.4738 em 2923 spins)
+5. ✅ AUDIT-V3: BUG-V3-01 (sda_thr direção errada) + V3-03 (nudge instável) + V3-04 (improve no-op) corrigidos
+6. ✅ AUDIT-V4: BUG-V3-02 (baseline) + V3-05 (persistência) + V3-08 (anti-oscilação) corrigidos
+7. ✅ Validação live: pós-fix V3-01 acc=0.70 em 10 spins (vs 0.43 últimas 30 pré-fix)
+
+**Próximos passos sugeridos**:
+- Monitorar 1h: confirmar acc ≥ 0.48 sustentado em regime de vol > 0.50.
+- Implementar S-STRAT-8 (feature store no PG com lag features).
+- Implementar S-STRAT-10 (A/B shadow challenger).
+- Coletar pg_stat_statements baseline para S-DBA-1 índices.
+
