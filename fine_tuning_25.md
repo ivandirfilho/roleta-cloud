@@ -257,6 +257,7 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - ✅ S-OBS-15 v2 — 6 painéis de bandit adicionados ao dashboard Grafana (commit `6340a59`, provisionado)
 - ✅ S-STRAT-8 — feature store no PG `cw/ccw.spin_features` (commit `2e6edce`, migration aplicada, cdc-worker handler `spin_result` ativo, FeatureStoreReader exposto para bet_advisor/backtest harness)
 - ✅ S-STRAT-12 — regime similarity via pgvector (commit `a8ccc97`, deployed). Endpoint `/api/regime?direction=cw|ccw` retorna top-K spins similares por cosine distance + hit_rate via JOIN com spin_features. Validado live: avg_distance ~0.001 indica regime homogêneo.
+- ✅ S-STRAT-9 — backtest harness offline (commit `80b6bab`, deployed). `python -m tools.backtest_harness --direction cw --strategy {always_bet,skip_low_acc,skip_long_miss,skip_combo} --limit N`. Martingale 4-level, métricas profit/drawdown/streaks. Smoke-test live nas 5 últimas cw mostrou skip_low_acc reduzindo -16→-1 unidades vs always_bet.
   - `_update_bandit_on_spin` em `state/game.py`: arms 1/3/5/10 alimentados por hit do head cw+ccw
   - ε cold-start 1.0 → 0.10 quando min(arm.n) ≥ 10
   - `recommended_shift` arg-max(mean) com prob 1-ε
