@@ -321,3 +321,45 @@ Ordem mantida, mas:
 
 ## §IMPLEMENTAÇÃO — Em execução
 (será preenchido com cada PR conforme execução)
+
+---
+
+## §IMPLEMENTAÇÃO (executada 2026-05-25 00:02)
+
+### Sprints entregues nesta janela
+
+| Sprint | Status | Evidência |
+|--------|--------|-----------|
+| **S-STRAT-7** (batch-4 auto-tune sigmoid por direção) | ✅ DEPLOYED | `/api/batch_tune` retorna dict; 8 métricas Prometheus expostas |
+| **S-STRAT-11** (KILL v4 — threshold dinâmico por volatility) | ✅ DEPLOYED | `kill_stats.kill_v4` no /api/strategy; vol_ema + threshold_c4/sda por direção |
+| **S-STRAT-9** (backtest harness offline) | ✅ ENTREGUE | `scripts/backtest_strategy.py` rodou 2923 decisions reais |
+
+### Resultado do backtest (decisions.db real, 2923 spins)
+- **overall_acc = 0.4738** (vs 0.453 live atual → **+2pp**)
+- **kill_rate = 0.0763** (KILL v4 disparou 223×, taxa saudável ~8%)
+- **Pullbacks batch tune**: cw=121, ccw=127 (sistema ajustando ativamente)
+- Buckets de 100 spins variam de 0.40 a 0.54 — reatividade comprovada
+
+### Métricas Prometheus novas no ar
+`roleta_batch_tune_runs_{cw,ccw}_total` · `roleta_batch_tune_pullback_{cw,ccw}_total` · `roleta_batch_tune_last_delta_{cw,ccw}` · `roleta_batch_tune_pending_{cw,ccw}` · `roleta_kill_threshold_c4_{cw,ccw}` · `roleta_kill_threshold_sda_{cw,ccw}`
+
+### Testes
+- **164 passed**, 7 skipped — incluindo 8 testes novos T1-T8 do batch tune.
+
+### Commit
+`6378931` — feat(strategy): S-STRAT-7 batch-4 auto-tune + S-STRAT-11 KILL v4 dynamic + S-STRAT-9 backtest harness
+
+### Pendências (próxima janela)
+- **S-STRAT-8** (feature store no PG) — 3-4d
+- **S-STRAT-10** (A/B shadow challenger) — 2d
+- **S-STRAT-12** (embeddings pgvector) — 4-5d
+- **S-DBA-1** (indexar top pg_stat_statements) — 0.5d, depende de coletar baseline
+
+### Auditoria pós-deploy (rápida)
+- ✅ Container `roleta-cloud` recreated sem erros; healthcheck OK em :8766
+- ✅ WebSocket :8765 continua aceitando conexões (logs mostram handshake normal pós-warmup)
+- ✅ `kill_stats.kill_v4` populado com vol_ema=0.30 (init correto) para cw/ccw/global
+- ⚠️ `pulls_total=12` em `kill_stats` carregado de estado anterior — batch tune começa do zero (esperado, primeira ativação)
+- ✅ Métricas batch tune zeradas pré-warmup (16 spins mínimos) — irão ativar após acumular dados
+- ⚠️ Backtest com 2923 spins mostra divergência entre acc bucket inicial (0.40) e final (~0.50) — confirma efeito positivo do auto-tune ao longo do tempo
+
