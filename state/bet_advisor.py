@@ -127,9 +127,12 @@ class TripleRateAdvisor:
             prev = self._vol_ema.get(dk, 0.30)
             self._vol_ema[dk] = self.KILL_V4_EMA_ALPHA * std_w + (1.0 - self.KILL_V4_EMA_ALPHA) * prev
             vol = self._vol_ema[dk]
-            # Threshold dinâmico: mais volátil → mais permissivo (não vetar à toa).
+            # Threshold dinâmico: mais volátil → KILL MENOS sensível (ambos os
+            # eixos ficam mais permissivos, exigindo sinal mais fraco para vetar).
+            # BUG-V3-01 fix: sda_thr também decresce com vol (antes crescia, gerando
+            # over-KILL em regime errático — observado no vale das 02h hoje).
             c4_thr = 0.30 - 0.5 * (vol - 0.30)
-            sda_thr = 4 + round(vol * 4)
+            sda_thr = 4 - round((vol - 0.30) * 4)
             c4_thr = max(self.KILL_V4_C4_MIN, min(self.KILL_V4_C4_MAX, c4_thr))
             sda_thr = max(self.KILL_V4_SDA_MIN, min(self.KILL_V4_SDA_MAX, sda_thr))
             self._kill_thr_c4[dk] = round(c4_thr, 4)

@@ -1718,10 +1718,19 @@
       "norm_label": "_strategy_snapshot()"
     },
     {
+      "label": "_batch_tune_snapshot()",
+      "file_type": "code",
+      "source_file": "server/websocket.py",
+      "source_location": "L108",
+      "id": "server_websocket_batch_tune_snapshot",
+      "community": 156,
+      "norm_label": "_batch_tune_snapshot()"
+    },
+    {
       "label": "_state_snapshot()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L109",
+      "source_location": "L128",
       "id": "server_websocket_state_snapshot",
       "community": 156,
       "norm_label": "_state_snapshot()"
@@ -1730,7 +1739,7 @@
       "label": "broadcast_heartbeat()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L149",
+      "source_location": "L168",
       "id": "server_websocket_broadcast_heartbeat",
       "community": 156,
       "norm_label": "broadcast_heartbeat()"
@@ -1739,7 +1748,7 @@
       "label": "handler()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L200",
+      "source_location": "L219",
       "id": "server_websocket_handler",
       "community": 156,
       "norm_label": "handler()"
@@ -1748,7 +1757,7 @@
       "label": "get_ssl_context()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L232",
+      "source_location": "L251",
       "id": "server_websocket_get_ssl_context",
       "community": 156,
       "norm_label": "get_ssl_context()"
@@ -1757,7 +1766,7 @@
       "label": "start_server()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L250",
+      "source_location": "L269",
       "id": "server_websocket_start_server",
       "community": 156,
       "norm_label": "start_server()"
@@ -1766,8 +1775,8 @@
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L150",
-      "id": "server_websocket_rationale_150",
+      "source_location": "L169",
+      "id": "server_websocket_rationale_169",
       "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo."
     },
@@ -1775,8 +1784,8 @@
       "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L201",
-      "id": "server_websocket_rationale_201",
+      "source_location": "L220",
+      "id": "server_websocket_rationale_220",
       "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -"
     },
@@ -1784,8 +1793,8 @@
       "label": "Cria contexto SSL se habilitado.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L233",
-      "id": "server_websocket_rationale_233",
+      "source_location": "L252",
+      "id": "server_websocket_rationale_252",
       "community": 156,
       "norm_label": "cria contexto ssl se habilitado."
     },
@@ -1793,8 +1802,8 @@
       "label": "Inicia o servidor WebSocket.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L251",
-      "id": "server_websocket_rationale_251",
+      "source_location": "L270",
+      "id": "server_websocket_rationale_270",
       "community": 156,
       "norm_label": "inicia o servidor websocket."
     },
@@ -1831,7 +1840,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L20",
       "id": "strategies_sda17_sda17strategy",
-      "community": 65,
+      "community": 142,
       "norm_label": "sda17strategy"
     },
     {
@@ -1840,7 +1849,7 @@
       "source_file": "",
       "source_location": "",
       "id": "strategybase",
-      "community": 65,
+      "community": 142,
       "norm_label": "strategybase"
     },
     {
@@ -1849,14 +1858,14 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L73",
       "id": "strategies_sda17_sda17strategy_init",
-      "community": 65,
+      "community": 142,
       "norm_label": ".__init__()"
     },
     {
       "label": ".analyze()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L105",
+      "source_location": "L116",
       "id": "strategies_sda17_sda17strategy_analyze",
       "community": 10,
       "norm_label": ".analyze()"
@@ -1865,16 +1874,16 @@
       "label": "._predict_robust()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L250",
+      "source_location": "L261",
       "id": "strategies_sda17_sda17strategy_predict_robust",
-      "community": 10,
+      "community": 116,
       "norm_label": "._predict_robust()"
     },
     {
       "label": "._get_adaptive_offset()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L332",
+      "source_location": "L343",
       "id": "strategies_sda17_sda17strategy_get_adaptive_offset",
       "community": 130,
       "norm_label": "._get_adaptive_offset()"
@@ -1883,7 +1892,7 @@
       "label": "._bayesian_error_vector()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L351",
+      "source_location": "L362",
       "id": "strategies_sda17_sda17strategy_bayesian_error_vector",
       "community": 87,
       "norm_label": "._bayesian_error_vector()"
@@ -1892,7 +1901,7 @@
       "label": "._bayesian_brute_force()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L409",
+      "source_location": "L420",
       "id": "strategies_sda17_sda17strategy_bayesian_brute_force",
       "community": 87,
       "norm_label": "._bayesian_brute_force()"
@@ -1901,7 +1910,7 @@
       "label": "._circ_dir()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L435",
+      "source_location": "L446",
       "id": "strategies_sda17_sda17strategy_circ_dir",
       "community": 87,
       "norm_label": "._circ_dir()"
@@ -1910,7 +1919,7 @@
       "label": "_dk()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L456",
+      "source_location": "L467",
       "id": "strategies_sda17_dk",
       "community": 138,
       "norm_label": "_dk()"
@@ -1919,7 +1928,7 @@
       "label": "._recent_hit_rate()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L460",
+      "source_location": "L471",
       "id": "strategies_sda17_sda17strategy_recent_hit_rate",
       "community": 65,
       "norm_label": "._recent_hit_rate()"
@@ -1928,7 +1937,7 @@
       "label": ".should_minimize()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L474",
+      "source_location": "L485",
       "id": "strategies_sda17_sda17strategy_should_minimize",
       "community": 65,
       "norm_label": ".should_minimize()"
@@ -1937,7 +1946,7 @@
       "label": ".get_stake_weight()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L488",
+      "source_location": "L499",
       "id": "strategies_sda17_sda17strategy_get_stake_weight",
       "community": 65,
       "norm_label": ".get_stake_weight()"
@@ -1946,7 +1955,7 @@
       "label": ".get_mg_max()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L507",
+      "source_location": "L518",
       "id": "strategies_sda17_sda17strategy_get_mg_max",
       "community": 65,
       "norm_label": ".get_mg_max()"
@@ -1955,7 +1964,7 @@
       "label": "._get_warmup()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L522",
+      "source_location": "L533",
       "id": "strategies_sda17_sda17strategy_get_warmup",
       "community": 65,
       "norm_label": "._get_warmup()"
@@ -1964,7 +1973,7 @@
       "label": "._get_effective_offset()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L534",
+      "source_location": "L545",
       "id": "strategies_sda17_sda17strategy_get_effective_offset",
       "community": 130,
       "norm_label": "._get_effective_offset()"
@@ -1973,7 +1982,7 @@
       "label": "._detect_drift()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L548",
+      "source_location": "L559",
       "id": "strategies_sda17_sda17strategy_detect_drift",
       "community": 101,
       "norm_label": "._detect_drift()"
@@ -1982,7 +1991,7 @@
       "label": ".record_mg_reset()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L562",
+      "source_location": "L573",
       "id": "strategies_sda17_sda17strategy_record_mg_reset",
       "community": 138,
       "norm_label": ".record_mg_reset()"
@@ -1991,25 +2000,34 @@
       "label": "._pct_sigmoid_update()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L568",
+      "source_location": "L579",
       "id": "strategies_sda17_sda17strategy_pct_sigmoid_update",
       "community": 101,
       "norm_label": "._pct_sigmoid_update()"
     },
     {
+      "label": "._batch_auto_tune()",
+      "file_type": "code",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L715",
+      "id": "strategies_sda17_sda17strategy_batch_auto_tune",
+      "community": 138,
+      "norm_label": "._batch_auto_tune()"
+    },
+    {
       "label": ".update_adaptive()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L704",
+      "source_location": "L795",
       "id": "strategies_sda17_sda17strategy_update_adaptive",
-      "community": 101,
+      "community": 138,
       "norm_label": ".update_adaptive()"
     },
     {
       "label": ".get_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L724",
+      "source_location": "L835",
       "id": "strategies_sda17_sda17strategy_get_adaptive_state",
       "community": 143,
       "norm_label": ".get_adaptive_state()"
@@ -2018,25 +2036,34 @@
       "label": ".load_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L739",
+      "source_location": "L864",
       "id": "strategies_sda17_sda17strategy_load_adaptive_state",
       "community": 143,
       "norm_label": ".load_adaptive_state()"
     },
     {
+      "label": ".get_batch_tune_snapshot()",
+      "file_type": "code",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L984",
+      "id": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
+      "community": 142,
+      "norm_label": ".get_batch_tune_snapshot()"
+    },
+    {
       "label": "._circ_dist()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L800",
+      "source_location": "L1000",
       "id": "strategies_sda17_sda17strategy_circ_dist",
-      "community": 116,
+      "community": 101,
       "norm_label": "._circ_dist()"
     },
     {
       "label": "._wheel_index()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L812",
+      "source_location": "L1012",
       "id": "strategies_sda17_sda17strategy_wheel_index",
       "community": 10,
       "norm_label": "._wheel_index()"
@@ -2045,7 +2072,7 @@
       "label": "._apply_force()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L821",
+      "source_location": "L1021",
       "id": "strategies_sda17_sda17strategy_apply_force",
       "community": 10,
       "norm_label": "._apply_force()"
@@ -2056,15 +2083,15 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L21",
       "id": "strategies_sda17_rationale_21",
-      "community": 65,
+      "community": 142,
       "norm_label": "estrategia m15-ada v4.3: m02-pctsigmoid \u2014 triple focus 17 numeros.          pi"
     },
     {
       "label": "Analisa timeline e prediz pr\u00f3xima for\u00e7a usando pipeline robusto.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L113",
-      "id": "strategies_sda17_rationale_113",
+      "source_location": "L124",
+      "id": "strategies_sda17_rationale_124",
       "community": 10,
       "norm_label": "analisa timeline e prediz proxima forca usando pipeline robusto."
     },
@@ -2072,17 +2099,17 @@
       "label": "Pipeline robusto: IQR \u2192 Weighted Median \u2192 Drift.                  Args:",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L251",
-      "id": "strategies_sda17_rationale_251",
-      "community": 10,
+      "source_location": "L262",
+      "id": "strategies_sda17_rationale_262",
+      "community": 116,
       "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:"
     },
     {
       "label": "Retorna offsets adaptativos ASSIM\u00c9TRICOS (off_c2, off_c3).         v4.3: M02-Pc",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L333",
-      "id": "strategies_sda17_rationale_333",
+      "source_location": "L344",
+      "id": "strategies_sda17_rationale_344",
       "community": 130,
       "norm_label": "retorna offsets adaptativos assimetricos (off_c2, off_c3).         v4.3: m02-pc"
     },
@@ -2090,8 +2117,8 @@
       "label": "M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L352",
-      "id": "strategies_sda17_rationale_352",
+      "source_location": "L363",
+      "id": "strategies_sda17_rationale_363",
       "community": 87,
       "norm_label": "m04+m10 hybrid: error-vector com prior gaussiano.                  m04 calcula"
     },
@@ -2099,8 +2126,8 @@
       "label": "Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L410",
-      "id": "strategies_sda17_rationale_410",
+      "source_location": "L421",
+      "id": "strategies_sda17_rationale_421",
       "community": 87,
       "norm_label": "bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh"
     },
@@ -2108,8 +2135,8 @@
       "label": "Dire\u00e7\u00e3o circular de a para b na roda.         Retorna +1 se b est\u00e1 no sentido h",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L436",
-      "id": "strategies_sda17_rationale_436",
+      "source_location": "L447",
+      "id": "strategies_sda17_rationale_447",
       "community": 87,
       "norm_label": "direcao circular de a para b na roda.         retorna +1 se b esta no sentido h"
     },
@@ -2117,17 +2144,17 @@
       "label": "Normaliza dire\u00e7\u00e3o para chave interna ('cw' | 'ccw'). Aceita aliases.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L457",
-      "id": "strategies_sda17_rationale_457",
-      "community": 149,
+      "source_location": "L468",
+      "id": "strategies_sda17_rationale_468",
+      "community": 158,
       "norm_label": "normaliza direcao para chave interna ('cw' | 'ccw'). aceita aliases."
     },
     {
       "label": "Rolling hit rate da janela mais recente (config: sda17.minimizer.window).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L461",
-      "id": "strategies_sda17_rationale_461",
+      "source_location": "L472",
+      "id": "strategies_sda17_rationale_472",
       "community": 65,
       "norm_label": "rolling hit rate da janela mais recente (config: sda17.minimizer.window)."
     },
@@ -2135,8 +2162,8 @@
       "label": "QW-1 \u2014 decis\u00e3o de minimizer (stake m\u00ednimo + force level=1).         Retorna (mi",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L475",
-      "id": "strategies_sda17_rationale_475",
+      "source_location": "L486",
+      "id": "strategies_sda17_rationale_486",
       "community": 65,
       "norm_label": "qw-1 \u2014 decisao de minimizer (stake minimo + force level=1).         retorna (mi"
     },
@@ -2144,8 +2171,8 @@
       "label": "QW-2 \u2014 peso direcional cont\u00ednuo para stake quando level=1.         Retorna 1.0",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L489",
-      "id": "strategies_sda17_rationale_489",
+      "source_location": "L500",
+      "id": "strategies_sda17_rationale_500",
       "community": 65,
       "norm_label": "qw-2 \u2014 peso direcional continuo para stake quando level=1.         retorna 1.0"
     },
@@ -2153,8 +2180,8 @@
       "label": "QW-3 \u2014 cap m\u00e1ximo por dire\u00e7\u00e3o (informativo; cap real j\u00e1 \u00e9 3 no BET_VALUES).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L508",
-      "id": "strategies_sda17_rationale_508",
+      "source_location": "L519",
+      "id": "strategies_sda17_rationale_519",
       "community": 65,
       "norm_label": "qw-3 \u2014 cap maximo por direcao (informativo; cap real ja e 3 no bet_values)."
     },
@@ -2162,8 +2189,8 @@
       "label": "QW-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L523",
-      "id": "strategies_sda17_rationale_523",
+      "source_location": "L534",
+      "id": "strategies_sda17_rationale_534",
       "community": 65,
       "norm_label": "qw-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5)."
     },
@@ -2171,8 +2198,8 @@
       "label": "QW-4 \u2014 Hot Center Substitution. Se slot est\u00e1 em cooldown, troca por         off",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L535",
-      "id": "strategies_sda17_rationale_535",
+      "source_location": "L546",
+      "id": "strategies_sda17_rationale_546",
       "community": 130,
       "norm_label": "qw-4 \u2014 hot center substitution. se slot esta em cooldown, troca por         off"
     },
@@ -2180,8 +2207,8 @@
       "label": "QW-7 \u2014 drift detector simples (diff de hit_rate metade1 vs metade2).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L549",
-      "id": "strategies_sda17_rationale_549",
+      "source_location": "L560",
+      "id": "strategies_sda17_rationale_560",
       "community": 101,
       "norm_label": "qw-7 \u2014 drift detector simples (diff de hit_rate metade1 vs metade2)."
     },
@@ -2189,8 +2216,8 @@
       "label": "QW-3 \u2014 m\u00e9trica de reset martingale. Chamado externamente.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L563",
-      "id": "strategies_sda17_rationale_563",
+      "source_location": "L574",
+      "id": "strategies_sda17_rationale_574",
       "community": 138,
       "norm_label": "qw-3 \u2014 metrica de reset martingale. chamado externamente."
     },
@@ -2198,53 +2225,71 @@
       "label": "M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L569",
-      "id": "strategies_sda17_rationale_569",
+      "source_location": "L580",
+      "id": "strategies_sda17_rationale_580",
       "community": 101,
       "norm_label": "m02-pctsigmoid: atualiza offsets c2/c3 com feedback sigmoid dampened."
+    },
+    {
+      "label": "S-STRAT-7 \u2014 Auto-tune em LOTE de 4 spins por sentido (isolado).          Cada",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L716",
+      "id": "strategies_sda17_rationale_716",
+      "community": 138,
+      "norm_label": "s-strat-7 \u2014 auto-tune em lote de 4 spins por sentido (isolado).          cada"
     },
     {
       "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L706",
-      "id": "strategies_sda17_rationale_706",
-      "community": 101,
+      "source_location": "L797",
+      "id": "strategies_sda17_rationale_797",
+      "community": 138,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his"
     },
     {
-      "label": "Retorna estado adaptativo para persist\u00eancia (v1.7 \u2014 Quick Wins INV-3).",
+      "label": "Retorna estado adaptativo para persist\u00eancia (v1.8 \u2014 S-STRAT-7 batch tune).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L725",
-      "id": "strategies_sda17_rationale_725",
+      "source_location": "L836",
+      "id": "strategies_sda17_rationale_836",
       "community": 143,
-      "norm_label": "retorna estado adaptativo para persistencia (v1.7 \u2014 quick wins inv-3)."
+      "norm_label": "retorna estado adaptativo para persistencia (v1.8 \u2014 s-strat-7 batch tune)."
     },
     {
       "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L740",
-      "id": "strategies_sda17_rationale_740",
+      "source_location": "L865",
+      "id": "strategies_sda17_rationale_865",
       "community": 143,
       "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com"
+    },
+    {
+      "label": "S-STRAT-7 \u2014 snapshot leve para /api/batch_tune.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L985",
+      "id": "strategies_sda17_rationale_985",
+      "community": 142,
+      "norm_label": "s-strat-7 \u2014 snapshot leve para /api/batch_tune."
     },
     {
       "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L801",
-      "id": "strategies_sda17_rationale_801",
-      "community": 116,
+      "source_location": "L1001",
+      "id": "strategies_sda17_rationale_1001",
+      "community": 101,
       "norm_label": "distancia circular entre dois numeros na roda."
     },
     {
       "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L813",
-      "id": "strategies_sda17_rationale_813",
+      "source_location": "L1013",
+      "id": "strategies_sda17_rationale_1013",
       "community": 10,
       "norm_label": "retorna o indice de um numero na sequencia da roda."
     },
@@ -2252,8 +2297,8 @@
       "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L828",
-      "id": "strategies_sda17_rationale_828",
+      "source_location": "L1028",
+      "id": "strategies_sda17_rationale_1028",
       "community": 10,
       "norm_label": "aplica forca ao numero, retorna numero resultado."
     },
@@ -6059,6 +6104,240 @@
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
+      "source_location": "L150",
+      "community": 156,
+      "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
+      "id": "server_websocket_rationale_150"
+    },
+    {
+      "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L201",
+      "community": 156,
+      "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
+      "id": "server_websocket_rationale_201"
+    },
+    {
+      "label": "Cria contexto SSL se habilitado.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L233",
+      "community": 156,
+      "norm_label": "cria contexto ssl se habilitado.",
+      "id": "server_websocket_rationale_233"
+    },
+    {
+      "label": "Inicia o servidor WebSocket.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L251",
+      "community": 156,
+      "norm_label": "inicia o servidor websocket.",
+      "id": "server_websocket_rationale_251"
+    },
+    {
+      "label": "Analisa timeline e prediz pr\u00f3xima for\u00e7a usando pipeline robusto.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L113",
+      "community": 10,
+      "norm_label": "analisa timeline e prediz proxima forca usando pipeline robusto.",
+      "id": "strategies_sda17_rationale_113"
+    },
+    {
+      "label": "Pipeline robusto: IQR \u2192 Weighted Median \u2192 Drift.                  Args:",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L251",
+      "community": 116,
+      "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:",
+      "id": "strategies_sda17_rationale_251"
+    },
+    {
+      "label": "Retorna offsets adaptativos ASSIM\u00c9TRICOS (off_c2, off_c3).         v4.3: M02-Pc",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L333",
+      "community": 130,
+      "norm_label": "retorna offsets adaptativos assimetricos (off_c2, off_c3).         v4.3: m02-pc",
+      "id": "strategies_sda17_rationale_333"
+    },
+    {
+      "label": "M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L352",
+      "community": 87,
+      "norm_label": "m04+m10 hybrid: error-vector com prior gaussiano.                  m04 calcula",
+      "id": "strategies_sda17_rationale_352"
+    },
+    {
+      "label": "Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L410",
+      "community": 87,
+      "norm_label": "bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh",
+      "id": "strategies_sda17_rationale_410"
+    },
+    {
+      "label": "Dire\u00e7\u00e3o circular de a para b na roda.         Retorna +1 se b est\u00e1 no sentido h",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L436",
+      "community": 87,
+      "norm_label": "direcao circular de a para b na roda.         retorna +1 se b esta no sentido h",
+      "id": "strategies_sda17_rationale_436"
+    },
+    {
+      "label": "Normaliza dire\u00e7\u00e3o para chave interna ('cw' | 'ccw'). Aceita aliases.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L457",
+      "community": 149,
+      "norm_label": "normaliza direcao para chave interna ('cw' | 'ccw'). aceita aliases.",
+      "id": "strategies_sda17_rationale_457"
+    },
+    {
+      "label": "Rolling hit rate da janela mais recente (config: sda17.minimizer.window).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L461",
+      "community": 65,
+      "norm_label": "rolling hit rate da janela mais recente (config: sda17.minimizer.window).",
+      "id": "strategies_sda17_rationale_461"
+    },
+    {
+      "label": "QW-1 \u2014 decis\u00e3o de minimizer (stake m\u00ednimo + force level=1).         Retorna (mi",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L475",
+      "community": 65,
+      "norm_label": "qw-1 \u2014 decisao de minimizer (stake minimo + force level=1).         retorna (mi",
+      "id": "strategies_sda17_rationale_475"
+    },
+    {
+      "label": "QW-2 \u2014 peso direcional cont\u00ednuo para stake quando level=1.         Retorna 1.0",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L489",
+      "community": 65,
+      "norm_label": "qw-2 \u2014 peso direcional continuo para stake quando level=1.         retorna 1.0",
+      "id": "strategies_sda17_rationale_489"
+    },
+    {
+      "label": "QW-3 \u2014 cap m\u00e1ximo por dire\u00e7\u00e3o (informativo; cap real j\u00e1 \u00e9 3 no BET_VALUES).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L508",
+      "community": 65,
+      "norm_label": "qw-3 \u2014 cap maximo por direcao (informativo; cap real ja e 3 no bet_values).",
+      "id": "strategies_sda17_rationale_508"
+    },
+    {
+      "label": "QW-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L523",
+      "community": 65,
+      "norm_label": "qw-6 \u2014 warmup adaptativo (ganhando=2, perdendo=5).",
+      "id": "strategies_sda17_rationale_523"
+    },
+    {
+      "label": "QW-4 \u2014 Hot Center Substitution. Se slot est\u00e1 em cooldown, troca por         off",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L535",
+      "community": 130,
+      "norm_label": "qw-4 \u2014 hot center substitution. se slot esta em cooldown, troca por         off",
+      "id": "strategies_sda17_rationale_535"
+    },
+    {
+      "label": "QW-7 \u2014 drift detector simples (diff de hit_rate metade1 vs metade2).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L549",
+      "community": 101,
+      "norm_label": "qw-7 \u2014 drift detector simples (diff de hit_rate metade1 vs metade2).",
+      "id": "strategies_sda17_rationale_549"
+    },
+    {
+      "label": "QW-3 \u2014 m\u00e9trica de reset martingale. Chamado externamente.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L563",
+      "community": 138,
+      "norm_label": "qw-3 \u2014 metrica de reset martingale. chamado externamente.",
+      "id": "strategies_sda17_rationale_563"
+    },
+    {
+      "label": "M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L569",
+      "community": 101,
+      "norm_label": "m02-pctsigmoid: atualiza offsets c2/c3 com feedback sigmoid dampened.",
+      "id": "strategies_sda17_rationale_569"
+    },
+    {
+      "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L706",
+      "community": 138,
+      "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
+      "id": "strategies_sda17_rationale_706"
+    },
+    {
+      "label": "Retorna estado adaptativo para persist\u00eancia (v1.7 \u2014 Quick Wins INV-3).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L725",
+      "community": 143,
+      "norm_label": "retorna estado adaptativo para persistencia (v1.7 \u2014 quick wins inv-3).",
+      "id": "strategies_sda17_rationale_725"
+    },
+    {
+      "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L740",
+      "community": 143,
+      "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com",
+      "id": "strategies_sda17_rationale_740"
+    },
+    {
+      "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L801",
+      "community": 101,
+      "norm_label": "distancia circular entre dois numeros na roda.",
+      "id": "strategies_sda17_rationale_801"
+    },
+    {
+      "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L813",
+      "community": 10,
+      "norm_label": "retorna o indice de um numero na sequencia da roda.",
+      "id": "strategies_sda17_rationale_813"
+    },
+    {
+      "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L828",
+      "community": 10,
+      "norm_label": "aplica forca ao numero, retorna numero resultado.",
+      "id": "strategies_sda17_rationale_828"
+    },
+    {
+      "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
       "source_location": "L104",
       "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
@@ -6240,7 +6519,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L691",
-      "community": 101,
+      "community": 138,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
       "id": "strategies_sda17_rationale_691"
     },
@@ -6258,7 +6537,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L786",
-      "community": 116,
+      "community": 101,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_786"
     },
@@ -15348,7 +15627,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L14",
-      "community": 65,
+      "community": 142,
       "norm_label": "estrategia m15-ada v4.3: m02-pctsigmoid \u2014 triple focus 17 numeros.          pi",
       "id": "strategies_sda17_rationale_14"
     },
@@ -15366,7 +15645,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L221",
-      "community": 10,
+      "community": 116,
       "norm_label": "pipeline robusto: iqr \u2192 weighted median \u2192 drift.                  args:",
       "id": "strategies_sda17_rationale_221"
     },
@@ -15420,7 +15699,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L482",
-      "community": 101,
+      "community": 138,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
       "id": "strategies_sda17_rationale_482"
     },
@@ -15447,7 +15726,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L538",
-      "community": 116,
+      "community": 101,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_538"
     },
@@ -18554,11 +18833,21 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L109",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "server_websocket_py",
-      "target": "server_websocket_state_snapshot",
+      "target": "server_websocket_batch_tune_snapshot",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L109",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_py",
+      "target": "server_websocket_state_snapshot"
     },
     {
       "relation": "contains",
@@ -18637,11 +18926,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L150",
+      "source_location": "L169",
       "weight": 1.0,
-      "source": "server_websocket_rationale_150",
+      "source": "server_websocket_rationale_169",
       "target": "server_websocket_broadcast_heartbeat",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_150",
+      "target": "server_websocket_broadcast_heartbeat"
     },
     {
       "relation": "rationale_for",
@@ -18677,11 +18976,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L201",
+      "source_location": "L220",
       "weight": 1.0,
-      "source": "server_websocket_rationale_201",
+      "source": "server_websocket_rationale_220",
       "target": "server_websocket_handler",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L201",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_201",
+      "target": "server_websocket_handler"
     },
     {
       "relation": "rationale_for",
@@ -18728,11 +19037,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L233",
+      "source_location": "L252",
       "weight": 1.0,
-      "source": "server_websocket_rationale_233",
+      "source": "server_websocket_rationale_252",
       "target": "server_websocket_get_ssl_context",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L233",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_233",
+      "target": "server_websocket_get_ssl_context"
     },
     {
       "relation": "rationale_for",
@@ -18768,9 +19087,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L251",
+      "source_location": "L270",
       "weight": 1.0,
-      "source": "server_websocket_rationale_251",
+      "source": "server_websocket_rationale_270",
       "target": "server_websocket_start_server",
       "confidence_score": 1.0
     },
@@ -18783,6 +19102,16 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "server_init_py",
+      "target": "server_websocket_start_server"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L251",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_251",
       "target": "server_websocket_start_server"
     },
     {
@@ -19009,6 +19338,16 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L715",
+      "weight": 1.0,
+      "source": "strategies_sda17_sda17strategy",
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L480",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19034,6 +19373,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy",
       "target": "strategies_sda17_sda17strategy_load_adaptive_state"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L984",
+      "weight": 1.0,
+      "source": "strategies_sda17_sda17strategy",
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -19133,6 +19482,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L124",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_124",
+      "target": "strategies_sda17_sda17strategy_analyze",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L113",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19148,6 +19507,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_89",
       "target": "strategies_sda17_sda17strategy_analyze"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L262",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_262",
+      "target": "strategies_sda17_sda17strategy_predict_robust",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19179,6 +19548,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy_get_adaptive_offset",
       "target": "strategies_sda17_sda17strategy_get_effective_offset"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L344",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_344",
+      "target": "strategies_sda17_sda17strategy_get_adaptive_offset",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19237,6 +19616,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L363",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_363",
+      "target": "strategies_sda17_sda17strategy_bayesian_error_vector",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L352",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19268,6 +19657,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L421",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_421",
+      "target": "strategies_sda17_sda17strategy_bayesian_brute_force",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L410",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19294,6 +19693,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy_pct_sigmoid_update",
       "target": "strategies_sda17_sda17strategy_circ_dir"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L447",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_447",
+      "target": "strategies_sda17_sda17strategy_circ_dir",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19353,6 +19762,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L822",
+      "weight": 1.0,
+      "source": "strategies_sda17_sda17strategy_update_adaptive",
+      "target": "strategies_sda17_dk",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L482",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19396,11 +19816,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L472",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_472",
+      "target": "strategies_sda17_sda17strategy_recent_hit_rate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L461",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_461",
       "target": "strategies_sda17_sda17strategy_recent_hit_rate"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L486",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_486",
+      "target": "strategies_sda17_sda17strategy_should_minimize",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19416,11 +19856,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L500",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_500",
+      "target": "strategies_sda17_sda17strategy_get_stake_weight",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L489",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_489",
       "target": "strategies_sda17_sda17strategy_get_stake_weight"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L519",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_519",
+      "target": "strategies_sda17_sda17strategy_get_mg_max",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19447,6 +19907,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L534",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_534",
+      "target": "strategies_sda17_sda17strategy_get_warmup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L523",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19463,6 +19933,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_sda17strategy_pct_sigmoid_update",
       "target": "strategies_sda17_sda17strategy_get_effective_offset"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L546",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_546",
+      "target": "strategies_sda17_sda17strategy_get_effective_offset",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19489,11 +19969,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L560",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_560",
+      "target": "strategies_sda17_sda17strategy_detect_drift",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L549",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_549",
       "target": "strategies_sda17_sda17strategy_detect_drift"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L574",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_574",
+      "target": "strategies_sda17_sda17strategy_record_mg_reset",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19542,6 +20042,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L580",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_580",
+      "target": "strategies_sda17_sda17strategy_pct_sigmoid_update",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L569",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19557,6 +20067,37 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_417",
       "target": "strategies_sda17_sda17strategy_pct_sigmoid_update"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L829",
+      "weight": 1.0,
+      "source": "strategies_sda17_sda17strategy_update_adaptive",
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L716",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_716",
+      "target": "strategies_sda17_sda17strategy_batch_auto_tune",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L797",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_797",
+      "target": "strategies_sda17_sda17strategy_update_adaptive",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19592,6 +20133,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L836",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_836",
+      "target": "strategies_sda17_sda17strategy_get_adaptive_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L725",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19617,6 +20168,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_501",
       "target": "strategies_sda17_sda17strategy_get_adaptive_state"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L865",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_865",
+      "target": "strategies_sda17_sda17strategy_load_adaptive_state",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19652,6 +20213,26 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L985",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_985",
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1001",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_1001",
+      "target": "strategies_sda17_sda17strategy_circ_dist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L801",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19682,6 +20263,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
+      "source_location": "L1013",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_1013",
+      "target": "strategies_sda17_sda17strategy_wheel_index",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
       "source_location": "L813",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19707,6 +20298,16 @@
       "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_550",
       "target": "strategies_sda17_sda17strategy_wheel_index"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1028",
+      "weight": 1.0,
+      "source": "strategies_sda17_rationale_1028",
+      "target": "strategies_sda17_sda17strategy_apply_force",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -33730,5 +34331,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e60bf9a90af575b3cc7cead733d12def99343be0"
+  "built_at_commit": "a77c6abfe3e15ae77bfbd44586cb3167b37af9e0"
 }

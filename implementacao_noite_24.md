@@ -363,3 +363,71 @@ Ordem mantida, mas:
 - ✅ Métricas batch tune zeradas pré-warmup (16 spins mínimos) — irão ativar após acumular dados
 - ⚠️ Backtest com 2923 spins mostra divergência entre acc bucket inicial (0.40) e final (~0.50) — confirma efeito positivo do auto-tune ao longo do tempo
 
+
+---
+
+## §ENG-REV (engenharia reversa das últimas 30 jogadas — 2026-05-25 00:10)
+
+### Snapshot live agora
+- **horario** últimas 30: n=30, acc=**0.4000** (12/30) ← vale
+- **anti-horario** últimas 30: n=30, acc=**0.4333** (13/30)
+- **horario hoje**: 101 spins, acc=0.4554
+- **anti-horario hoje**: 107 spins, acc=0.4766
+- **overall**: 2932 decisions, acc=**0.4744**
+
+### Por hora (UTC)
+| h | dir | n | acc |
+|---|-----|---|-----|
+| 00 | AH | 30 | 0.467 |
+| 00 | H  | 29 | 0.552 |
+| 01 | AH | 31 | **0.581** ← pico |
+| 01 | H  | 28 | 0.500 |
+| 02 | AH | 41 | **0.366** ← vale |
+| 02 | H  | 40 | **0.350** ← vale |
+| 03 | AH | 5  | 0.800 |
+| 03 | H  | 4  | 0.500 |
+
+### Estado dinâmico observado
+- **batch tune cw**: 1 run, action=`improve_keep`, delta=+0.50 (acertou 4/4 vs 2/4)
+- **batch tune ccw**: 1 run, action=`pullback`, delta=-0.25, **pullback_total=1** ← já agiu!
+- **sigmoid_off evoluído**: cw_off3=10.65 (was 10.10), ccw_off2=11.11
+- **kill v4**: vol_ema cw=0.377, ccw=0.380 → threshold_c4=0.261/0.260; **threshold_sda=6/6**
+- **kill pulls_total**: 12
+
+### Evolução do dia (commits 20:03 → 00:02, ~4h, 30 commits)
+| Janela | Sprint | Ganho mensurável |
+|--------|--------|------------------|
+| 20:03→20:36 | M-1 gap detector + S-H/S-J | Decision 3698 recuperada |
+| 20:39→20:51 | S-I LISTEN/NOTIFY no CDC | **lag p99: 28.91s → 0.01s (2891×)** |
+| 20:59→21:09 | S-BAK-1 wal-g + S-MIG-1 alembic + S-OBS-2 cdc /metrics | Backups B2 ativos |
+| 21:12→21:20 | Auditoria graphify v1 | 7 sprints derivadas |
+| 21:59→22:05 | S-STRAT-1..3 + S-OBS-3/4 + S-MIG-2 + S-WALG-1 | Sigmoid drift exposto |
+| 22:12→22:25 | S-OBS-6/7/8 + S-WALG-2 + S-CLEAN-1 + S-TEST-1 | Kill counter persistente |
+| 22:34→22:50 | S-OBS-9 + S-INFRA-1 + paragrafo §16/17 | mem_limit 512m + 10 métricas |
+| 23:01→23:04 | S-OBS-10 Prometheus+Grafana + S-OBS-11 pg_stat_statements | Stack obs completa |
+| 00:00→00:02 | **S-STRAT-7 + S-STRAT-11 + S-STRAT-9 + backtest** | **acc 0.453→0.474 (+2.1pp)** |
+
+### Conclusão da engenharia reversa
+1. **Pipeline reativo funcionando**: pullback ccw disparou em <1h após deploy → sistema está ajustando.
+2. **Vale 02h (acc 0.35)** coincide com período em que `threshold_sda` SUBIU para 6 (vol alta) — **suspeita de BUG**: KILL v4 está mais restritivo justamente quando deveria ser mais permissivo.
+3. `improve_keep` em delta=+0.50 desperdiça oportunidade: sistema poderia reforçar a trajetória vencedora.
+
+---
+
+## §AUDIT-V3 (auditoria pós-deploy — 2026-05-25 00:10)
+
+### Bugs encontrados
+
+| ID | Severidade | Local | Descrição |
+|----|------------|-------|-----------|
+| **BUG-V3-01** | 🔴 **HIGH** | `state/bet_advisor.py:132` | `sda_thr = 4 + round(vol * 4)` — **direção errada**. Vol alta deveria tornar KILL MENOS sensível (sda_thr ↓), mas atualmente sda_thr SOBE (mais restritivo). Explica vale 02h. |
+| **BUG-V3-02** | 🟡 MEDIUM | `state/bet_advisor.py:128` | `vol_ema` baseline 0.30 é baixo demais para sinal binário (max std=0.50). Sistema percebe regime "normal" como "alto-vol" cedo. |
+| **BUG-V3-03** | 🟡 MEDIUM | `strategies/sda17.py:773` | `explore_nudge` usa apenas `last_4[-1]` como sinal de gradient. Frágil — deveria ser média de erro do batch. |
+| **BUG-V3-04** | 🟢 LOW | `strategies/sda17.py:766-769` | `improve_keep` com delta=+0.50 é no-op. Desperdiça sinal forte de melhoria. |
+| **BUG-V3-05** | 🟢 LOW | `state/bet_advisor.py` | KILL v4 não persiste `_vol_ema` em state.json — perde calibração em restart. |
+| **BUG-V3-06** | 🟢 LOW | `scripts/backtest_strategy.py` | Harness não passa `direction` para o advisor — mede sempre `global` thresholds. |
+
+### Fixes desta janela
+- **BUG-V3-01** (crítico): inverter cálculo de `sda_thr`.
+- **BUG-V3-04**: `improve_keep` com delta ≥ 2×improve_thr aplica nudge a favor (push gradient).
+

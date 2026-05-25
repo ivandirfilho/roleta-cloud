@@ -764,18 +764,31 @@ class SDA17Strategy(StrategyBase):
             logger.info("[BATCH-PULLBACK] dk=%s delta=%.3f off2=%.2f off3=%.2f",
                         dk, delta, off2, off3)
         elif delta >= improve_thr:
-            # Melhorou: mantém trajetória (no-op em offsets).
-            action = "improve_keep"
-            logger.info("[BATCH-IMPROVE] dk=%s delta=%.3f mantido", dk, delta)
+            # Melhorou: mantém trajetória; em melhoria FORTE (≥ 2× threshold),
+            # aplica push leve a favor para reforçar a tendência vencedora.
+            # BUG-V3-04 fix: não desperdiça sinal forte de delta=+0.50.
+            if delta >= 2.0 * improve_thr:
+                # Direção do push: usa média de hits do batch como sinal positivo
+                # (off ↓ aumenta agressividade). Magnitude conservadora.
+                push = lr_batch * 0.5 * std_w
+                off2 -= push * 0.3
+                off3 -= push * 0.3
+                action = "improve_push"
+                logger.info("[BATCH-IMPROVE-PUSH] dk=%s delta=%.3f push=%.3f", dk, delta, push)
+            else:
+                action = "improve_keep"
+                logger.info("[BATCH-IMPROVE] dk=%s delta=%.3f mantido", dk, delta)
         else:
-            # Estável: nudge pequeno proporcional ao gradient implícito
-            # (sinal=último miss ou hit, magnitude=lr_batch * volatility).
-            magnitude = lr_batch * std_w * (1 if last_4[-1] == 0 else -1)
+            # Estável: nudge pequeno proporcional ao gradient médio do batch.
+            # BUG-V3-03 fix: usa média de misses do batch como sinal (não só último).
+            miss_avg = 1.0 - (sum(last_4) / 4.0)
+            sign = 1 if miss_avg > 0.5 else -1
+            magnitude = lr_batch * std_w * sign
             off2 += magnitude * 0.3
             off3 += magnitude * 0.3
             action = "explore_nudge"
-            logger.info("[BATCH-EXPLORE] dk=%s delta=%.3f std=%.3f nudge=%.3f",
-                        dk, delta, std_w, magnitude)
+            logger.info("[BATCH-EXPLORE] dk=%s delta=%.3f std=%.3f nudge=%.3f miss_avg=%.2f",
+                        dk, delta, std_w, magnitude, miss_avg)
 
         # Clamp duro (respeita limites globais existentes).
         off2 = max(float(self.OFFSET_MIN), min(float(self.OFFSET_MAX), off2))
