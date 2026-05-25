@@ -13,6 +13,9 @@ tests/
 state.json
 extension/
 scripts/
+graphify-out/
+wal-g/
+.tmp_*
 dead_code_*.md
 atual_structure_propose.md
 proximos_passos_structure.md

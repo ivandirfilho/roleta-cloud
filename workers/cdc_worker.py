@@ -38,6 +38,12 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from psycopg2.extras import Json, RealDictCursor
 
+try:
+    from prometheus_client import Counter, Gauge, start_http_server  # type: ignore
+    _PROM_OK = True
+except Exception:  # noqa: BLE001
+    _PROM_OK = False
+
 logger = logging.getLogger("cdc_worker")
 
 MAX_RETRIES = int(os.environ.get("CDC_MAX_RETRIES", "5"))
@@ -47,12 +53,26 @@ IDLE_SLEEP_MAX = float(os.environ.get("CDC_IDLE_SLEEP_MAX", "30.0"))
 # S-I: LISTEN/NOTIFY aditivo (default ON; falha-aberta -> polling normal)
 USE_LISTEN_NOTIFY = os.environ.get("CDC_USE_LISTEN_NOTIFY", "1") not in ("0", "false", "False", "")
 NOTIFY_CHANNEL = os.environ.get("CDC_NOTIFY_CHANNEL", "outbox_new")
+# S-OBS-2: porta para /metrics
+METRICS_PORT = int(os.environ.get("CDC_METRICS_PORT", "8767"))
 ALLOWED_DIRECTIONS = {"cw", "ccw"}
 EXPECTED_DIM = 6
 
 _shutdown = False
 _notify_received_total = 0
 _notify_wakeups_total = 0
+_listen_conn_dead = False
+
+# S-OBS-2: Prometheus metrics (silently no-op se prom_client ausente)
+if _PROM_OK:
+    M_NOTIFY_RECEIVED = Counter("cdc_notify_received_total", "Total NOTIFY events recebidos do PG")
+    M_NOTIFY_WAKEUPS = Counter("cdc_notify_wakeups_total", "Total wakeups (batch read) acionados por NOTIFY")
+    M_BATCH_PROCESSED = Counter("cdc_batch_events_processed_total", "Total eventos processados em batches")
+    M_LISTEN_RECONNECT = Counter("cdc_listen_reconnect_total", "Total reconexoes do canal LISTEN")
+    M_LISTEN_STATE = Gauge("cdc_listen_state", "1 = LISTEN ativo, 0 = polling-only")
+else:
+    M_NOTIFY_RECEIVED = M_NOTIFY_WAKEUPS = M_BATCH_PROCESSED = M_LISTEN_RECONNECT = None  # type: ignore
+    M_LISTEN_STATE = None  # type: ignore
 
 
 def _handle_signal(signum: int, _frame: Any) -> None:
@@ -218,9 +238,16 @@ def _wait_for_notify(conn_listen: Optional[psycopg2.extensions.connection], time
 
     Retorna True se acordou via NOTIFY, False se timeout (modo polling).
     Falha-aberta: qualquer excecao volta para `time.sleep` simples.
+    Se a conexao listen morreu (PG restart), sinaliza para o caller via
+    setando `_listen_conn_dead` global -> reconnect na proxima iter.
     """
-    global _notify_received_total, _notify_wakeups_total
-    if conn_listen is None:
+    global _notify_received_total, _notify_wakeups_total, _listen_conn_dead
+    if conn_listen is None or _listen_conn_dead:
+        time.sleep(timeout)
+        return False
+    if conn_listen.closed:
+        logger.warning("listen_conn_closed; will reconnect")
+        _listen_conn_dead = True
         time.sleep(timeout)
         return False
     try:
@@ -233,10 +260,18 @@ def _wait_for_notify(conn_listen: Optional[psycopg2.extensions.connection], time
             _notify_received_total += n
             _notify_wakeups_total += 1
             conn_listen.notifies.clear()
+            if M_NOTIFY_RECEIVED is not None:
+                M_NOTIFY_RECEIVED.inc(n)
+                M_NOTIFY_WAKEUPS.inc()
             return True
         return False
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("listen_notify_wait_error error=%s; sleeping fallback", exc)
+    except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+        logger.warning("listen_conn_lost error=%s; marking for reconnect", exc)
+        _listen_conn_dead = True
+        time.sleep(timeout)
+        return False
+    except Exception:  # noqa: BLE001
+        logger.exception("listen_notify_wait_unexpected; falling back to sleep")
         time.sleep(timeout)
         return False
 
@@ -245,10 +280,20 @@ def main_loop(dsn: str) -> None:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
+    global _listen_conn_dead
+    # S-OBS-2: expose /metrics
+    if _PROM_OK:
+        try:
+            start_http_server(METRICS_PORT)
+            logger.info("metrics_server_started port=%s", METRICS_PORT)
+        except Exception:  # noqa: BLE001
+            logger.exception("metrics_server_start_failed; continuing without /metrics")
     logger.info("cdc_worker_starting dsn_host=%s listen_notify=%s",
                 _redact_dsn(dsn), USE_LISTEN_NOTIFY)
     conn = _connect(dsn)
     conn_listen = _setup_listen(dsn)
+    if M_LISTEN_STATE is not None:
+        M_LISTEN_STATE.set(1 if conn_listen is not None else 0)
     idle_sleep = IDLE_SLEEP_INITIAL
     total = 0
     last_log_ts = 0.0
@@ -263,6 +308,24 @@ def main_loop(dsn: str) -> None:
         try:
             processed = process_one_batch(conn)
             total += processed
+            # S-OBS-FIX: reconectar LISTEN connection se PG caiu
+            if _listen_conn_dead and USE_LISTEN_NOTIFY:
+                logger.info("listen_reconnect_attempt")
+                if M_LISTEN_RECONNECT is not None:
+                    M_LISTEN_RECONNECT.inc()
+                try:
+                    if conn_listen is not None and not conn_listen.closed:
+                        conn_listen.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                conn_listen = _setup_listen(dsn)
+                if conn_listen is not None:
+                    _listen_conn_dead = False
+                if M_LISTEN_STATE is not None:
+                    M_LISTEN_STATE.set(1 if conn_listen is not None else 0)
+            if processed:
+                if M_BATCH_PROCESSED is not None:
+                    M_BATCH_PROCESSED.inc(processed)
             if processed == 0:
                 woke = _wait_for_notify(conn_listen, idle_sleep)
                 if woke:
