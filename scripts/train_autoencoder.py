@@ -30,12 +30,23 @@ def fetch_features(dsn: str, min_rows: int):
     try:
         with conn.cursor() as cur:
             for schema in ("cw", "ccw"):
+                # Cast vector -> float[] para evitar depender do adaptador
+                # pgvector no psycopg2 (que costuma devolver str).
                 cur.execute(
-                    f"SELECT raw_features FROM {schema}.spins_vectors "
+                    f"SELECT raw_features::float[] FROM {schema}.spins_vectors "
                     f"WHERE raw_features IS NOT NULL ORDER BY id DESC LIMIT 50000;"
                 )
                 for (vec,) in cur.fetchall():
-                    if vec and len(vec) == 6:
+                    if vec is None:
+                        continue
+                    # Tolerar str (fallback) e list.
+                    if isinstance(vec, str):
+                        s = vec.strip().lstrip("[").rstrip("]")
+                        try:
+                            vec = [float(x) for x in s.split(",") if x.strip()]
+                        except ValueError:
+                            continue
+                    if len(vec) == 6:
                         rows.append([float(x) for x in vec])
     finally:
         conn.close()
