@@ -832,7 +832,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L20",
       "id": "sim_temp_sim_15_models_circ_dir",
-      "community": 16,
+      "community": 19,
       "norm_label": "circ_dir()"
     },
     {
@@ -895,7 +895,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L64",
       "id": "sim_temp_sim_15_models_basemodel_get_offsets",
-      "community": 16,
+      "community": 19,
       "norm_label": ".get_offsets()"
     },
     {
@@ -913,7 +913,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L71",
       "id": "sim_temp_sim_15_models_basemodel_error_info",
-      "community": 16,
+      "community": 19,
       "norm_label": "._error_info()"
     },
     {
@@ -967,7 +967,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L121",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold",
-      "community": 20,
+      "community": 19,
       "norm_label": "m03_percentualthreshold"
     },
     {
@@ -976,7 +976,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L124",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold_update",
-      "community": 20,
+      "community": 19,
       "norm_label": ".update()"
     },
     {
@@ -1012,7 +1012,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L165",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma",
-      "community": 169,
+      "community": 16,
       "norm_label": "m05_adaptiveewma"
     },
     {
@@ -1021,7 +1021,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L168",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_init",
-      "community": 169,
+      "community": 16,
       "norm_label": ".__init__()"
     },
     {
@@ -1039,7 +1039,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L192",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_find_oracle",
-      "community": 169,
+      "community": 16,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1102,7 +1102,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L269",
       "id": "sim_temp_sim_15_models_m08_dampedpid",
-      "community": 170,
+      "community": 20,
       "norm_label": "m08_dampedpid"
     },
     {
@@ -1111,7 +1111,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L272",
       "id": "sim_temp_sim_15_models_m08_dampedpid_init",
-      "community": 170,
+      "community": 20,
       "norm_label": ".__init__()"
     },
     {
@@ -1120,7 +1120,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L281",
       "id": "sim_temp_sim_15_models_m08_dampedpid_update",
-      "community": 170,
+      "community": 20,
       "norm_label": ".update()"
     },
     {
@@ -1165,7 +1165,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L357",
       "id": "sim_temp_sim_15_models_m10_mad_robust",
-      "community": 171,
+      "community": 16,
       "norm_label": "m10_mad_robust"
     },
     {
@@ -1174,7 +1174,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L360",
       "id": "sim_temp_sim_15_models_m10_mad_robust_init",
-      "community": 171,
+      "community": 16,
       "norm_label": ".__init__()"
     },
     {
@@ -1192,7 +1192,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L396",
       "id": "sim_temp_sim_15_models_m10_mad_robust_find_oracle",
-      "community": 171,
+      "community": 16,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1291,7 +1291,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L514",
       "id": "sim_temp_sim_15_models_m14_gradientdescent",
-      "community": 20,
+      "community": 177,
       "norm_label": "m14_gradientdescent"
     },
     {
@@ -1300,7 +1300,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L517",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_init",
-      "community": 20,
+      "community": 177,
       "norm_label": ".__init__()"
     },
     {
@@ -1309,7 +1309,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L522",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_update",
-      "community": 20,
+      "community": 177,
       "norm_label": ".update()"
     },
     {
@@ -1318,7 +1318,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L552",
       "id": "sim_temp_sim_15_models_m15_ensemblevote",
-      "community": 24,
+      "community": 20,
       "norm_label": "m15_ensemblevote"
     },
     {
@@ -1336,7 +1336,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L561",
       "id": "sim_temp_sim_15_models_m15_ensemblevote_update",
-      "community": 16,
+      "community": 19,
       "norm_label": ".update()"
     },
     {
@@ -1354,7 +1354,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L21",
       "id": "sim_temp_sim_15_models_rationale_21",
-      "community": 16,
+      "community": 19,
       "norm_label": "returns +1 if result is cw from c1, -1 if ccw, 0 if same."
     },
     {
@@ -1408,7 +1408,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L122",
       "id": "sim_temp_sim_15_models_rationale_122",
-      "community": 20,
+      "community": 19,
       "norm_label": "so ajusta se erro > 7 posicoes (ignora misses pequenos como ruido)."
     },
     {
@@ -1426,7 +1426,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L166",
       "id": "sim_temp_sim_15_models_rationale_166",
-      "community": 169,
+      "community": 16,
       "norm_label": "ewma com alpha adaptativo: erro maior \u2192 alpha maior \u2192 resposta mais rapida."
     },
     {
@@ -1453,7 +1453,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L270",
       "id": "sim_temp_sim_15_models_rationale_270",
-      "community": 170,
+      "community": 20,
       "norm_label": "pid com anti-windup e filtro derivativo para prevenir oscilacao."
     },
     {
@@ -1471,7 +1471,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L358",
       "id": "sim_temp_sim_15_models_rationale_358",
-      "community": 171,
+      "community": 16,
       "norm_label": "mad (median absolute deviation) para identificar outliers e ajustar so com dados"
     },
     {
@@ -1507,7 +1507,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L515",
       "id": "sim_temp_sim_15_models_rationale_515",
-      "community": 20,
+      "community": 177,
       "norm_label": "gradiente numerico: testa off\u00b11 contra ultimas 3 jogadas, step na direcao do gra"
     },
     {
@@ -1516,7 +1516,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L553",
       "id": "sim_temp_sim_15_models_rationale_553",
-      "community": 24,
+      "community": 20,
       "norm_label": "media ponderada dos 3 melhores sub-modelos (m01,m04,m09), pesos por accuracy rec"
     },
     {
@@ -6866,6 +6866,618 @@
       "norm_label": "parte g \u00b7 resultado final (validado em prod)"
     },
     {
+      "label": "sprint_evolucao_25_05.md",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L1",
+      "id": "sprint_evolucao_25_05_md",
+      "community": 169,
+      "norm_label": "sprint_evolucao_25_05.md"
+    },
+    {
+      "label": "\ud83d\ude80 Sprint Evolu\u00e7\u00e3o \u2014 25/05",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L1",
+      "id": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "community": 169,
+      "norm_label": "\ud83d\ude80 sprint evolucao \u2014 25/05"
+    },
+    {
+      "label": "\u00a70. PROMPT ESTRAT\u00c9GICO MESTRE (cole isso ao iniciar cada sprint)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L11",
+      "id": "roleta_cloud_sprint_evolucao_25_05_0_prompt_estrat\u00e9gico_mestre_cole_isso_ao_iniciar_cada_sprint",
+      "community": 169,
+      "norm_label": "\u00a70. prompt estrategico mestre (cole isso ao iniciar cada sprint)"
+    },
+    {
+      "label": "code:block1 (Assuma o papel de dev senior do Roleta Cloud. Modelo claude-)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L13",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_1",
+      "community": 169,
+      "norm_label": "code:block1 (assuma o papel de dev senior do roleta cloud. modelo claude-)"
+    },
+    {
+      "label": "\u00a71. Auditoria de `Visualizacao_da_evolucao_25_05.md` (bugs e lacunas no PR\u00d3PRIO doc)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L58",
+      "id": "roleta_cloud_sprint_evolucao_25_05_1_auditoria_de_visualizacao_da_evolucao_25_05_md_bugs_e_lacunas_no_pr\u00f3prio_doc",
+      "community": 169,
+      "norm_label": "\u00a71. auditoria de `visualizacao_da_evolucao_25_05.md` (bugs e lacunas no proprio doc)"
+    },
+    {
+      "label": "\u00a72. DNA Estrutural \u2014 a coluna vertebral que falta",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L80",
+      "id": "roleta_cloud_sprint_evolucao_25_05_2_dna_estrutural_a_coluna_vertebral_que_falta",
+      "community": 169,
+      "norm_label": "\u00a72. dna estrutural \u2014 a coluna vertebral que falta"
+    },
+    {
+      "label": "code:block2 (\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L86",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_2",
+      "community": 169,
+      "norm_label": "code:block2 (\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500)"
+    },
+    {
+      "label": "\u00a73. Lista de Sprints (\u2265 30 profundas + 8 de bugs)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L106",
+      "id": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "community": 170,
+      "norm_label": "\u00a73. lista de sprints (\u2265 30 profundas + 8 de bugs)"
+    },
+    {
+      "label": "\ud83d\udc1b BUGS \u2014 prioridade m\u00e1xima (8 sprints, todas obrigat\u00f3rias)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L113",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "community": 171,
+      "norm_label": "\ud83d\udc1b bugs \u2014 prioridade maxima (8 sprints, todas obrigatorias)"
+    },
+    {
+      "label": "B-01 \u2014 Desligar `sda_offset_type=errdriven` via feature_flag (QUICK WIN 5 min)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L115",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_01_desligar_sda_offset_type_errdriven_via_feature_flag_quick_win_5_min",
+      "community": 171,
+      "norm_label": "b-01 \u2014 desligar `sda_offset_type=errdriven` via feature_flag (quick win 5 min)"
+    },
+    {
+      "label": "B-02 \u2014 `_calculate_force` retorna 0 quando `from_num == to_num` (N25-01)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L124",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_02_calculate_force_retorna_0_quando_from_num_to_num_n25_01",
+      "community": 171,
+      "norm_label": "b-02 \u2014 `_calculate_force` retorna 0 quando `from_num == to_num` (n25-01)"
+    },
+    {
+      "label": "B-03 \u2014 `gale_windows.result` NULL em 100 % (N25-02)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L133",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_03_gale_windows_result_null_em_100_n25_02",
+      "community": 171,
+      "norm_label": "b-03 \u2014 `gale_windows.result` null em 100 % (n25-02)"
+    },
+    {
+      "label": "B-04 \u2014 Autoencoder `/app/models` sem bind mount (N25-03)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L142",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_04_autoencoder_app_models_sem_bind_mount_n25_03",
+      "community": 171,
+      "norm_label": "b-04 \u2014 autoencoder `/app/models` sem bind mount (n25-03)"
+    },
+    {
+      "label": "B-05 \u2014 Bandit \u03b5-greedy n\u00e3o persiste em `state.json` (N25-05)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L152",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_05_bandit_\u03b5_greedy_n\u00e3o_persiste_em_state_json_n25_05",
+      "community": 171,
+      "norm_label": "b-05 \u2014 bandit \u03b5-greedy nao persiste em `state.json` (n25-05)"
+    },
+    {
+      "label": "B-06 \u2014 `/api/regime` retorna distance=0 em 9/10 (N25-07)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L162",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_06_api_regime_retorna_distance_0_em_9_10_n25_07",
+      "community": 171,
+      "norm_label": "b-06 \u2014 `/api/regime` retorna distance=0 em 9/10 (n25-07)"
+    },
+    {
+      "label": "B-07 \u2014 Refatorar `errdriven` (depois de B-01 garantir off, voltar com l\u00f3gica boa)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L172",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_07_refatorar_errdriven_depois_de_b_01_garantir_off_voltar_com_l\u00f3gica_boa",
+      "community": 171,
+      "norm_label": "b-07 \u2014 refatorar `errdriven` (depois de b-01 garantir off, voltar com logica boa)"
+    },
+    {
+      "label": "B-08 \u2014 `calibration_error` 100 % NULL (N25-04 ressuscitado)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L181",
+      "id": "roleta_cloud_sprint_evolucao_25_05_b_08_calibration_error_100_null_n25_04_ressuscitado",
+      "community": 171,
+      "norm_label": "b-08 \u2014 `calibration_error` 100 % null (n25-04 ressuscitado)"
+    },
+    {
+      "label": "\ud83e\uddec DNA \u2014 atribui\u00e7\u00e3o estrutural por decis\u00e3o (6 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L192",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "community": 174,
+      "norm_label": "\ud83e\uddec dna \u2014 atribuicao estrutural por decisao (6 sprints)"
+    },
+    {
+      "label": "DNA-01 \u2014 Schema `decision_attribution` + outbox handler",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L194",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_01_schema_decision_attribution_outbox_handler",
+      "community": 174,
+      "norm_label": "dna-01 \u2014 schema `decision_attribution` + outbox handler"
+    },
+    {
+      "label": "DNA-02 \u2014 Pipeline SHAP / permutation importance offline",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L207",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_02_pipeline_shap_permutation_importance_offline",
+      "community": 174,
+      "norm_label": "dna-02 \u2014 pipeline shap / permutation importance offline"
+    },
+    {
+      "label": "DNA-03 \u2014 Materialized view `mv_decision_contribution_rolling`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L218",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_03_materialized_view_mv_decision_contribution_rolling",
+      "community": 174,
+      "norm_label": "dna-03 \u2014 materialized view `mv_decision_contribution_rolling`"
+    },
+    {
+      "label": "DNA-04 \u2014 Shadow logging \"with vs without feature\"",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L227",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_04_shadow_logging_with_vs_without_feature",
+      "community": 174,
+      "norm_label": "dna-04 \u2014 shadow logging \"with vs without feature\""
+    },
+    {
+      "label": "DNA-05 \u2014 Dashboard Grafana \"DNA estrat\u00e9gico\"",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L236",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_05_dashboard_grafana_dna_estrat\u00e9gico",
+      "community": 174,
+      "norm_label": "dna-05 \u2014 dashboard grafana \"dna estrategico\""
+    },
+    {
+      "label": "DNA-06 \u2014 Contrato \"toda feature nova precisa attribution_id\"",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L245",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dna_06_contrato_toda_feature_nova_precisa_attribution_id",
+      "community": 174,
+      "norm_label": "dna-06 \u2014 contrato \"toda feature nova precisa attribution_id\""
+    },
+    {
+      "label": "\ud83c\udfaf WHEEL DISTANCE (4 sprints \u2014 alta prioridade)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L260",
+      "id": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "community": 176,
+      "norm_label": "\ud83c\udfaf wheel distance (4 sprints \u2014 alta prioridade)"
+    },
+    {
+      "label": "W-01 \u2014 Helper `_compute_wheel_dist` em `core/roulette.py`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L262",
+      "id": "roleta_cloud_sprint_evolucao_25_05_w_01_helper_compute_wheel_dist_em_core_roulette_py",
+      "community": 176,
+      "norm_label": "w-01 \u2014 helper `_compute_wheel_dist` em `core/roulette.py`"
+    },
+    {
+      "label": "W-02 \u2014 Popular `decisions.calibration_error` com `wheel_dist`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L273",
+      "id": "roleta_cloud_sprint_evolucao_25_05_w_02_popular_decisions_calibration_error_com_wheel_dist",
+      "community": 176,
+      "norm_label": "w-02 \u2014 popular `decisions.calibration_error` com `wheel_dist`"
+    },
+    {
+      "label": "W-03 \u2014 Retrain `sigmoid_off` com dist-loss (n\u00e3o s\u00f3 hit/miss)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L283",
+      "id": "roleta_cloud_sprint_evolucao_25_05_w_03_retrain_sigmoid_off_com_dist_loss_n\u00e3o_s\u00f3_hit_miss",
+      "community": 176,
+      "norm_label": "w-03 \u2014 retrain `sigmoid_off` com dist-loss (nao so hit/miss)"
+    },
+    {
+      "label": "W-04 \u2014 Backtest A/B harness sigmoid_off v1 vs v2",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L293",
+      "id": "roleta_cloud_sprint_evolucao_25_05_w_04_backtest_a_b_harness_sigmoid_off_v1_vs_v2",
+      "community": 176,
+      "norm_label": "w-04 \u2014 backtest a/b harness sigmoid_off v1 vs v2"
+    },
+    {
+      "label": "\ud83c\udfb0 DEALER / PROVIDER / MESA / ROUND_ID (6 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L304",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "community": 172,
+      "norm_label": "\ud83c\udfb0 dealer / provider / mesa / round_id (6 sprints)"
+    },
+    {
+      "label": "DP-01 \u2014 Anexar `mesa_id` no payload `novo_resultado` (QUICK WIN)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L306",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_01_anexar_mesa_id_no_payload_novo_resultado_quick_win",
+      "community": 172,
+      "norm_label": "dp-01 \u2014 anexar `mesa_id` no payload `novo_resultado` (quick win)"
+    },
+    {
+      "label": "DP-02 \u2014 `MutationObserver` no `content.js` para nome do dealer",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L315",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_02_mutationobserver_no_content_js_para_nome_do_dealer",
+      "community": 172,
+      "norm_label": "dp-02 \u2014 `mutationobserver` no `content.js` para nome do dealer"
+    },
+    {
+      "label": "DP-03 \u2014 Detec\u00e7\u00e3o de `provider` via URL pattern",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L327",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_03_detec\u00e7\u00e3o_de_provider_via_url_pattern",
+      "community": 172,
+      "norm_label": "dp-03 \u2014 deteccao de `provider` via url pattern"
+    },
+    {
+      "label": "DP-04 \u2014 Captura de `round_id` (Evolution `game_id`)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L337",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_04_captura_de_round_id_evolution_game_id",
+      "community": 172,
+      "norm_label": "dp-04 \u2014 captura de `round_id` (evolution `game_id`)"
+    },
+    {
+      "label": "DP-05 \u2014 Schema `shared.dealers` + `shared.tables` + `shared.dealer_shifts`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L347",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_05_schema_shared_dealers_shared_tables_shared_dealer_shifts",
+      "community": 172,
+      "norm_label": "dp-05 \u2014 schema `shared.dealers` + `shared.tables` + `shared.dealer_shifts`"
+    },
+    {
+      "label": "code:sql (CREATE TABLE shared.providers (id SERIAL PK, code TEXT UNIQU)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L351",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_3",
+      "community": 172,
+      "norm_label": "code:sql (create table shared.providers (id serial pk, code text uniqu)"
+    },
+    {
+      "label": "DP-06 \u2014 Worker `dealer_stats` com EMA hit-rate por (dealer, dire\u00e7\u00e3o, hora)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L363",
+      "id": "roleta_cloud_sprint_evolucao_25_05_dp_06_worker_dealer_stats_com_ema_hit_rate_por_dealer_dire\u00e7\u00e3o_hora",
+      "community": 172,
+      "norm_label": "dp-06 \u2014 worker `dealer_stats` com ema hit-rate por (dealer, direcao, hora)"
+    },
+    {
+      "label": "\ud83d\uddc4\ufe0f PG / AGE / VECTOR (6 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L375",
+      "id": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "community": 173,
+      "norm_label": "\ud83d\uddc4\ufe0f pg / age / vector (6 sprints)"
+    },
+    {
+      "label": "V-01 \u2014 Ampliar `raw_features` 6-d \u2192 14-d",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L377",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_01_ampliar_raw_features_6_d_14_d",
+      "community": 173,
+      "norm_label": "v-01 \u2014 ampliar `raw_features` 6-d \u2192 14-d"
+    },
+    {
+      "label": "V-02 \u2014 Ativar AGE com grafo `spin_chain`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L387",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_02_ativar_age_com_grafo_spin_chain",
+      "community": 173,
+      "norm_label": "v-02 \u2014 ativar age com grafo `spin_chain`"
+    },
+    {
+      "label": "code:block4 ((Spin {id, num, dir, ts}) -[:NEXT_IN_DIR]-> (Spin))",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L390",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_4",
+      "community": 173,
+      "norm_label": "code:block4 ((spin {id, num, dir, ts}) -[:next_in_dir]-> (spin))"
+    },
+    {
+      "label": "V-03 \u2014 pgvector HNSW index em `raw_features_v2`",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L403",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_03_pgvector_hnsw_index_em_raw_features_v2",
+      "community": 173,
+      "norm_label": "v-03 \u2014 pgvector hnsw index em `raw_features_v2`"
+    },
+    {
+      "label": "V-04 \u2014 Materialized view `mv_regime_centroids` por (dealer, dire\u00e7\u00e3o)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L413",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_04_materialized_view_mv_regime_centroids_por_dealer_dire\u00e7\u00e3o",
+      "community": 173,
+      "norm_label": "v-04 \u2014 materialized view `mv_regime_centroids` por (dealer, direcao)"
+    },
+    {
+      "label": "V-05 \u2014 Reten\u00e7\u00e3o tiered (hot 7d, warm 30d, cold 365d)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L422",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_05_reten\u00e7\u00e3o_tiered_hot_7d_warm_30d_cold_365d",
+      "community": 173,
+      "norm_label": "v-05 \u2014 retencao tiered (hot 7d, warm 30d, cold 365d)"
+    },
+    {
+      "label": "V-06 \u2014 Backup `wal-g` Azure-ready",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L432",
+      "id": "roleta_cloud_sprint_evolucao_25_05_v_06_backup_wal_g_azure_ready",
+      "community": 173,
+      "norm_label": "v-06 \u2014 backup `wal-g` azure-ready"
+    },
+    {
+      "label": "\ud83c\udfb0 BANDIT + BET_ADVISOR (5 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L444",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "community": 175,
+      "norm_label": "\ud83c\udfb0 bandit + bet_advisor (5 sprints)"
+    },
+    {
+      "label": "BS-01 \u2014 Bandit persist (j\u00e1 em B-05 como bug; aqui \u00e9 o passo seguinte)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L446",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bs_01_bandit_persist_j\u00e1_em_b_05_como_bug_aqui_\u00e9_o_passo_seguinte",
+      "community": 175,
+      "norm_label": "bs-01 \u2014 bandit persist (ja em b-05 como bug; aqui e o passo seguinte)"
+    },
+    {
+      "label": "BS-02 \u2014 Substituir \u03b5-greedy por LinUCB contextual",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L455",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bs_02_substituir_\u03b5_greedy_por_linucb_contextual",
+      "community": 175,
+      "norm_label": "bs-02 \u2014 substituir \u03b5-greedy por linucb contextual"
+    },
+    {
+      "label": "BS-03 \u2014 Thompson sampling como challenger",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L465",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bs_03_thompson_sampling_como_challenger",
+      "community": 175,
+      "norm_label": "bs-03 \u2014 thompson sampling como challenger"
+    },
+    {
+      "label": "BS-04 \u2014 `bet_advisor` consumir `feature_store` quando \u2265 50 rows/dire\u00e7\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L474",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bs_04_bet_advisor_consumir_feature_store_quando_50_rows_dire\u00e7\u00e3o",
+      "community": 175,
+      "norm_label": "bs-04 \u2014 `bet_advisor` consumir `feature_store` quando \u2265 50 rows/direcao"
+    },
+    {
+      "label": "BS-05 \u2014 Regime similarity como sinal (ap\u00f3s B-06 + V-04)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L483",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bs_05_regime_similarity_como_sinal_ap\u00f3s_b_06_v_04",
+      "community": 175,
+      "norm_label": "bs-05 \u2014 regime similarity como sinal (apos b-06 + v-04)"
+    },
+    {
+      "label": "\ud83e\uddea BACKTEST / SHADOW / CANARY (3 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L495",
+      "id": "roleta_cloud_sprint_evolucao_25_05_backtest_shadow_canary_3_sprints",
+      "community": 170,
+      "norm_label": "\ud83e\uddea backtest / shadow / canary (3 sprints)"
+    },
+    {
+      "label": "BT-01 \u2014 Completar backtest harness (S-STRAT-9 desbloqueado)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L497",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bt_01_completar_backtest_harness_s_strat_9_desbloqueado",
+      "community": 170,
+      "norm_label": "bt-01 \u2014 completar backtest harness (s-strat-9 desbloqueado)"
+    },
+    {
+      "label": "BT-02 \u2014 Shadow mode v3 (paralelo per-feature)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L507",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bt_02_shadow_mode_v3_paralelo_per_feature",
+      "community": 170,
+      "norm_label": "bt-02 \u2014 shadow mode v3 (paralelo per-feature)"
+    },
+    {
+      "label": "BT-03 \u2014 Canary rollout (10 % \u2192 50 % \u2192 100 %) + auto-rollback",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L516",
+      "id": "roleta_cloud_sprint_evolucao_25_05_bt_03_canary_rollout_10_50_100_auto_rollback",
+      "community": 170,
+      "norm_label": "bt-03 \u2014 canary rollout (10 % \u2192 50 % \u2192 100 %) + auto-rollback"
+    },
+    {
+      "label": "\ud83d\udcca OBSERVABILITY (3 sprints)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L527",
+      "id": "roleta_cloud_sprint_evolucao_25_05_observability_3_sprints",
+      "community": 170,
+      "norm_label": "\ud83d\udcca observability (3 sprints)"
+    },
+    {
+      "label": "O-01 \u2014 Painel Grafana \"Estrat\u00e9gia 360\u00ba\" (DNA + dealer + dist)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L529",
+      "id": "roleta_cloud_sprint_evolucao_25_05_o_01_painel_grafana_estrat\u00e9gia_360o_dna_dealer_dist",
+      "community": 170,
+      "norm_label": "o-01 \u2014 painel grafana \"estrategia 360o\" (dna + dealer + dist)"
+    },
+    {
+      "label": "O-02 \u2014 Alert `hit_rate_per_dealer < 44 %` (degrada\u00e7\u00e3o)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L538",
+      "id": "roleta_cloud_sprint_evolucao_25_05_o_02_alert_hit_rate_per_dealer_44_degrada\u00e7\u00e3o",
+      "community": 170,
+      "norm_label": "o-02 \u2014 alert `hit_rate_per_dealer < 44 %` (degradacao)"
+    },
+    {
+      "label": "O-03 \u2014 Log estruturado `decision_id` correlation (E2E)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L547",
+      "id": "roleta_cloud_sprint_evolucao_25_05_o_03_log_estruturado_decision_id_correlation_e2e",
+      "community": 170,
+      "norm_label": "o-03 \u2014 log estruturado `decision_id` correlation (e2e)"
+    },
+    {
+      "label": "\u00a74. Mapa de depend\u00eancias (Mermaid)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L558",
+      "id": "roleta_cloud_sprint_evolucao_25_05_4_mapa_de_depend\u00eancias_mermaid",
+      "community": 169,
+      "norm_label": "\u00a74. mapa de dependencias (mermaid)"
+    },
+    {
+      "label": "code:mermaid (graph LR)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L560",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_5",
+      "community": 169,
+      "norm_label": "code:mermaid (graph lr)"
+    },
+    {
+      "label": "\u00a75. Ordem de execu\u00e7\u00e3o recomendada (waves)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L606",
+      "id": "roleta_cloud_sprint_evolucao_25_05_5_ordem_de_execu\u00e7\u00e3o_recomendada_waves",
+      "community": 169,
+      "norm_label": "\u00a75. ordem de execucao recomendada (waves)"
+    },
+    {
+      "label": "\u00a76. Princ\u00edpios anti-regress\u00e3o (LEIA antes de cada sprint)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L623",
+      "id": "roleta_cloud_sprint_evolucao_25_05_6_princ\u00edpios_anti_regress\u00e3o_leia_antes_de_cada_sprint",
+      "community": 169,
+      "norm_label": "\u00a76. principios anti-regressao (leia antes de cada sprint)"
+    },
+    {
+      "label": "\u00a77. Memory MCP \u2014 entidades a registrar ao executar",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L638",
+      "id": "roleta_cloud_sprint_evolucao_25_05_7_memory_mcp_entidades_a_registrar_ao_executar",
+      "community": 169,
+      "norm_label": "\u00a77. memory mcp \u2014 entidades a registrar ao executar"
+    },
+    {
+      "label": "\u00a78. Comandos prontos por sprint (helper)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L650",
+      "id": "roleta_cloud_sprint_evolucao_25_05_8_comandos_prontos_por_sprint_helper",
+      "community": 169,
+      "norm_label": "\u00a78. comandos prontos por sprint (helper)"
+    },
+    {
+      "label": "code:powershell (# Snapshot antes de come\u00e7ar)",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L652",
+      "id": "roleta_cloud_sprint_evolucao_25_05_codeblock_6",
+      "community": 169,
+      "norm_label": "code:powershell (# snapshot antes de comecar)"
+    },
+    {
+      "label": "\u00a79. Resposta direta \u00e0 pergunta de captura dealer/provider",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L683",
+      "id": "roleta_cloud_sprint_evolucao_25_05_9_resposta_direta_\u00e0_pergunta_de_captura_dealer_provider",
+      "community": 169,
+      "norm_label": "\u00a79. resposta direta a pergunta de captura dealer/provider"
+    },
+    {
+      "label": "\u00a710. Pr\u00f3ximo passo recomendado",
+      "file_type": "document",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L700",
+      "id": "roleta_cloud_sprint_evolucao_25_05_10_pr\u00f3ximo_passo_recomendado",
+      "community": 169,
+      "norm_label": "\u00a710. proximo passo recomendado"
+    },
+    {
       "label": "Visualizacao_da_evolucao_25_05.md",
       "file_type": "document",
       "source_file": "Visualizacao_da_evolucao_25_05.md",
@@ -9480,7 +10092,7 @@
       "file_type": "document",
       "source_file": "melhor_simples_Estrategia_23_05.md",
       "source_location": "L1",
-      "community": 109,
+      "community": 102,
       "norm_label": "melhor_simples_estrategia_23_05.md",
       "id": "melhor_simples_estrategia_23_05_md"
     },
@@ -27060,12 +27672,682 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_0_prompt_estrat\u00e9gico_mestre_cole_isso_ao_iniciar_cada_sprint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_1_auditoria_de_visualizacao_da_evolucao_25_05_md_bugs_e_lacunas_no_pr\u00f3prio_doc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L80",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_2_dna_estrutural_a_coluna_vertebral_que_falta",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L106",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L558",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_4_mapa_de_depend\u00eancias_mermaid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L606",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_5_ordem_de_execu\u00e7\u00e3o_recomendada_waves",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L623",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_6_princ\u00edpios_anti_regress\u00e3o_leia_antes_de_cada_sprint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L638",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_7_memory_mcp_entidades_a_registrar_ao_executar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L650",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_8_comandos_prontos_por_sprint_helper",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L683",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_9_resposta_direta_\u00e0_pergunta_de_captura_dealer_provider",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L700",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_sprint_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_sprint_evolucao_25_05_10_pr\u00f3ximo_passo_recomendado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_0_prompt_estrat\u00e9gico_mestre_cole_isso_ao_iniciar_cada_sprint",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_2_dna_estrutural_a_coluna_vertebral_que_falta",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L192",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L260",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L304",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L375",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L444",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L495",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_backtest_shadow_canary_3_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L527",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_3_lista_de_sprints_30_profundas_8_de_bugs",
+      "target": "roleta_cloud_sprint_evolucao_25_05_observability_3_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_01_desligar_sda_offset_type_errdriven_via_feature_flag_quick_win_5_min",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L124",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_02_calculate_force_retorna_0_quando_from_num_to_num_n25_01",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L133",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_03_gale_windows_result_null_em_100_n25_02",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L142",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_04_autoencoder_app_models_sem_bind_mount_n25_03",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L152",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_05_bandit_\u03b5_greedy_n\u00e3o_persiste_em_state_json_n25_05",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L162",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_06_api_regime_retorna_distance_0_em_9_10_n25_07",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L172",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_07_refatorar_errdriven_depois_de_b_01_garantir_off_voltar_com_l\u00f3gica_boa",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L181",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bugs_prioridade_m\u00e1xima_8_sprints_todas_obrigat\u00f3rias",
+      "target": "roleta_cloud_sprint_evolucao_25_05_b_08_calibration_error_100_null_n25_04_ressuscitado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L194",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_01_schema_decision_attribution_outbox_handler",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L207",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_02_pipeline_shap_permutation_importance_offline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L218",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_03_materialized_view_mv_decision_contribution_rolling",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L227",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_04_shadow_logging_with_vs_without_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L236",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_05_dashboard_grafana_dna_estrat\u00e9gico",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L245",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dna_atribui\u00e7\u00e3o_estrutural_por_decis\u00e3o_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dna_06_contrato_toda_feature_nova_precisa_attribution_id",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L262",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "target": "roleta_cloud_sprint_evolucao_25_05_w_01_helper_compute_wheel_dist_em_core_roulette_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L273",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "target": "roleta_cloud_sprint_evolucao_25_05_w_02_popular_decisions_calibration_error_com_wheel_dist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L283",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "target": "roleta_cloud_sprint_evolucao_25_05_w_03_retrain_sigmoid_off_com_dist_loss_n\u00e3o_s\u00f3_hit_miss",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L293",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_wheel_distance_4_sprints_alta_prioridade",
+      "target": "roleta_cloud_sprint_evolucao_25_05_w_04_backtest_a_b_harness_sigmoid_off_v1_vs_v2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L306",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_01_anexar_mesa_id_no_payload_novo_resultado_quick_win",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L315",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_02_mutationobserver_no_content_js_para_nome_do_dealer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L327",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_03_detec\u00e7\u00e3o_de_provider_via_url_pattern",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L337",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_04_captura_de_round_id_evolution_game_id",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L347",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_05_schema_shared_dealers_shared_tables_shared_dealer_shifts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L363",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dealer_provider_mesa_round_id_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_dp_06_worker_dealer_stats_com_ema_hit_rate_por_dealer_dire\u00e7\u00e3o_hora",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L351",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_dp_05_schema_shared_dealers_shared_tables_shared_dealer_shifts",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L377",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_01_ampliar_raw_features_6_d_14_d",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L387",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_02_ativar_age_com_grafo_spin_chain",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L403",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_03_pgvector_hnsw_index_em_raw_features_v2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L413",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_04_materialized_view_mv_regime_centroids_por_dealer_dire\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L422",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_05_reten\u00e7\u00e3o_tiered_hot_7d_warm_30d_cold_365d",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L432",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_pg_age_vector_6_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_v_06_backup_wal_g_azure_ready",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L390",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_v_02_ativar_age_com_grafo_spin_chain",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L446",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bs_01_bandit_persist_j\u00e1_em_b_05_como_bug_aqui_\u00e9_o_passo_seguinte",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L455",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bs_02_substituir_\u03b5_greedy_por_linucb_contextual",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L465",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bs_03_thompson_sampling_como_challenger",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L474",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bs_04_bet_advisor_consumir_feature_store_quando_50_rows_dire\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L483",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_bandit_bet_advisor_5_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bs_05_regime_similarity_como_sinal_ap\u00f3s_b_06_v_04",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L497",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_backtest_shadow_canary_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bt_01_completar_backtest_harness_s_strat_9_desbloqueado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L507",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_backtest_shadow_canary_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bt_02_shadow_mode_v3_paralelo_per_feature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L516",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_backtest_shadow_canary_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_bt_03_canary_rollout_10_50_100_auto_rollback",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L529",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_observability_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_o_01_painel_grafana_estrat\u00e9gia_360o_dna_dealer_dist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L538",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_observability_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_o_02_alert_hit_rate_per_dealer_44_degrada\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L547",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_observability_3_sprints",
+      "target": "roleta_cloud_sprint_evolucao_25_05_o_03_log_estruturado_decision_id_correlation_e2e",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L560",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_4_mapa_de_depend\u00eancias_mermaid",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_evolucao_25_05.md",
+      "source_location": "L652",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_evolucao_25_05_8_comandos_prontos_por_sprint_helper",
+      "target": "roleta_cloud_sprint_evolucao_25_05_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "visualizacao_da_evolucao_25_05_md",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05"
     },
     {
       "relation": "contains",
@@ -27073,9 +28355,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L13",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_0_tl_dr_1_p\u00e1gina_decisional",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_0_tl_dr_1_p\u00e1gina_decisional"
     },
     {
       "relation": "contains",
@@ -27083,9 +28365,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L30",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live"
     },
     {
       "relation": "contains",
@@ -27093,9 +28375,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L53",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa"
     },
     {
       "relation": "contains",
@@ -27103,9 +28385,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L114",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o"
     },
     {
       "relation": "contains",
@@ -27113,9 +28395,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L250",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista"
     },
     {
       "relation": "contains",
@@ -27123,9 +28405,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L315",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria"
     },
     {
       "relation": "contains",
@@ -27133,9 +28415,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L380",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi"
     },
     {
       "relation": "contains",
@@ -27143,9 +28425,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L473",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints"
     },
     {
       "relation": "contains",
@@ -27153,9 +28435,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L521",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_8_comparativo_estamos_no_caminho_certo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_8_comparativo_estamos_no_caminho_certo"
     },
     {
       "relation": "contains",
@@ -27163,9 +28445,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L538",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_9_comparativo_vs_estrutura_noite_25_audit_md",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_9_comparativo_vs_estrutura_noite_25_audit_md"
     },
     {
       "relation": "contains",
@@ -27173,9 +28455,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L553",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar"
     },
     {
       "relation": "contains",
@@ -27183,9 +28465,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L574",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar"
     },
     {
       "relation": "contains",
@@ -27193,9 +28475,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L34",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_1",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_1"
     },
     {
       "relation": "contains",
@@ -27203,9 +28485,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_2",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_2"
     },
     {
       "relation": "contains",
@@ -27213,9 +28495,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L99",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mapa_das_8_decis\u00f5es_e_onde_elas_vivem",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mapa_das_8_decis\u00f5es_e_onde_elas_vivem"
     },
     {
       "relation": "contains",
@@ -27223,9 +28505,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L120",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_1_tr_confidence_kill_switch_grade_paradoxo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_1_tr_confidence_kill_switch_grade_paradoxo"
     },
     {
       "relation": "contains",
@@ -27233,9 +28515,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L130",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_2_sda_score_sinal_puro_do_sda17_sweet_spot_em_4",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_2_sda_score_sinal_puro_do_sda17_sweet_spot_em_4"
     },
     {
       "relation": "contains",
@@ -27243,9 +28525,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L142",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_3_sda_offset_type_tipo_de_calibra\u00e7\u00e3o_aplicada_errdriven_est\u00e1_sabotando",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_3_sda_offset_type_tipo_de_calibra\u00e7\u00e3o_aplicada_errdriven_est\u00e1_sabotando"
     },
     {
       "relation": "contains",
@@ -27253,9 +28535,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L153",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_4_calibration_offset_efeito_altamente_assim\u00e9trico",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_4_calibration_offset_efeito_altamente_assim\u00e9trico"
     },
     {
       "relation": "contains",
@@ -27263,9 +28545,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L171",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_5_gale_level_tr_confidence_intera\u00e7\u00e3o_g2_media_\u00e9_diamante",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_5_gale_level_tr_confidence_intera\u00e7\u00e3o_g2_media_\u00e9_diamante"
     },
     {
       "relation": "contains",
@@ -27273,9 +28555,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L184",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_6_sda_predicted_force_for\u00e7a_prevista_sinal_muito_forte",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_6_sda_predicted_force_for\u00e7a_prevista_sinal_muito_forte"
     },
     {
       "relation": "contains",
@@ -27283,9 +28565,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L203",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_7_kill_switch_\u00e9_estatisticamente_nulo_hoje",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_7_kill_switch_\u00e9_estatisticamente_nulo_hoje"
     },
     {
       "relation": "contains",
@@ -27293,9 +28575,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L214",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_8_dire\u00e7\u00e3o_cw_vs_ccw_sim\u00e9trico",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_8_dire\u00e7\u00e3o_cw_vs_ccw_sim\u00e9trico"
     },
     {
       "relation": "contains",
@@ -27303,9 +28585,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L223",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_9_tr_c4_rate_taxa_\u00faltimos_4_n\u00e3o_preditiva_como_bucket",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_9_tr_c4_rate_taxa_\u00faltimos_4_n\u00e3o_preditiva_como_bucket"
     },
     {
       "relation": "contains",
@@ -27313,9 +28595,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L235",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_10_sum\u00e1rio_ranking_decis\u00f5es_com_impacto_real",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_10_sum\u00e1rio_ranking_decis\u00f5es_com_impacto_real"
     },
     {
       "relation": "contains",
@@ -27323,9 +28605,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L252",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_1_resposta_direta",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_1_resposta_direta"
     },
     {
       "relation": "contains",
@@ -27333,9 +28615,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L264",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_2_por_que_isso_\u00e9_central_para_a_estrat\u00e9gia",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_2_por_que_isso_\u00e9_central_para_a_estrat\u00e9gia"
     },
     {
       "relation": "contains",
@@ -27343,9 +28625,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L275",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido"
     },
     {
       "relation": "contains",
@@ -27353,9 +28635,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L305",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_4_backtest_harness_s_strat_9_encaixe_perfeito",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_4_backtest_harness_s_strat_9_encaixe_perfeito"
     },
     {
       "relation": "contains",
@@ -27363,9 +28645,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L277",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_3",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_3"
     },
     {
       "relation": "contains",
@@ -27373,9 +28655,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L317",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features"
     },
     {
       "relation": "contains",
@@ -27383,9 +28665,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L345",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa"
     },
     {
       "relation": "contains",
@@ -27393,9 +28675,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L369",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_3_sqlite_write_side_decisions_gale_windows_sessions",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_3_sqlite_write_side_decisions_gale_windows_sessions"
     },
     {
       "relation": "contains",
@@ -27403,9 +28685,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L319",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_4",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_4"
     },
     {
       "relation": "contains",
@@ -27413,9 +28695,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L347",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_5",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_5"
     },
     {
       "relation": "contains",
@@ -27423,9 +28705,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L355",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_6",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_6"
     },
     {
       "relation": "contains",
@@ -27433,9 +28715,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L382",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_1_por_que_faz_sentido_literatura_experi\u00eancia",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_1_por_que_faz_sentido_literatura_experi\u00eancia"
     },
     {
       "relation": "contains",
@@ -27443,9 +28725,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L393",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_2_o_que_captar_e_de_onde",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_2_o_que_captar_e_de_onde"
     },
     {
       "relation": "contains",
@@ -27453,9 +28735,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L405",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto"
     },
     {
       "relation": "contains",
@@ -27463,9 +28745,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L463",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_4_como_a_estrat\u00e9gia_melhora_com_dealer_provider",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_4_como_a_estrat\u00e9gia_melhora_com_dealer_provider"
     },
     {
       "relation": "contains",
@@ -27473,9 +28755,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L407",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side"
     },
     {
       "relation": "contains",
@@ -27483,9 +28765,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L421",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py"
     },
     {
       "relation": "contains",
@@ -27493,9 +28775,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L453",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado"
     },
     {
       "relation": "contains",
@@ -27503,9 +28785,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L409",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_7",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_7"
     },
     {
       "relation": "contains",
@@ -27513,9 +28795,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L423",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_8",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_8"
     },
     {
       "relation": "contains",
@@ -27523,9 +28805,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L456",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_9",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_9"
     },
     {
       "relation": "contains",
@@ -27533,9 +28815,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L475",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_a_capturar_wheel_dist_3_dias_roi_mais_alto",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_a_capturar_wheel_dist_3_dias_roi_mais_alto"
     },
     {
       "relation": "contains",
@@ -27543,9 +28825,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L488",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_b_capturar_dealer_provider_5_dias",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_b_capturar_dealer_provider_5_dias"
     },
     {
       "relation": "contains",
@@ -27553,9 +28835,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L501",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_c_desligar_errdriven_remediar_sda_score_extremos_1_dia",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_c_desligar_errdriven_remediar_sda_score_extremos_1_dia"
     },
     {
       "relation": "contains",
@@ -27563,9 +28845,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L512",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_sequ\u00eancia_recomendada",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_sequ\u00eancia_recomendada"
     },
     {
       "relation": "contains",
@@ -27573,9 +28855,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L555",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_10",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_10"
     },
     {
       "relation": "contains",
@@ -27583,9 +28865,9 @@
       "source_file": "Visualizacao_da_evolucao_25_05.md",
       "source_location": "L576",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar",
-      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_11",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_11"
     },
     {
       "relation": "contains",
@@ -37449,5 +38731,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a65986c5036e546ab0cd0b657fe248be95e965af"
+  "built_at_commit": "67cd365e5ea934dc746ef49b30dd9a0469efcaf1"
 }

@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 36 files · ~65,607 words
+- 37 files · ~71,397 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1908 nodes · 2010 edges · 172 communities (152 shown, 20 thin omitted)
+- 1976 nodes · 2077 edges · 178 communities (161 shown, 17 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a65986c5`
+- Built from commit: `67cd365e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -180,6 +180,12 @@
 - [[_COMMUNITY_Community 169|Community 169]]
 - [[_COMMUNITY_Community 170|Community 170]]
 - [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
+- [[_COMMUNITY_Community 175|Community 175]]
+- [[_COMMUNITY_Community 176|Community 176]]
+- [[_COMMUNITY_Community 177|Community 177]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -197,7 +203,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (172 total, 20 thin omitted)
+## Communities (178 total, 17 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -264,8 +270,8 @@ Cohesion: 0.12
 Nodes (17): 4.1.1 Mudanças nas Constantes (linhas 24-32), 4.1.2 Novo Método: `_get_adaptive_offset(direction)`, 4.1.3 Novo Método: `update_adaptive(direction, c1, actual_result)`, 4.1.4 Mudanças no `analyze()` (linhas 117-175), 4.1.5 Atualização do `details` no Retorno, 4.1.6 Métodos a REMOVER, 4.1.7 Novo Método: Serialização do Estado Adaptativo, 4.1.8 Atualização da Assinatura de `analyze()` (+9 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.23
-Nodes (4): circ_dir(), M12_PercentileBand, Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
+Cohesion: 0.14
+Nodes (6): M05_AdaptiveEWMA, M10_MAD_Robust, M12_PercentileBand, EWMA com alpha adaptativo: erro maior → alpha maior → resposta mais rápida., MAD (Median Absolute Deviation) para identificar outliers e ajustar só com dados, Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
 
 ### Community 17 - "Community 17"
 Cohesion: 0.26
@@ -275,9 +281,13 @@ Nodes (9): circ_dist(), clamp(), coverage_set(), error_pct(), M11_BayesianPoster
 Cohesion: 0.18
 Nodes (11): 5.1 Adequação Funcional (Functional Suitability), 5.2 Confiabilidade (Reliability), 5.3 Manutenibilidade (Maintainability), 5.4 Eficiência de Desempenho (Performance Efficiency), 5.5 Compatibilidade (Compatibility), 5.6 Usabilidade (Usability), 5.7 Segurança (Security), 5.8 Portabilidade (Portability) (+3 more)
 
+### Community 19 - "Community 19"
+Cohesion: 0.20
+Nodes (6): circ_dir(), M01_PercentualLinear, M03_PercentualThreshold, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Ajuste linear baseado em % do erro. Hit: tighten 5% para center=10. Miss: mover
+
 ### Community 20 - "Community 20"
-Cohesion: 0.17
-Nodes (7): BaseModel, M03_PercentualThreshold, M14_GradientDescent, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Gradiente numérico: testa off±1 contra últimas 3 jogadas, step na direção do gra, Classe base para todos os modelos., Chamado após cada jogada com feedback.
+Cohesion: 0.18
+Nodes (7): BaseModel, M08_DampedPID, M15_EnsembleVote, PID com anti-windup e filtro derivativo para prevenir oscilação., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec, Classe base para todos os modelos., Chamado após cada jogada com feedback.
 
 ### Community 21 - "Community 21"
 Cohesion: 0.20
@@ -292,8 +302,8 @@ Cohesion: 0.20
 Nodes (10): 6.1 Checklist de Validação Local (conforme `deployci_cd.md` §2), 6.2 Arquivos Modificados (para commit), 6.3 Commit Sugerido, 6.4 Migração de Dados, 6.5 Rollback Plan, code:block16 (core/engine.py           +11 linhas  (BUG-TASK-001)), code:block17 (fix(v4.0.3): correções auditoria Bayesiana — 9 bugs), code:block18 (Migração automática no startup:) (+2 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.21
-Nodes (6): M04_EMA_ErrorTracking, M09_Kalman, M15_EnsembleVote, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec
+Cohesion: 0.27
+Nodes (4): M04_EMA_ErrorTracking, M09_Kalman, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo.
 
 ### Community 25 - "Community 25"
 Cohesion: 0.22
@@ -572,7 +582,7 @@ Cohesion: 0.20
 Nodes (7): M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., QW-6 — warmup adaptativo (ganhando=2, perdendo=5)., QW-6 — warmup adaptativo (ganhando=2, perdendo=5)., QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.
 
 ### Community 102 - "Community 102"
-Cohesion: 0.33
+Cohesion: 0.29
 Nodes (6): 📊 Baseline — dados de produção 23/05/2026, code:block1 (┌───────────────────────────────────────────────────────────), 🚦 Escopo deste documento, 🚦 INVARIANTES INEGOCIÁVEIS APLICADOS NESTE DOC, 🏆 Os 7 Quick Wins (ordenados por impacto/esforço), 🎯 Quick Wins de Estratégia — Roleta Cloud v4.3.2 → v4.4
 
 ### Community 103 - "Community 103"
@@ -600,7 +610,7 @@ Cohesion: 0.33
 Nodes (6): code:bash (az login), ETAPA 4.1 — Provisionar Azure DB for PostgreSQL (CLOUD) — 1d, ETAPA 4.2 — Migração de schema + dados (LOCAL + CLOUD) — 1d, ETAPA 4.3 — Trocar driver no app (LOCAL) — 1d, ETAPA 4.4 — pgmq + pg_cron + pgvector setup (CLOUD) — 1d, FASE 4 — Migração para Postgres (4 dias) — 🟡 amarelo
 
 ### Community 109 - "Community 109"
-Cohesion: 0.29
+Cohesion: 0.33
 Nodes (6): code:python (# __init__:), Implementação (~30 LoC), Métrica de validação, O quê, QW-4 — Hot Center **Substitution** (não pula, troca) ⭐⭐⭐, Risco
 
 ### Community 110 - "Community 110"
@@ -779,10 +789,42 @@ Nodes (6): 4.1 Resposta direta, 4.2 Por que isso é central para a estratégia, 
 Cohesion: 0.40
 Nodes (5): §7. Roadmap de evolução — 3 alavancas, 3 sprints, Alavanca A — **Capturar wheel_dist** (3 dias) — ROI mais alto, Alavanca B — **Capturar dealer + provider** (5 dias), Alavanca C — **Desligar errdriven + remediar sda_score extremos** (1 dia), Sequência recomendada
 
+### Community 169 - "Community 169"
+Cohesion: 0.12
+Nodes (15): §0. PROMPT ESTRATÉGICO MESTRE (cole isso ao iniciar cada sprint), §10. Próximo passo recomendado, §1. Auditoria de `Visualizacao_da_evolucao_25_05.md` (bugs e lacunas no PRÓPRIO doc), §2. DNA Estrutural — a coluna vertebral que falta, §4. Mapa de dependências (Mermaid), §5. Ordem de execução recomendada (waves), §6. Princípios anti-regressão (LEIA antes de cada sprint), §7. Memory MCP — entidades a registrar ao executar (+7 more)
+
+### Community 170 - "Community 170"
+Cohesion: 0.22
+Nodes (9): §3. Lista de Sprints (≥ 30 profundas + 8 de bugs), 🧪 BACKTEST / SHADOW / CANARY (3 sprints), BT-01 — Completar backtest harness (S-STRAT-9 desbloqueado), BT-02 — Shadow mode v3 (paralelo per-feature), BT-03 — Canary rollout (10 % → 50 % → 100 %) + auto-rollback, O-01 — Painel Grafana "Estratégia 360º" (DNA + dealer + dist), O-02 — Alert `hit_rate_per_dealer < 44 %` (degradação), O-03 — Log estruturado `decision_id` correlation (E2E) (+1 more)
+
+### Community 171 - "Community 171"
+Cohesion: 0.22
+Nodes (9): B-01 — Desligar `sda_offset_type=errdriven` via feature_flag (QUICK WIN 5 min), B-02 — `_calculate_force` retorna 0 quando `from_num == to_num` (N25-01), B-03 — `gale_windows.result` NULL em 100 % (N25-02), B-04 — Autoencoder `/app/models` sem bind mount (N25-03), B-05 — Bandit ε-greedy não persiste em `state.json` (N25-05), B-06 — `/api/regime` retorna distance=0 em 9/10 (N25-07), B-07 — Refatorar `errdriven` (depois de B-01 garantir off, voltar com lógica boa), B-08 — `calibration_error` 100 % NULL (N25-04 ressuscitado) (+1 more)
+
+### Community 172 - "Community 172"
+Cohesion: 0.25
+Nodes (8): code:sql (CREATE TABLE shared.providers (id SERIAL PK, code TEXT UNIQU), 🎰 DEALER / PROVIDER / MESA / ROUND_ID (6 sprints), DP-01 — Anexar `mesa_id` no payload `novo_resultado` (QUICK WIN), DP-02 — `MutationObserver` no `content.js` para nome do dealer, DP-03 — Detecção de `provider` via URL pattern, DP-04 — Captura de `round_id` (Evolution `game_id`), DP-05 — Schema `shared.dealers` + `shared.tables` + `shared.dealer_shifts`, DP-06 — Worker `dealer_stats` com EMA hit-rate por (dealer, direção, hora)
+
+### Community 173 - "Community 173"
+Cohesion: 0.25
+Nodes (8): code:block4 ((Spin {id, num, dir, ts}) -[:NEXT_IN_DIR]-> (Spin)), 🗄️ PG / AGE / VECTOR (6 sprints), V-01 — Ampliar `raw_features` 6-d → 14-d, V-02 — Ativar AGE com grafo `spin_chain`, V-03 — pgvector HNSW index em `raw_features_v2`, V-04 — Materialized view `mv_regime_centroids` por (dealer, direção), V-05 — Retenção tiered (hot 7d, warm 30d, cold 365d), V-06 — Backup `wal-g` Azure-ready
+
+### Community 174 - "Community 174"
+Cohesion: 0.29
+Nodes (7): DNA-01 — Schema `decision_attribution` + outbox handler, DNA-02 — Pipeline SHAP / permutation importance offline, DNA-03 — Materialized view `mv_decision_contribution_rolling`, DNA-04 — Shadow logging "with vs without feature", DNA-05 — Dashboard Grafana "DNA estratégico", DNA-06 — Contrato "toda feature nova precisa attribution_id", 🧬 DNA — atribuição estrutural por decisão (6 sprints)
+
+### Community 175 - "Community 175"
+Cohesion: 0.33
+Nodes (6): 🎰 BANDIT + BET_ADVISOR (5 sprints), BS-01 — Bandit persist (já em B-05 como bug; aqui é o passo seguinte), BS-02 — Substituir ε-greedy por LinUCB contextual, BS-03 — Thompson sampling como challenger, BS-04 — `bet_advisor` consumir `feature_store` quando ≥ 50 rows/direção, BS-05 — Regime similarity como sinal (após B-06 + V-04)
+
+### Community 176 - "Community 176"
+Cohesion: 0.40
+Nodes (5): W-01 — Helper `_compute_wheel_dist` em `core/roulette.py`, W-02 — Popular `decisions.calibration_error` com `wheel_dist`, W-03 — Retrain `sigmoid_off` com dist-loss (não só hit/miss), W-04 — Backtest A/B harness sigmoid_off v1 vs v2, 🎯 WHEEL DISTANCE (4 sprints — alta prioridade)
+
 ## Knowledge Gaps
-- **1015 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+1010 more)
+- **1066 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+1061 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -790,11 +832,11 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
   _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
-  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Why does `4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO` connect `Community 95` to `Community 0`, `Community 79`, `Community 15`, `Community 111`, `Community 21`, `Community 118`, `Community 119`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
-  _1187 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1238 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
