@@ -247,9 +247,9 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - 183 testes passando.
 
 ### Próximos passos sugeridos (priorizados)
-1. **OBS-25-01** — patch outbox `spin_features` payload com `spin_number`, `hit`, `centro_previsto`. (~30 min)
+1. **OBS-25-01** — ✅ **IMPLEMENTADO** (commit `a5739b4`): payload `spin_features.meta` agora inclui `spin_number`, `centro_previsto`, `applied_gale_level`; novo evento `spin_result` publicado pelo `maybe_publish_spin_result` após `db_service.update_result`, com `hit` e `actual_number`. Validado live: PG mostra `spin_features=3, spin_result=1` na janela 04:44 UTC. Backtest offline (S-STRAT-9) desbloqueado.
 2. Re-rodar engenharia reversa em janela ≥1 h após restart para coletar ≥60 spins e popular EMA real.
-3. **GALE-25-04** — patch `applied_gale_level` para clareza pós-fato.
+3. **GALE-25-04** — ✅ **IMPLEMENTADO** (mesmo commit): meta espelha `applied_gale_level` separado de `gale_level`.
 4. Avançar **S-STRAT-11** (KILL dinâmico por volatilidade) já que kill_pulls=21 sugere uso ativo.
 5. Avançar **S-STRAT-8** (feature store no PG) — desbloqueia backtest offline (S-STRAT-9).
 6. Avançar **S-STRAT-13.1** promoção automática do champion uma vez que EMA esteja populado.
