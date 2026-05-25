@@ -5,6 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: roleta-cloud
     restart: unless-stopped
+    # S-INFRA-1 §17: limite memoria evita OOM no host se houver leak natural.
+    # Consumo atual estavel em ~31MB; 512m oferece 16x folga sem afetar peers.
+    mem_limit: 512m
+    mem_reservation: 64m
     # VF-0: SYS_PTRACE para py-spy attach no PID 1 (debugging runtime)
     cap_add:
       - SYS_PTRACE

@@ -1098,3 +1098,63 @@ Novas métricas Prometheus (alimentadas on-demand a cada scrape `/metrics`):
 - **Próxima semana**: P2 (#4, #5, #6)
 - **Próximo mês**: P3 (#7, #8, #9) + P4 (#10, #11)
 
+
+
+---
+
+## §17 — Sprint pós-§16: S-INFRA-1 + S-WALG-3 (validação) + auditoria (2026-05-24 22:50 BRT)
+
+### Stack MCP usada
+graphify (re-update) + filesystem + sequential-thinking + brave + memory
+
+### Estado live 1h:
+- 121 decisions / 110 APOSTAR / 7 KILL v3 = **5.8%** ✅ (3ª hora consecutiva no range 5-15%)
+- `/api/state.age=35s`, keys=9, sigmoid populado ✅
+- 9 métricas `roleta_*` servindo em /metrics ✅
+
+### 🎯 S-WALG-3 — auditoria concluída como ✅ JÁ IMPLEMENTADO
+
+Investigado `scripts/walg-backup-daily.sh`:
+- Política documentada: **retém 7 basebackups FULL**
+- Comando: `wal-g delete retain FULL 7 --confirm` rodando após cada `backup-push`
+- Logs mostram "No backup found for deletion" (5 backups < 7 limite — esperado)
+- Lifecycle B2 30d adicional como segurança em camadas
+
+**Conclusão**: BUG-NOVO-20 → ❌ falso positivo (retention OK e logada em `/var/log/wal-g/backup.log`).
+
+### 🎯 S-INFRA-1 — gap real identificado e parcialmente corrigido
+
+Auditoria via `docker inspect`:
+| Container | restart | healthcheck | mem_limit |
+|---|---|---|---|
+| roleta-cloud | unless-stopped ✅ | curl /health ✅ | **0 (ilimitado) ❌** → **512m ✅** |
+| roleta-pg | unless-stopped ✅ | pg_isready ✅ | 0 (intencional — shared_buffers=2GB) |
+| roleta-cdc-worker | unless-stopped ✅ | /tmp/cdc_alive ✅ | 0 (uso 24MB — aceitável) |
+
+**Mudança em `docker-compose.yml`** (roleta-cloud):
+```yaml
+mem_limit: 512m       # 16x folga sobre consumo atual de 31MB
+mem_reservation: 64m  # garante SLA mínimo
+```
+
+**Por quê (ISO/IEC 25010 §6.4 Reliability/Fault Tolerance):**
+- Evita "noisy neighbor": se houver leak em libs Python, container morre e reinicia (`unless-stopped`) sem derrubar PG/CDC
+- 31MB ÷ 512MB = 6.1% — alarme bem antes de pressão real
+
+### Auditoria delta — bugs procurados
+
+| Sinal | Resultado |
+|---|---|
+| Erros 60min | 0 ERROR, 2 warnings benignos |
+| Outbox PG | 234+ processed, 0 pending |
+| Disk/inode | 7% / 2% (folga) |
+| Load avg | 0.47/0.20/0.12 (1/5/15 min) — folga |
+| wal-g schedule | cron */30 confirmado, último `_33 @ 01:30:07Z` |
+
+### Pendentes → §18
+
+- **S-OBS-10** (Grafana + AlertManager): pendente — precisa Prometheus instalado no host (não está)
+- **S-OBS-11** (pg_stat_statements): risco médio — restart PG necessário
+- **S-CLEAN-2**: 7 dias sem warn (não acionado ainda)
+- **S-DASH-1**: HTML dashboard live consumindo /api/state + /api/strategy
+
