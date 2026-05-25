@@ -370,6 +370,15 @@ class MessageHandler:
             # Atualizar resultado da decisão anterior (se existia)
             if self.last_decision_id and hit_result is not None:
                 db_service.update_result(self.last_decision_id, hit_result, numero)
+                # OBS-25-01: publicar spin_result no outbox para backtest offline
+                try:
+                    from database.outbox_integration import maybe_publish_spin_result
+                    last_dir = getattr(self, "last_decision_direction", None) or direcao
+                    maybe_publish_spin_result(
+                        self.last_decision_id, last_dir, hit_result, numero
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("spin_result_hook_raise exc=%s", exc)
 
             # Salvar nova decisão
             decision = Decision(
@@ -406,9 +415,11 @@ class MessageHandler:
             if result.should_bet:
                 # SDA gerou predição → rastrear para verificar no próximo spin
                 self.last_decision_id = decision_id
+                self.last_decision_direction = direcao  # OBS-25-01
             else:
                 # SDA não recomendou → sem predição para verificar
                 self.last_decision_id = None
+                self.last_decision_direction = None
 
             # Atualizar stats da sessão a cada 10 decisões
             self._decision_count += 1

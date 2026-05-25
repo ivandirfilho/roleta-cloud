@@ -227,6 +227,12 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
                 "session_id": decision.session_id,
                 "final_action": decision.final_action,
                 "gale_level": decision.gale_level,
+                # OBS-25-01: observabilidade outbox — number/centro previsto
+                "spin_number": decision.spin_number,
+                "centro_previsto": decision.sda_center,
+                # GALE-25-04: clarificar semântica (gale_level é o "próximo",
+                # applied_gale_level espelha o valor no momento da decisão)
+                "applied_gale_level": decision.gale_level,
             },
         )
         _m_hook_published.inc()
@@ -241,4 +247,48 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
             decision_id, _normalize_direction(decision.spin_direction),
             type(exc).__name__, exc,
         )
+        return False
+
+
+def maybe_publish_spin_result(decision_id: int, direction: str, hit: bool, actual_number: int) -> bool:
+    """OBS-25-01 — publica evento `spin_result` quando o resultado é conhecido.
+
+    Chamado após `db_service.update_result` no message_handler. Permite
+    engenharia reversa offline e backtest (S-STRAT-9) sem depender de logs.
+
+    NUNCA levanta — guard-rail consistente com maybe_publish_decision_features.
+    """
+    _m_hook_called.inc()
+    try:
+        if not _is_flag_enabled("dual_write_pg"):
+            _m_hook_skipped.labels(reason="flag_off").inc()
+            return False
+        dir_norm = _normalize_direction(direction)
+        if dir_norm is None:
+            _m_hook_skipped.labels(reason="unknown_direction").inc()
+            return False
+        pub = _get_publisher()
+        if pub is None:
+            _m_hook_skipped.labels(reason="publisher_none").inc()
+            return False
+        payload = {
+            "event_type": "spin_result",
+            "direction": dir_norm,
+            "decision_id": decision_id,
+            "hit": bool(hit),
+            "actual_number": int(actual_number),
+        }
+        pub.publish(
+            aggregate="spin_result",
+            aggregate_id=f"{dir_norm}:{decision_id}",
+            payload=payload,
+        )
+        _m_hook_published.inc()
+        logger.info("spin_result_ok decision_id=%s direction=%s hit=%s n=%s",
+                    decision_id, dir_norm, hit, actual_number)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _m_hook_skipped.labels(reason="exception").inc()
+        logger.error("spin_result_failed decision_id=%s direction=%s exc=%s error=%s",
+                     decision_id, direction, type(exc).__name__, exc)
         return False

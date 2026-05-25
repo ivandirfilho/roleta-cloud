@@ -121,6 +121,65 @@ def test_publish_skips_unknown_direction():
         fake_pub.publish_spin_features.assert_not_called()
 
 
+def test_publish_meta_includes_spin_number_and_centro(monkeypatch):
+    """OBS-25-01: meta deve incluir spin_number, centro_previsto, applied_gale_level."""
+    from database import outbox_integration as oi
+
+    oi.invalidate_flag_cache()
+    fake_pub = MagicMock()
+    with patch("database.outbox_integration._is_flag_enabled", return_value=True), \
+         patch("database.outbox_integration._get_publisher", return_value=fake_pub):
+        d = _make_decision()
+        d.spin_number = 27
+        d.sda_center = 14
+        d.gale_level = 2
+        ok = oi.maybe_publish_decision_features(d, 555)
+        assert ok is True
+        meta = fake_pub.publish_spin_features.call_args.kwargs["meta"]
+        assert meta["spin_number"] == 27
+        assert meta["centro_previsto"] == 14
+        assert meta["applied_gale_level"] == 2
+
+
+def test_publish_spin_result_flag_off():
+    from database import outbox_integration as oi
+    oi.invalidate_flag_cache()
+    with patch("database.outbox_integration._is_flag_enabled", return_value=False):
+        with patch("database.outbox_integration._get_publisher") as mp:
+            assert oi.maybe_publish_spin_result(1, "cw", True, 17) is False
+            mp.assert_not_called()
+
+
+def test_publish_spin_result_writes_payload():
+    """OBS-25-01: spin_result publica payload com hit + actual_number."""
+    from database import outbox_integration as oi
+    oi.invalidate_flag_cache()
+    fake_pub = MagicMock()
+    with patch("database.outbox_integration._is_flag_enabled", return_value=True), \
+         patch("database.outbox_integration._get_publisher", return_value=fake_pub):
+        ok = oi.maybe_publish_spin_result(777, "anti-horario", False, 0)
+        assert ok is True
+        call = fake_pub.publish.call_args
+        assert call.kwargs["aggregate"] == "spin_result"
+        assert call.kwargs["aggregate_id"] == "ccw:777"
+        payload = call.kwargs["payload"]
+        assert payload["event_type"] == "spin_result"
+        assert payload["direction"] == "ccw"
+        assert payload["decision_id"] == 777
+        assert payload["hit"] is False
+        assert payload["actual_number"] == 0
+
+
+def test_publish_spin_result_never_raises():
+    from database import outbox_integration as oi
+    oi.invalidate_flag_cache()
+    fake_pub = MagicMock()
+    fake_pub.publish.side_effect = RuntimeError("PG down")
+    with patch("database.outbox_integration._is_flag_enabled", return_value=True), \
+         patch("database.outbox_integration._get_publisher", return_value=fake_pub):
+        assert oi.maybe_publish_spin_result(1, "cw", True, 5) is False
+
+
 # ---------- Integration test (requer PG) ----------
 
 @pytest.mark.skipif(
