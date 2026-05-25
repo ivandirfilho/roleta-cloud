@@ -832,7 +832,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L20",
       "id": "sim_temp_sim_15_models_circ_dir",
-      "community": 19,
+      "community": 16,
       "norm_label": "circ_dir()"
     },
     {
@@ -895,7 +895,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L64",
       "id": "sim_temp_sim_15_models_basemodel_get_offsets",
-      "community": 19,
+      "community": 16,
       "norm_label": ".get_offsets()"
     },
     {
@@ -913,7 +913,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L71",
       "id": "sim_temp_sim_15_models_basemodel_error_info",
-      "community": 19,
+      "community": 16,
       "norm_label": "._error_info()"
     },
     {
@@ -967,7 +967,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L121",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold",
-      "community": 19,
+      "community": 20,
       "norm_label": "m03_percentualthreshold"
     },
     {
@@ -976,7 +976,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L124",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold_update",
-      "community": 19,
+      "community": 20,
       "norm_label": ".update()"
     },
     {
@@ -1012,7 +1012,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L165",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma",
-      "community": 16,
+      "community": 169,
       "norm_label": "m05_adaptiveewma"
     },
     {
@@ -1021,7 +1021,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L168",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_init",
-      "community": 16,
+      "community": 169,
       "norm_label": ".__init__()"
     },
     {
@@ -1039,7 +1039,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L192",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_find_oracle",
-      "community": 16,
+      "community": 169,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1102,7 +1102,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L269",
       "id": "sim_temp_sim_15_models_m08_dampedpid",
-      "community": 20,
+      "community": 170,
       "norm_label": "m08_dampedpid"
     },
     {
@@ -1111,7 +1111,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L272",
       "id": "sim_temp_sim_15_models_m08_dampedpid_init",
-      "community": 20,
+      "community": 170,
       "norm_label": ".__init__()"
     },
     {
@@ -1120,7 +1120,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L281",
       "id": "sim_temp_sim_15_models_m08_dampedpid_update",
-      "community": 20,
+      "community": 170,
       "norm_label": ".update()"
     },
     {
@@ -1165,7 +1165,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L357",
       "id": "sim_temp_sim_15_models_m10_mad_robust",
-      "community": 16,
+      "community": 171,
       "norm_label": "m10_mad_robust"
     },
     {
@@ -1174,7 +1174,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L360",
       "id": "sim_temp_sim_15_models_m10_mad_robust_init",
-      "community": 16,
+      "community": 171,
       "norm_label": ".__init__()"
     },
     {
@@ -1192,7 +1192,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L396",
       "id": "sim_temp_sim_15_models_m10_mad_robust_find_oracle",
-      "community": 16,
+      "community": 171,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1291,7 +1291,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L514",
       "id": "sim_temp_sim_15_models_m14_gradientdescent",
-      "community": 175,
+      "community": 20,
       "norm_label": "m14_gradientdescent"
     },
     {
@@ -1300,7 +1300,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L517",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_init",
-      "community": 175,
+      "community": 20,
       "norm_label": ".__init__()"
     },
     {
@@ -1309,7 +1309,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L522",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_update",
-      "community": 175,
+      "community": 20,
       "norm_label": ".update()"
     },
     {
@@ -1318,7 +1318,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L552",
       "id": "sim_temp_sim_15_models_m15_ensemblevote",
-      "community": 20,
+      "community": 24,
       "norm_label": "m15_ensemblevote"
     },
     {
@@ -1336,7 +1336,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L561",
       "id": "sim_temp_sim_15_models_m15_ensemblevote_update",
-      "community": 19,
+      "community": 16,
       "norm_label": ".update()"
     },
     {
@@ -1354,7 +1354,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L21",
       "id": "sim_temp_sim_15_models_rationale_21",
-      "community": 19,
+      "community": 16,
       "norm_label": "returns +1 if result is cw from c1, -1 if ccw, 0 if same."
     },
     {
@@ -1408,7 +1408,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L122",
       "id": "sim_temp_sim_15_models_rationale_122",
-      "community": 19,
+      "community": 20,
       "norm_label": "so ajusta se erro > 7 posicoes (ignora misses pequenos como ruido)."
     },
     {
@@ -1426,7 +1426,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L166",
       "id": "sim_temp_sim_15_models_rationale_166",
-      "community": 16,
+      "community": 169,
       "norm_label": "ewma com alpha adaptativo: erro maior \u2192 alpha maior \u2192 resposta mais rapida."
     },
     {
@@ -1453,7 +1453,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L270",
       "id": "sim_temp_sim_15_models_rationale_270",
-      "community": 20,
+      "community": 170,
       "norm_label": "pid com anti-windup e filtro derivativo para prevenir oscilacao."
     },
     {
@@ -1471,7 +1471,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L358",
       "id": "sim_temp_sim_15_models_rationale_358",
-      "community": 16,
+      "community": 171,
       "norm_label": "mad (median absolute deviation) para identificar outliers e ajustar so com dados"
     },
     {
@@ -1507,7 +1507,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L515",
       "id": "sim_temp_sim_15_models_rationale_515",
-      "community": 175,
+      "community": 20,
       "norm_label": "gradiente numerico: testa off\u00b11 contra ultimas 3 jogadas, step na direcao do gra"
     },
     {
@@ -1516,7 +1516,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L553",
       "id": "sim_temp_sim_15_models_rationale_553",
-      "community": 20,
+      "community": 24,
       "norm_label": "media ponderada dos 3 melhores sub-modelos (m01,m04,m09), pesos por accuracy rec"
     },
     {
@@ -3928,7 +3928,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1",
       "id": "plano_implentacao_pos_sessao_24_05_md",
-      "community": 168,
+      "community": 63,
       "norm_label": "plano_implentacao_pos_sessao_24_05.md"
     },
     {
@@ -3937,7 +3937,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_plano_de_implanta\u00e7\u00e3o_p\u00f3s_sess\u00e3o_24_05",
-      "community": 168,
+      "community": 63,
       "norm_label": "\ud83d\ude80 plano de implantacao pos-sessao 24-05"
     },
     {
@@ -3946,7 +3946,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L15",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vers\u00e3o_1_draft_inicial",
-      "community": 168,
+      "community": 63,
       "norm_label": "\ud83d\udccb versao 1 \u2014 draft inicial"
     },
     {
@@ -3955,7 +3955,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L17",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_v1_0_premissas_operacionais",
-      "community": 168,
+      "community": 63,
       "norm_label": "v1.0 premissas operacionais"
     },
     {
@@ -4117,7 +4117,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L192",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_1_bugs_gaps_conflitos_detectados_em_v1",
-      "community": 168,
+      "community": 63,
       "norm_label": "\ud83d\udd0d auditoria 1 \u2014 bugs, gaps, conflitos detectados em v1"
     },
     {
@@ -4126,7 +4126,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L196",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_1_bugs_e_erros_l\u00f3gicos",
-      "community": 168,
+      "community": 63,
       "norm_label": "a1.1 \u2014 bugs e erros logicos"
     },
     {
@@ -4135,7 +4135,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L221",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_2_gaps_de_cobertura",
-      "community": 168,
+      "community": 63,
       "norm_label": "a1.2 \u2014 gaps de cobertura"
     },
     {
@@ -4144,7 +4144,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L232",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_3_conflitos_com_decis\u00f5es_pr\u00e9vias",
-      "community": 168,
+      "community": 63,
       "norm_label": "a1.3 \u2014 conflitos com decisoes previas"
     },
     {
@@ -4396,7 +4396,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L442",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_2_segunda_passada_cr\u00edtica_em_v2",
-      "community": 168,
+      "community": 63,
       "norm_label": "\ud83d\udd0e auditoria 2 \u2014 segunda passada critica em v2"
     },
     {
@@ -4405,7 +4405,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L444",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_1_bugs_gaps_remanescentes",
-      "community": 168,
+      "community": 63,
       "norm_label": "a2.1 \u2014 bugs/gaps remanescentes"
     },
     {
@@ -4414,7 +4414,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L460",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_2_conflitos_detectados_em_v2",
-      "community": 168,
+      "community": 63,
       "norm_label": "a2.2 \u2014 conflitos detectados em v2"
     },
     {
@@ -4423,7 +4423,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L468",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_3_riscos_identificados_em_v2",
-      "community": 168,
+      "community": 63,
       "norm_label": "a2.3 \u2014 riscos identificados em v2"
     },
     {
@@ -4432,7 +4432,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L480",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vers\u00e3o_final_plano_definitivo_consolidado",
-      "community": 170,
+      "community": 56,
       "norm_label": "\ud83c\udfc1 versao final \u2014 plano definitivo consolidado"
     },
     {
@@ -4441,7 +4441,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L482",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_0_premissas_finais",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.0 premissas finais"
     },
     {
@@ -4450,7 +4450,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L499",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_1_lista_mestre_de_sprints_ordenada_com_depend\u00eancias",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.1 lista mestre de sprints (ordenada, com dependencias)"
     },
     {
@@ -4540,7 +4540,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L605",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_sx_sec_azure_key_vault",
-      "community": 176,
+      "community": 56,
       "norm_label": "sx-sec \u2014 azure key vault"
     },
     {
@@ -4549,7 +4549,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L609",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_7",
-      "community": 176,
+      "community": 56,
       "norm_label": "code:bash (az keyvault create --name roleta-kv --location brazilsouth)"
     },
     {
@@ -4558,7 +4558,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L614",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_8",
-      "community": 176,
+      "community": 56,
       "norm_label": "code:python (from azure.identity import defaultazurecredential)"
     },
     {
@@ -4585,7 +4585,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L641",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s4_provisionar_azure_pg_15",
-      "community": 180,
+      "community": 56,
       "norm_label": "s4 \u2014 provisionar azure pg 15"
     },
     {
@@ -4594,7 +4594,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L645",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_9",
-      "community": 180,
+      "community": 56,
       "norm_label": "code:bash (az postgres flexible-server create \\)"
     },
     {
@@ -4657,7 +4657,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L722",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s8_age_grafos_por_sentido",
-      "community": 177,
+      "community": 56,
       "norm_label": "s8 \u2014 age grafos por sentido"
     },
     {
@@ -4666,7 +4666,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L726",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_11",
-      "community": 177,
+      "community": 56,
       "norm_label": "code:sql (load 'age'; set search_path to ag_catalog, public;)"
     },
     {
@@ -4693,7 +4693,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L753",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s11_shadow_predictor_circuit_breaker",
-      "community": 178,
+      "community": 56,
       "norm_label": "s11 \u2014 shadow predictor + circuit breaker"
     },
     {
@@ -4702,7 +4702,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L757",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_12",
-      "community": 178,
+      "community": 56,
       "norm_label": "code:python (@circuit_breaker(threshold=5, window=60, recovery=300))"
     },
     {
@@ -4720,7 +4720,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L781",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s13_can\u00e1rio_a_b",
-      "community": 179,
+      "community": 56,
       "norm_label": "s13 \u2014 canario a/b"
     },
     {
@@ -4729,7 +4729,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L785",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_13",
-      "community": 179,
+      "community": 56,
       "norm_label": "code:python (import hashlib, datetime)"
     },
     {
@@ -4765,7 +4765,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L816",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_3_mudan\u00e7as_no_servidor_debian_consolidado",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.3 mudancas no servidor debian (consolidado)"
     },
     {
@@ -4774,7 +4774,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L827",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_4_mudan\u00e7as_no_github_consolidado",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.4 mudancas no github (consolidado)"
     },
     {
@@ -4783,7 +4783,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L842",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_5_self_audit_final_da_vers\u00e3o_final",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.5 self-audit final da versao final"
     },
     {
@@ -4792,7 +4792,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L857",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_6_mapa_visual_final",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.6 mapa visual final"
     },
     {
@@ -4801,7 +4801,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L859",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_14",
-      "community": 170,
+      "community": 56,
       "norm_label": "code:mermaid (flowchart tb)"
     },
     {
@@ -4810,7 +4810,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L907",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vf_7_conclus\u00e3o",
-      "community": 170,
+      "community": 56,
       "norm_label": "vf.7 conclusao"
     },
     {
@@ -4819,7 +4819,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L931",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_a3_toda_infra_local_first_e_depois_subir_como_docker_pra_azure",
-      "community": 173,
+      "community": 63,
       "norm_label": "\ud83e\uddea auditoria a3 \u2014 \"toda infra local-first e depois subir como docker pra azure\""
     },
     {
@@ -4828,7 +4828,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L938",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_0_tl_dr_3_bullets_1_decis\u00e3o",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.0 tl;dr (3 bullets + 1 decisao)"
     },
     {
@@ -4837,7 +4837,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L947",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_1_an\u00e1lise_comparativa_azure_first_vf_atual_vs_local_first_proposto",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.1 analise comparativa (azure-first vf atual vs local-first proposto)"
     },
     {
@@ -4846,7 +4846,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L970",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_2_achado_cr\u00edtico_b32_age_n\u00e3o_est\u00e1_na_allowlist_azure_pg_flexible",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.2 achado critico **b32** \u2014 age nao esta na allowlist azure pg flexible"
     },
     {
@@ -4855,7 +4855,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L984",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_3_outros_achados_a3",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.3 outros achados a3"
     },
     {
@@ -4864,7 +4864,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1002",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_4_sprints_novas_reescritas",
-      "community": 169,
+      "community": 63,
       "norm_label": "a3.4 sprints novas / reescritas"
     },
     {
@@ -4873,7 +4873,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1004",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s0_5_stack_local_docker_compose_completa_nova_vem_antes_de_s4",
-      "community": 169,
+      "community": 63,
       "norm_label": "s0.5 \u2014 stack local docker-compose completa **(nova, vem antes de s4)**"
     },
     {
@@ -4882,7 +4882,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1012",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_15",
-      "community": 169,
+      "community": 63,
       "norm_label": "code:block15 (from pgvector/pgvector:pg15)"
     },
     {
@@ -4891,7 +4891,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1035",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s_age_check_confirma\u00e7\u00e3o_t\u00e9cnica_age_em_azure_nova_paralela_a_s0_5",
-      "community": 169,
+      "community": 63,
       "norm_label": "s-age-check \u2014 confirmacao tecnica age em azure **(nova, paralela a s0.5)**"
     },
     {
@@ -4900,7 +4900,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1056",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s4_reescrita_azure_vm_docker_compose_substitui_flexible_server",
-      "community": 169,
+      "community": 63,
       "norm_label": "s4 \u2014 **reescrita**: azure vm + docker compose (substitui \"flexible server\")"
     },
     {
@@ -4909,7 +4909,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1079",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s_cutover_promo\u00e7\u00e3o_dev_prod_nova_substitui_sx_latency",
-      "community": 169,
+      "community": 63,
       "norm_label": "s-cutover \u2014 promocao dev\u2192prod **(nova, substitui sx-latency)**"
     },
     {
@@ -4918,7 +4918,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1101",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_sx_latency_deprecated_fundida_em_s_cutover",
-      "community": 169,
+      "community": 63,
       "norm_label": "sx-latency \u2014 **deprecated**, fundida em s-cutover"
     },
     {
@@ -4927,7 +4927,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1105",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s4_bak_revisado_wal_g_blob_no_lugar_de_pitr_nativo",
-      "community": 169,
+      "community": 63,
       "norm_label": "s4-bak \u2014 **revisado**: wal-g + blob no lugar de pitr nativo"
     },
     {
@@ -4936,7 +4936,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1119",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_sx_sec_revisado_managed_identity_da_vm",
-      "community": 169,
+      "community": 63,
       "norm_label": "sx-sec \u2014 **revisado**: managed identity da vm"
     },
     {
@@ -4945,7 +4945,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1127",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_5_lista_mestre_atualizada_delta_vs_vf",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.5 lista mestre atualizada (delta vs vf)"
     },
     {
@@ -4954,7 +4954,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1144",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_6_self_audit_da_auditoria_sanity_check",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.6 self-audit da auditoria (sanity check)"
     },
     {
@@ -4963,7 +4963,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1159",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_7_recomenda\u00e7\u00e3o_final",
-      "community": 173,
+      "community": 63,
       "norm_label": "a3.7 recomendacao final"
     },
     {
@@ -6866,6 +6866,492 @@
       "norm_label": "parte g \u00b7 resultado final (validado em prod)"
     },
     {
+      "label": "Visualizacao_da_evolucao_25_05.md",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L1",
+      "id": "visualizacao_da_evolucao_25_05_md",
+      "community": 45,
+      "norm_label": "visualizacao_da_evolucao_25_05.md"
+    },
+    {
+      "label": "\ud83d\udd2d Visualiza\u00e7\u00e3o da Evolu\u00e7\u00e3o \u2014 25/05",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L1",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "community": 45,
+      "norm_label": "\ud83d\udd2d visualizacao da evolucao \u2014 25/05"
+    },
+    {
+      "label": "\u00a70. TL;DR \u2014 1 p\u00e1gina decisional",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L13",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_0_tl_dr_1_p\u00e1gina_decisional",
+      "community": 45,
+      "norm_label": "\u00a70. tl;dr \u2014 1 pagina decisional"
+    },
+    {
+      "label": "\u00a71. O payload exato que entra hoje (verificado live)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L30",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live",
+      "community": 45,
+      "norm_label": "\u00a71. o payload exato que entra hoje (verificado live)"
+    },
+    {
+      "label": "code:javascript (sendToWebSocket({)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L34",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_1",
+      "community": 45,
+      "norm_label": "code:javascript (sendtowebsocket({)"
+    },
+    {
+      "label": "\u00a72. As 8 decis\u00f5es tomadas a cada jogada (engenharia reversa)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L53",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
+      "community": 45,
+      "norm_label": "\u00a72. as 8 decisoes tomadas a cada jogada (engenharia reversa)"
+    },
+    {
+      "label": "code:block2 (spin chega ({numero, direcao}))",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L57",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_2",
+      "community": 45,
+      "norm_label": "code:block2 (spin chega ({numero, direcao}))"
+    },
+    {
+      "label": "Mapa das 8 decis\u00f5es e onde elas vivem",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L99",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_mapa_das_8_decis\u00f5es_e_onde_elas_vivem",
+      "community": 45,
+      "norm_label": "mapa das 8 decisoes e onde elas vivem"
+    },
+    {
+      "label": "\u00a73. An\u00e1lise quantitativa \u2014 % de impacto de cada decis\u00e3o",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L114",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "community": 163,
+      "norm_label": "\u00a73. analise quantitativa \u2014 % de impacto de cada decisao"
+    },
+    {
+      "label": "3.1 `tr_confidence` (Kill Switch grade) \u2014 **paradoxo**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L120",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_1_tr_confidence_kill_switch_grade_paradoxo",
+      "community": 163,
+      "norm_label": "3.1 `tr_confidence` (kill switch grade) \u2014 **paradoxo**"
+    },
+    {
+      "label": "3.2 `sda_score` (sinal puro do SDA17) \u2014 **sweet spot em 4**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L130",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_2_sda_score_sinal_puro_do_sda17_sweet_spot_em_4",
+      "community": 163,
+      "norm_label": "3.2 `sda_score` (sinal puro do sda17) \u2014 **sweet spot em 4**"
+    },
+    {
+      "label": "3.3 `sda_offset_type` (tipo de calibra\u00e7\u00e3o aplicada) \u2014 **errdriven est\u00e1 sabotando**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L142",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_3_sda_offset_type_tipo_de_calibra\u00e7\u00e3o_aplicada_errdriven_est\u00e1_sabotando",
+      "community": 163,
+      "norm_label": "3.3 `sda_offset_type` (tipo de calibracao aplicada) \u2014 **errdriven esta sabotando**"
+    },
+    {
+      "label": "3.4 `calibration_offset` \u2014 efeito altamente assim\u00e9trico",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L153",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_4_calibration_offset_efeito_altamente_assim\u00e9trico",
+      "community": 163,
+      "norm_label": "3.4 `calibration_offset` \u2014 efeito altamente assimetrico"
+    },
+    {
+      "label": "3.5 `gale_level \u00d7 tr_confidence` (intera\u00e7\u00e3o) \u2014 **G2+media \u00e9 diamante**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L171",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_5_gale_level_tr_confidence_intera\u00e7\u00e3o_g2_media_\u00e9_diamante",
+      "community": 163,
+      "norm_label": "3.5 `gale_level \u00d7 tr_confidence` (interacao) \u2014 **g2+media e diamante**"
+    },
+    {
+      "label": "3.6 `sda_predicted_force` (for\u00e7a prevista) \u2014 sinal **muito forte**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L184",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_6_sda_predicted_force_for\u00e7a_prevista_sinal_muito_forte",
+      "community": 163,
+      "norm_label": "3.6 `sda_predicted_force` (forca prevista) \u2014 sinal **muito forte**"
+    },
+    {
+      "label": "3.7 Kill Switch \u00e9 **estatisticamente nulo** hoje",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L203",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_7_kill_switch_\u00e9_estatisticamente_nulo_hoje",
+      "community": 163,
+      "norm_label": "3.7 kill switch e **estatisticamente nulo** hoje"
+    },
+    {
+      "label": "3.8 Dire\u00e7\u00e3o (cw vs ccw) \u2014 **sim\u00e9trico**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L214",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_8_dire\u00e7\u00e3o_cw_vs_ccw_sim\u00e9trico",
+      "community": 163,
+      "norm_label": "3.8 direcao (cw vs ccw) \u2014 **simetrico**"
+    },
+    {
+      "label": "3.9 `tr_c4_rate` (taxa \u00faltimos 4) \u2014 n\u00e3o preditiva como bucket",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L223",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_9_tr_c4_rate_taxa_\u00faltimos_4_n\u00e3o_preditiva_como_bucket",
+      "community": 163,
+      "norm_label": "3.9 `tr_c4_rate` (taxa ultimos 4) \u2014 nao preditiva como bucket"
+    },
+    {
+      "label": "3.10 Sum\u00e1rio ranking \u2014 **decis\u00f5es com impacto real**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L235",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_3_10_sum\u00e1rio_ranking_decis\u00f5es_com_impacto_real",
+      "community": 163,
+      "norm_label": "3.10 sumario ranking \u2014 **decisoes com impacto real**"
+    },
+    {
+      "label": "\u00a74. A pergunta de ouro \u2014 **\"sabemos a dist\u00e2ncia da bola at\u00e9 cada regi\u00e3o prevista?\"**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L250",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "community": 167,
+      "norm_label": "\u00a74. a pergunta de ouro \u2014 **\"sabemos a distancia da bola ate cada regiao prevista?\"**"
+    },
+    {
+      "label": "4.1 Resposta direta",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L252",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_4_1_resposta_direta",
+      "community": 167,
+      "norm_label": "4.1 resposta direta"
+    },
+    {
+      "label": "4.2 Por que isso \u00e9 central para a estrat\u00e9gia",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L264",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_4_2_por_que_isso_\u00e9_central_para_a_estrat\u00e9gia",
+      "community": 167,
+      "norm_label": "4.2 por que isso e central para a estrategia"
+    },
+    {
+      "label": "4.3 Como melhorar (fix sugerido)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L275",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido",
+      "community": 167,
+      "norm_label": "4.3 como melhorar (fix sugerido)"
+    },
+    {
+      "label": "code:python (# server/message_handler.py \u2014 no handler de result)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L277",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_3",
+      "community": 167,
+      "norm_label": "code:python (# server/message_handler.py \u2014 no handler de result)"
+    },
+    {
+      "label": "4.4 Backtest harness (S-STRAT-9) \u2014 encaixe perfeito",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L305",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_4_4_backtest_harness_s_strat_9_encaixe_perfeito",
+      "community": 167,
+      "norm_label": "4.4 backtest harness (s-strat-9) \u2014 encaixe perfeito"
+    },
+    {
+      "label": "\u00a75. Estrutura\u00e7\u00e3o atual das tabelas (PG + AGE + vector) \u2014 auditoria",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L315",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
+      "community": 166,
+      "norm_label": "\u00a75. estruturacao atual das tabelas (pg + age + vector) \u2014 auditoria"
+    },
+    {
+      "label": "5.1 PG `cw` / `ccw` schemas (vector store + features)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L317",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features",
+      "community": 166,
+      "norm_label": "5.1 pg `cw` / `ccw` schemas (vector store + features)"
+    },
+    {
+      "label": "code:block4 (cw.spins_vectors           (286 rows)   \u2190 embeddings 6-d cos)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L319",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_4",
+      "community": 166,
+      "norm_label": "code:block4 (cw.spins_vectors           (286 rows)   \u2190 embeddings 6-d cos)"
+    },
+    {
+      "label": "5.2 AGE (Apache Graph Extension) \u2014 **instalada e ociosa**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L345",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
+      "community": 166,
+      "norm_label": "5.2 age (apache graph extension) \u2014 **instalada e ociosa**"
+    },
+    {
+      "label": "code:block5 (ag_catalog.ag_graph: 2 grafos criados (cw_graph, ccw_graph))",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L347",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_5",
+      "community": 166,
+      "norm_label": "code:block5 (ag_catalog.ag_graph: 2 grafos criados (cw_graph, ccw_graph))"
+    },
+    {
+      "label": "code:block6 ((Spin {numero, direcao}) -[NEXT]-> (Spin {\u2026}))",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L355",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_6",
+      "community": 166,
+      "norm_label": "code:block6 ((spin {numero, direcao}) -[next]-> (spin {...}))"
+    },
+    {
+      "label": "5.3 SQLite write-side (`decisions`, `gale_windows`, `sessions`)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L369",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_5_3_sqlite_write_side_decisions_gale_windows_sessions",
+      "community": 166,
+      "norm_label": "5.3 sqlite write-side (`decisions`, `gale_windows`, `sessions`)"
+    },
+    {
+      "label": "\u00a76. Dealer + Provedor \u2014 vale a pena? **SIM, alto ROI.**",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L380",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "community": 164,
+      "norm_label": "\u00a76. dealer + provedor \u2014 vale a pena? **sim, alto roi.**"
+    },
+    {
+      "label": "6.1 Por que faz sentido (literatura + experi\u00eancia)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L382",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_6_1_por_que_faz_sentido_literatura_experi\u00eancia",
+      "community": 164,
+      "norm_label": "6.1 por que faz sentido (literatura + experiencia)"
+    },
+    {
+      "label": "6.2 O que captar (e de onde)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L393",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_6_2_o_que_captar_e_de_onde",
+      "community": 164,
+      "norm_label": "6.2 o que captar (e de onde)"
+    },
+    {
+      "label": "6.3 Schema proposto",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L405",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
+      "community": 164,
+      "norm_label": "6.3 schema proposto"
+    },
+    {
+      "label": "Mudan\u00e7as m\u00ednimas (SQLite write-side)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L407",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side",
+      "community": 164,
+      "norm_label": "mudancas minimas (sqlite write-side)"
+    },
+    {
+      "label": "code:sql (ALTER TABLE sessions ADD COLUMN provider TEXT;)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L409",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_7",
+      "community": 164,
+      "norm_label": "code:sql (alter table sessions add column provider text;)"
+    },
+    {
+      "label": "Mudan\u00e7as PG read-side (nova migra\u00e7\u00e3o `0007_dealer_provider.py`)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L421",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py",
+      "community": 164,
+      "norm_label": "mudancas pg read-side (nova migracao `0007_dealer_provider.py`)"
+    },
+    {
+      "label": "code:sql (CREATE TABLE shared.dealers ()",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L423",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_8",
+      "community": 164,
+      "norm_label": "code:sql (create table shared.dealers ()"
+    },
+    {
+      "label": "Vector ampliado",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L453",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado",
+      "community": 164,
+      "norm_label": "vector ampliado"
+    },
+    {
+      "label": "code:block9 ([centro, c4, m6, l12, sda_score, force,)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L456",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_9",
+      "community": 164,
+      "norm_label": "code:block9 ([centro, c4, m6, l12, sda_score, force,)"
+    },
+    {
+      "label": "6.4 Como a estrat\u00e9gia melhora com dealer/provider",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L463",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_6_4_como_a_estrat\u00e9gia_melhora_com_dealer_provider",
+      "community": 164,
+      "norm_label": "6.4 como a estrategia melhora com dealer/provider"
+    },
+    {
+      "label": "\u00a77. Roadmap de evolu\u00e7\u00e3o \u2014 3 alavancas, 3 sprints",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L473",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "community": 168,
+      "norm_label": "\u00a77. roadmap de evolucao \u2014 3 alavancas, 3 sprints"
+    },
+    {
+      "label": "Alavanca A \u2014 **Capturar wheel_dist** (3 dias) \u2014 ROI mais alto",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L475",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_a_capturar_wheel_dist_3_dias_roi_mais_alto",
+      "community": 168,
+      "norm_label": "alavanca a \u2014 **capturar wheel_dist** (3 dias) \u2014 roi mais alto"
+    },
+    {
+      "label": "Alavanca B \u2014 **Capturar dealer + provider** (5 dias)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L488",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_b_capturar_dealer_provider_5_dias",
+      "community": 168,
+      "norm_label": "alavanca b \u2014 **capturar dealer + provider** (5 dias)"
+    },
+    {
+      "label": "Alavanca C \u2014 **Desligar errdriven + remediar sda_score extremos** (1 dia)",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L501",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_c_desligar_errdriven_remediar_sda_score_extremos_1_dia",
+      "community": 168,
+      "norm_label": "alavanca c \u2014 **desligar errdriven + remediar sda_score extremos** (1 dia)"
+    },
+    {
+      "label": "Sequ\u00eancia recomendada",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L512",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_sequ\u00eancia_recomendada",
+      "community": 168,
+      "norm_label": "sequencia recomendada"
+    },
+    {
+      "label": "\u00a78. Comparativo \"estamos no caminho certo?\"",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L521",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_8_comparativo_estamos_no_caminho_certo",
+      "community": 45,
+      "norm_label": "\u00a78. comparativo \"estamos no caminho certo?\""
+    },
+    {
+      "label": "\u00a79. Comparativo vs `estrutura_noite_25_audit.md`",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L538",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_9_comparativo_vs_estrutura_noite_25_audit_md",
+      "community": 45,
+      "norm_label": "\u00a79. comparativo vs `estrutura_noite_25_audit.md`"
+    },
+    {
+      "label": "\u00a710. Comandos prontos para validar",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L553",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar",
+      "community": 45,
+      "norm_label": "\u00a710. comandos prontos para validar"
+    },
+    {
+      "label": "code:bash (# 1) Hit rate breakdown por feature (em qualquer momento))",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L555",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_10",
+      "community": 45,
+      "norm_label": "code:bash (# 1) hit rate breakdown por feature (em qualquer momento))"
+    },
+    {
+      "label": "\u00a711. Mem\u00f3ria \u2014 entidades a adicionar",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L574",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar",
+      "community": 45,
+      "norm_label": "\u00a711. memoria \u2014 entidades a adicionar"
+    },
+    {
+      "label": "code:block11 (- VisualizacaoEvolucao25 (Documento))",
+      "file_type": "document",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L576",
+      "id": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_11",
+      "community": 45,
+      "norm_label": "code:block11 (- visualizacaoevolucao25 (documento))"
+    },
+    {
       "label": "Sprints conclu\u00eddos (24/11 noite)",
       "file_type": "document",
       "source_file": "fine_tuning_25.md",
@@ -7923,7 +8409,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L176",
-      "community": 174,
+      "community": 89,
       "norm_label": "2. estado atual auditado (snapshot 23/05)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_estado_atual_auditado_snapshot_23_05"
     },
@@ -7932,7 +8418,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L178",
-      "community": 174,
+      "community": 89,
       "norm_label": "2.1 conformidade com invariante de isolamento \u2014 codigo verificado linha-a-linha",
       "id": "roleta_cloud_final_refatoracao_proposta_2_1_conformidade_com_invariante_de_isolamento_c\u00f3digo_verificado_linha_a_linha"
     },
@@ -7941,7 +8427,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L192",
-      "community": 174,
+      "community": 89,
       "norm_label": "2.2 performance producao 23/05 (132 decisoes, 118 finalizadas, db `/app/data/decisions.db` no container)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_2_performance_produ\u00e7\u00e3o_23_05_132_decis\u00f5es_118_finalizadas_db_app_data_decisions_db_no_container"
     },
@@ -7950,7 +8436,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L194",
-      "community": 174,
+      "community": 89,
       "norm_label": "code:block2 (direcao)",
       "id": "roleta_cloud_final_refatoracao_proposta_codeblock_2"
     },
@@ -7959,7 +8445,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L213",
-      "community": 174,
+      "community": 89,
       "norm_label": "2.3 score iso 25010 baseline \u2192 target v5.0",
       "id": "roleta_cloud_final_refatoracao_proposta_2_3_score_iso_25010_baseline_target_v5_0"
     },
@@ -8490,7 +8976,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L928",
-      "community": 60,
+      "community": 165,
       "norm_label": "8. checklist de execucao (ordem cronologica exata)",
       "id": "roleta_cloud_final_refatoracao_proposta_8_checklist_de_execu\u00e7\u00e3o_ordem_cronol\u00f3gica_exata"
     },
@@ -8499,7 +8985,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L930",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 1 \u2014 fase 0",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_1_fase_0"
     },
@@ -8508,7 +8994,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L937",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 2 \u2014 fase 1",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_2_fase_1"
     },
@@ -8517,7 +9003,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L945",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 3-4 \u2014 fase 2 (shadow comeca)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_3_4_fase_2_shadow_come\u00e7a"
     },
@@ -8526,7 +9012,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L951",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 5 \u2014 fase 3 (shadow continuo)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_5_fase_3_shadow_cont\u00ednuo"
     },
@@ -8535,7 +9021,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L956",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 6 \u2014 fase 3.4 + fase 4",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_6_fase_3_4_fase_4"
     },
@@ -8544,7 +9030,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L964",
-      "community": 60,
+      "community": 165,
       "norm_label": "semana 7+ \u2014 fase 5 (opcional, sob aprovacao separada)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_7_fase_5_opcional_sob_aprova\u00e7\u00e3o_separada"
     },
@@ -8994,7 +9480,7 @@
       "file_type": "document",
       "source_file": "melhor_simples_Estrategia_23_05.md",
       "source_location": "L1",
-      "community": 102,
+      "community": 109,
       "norm_label": "melhor_simples_estrategia_23_05.md",
       "id": "melhor_simples_estrategia_23_05_md"
     },
@@ -11649,7 +12135,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L1",
-      "community": 167,
+      "community": 3,
       "norm_label": "pos_implementacao_29_03.md",
       "id": "pos_implementacao_29_03_md"
     },
@@ -11658,7 +12144,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L1",
-      "community": 167,
+      "community": 3,
       "norm_label": "pos-implantacao m15-ada \u2014 auditoria 29/03/2026",
       "id": "roleta_cloud_pos_implementacao_29_03_p\u00f3s_implanta\u00e7\u00e3o_m15_ada_auditoria_29_03_2026"
     },
@@ -11667,7 +12153,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L11",
-      "community": 167,
+      "community": 3,
       "norm_label": "1. resumo executivo",
       "id": "roleta_cloud_pos_implementacao_29_03_1_resumo_executivo"
     },
@@ -11676,7 +12162,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L29",
-      "community": 163,
+      "community": 3,
       "norm_label": "2. checklist de tarefas \u2014 plano vs execucao",
       "id": "roleta_cloud_pos_implementacao_29_03_2_checklist_de_tarefas_plano_vs_execu\u00e7\u00e3o"
     },
@@ -11685,7 +12171,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L31",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.1 fase 1: core (`strategies/sda17.py`)",
       "id": "roleta_cloud_pos_implementacao_29_03_2_1_fase_1_core_strategies_sda17_py"
     },
@@ -11694,7 +12180,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L45",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.2 fase 2: estado (`state/game.py`)",
       "id": "roleta_cloud_pos_implementacao_29_03_2_2_fase_2_estado_state_game_py"
     },
@@ -11703,7 +12189,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L54",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.3 fase 3: servidor (`server/`)",
       "id": "roleta_cloud_pos_implementacao_29_03_2_3_fase_3_servidor_server"
     },
@@ -11712,7 +12198,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L64",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.4 fase 4: frontend (opcional)",
       "id": "roleta_cloud_pos_implementacao_29_03_2_4_fase_4_frontend_opcional"
     },
@@ -11721,7 +12207,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L71",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.5 fase 5: testes",
       "id": "roleta_cloud_pos_implementacao_29_03_2_5_fase_5_testes"
     },
@@ -11730,7 +12216,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L80",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.6 fase 6: validacao",
       "id": "roleta_cloud_pos_implementacao_29_03_2_6_fase_6_valida\u00e7\u00e3o"
     },
@@ -11739,7 +12225,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L88",
-      "community": 163,
+      "community": 3,
       "norm_label": "2.7 tarefas extras (nao planejadas)",
       "id": "roleta_cloud_pos_implementacao_29_03_2_7_tarefas_extras_n\u00e3o_planejadas"
     },
@@ -11748,7 +12234,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L101",
-      "community": 164,
+      "community": 3,
       "norm_label": "3. conformidade iso/iec 25010",
       "id": "roleta_cloud_pos_implementacao_29_03_3_conformidade_iso_iec_25010"
     },
@@ -11757,7 +12243,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L103",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.1 adequacao funcional",
       "id": "roleta_cloud_pos_implementacao_29_03_3_1_adequa\u00e7\u00e3o_funcional"
     },
@@ -11766,7 +12252,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L113",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.2 eficiencia de desempenho",
       "id": "roleta_cloud_pos_implementacao_29_03_3_2_efici\u00eancia_de_desempenho"
     },
@@ -11775,7 +12261,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L122",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.3 confiabilidade",
       "id": "roleta_cloud_pos_implementacao_29_03_3_3_confiabilidade"
     },
@@ -11784,7 +12270,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L133",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.4 seguranca",
       "id": "roleta_cloud_pos_implementacao_29_03_3_4_seguran\u00e7a"
     },
@@ -11793,7 +12279,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L140",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.5 manutenibilidade",
       "id": "roleta_cloud_pos_implementacao_29_03_3_5_manutenibilidade"
     },
@@ -11802,7 +12288,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L150",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.6 portabilidade",
       "id": "roleta_cloud_pos_implementacao_29_03_3_6_portabilidade"
     },
@@ -11811,7 +12297,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L158",
-      "community": 164,
+      "community": 3,
       "norm_label": "3.7 pontuacao iso atualizada",
       "id": "roleta_cloud_pos_implementacao_29_03_3_7_pontua\u00e7\u00e3o_iso_atualizada"
     },
@@ -11838,7 +12324,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L188",
-      "community": 166,
+      "community": 3,
       "norm_label": "4.2 bugs criticos (correcao imediata)",
       "id": "roleta_cloud_pos_implementacao_29_03_4_2_bugs_cr\u00edticos_corre\u00e7\u00e3o_imediata"
     },
@@ -11847,7 +12333,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L192",
-      "community": 166,
+      "community": 3,
       "norm_label": "bug-post-001 \u2014 `self._wheel` nao inicializado",
       "id": "roleta_cloud_pos_implementacao_29_03_bug_post_001_self_wheel_n\u00e3o_inicializado"
     },
@@ -11856,7 +12342,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L209",
-      "community": 166,
+      "community": 3,
       "norm_label": "code:python (# em __init__(), adicionar apos linha 54:)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_1"
     },
@@ -11865,7 +12351,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L226",
-      "community": 166,
+      "community": 3,
       "norm_label": "bug-post-002 \u2014 serializacao json de tuplas em `ccw_history`",
       "id": "roleta_cloud_pos_implementacao_29_03_bug_post_002_serializa\u00e7\u00e3o_json_de_tuplas_em_ccw_history"
     },
@@ -11874,7 +12360,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L237",
-      "community": 166,
+      "community": 3,
       "norm_label": "code:python (self.ccw_history = [tuple(x) if isinstance(x, list) else x)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_2"
     },
@@ -11883,7 +12369,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L243",
-      "community": 166,
+      "community": 3,
       "norm_label": "code:python (def load_adaptive_state(self, state: dict[str, any]) -> none)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_3"
     },
@@ -11955,7 +12441,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L326",
-      "community": 165,
+      "community": 3,
       "norm_label": "5. validacao em producao",
       "id": "roleta_cloud_pos_implementacao_29_03_5_valida\u00e7\u00e3o_em_produ\u00e7\u00e3o"
     },
@@ -11964,7 +12450,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L328",
-      "community": 165,
+      "community": 3,
       "norm_label": "5.1 status do deploy (29/03/2026 00:07 utc)",
       "id": "roleta_cloud_pos_implementacao_29_03_5_1_status_do_deploy_29_03_2026_00_07_utc"
     },
@@ -11973,7 +12459,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L330",
-      "community": 165,
+      "community": 3,
       "norm_label": "code:block6 (container:   roleta-cloud)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_6"
     },
@@ -11982,7 +12468,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L339",
-      "community": 165,
+      "community": 3,
       "norm_label": "5.2 logs de processamento (primeiros 11 spins)",
       "id": "roleta_cloud_pos_implementacao_29_03_5_2_logs_de_processamento_primeiros_11_spins"
     },
@@ -11991,7 +12477,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L341",
-      "community": 165,
+      "community": 3,
       "norm_label": "code:block7 (00:07:09 [7ms]  received \u2192 processed \u2192 saved \u2192 analyzed \u2192 tr)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_7"
     },
@@ -12000,7 +12486,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L355",
-      "community": 165,
+      "community": 3,
       "norm_label": "5.3 erros em producao",
       "id": "roleta_cloud_pos_implementacao_29_03_5_3_erros_em_produ\u00e7\u00e3o"
     },
@@ -12009,7 +12495,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L364",
-      "community": 165,
+      "community": 3,
       "norm_label": "5.4 verificacao wss externo",
       "id": "roleta_cloud_pos_implementacao_29_03_5_4_verifica\u00e7\u00e3o_wss_externo"
     },
@@ -12018,7 +12504,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L374",
-      "community": 45,
+      "community": 11,
       "norm_label": "6. feature: destaque bold do centro c1 no frontend",
       "id": "roleta_cloud_pos_implementacao_29_03_6_feature_destaque_bold_do_centro_c1_no_frontend"
     },
@@ -12027,7 +12513,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L376",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.1 motivacao",
       "id": "roleta_cloud_pos_implementacao_29_03_6_1_motiva\u00e7\u00e3o"
     },
@@ -12036,7 +12522,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L380",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.2 especificacao",
       "id": "roleta_cloud_pos_implementacao_29_03_6_2_especifica\u00e7\u00e3o"
     },
@@ -12045,7 +12531,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L387",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.3 display atual vs proposto",
       "id": "roleta_cloud_pos_implementacao_29_03_6_3_display_atual_vs_proposto"
     },
@@ -12054,7 +12540,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L389",
-      "community": 45,
+      "community": 11,
       "norm_label": "overlay (extension/content.js)",
       "id": "roleta_cloud_pos_implementacao_29_03_overlay_extension_content_js"
     },
@@ -12063,7 +12549,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L396",
-      "community": 45,
+      "community": 11,
       "norm_label": "dashboard (frontend/app.js)",
       "id": "roleta_cloud_pos_implementacao_29_03_dashboard_frontend_app_js"
     },
@@ -12072,7 +12558,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L403",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.4 analise de impacto",
       "id": "roleta_cloud_pos_implementacao_29_03_6_4_an\u00e1lise_de_impacto"
     },
@@ -12081,7 +12567,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L415",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.5 tarefas de implantacao",
       "id": "roleta_cloud_pos_implementacao_29_03_6_5_tarefas_de_implanta\u00e7\u00e3o"
     },
@@ -12090,7 +12576,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L417",
-      "community": 45,
+      "community": 11,
       "norm_label": "code:block8 (feature: c1 bold highlight)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_8"
     },
@@ -12198,7 +12684,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L525",
-      "community": 171,
+      "community": 11,
       "norm_label": "f04 \u2014 dashboard: bold no campo centro",
       "id": "roleta_cloud_pos_implementacao_29_03_f04_dashboard_bold_no_campo_centro"
     },
@@ -12207,7 +12693,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L531",
-      "community": 171,
+      "community": 11,
       "norm_label": "code:javascript (el.resultcenter.textcontent = result.centro;)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_16"
     },
@@ -12216,7 +12702,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L536",
-      "community": 171,
+      "community": 11,
       "norm_label": "code:javascript (el.resultcenter.innerhtml = `<b>${result.centro}</b> <small>)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_17"
     },
@@ -12225,7 +12711,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L544",
-      "community": 172,
+      "community": 11,
       "norm_label": "f05 \u2014 dashboard: bold nos numeros de c1",
       "id": "roleta_cloud_pos_implementacao_29_03_f05_dashboard_bold_nos_n\u00fameros_de_c1"
     },
@@ -12234,7 +12720,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L550",
-      "community": 172,
+      "community": 11,
       "norm_label": "code:javascript (el.resultregion.textcontent = result.numeros?.join(', ') || )",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_18"
     },
@@ -12243,7 +12729,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L555",
-      "community": 172,
+      "community": 11,
       "norm_label": "code:javascript (const c1set = new set(result.c1_numbers || []);)",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_19"
     },
@@ -12288,7 +12774,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L608",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.7 dependencias",
       "id": "roleta_cloud_pos_implementacao_29_03_6_7_depend\u00eancias"
     },
@@ -12297,7 +12783,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L610",
-      "community": 45,
+      "community": 11,
       "norm_label": "code:block22 (f01 \u2500\u2500\u2192 f05    (c1_numbers necessario para bold na lista))",
       "id": "roleta_cloud_pos_implementacao_29_03_codeblock_22"
     },
@@ -12306,7 +12792,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L617",
-      "community": 45,
+      "community": 11,
       "norm_label": "6.8 estimativa de impacto",
       "id": "roleta_cloud_pos_implementacao_29_03_6_8_estimativa_de_impacto"
     },
@@ -12315,7 +12801,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L630",
-      "community": 167,
+      "community": 3,
       "norm_label": "7. anotacoes pos-implantacao para `manutenabilidade_iso.md`",
       "id": "roleta_cloud_pos_implementacao_29_03_7_anota\u00e7\u00f5es_p\u00f3s_implanta\u00e7\u00e3o_para_manutenabilidade_iso_md"
     },
@@ -12324,7 +12810,7 @@
       "file_type": "document",
       "source_file": "pos_implementacao_29_03.md",
       "source_location": "L646",
-      "community": 167,
+      "community": 3,
       "norm_label": "8. prioridades de proximos passos",
       "id": "roleta_cloud_pos_implementacao_29_03_8_prioridades_de_pr\u00f3ximos_passos"
     },
@@ -22947,9 +23433,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "maquina_azure_agora_25_md",
-      "target": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026"
     },
     {
       "relation": "contains",
@@ -22957,9 +23443,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_0_tl_dr_para_o_agente_provisionador",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_0_tl_dr_para_o_agente_provisionador"
     },
     {
       "relation": "contains",
@@ -22967,9 +23453,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_1_auditoria_da_solicita\u00e7\u00e3o_v2_0_bugs_melhorias",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_1_auditoria_da_solicita\u00e7\u00e3o_v2_0_bugs_melhorias"
     },
     {
       "relation": "contains",
@@ -22977,9 +23463,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_2_arquitetura_alvo_v3_0",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_2_arquitetura_alvo_v3_0"
     },
     {
       "relation": "contains",
@@ -22987,9 +23473,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L115",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_3_nomenclatura_obrigat\u00f3ria_use_exatamente",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_3_nomenclatura_obrigat\u00f3ria_use_exatamente"
     },
     {
       "relation": "contains",
@@ -22997,9 +23483,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L151",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel"
     },
     {
       "relation": "contains",
@@ -23007,9 +23493,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L535",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_5_inputs_que_o_agente_precisa_do_usu\u00e1rio_antes_de_come\u00e7ar",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_5_inputs_que_o_agente_precisa_do_usu\u00e1rio_antes_de_come\u00e7ar"
     },
     {
       "relation": "contains",
@@ -23017,9 +23503,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L551",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_6_bateria_de_testes_t01_t35",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_6_bateria_de_testes_t01_t35"
     },
     {
       "relation": "contains",
@@ -23027,9 +23513,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L604",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_7_custo_mensal_estimado",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_7_custo_mensal_estimado"
     },
     {
       "relation": "contains",
@@ -23037,9 +23523,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L626",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_8_plano_de_cutover_do_servidor_antigo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_8_plano_de_cutover_do_servidor_antigo"
     },
     {
       "relation": "contains",
@@ -23047,9 +23533,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L638",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_9_definition_of_done_para_o_agente_provisionador",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_9_definition_of_done_para_o_agente_provisionador"
     },
     {
       "relation": "contains",
@@ -23057,9 +23543,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L658",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_m\u00e1quina_azure_provisionamento_atual_25_05_2026",
-      "target": "roleta_cloud_maquina_azure_agora_25_10_refer\u00eancias_cruzadas",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_10_refer\u00eancias_cruzadas"
     },
     {
       "relation": "contains",
@@ -23067,9 +23553,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L59",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_2_arquitetura_alvo_v3_0",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_1",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_1"
     },
     {
       "relation": "contains",
@@ -23077,9 +23563,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L139",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_3_nomenclatura_obrigat\u00f3ria_use_exatamente",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_2",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_2"
     },
     {
       "relation": "contains",
@@ -23087,9 +23573,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L155",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_1_bootstrap_rg_vnet_nsg_dns",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_1_bootstrap_rg_vnet_nsg_dns"
     },
     {
       "relation": "contains",
@@ -23097,9 +23583,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L200",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_2_key_vault_secrets_iniciais",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_2_key_vault_secrets_iniciais"
     },
     {
       "relation": "contains",
@@ -23107,9 +23593,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L226",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_3_postgresql_flexible_server",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_3_postgresql_flexible_server"
     },
     {
       "relation": "contains",
@@ -23117,9 +23603,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L289",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_4_vm_linux_com_fix_do_az_bug_01",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_4_vm_linux_com_fix_do_az_bug_01"
     },
     {
       "relation": "contains",
@@ -23127,9 +23613,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L402",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_5_managed_identity_da_vm_key_vault",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_5_managed_identity_da_vm_key_vault"
     },
     {
       "relation": "contains",
@@ -23137,9 +23623,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L410",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_6_acr_storage_account_log_analytics_app_insights",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_6_acr_storage_account_log_analytics_app_insights"
     },
     {
       "relation": "contains",
@@ -23147,9 +23633,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L431",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_7_service_principal_github_oidc_federation",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_7_service_principal_github_oidc_federation"
     },
     {
       "relation": "contains",
@@ -23157,9 +23643,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L460",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_8_resource_locks_seguran\u00e7a",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_8_resource_locks_seguran\u00e7a"
     },
     {
       "relation": "contains",
@@ -23167,9 +23653,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L471",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_9_cost_management_alert",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_9_cost_management_alert"
     },
     {
       "relation": "contains",
@@ -23177,9 +23663,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L482",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_10_backup_autom\u00e1tico_do_state_json_pg_dump_semanal",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_10_backup_autom\u00e1tico_do_state_json_pg_dump_semanal"
     },
     {
       "relation": "contains",
@@ -23187,9 +23673,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L513",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_passo_a_passo_execut\u00e1vel",
-      "target": "roleta_cloud_maquina_azure_agora_25_4_11_sync_de_modelos_ml_az_bug_13",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_4_11_sync_de_modelos_ml_az_bug_13"
     },
     {
       "relation": "contains",
@@ -23197,9 +23683,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L157",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_1_bootstrap_rg_vnet_nsg_dns",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_3",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_3"
     },
     {
       "relation": "contains",
@@ -23207,9 +23693,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L202",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_2_key_vault_secrets_iniciais",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_4",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_4"
     },
     {
       "relation": "contains",
@@ -23217,9 +23703,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L228",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_3_postgresql_flexible_server",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_5",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_5"
     },
     {
       "relation": "contains",
@@ -23227,9 +23713,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L259",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_3_postgresql_flexible_server",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_6",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_6"
     },
     {
       "relation": "contains",
@@ -23237,9 +23723,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L291",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_4_vm_linux_com_fix_do_az_bug_01",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_7",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_7"
     },
     {
       "relation": "contains",
@@ -23247,9 +23733,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L315",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_4_vm_linux_com_fix_do_az_bug_01",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_8",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_8"
     },
     {
       "relation": "contains",
@@ -23257,9 +23743,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L404",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_5_managed_identity_da_vm_key_vault",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_9",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_9"
     },
     {
       "relation": "contains",
@@ -23267,9 +23753,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L412",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_6_acr_storage_account_log_analytics_app_insights",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_10",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_10"
     },
     {
       "relation": "contains",
@@ -23277,9 +23763,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L433",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_7_service_principal_github_oidc_federation",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_11",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_11"
     },
     {
       "relation": "contains",
@@ -23287,9 +23773,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L462",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_8_resource_locks_seguran\u00e7a",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_12",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_12"
     },
     {
       "relation": "contains",
@@ -23297,9 +23783,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L473",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_9_cost_management_alert",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_13",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_13"
     },
     {
       "relation": "contains",
@@ -23307,9 +23793,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L486",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_10_backup_autom\u00e1tico_do_state_json_pg_dump_semanal",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_14",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_14"
     },
     {
       "relation": "contains",
@@ -23317,9 +23803,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L515",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_11_sync_de_modelos_ml_az_bug_13",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_15",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_15"
     },
     {
       "relation": "contains",
@@ -23327,9 +23813,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L526",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_4_11_sync_de_modelos_ml_az_bug_13",
-      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_16",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_codeblock_16"
     },
     {
       "relation": "contains",
@@ -23337,9 +23823,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L555",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_6_bateria_de_testes_t01_t35",
-      "target": "roleta_cloud_maquina_azure_agora_25_azure_plane",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_azure_plane"
     },
     {
       "relation": "contains",
@@ -23347,9 +23833,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L574",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_6_bateria_de_testes_t01_t35",
-      "target": "roleta_cloud_maquina_azure_agora_25_vm_plane_via_ssh_azureuser_ip",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_vm_plane_via_ssh_azureuser_ip"
     },
     {
       "relation": "contains",
@@ -23357,9 +23843,9 @@
       "source_file": "maquina_azure_agora_25.md",
       "source_location": "L590",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_maquina_azure_agora_25_6_bateria_de_testes_t01_t35",
-      "target": "roleta_cloud_maquina_azure_agora_25_app_plane_depois_do_deploy_do_c\u00f3digo_pelo_yolo_orchestrator",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_maquina_azure_agora_25_app_plane_depois_do_deploy_do_c\u00f3digo_pelo_yolo_orchestrator"
     },
     {
       "relation": "contains",
@@ -26570,6 +27056,536 @@
       "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_bugs_e9_ordem_de_execu\u00e7\u00e3o_recomendada",
       "target": "roleta_cloud_sprint_bugs_codeblock_6"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "visualizacao_da_evolucao_25_05_md",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_0_tl_dr_1_p\u00e1gina_decisional",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L114",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L250",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L315",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L380",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L473",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L521",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_8_comparativo_estamos_no_caminho_certo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L538",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_9_comparativo_vs_estrutura_noite_25_audit_md",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L553",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L574",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_visualiza\u00e7\u00e3o_da_evolu\u00e7\u00e3o_25_05",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_1_o_payload_exato_que_entra_hoje_verificado_live",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L99",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_2_as_8_decis\u00f5es_tomadas_a_cada_jogada_engenharia_reversa",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mapa_das_8_decis\u00f5es_e_onde_elas_vivem",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L120",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_1_tr_confidence_kill_switch_grade_paradoxo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L130",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_2_sda_score_sinal_puro_do_sda17_sweet_spot_em_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L142",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_3_sda_offset_type_tipo_de_calibra\u00e7\u00e3o_aplicada_errdriven_est\u00e1_sabotando",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L153",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_4_calibration_offset_efeito_altamente_assim\u00e9trico",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L171",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_5_gale_level_tr_confidence_intera\u00e7\u00e3o_g2_media_\u00e9_diamante",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L184",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_6_sda_predicted_force_for\u00e7a_prevista_sinal_muito_forte",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L203",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_7_kill_switch_\u00e9_estatisticamente_nulo_hoje",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L214",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_8_dire\u00e7\u00e3o_cw_vs_ccw_sim\u00e9trico",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L223",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_9_tr_c4_rate_taxa_\u00faltimos_4_n\u00e3o_preditiva_como_bucket",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L235",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_3_an\u00e1lise_quantitativa_de_impacto_de_cada_decis\u00e3o",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_3_10_sum\u00e1rio_ranking_decis\u00f5es_com_impacto_real",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L252",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_1_resposta_direta",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L264",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_2_por_que_isso_\u00e9_central_para_a_estrat\u00e9gia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L275",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L305",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_a_pergunta_de_ouro_sabemos_a_dist\u00e2ncia_da_bola_at\u00e9_cada_regi\u00e3o_prevista",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_4_4_backtest_harness_s_strat_9_encaixe_perfeito",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L277",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_4_3_como_melhorar_fix_sugerido",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L317",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L345",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L369",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_estrutura\u00e7\u00e3o_atual_das_tabelas_pg_age_vector_auditoria",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_5_3_sqlite_write_side_decisions_gale_windows_sessions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L319",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_1_pg_cw_ccw_schemas_vector_store_features",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L347",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L355",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_5_2_age_apache_graph_extension_instalada_e_ociosa",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L382",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_1_por_que_faz_sentido_literatura_experi\u00eancia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L393",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_2_o_que_captar_e_de_onde",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L405",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L463",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_dealer_provedor_vale_a_pena_sim_alto_roi",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_6_4_como_a_estrat\u00e9gia_melhora_com_dealer_provider",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L407",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L421",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L453",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_6_3_schema_proposto",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L409",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_m\u00ednimas_sqlite_write_side",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_7",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L423",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_mudan\u00e7as_pg_read_side_nova_migra\u00e7\u00e3o_0007_dealer_provider_py",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_8",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L456",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_vector_ampliado",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_9",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L475",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_a_capturar_wheel_dist_3_dias_roi_mais_alto",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L488",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_b_capturar_dealer_provider_5_dias",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L501",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_alavanca_c_desligar_errdriven_remediar_sda_score_extremos_1_dia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L512",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_7_roadmap_de_evolu\u00e7\u00e3o_3_alavancas_3_sprints",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_sequ\u00eancia_recomendada",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L555",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_10_comandos_prontos_para_validar",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_10",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Visualizacao_da_evolucao_25_05.md",
+      "source_location": "L576",
+      "weight": 1.0,
+      "source": "roleta_cloud_visualizacao_da_evolucao_25_05_11_mem\u00f3ria_entidades_a_adicionar",
+      "target": "roleta_cloud_visualizacao_da_evolucao_25_05_codeblock_11",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -36433,5 +37449,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "3027b1b4aaece0fc321b33ddac8873c412d1d0f8"
+  "built_at_commit": "a65986c5036e546ab0cd0b657fe248be95e965af"
 }
