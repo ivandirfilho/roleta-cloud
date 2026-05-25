@@ -956,3 +956,145 @@ Externaliza saúde do estado runtime para Prometheus/curl/cron alarms. Permite d
 - **S-CLEAN-2**: remover `handle_legacy_spin` após 7 dias sem warns
 - **S-OBS-9** (novo): adicionar métrica Prometheus `roleta_kill_pulls_total` + `roleta_adaptive_state_size` consumindo /api/state, p/ alarms automáticos
 
+
+
+---
+
+## §16 — Sprint pós-§15: S-OBS-9 (Prometheus metrics) + auditoria + Roadmap 10 passos (2026-05-24 22:45 BRT)
+
+### Stack MCP usada
+graphify (re-update, sem deltas topológicos) + filesystem + sequential-thinking + brave + memory
+
+### Estado live (1h):
+- **116 decisions/h**, 105 APOSTAR, 7 KILL v3 (6%) ✅
+- **Acc apostando: ccw 52.9%, cw 51.2%** — MELHOROU vs §15 (49% → 52%)
+- Gale: G1=84 (56%), G2=6 (16%), G3=4 (25%)
+- Profit estimado 1h: -1292 unidades (estimativa bruta payout 5x/loss 6x; análise real precisa de gale chain)
+- Outbox PG: 234 processed / 0 pending (8 novos em 5min)
+- Memória/load: roleta 31MB, load avg 0.47 (8h24min uptime)
+- gale_windows DB: 670 (335 cw + 335 ccw)
+- Imagens: roleta-cloud 302MB, pg-stack 1GB
+- 0 errors / 2 warnings benignos em 1h
+
+### Implementação S-OBS-9
+
+**Arquivo modificado:** `server/health_server.py`
+
+Novas métricas Prometheus (alimentadas on-demand a cada scrape `/metrics`):
+
+| Métrica | Tipo | Propósito |
+|---|---|---|
+| `roleta_kill_pulls_total` | Gauge | Total Kill Switch v3 disparos (persistido) |
+| `roleta_adaptive_state_keys_count` | Gauge | Alarmar se < 5 (BUG-NOVO-11 detection) |
+| `roleta_sigmoid_off_populated` | Gauge | 0/1, alarmar se 0 |
+| `roleta_state_file_age_seconds` | Gauge | Alarmar se > 120s (app travou) |
+| `roleta_state_file_size_bytes` | Gauge | Trend de crescimento |
+| `roleta_recent_acc_cw` / `_ccw` | Gauge | Acc rolling 100, alarmar se < 0.30 |
+| `roleta_seconds_since_last_spin` | Gauge | Alarmar se > 300s (Telegram offline?) |
+| `roleta_metrics_scrape_errors_total` | Counter | Detecta falha do próprio scrape |
+
+**Por quê (ISO/IEC 25010 §6.7 + Site Reliability):**
+- Externaliza estado runtime para Grafana/AlertManager sem precisar polling de `/api/state`
+- Reutiliza `_STATE_PROVIDER` e `_STRATEGY_PROVIDER` (DRY)
+- Try/except global + counter de erro → métricas custom NUNCA quebram /metrics
+
+**Validação local:** pytest 156 passed, refresh_custom_metrics graceful no-op sem prometheus_client.
+
+### Auditoria delta — bugs procurados, achados
+
+| Sinal | Resultado |
+|---|---|
+| `pg_stat_statements` | ❌ não habilitado (`shared_preload_libraries` faltando) — **BUG-NOVO-19** baixa prioridade |
+| wal-g backups | só 3 visíveis (era 7) — provável retention rodando, **mas não vejo política**. **BUG-NOVO-20** investigar `WALG_RETAIN` |
+| `gale_windows.ended_at IS NULL` | esperado para janelas abertas (live), não é bug |
+| disk/inodes | 7% disk, 2% inodes — saudável |
+| docker images | 1.5GB total — folga 70GB |
+| logs 1h | 2 warns benignos, 0 errors — limpo |
+
+### Status BUGs consolidado
+
+| # | Status |
+|---|---|
+| 07/10/14/15 | ❌ falsos positivos / não-bugs |
+| 08 | ✅ S-OBS-7 §13 |
+| 09 | 🟢 estável |
+| 11 | ✅ S-CFG-1 §14 |
+| 19 (pg_stat_statements off) | 🟢 baixa prio (próximo sprint) |
+| 20 (wal-g retention opaca) | 🟢 baixa prio (próximo sprint) |
+| — proativo S-OBS-8/9 | ✅ §15/§16 |
+
+---
+
+### 🎯 ROADMAP — 10 PRÓXIMOS PASSOS sugeridos (priorizado)
+
+> Critério: maior impacto/risco mitigado primeiro. Cada um inclui **por quê**, **como** e **esforço**.
+
+**P1 — Confiabilidade (curto prazo, ≤ 1 dia)**
+
+1. **S-OBS-10: Grafana dashboard + AlertManager regras**
+   - *Por quê*: temos 8 métricas novas mas zero alarms. Sem alerta, observabilidade é teatro.
+   - *Como*: criar `grafana/dashboards/roleta-state.json` + `prometheus/alerts.yml` com regras:
+     - `roleta_adaptive_state_keys_count < 5` for 2m → CRITICAL
+     - `roleta_seconds_since_last_spin > 300` for 1m → WARNING (Telegram offline)
+     - `roleta_recent_acc_cw < 0.30 OR roleta_recent_acc_ccw < 0.30` for 10m → INFO
+   - *Esforço*: 2h
+
+2. **S-WALG-3: documentar e validar retention policy**
+   - *Por quê*: BUG-NOVO-20 — backups somem sem rastro
+   - *Como*: rodar `WALG_RETAIN_FULL=10 WALG_RETAIN_FULL_DAYS=7` no env, validar `wal-g delete retain FULL 10 --confirm`
+   - *Esforço*: 1h
+
+3. **S-CLEAN-2 (já agendada)**: remover `handle_legacy_spin` após 7 dias sem warns
+   - *Esforço*: 15min
+
+**P2 — Performance & Insight (médio prazo, ≤ 3 dias)**
+
+4. **S-OBS-11: pg_stat_statements + slow query dashboard**
+   - *Por quê*: BUG-NOVO-19 — não conseguimos identificar SQL lento
+   - *Como*: adicionar `shared_preload_libraries = 'pg_stat_statements'` no `postgresql.conf`, restart PG, query top-10
+   - *Esforço*: 1h
+
+5. **S-CDC-1: snapshot CDC lag em métricas**
+   - *Por quê*: CDC parece OK (0 pending) mas não temos lag p95/p99 medido
+   - *Como*: cdc-worker publica `roleta_cdc_lag_seconds` (now() - row.created_at) ao processar
+   - *Esforço*: 2h
+
+6. **S-DASH-1: dashboard tempo-real `/dashboard` no health_server**
+   - *Por quê*: hoje só temos JSON cru em /api/state e /api/strategy
+   - *Como*: HTML estático com `fetch` a cada 2s, gráficos sparkline (Chart.js CDN), exibir gale chain ativa, kill stats, recent_acc
+   - *Esforço*: 1 dia
+
+**P3 — Estratégia & Modelagem (longo prazo, ≤ 2 semanas)**
+
+7. **S-STRAT-7: backtest formal Kill Switch v3 vs v4 (recent_acc compose)**
+   - *Por quê*: KILL v3 a 7% parece bom, mas não sabemos quantos hits ele estaria salvando
+   - *Como*: usar `backtest_from_db.py` para simular: replay últimas 1000 decisões aplicando filtro `c4 < 0.30 AND sda_score < 4 AND recent_acc < 0.45`; comparar P&L
+   - *Esforço*: 3 dias
+
+8. **S-MODEL-1: feature flag `STRATEGY_AB_TEST`**
+   - *Por quê*: trocar de v3→v4 hoje é all-in. Quero rodar 50/50 por sessão
+   - *Como*: hash(session_id) % 2 → variant A/B, persistir em `decisions.strategy_variant`, comparar acc/P&L semanal
+   - *Esforço*: 1 semana
+
+9. **S-DATA-1: pipeline de feature store (PG → Parquet diário)**
+   - *Por quê*: cada análise refaz query SQL pesada; queremos snapshot diário em Parquet S3/B2 para BI ad-hoc
+   - *Como*: cron `0 3 * * *` exporta `decisions` + `gale_windows` + `outbox` para Parquet compactado, upload B2
+   - *Esforço*: 2 dias
+
+**P4 — Resiliência & Operações (contínuo)**
+
+10. **S-INFRA-1: docker-compose com `restart: unless-stopped` em todos + healthcheck explícito + memlimit**
+    - *Por quê*: hoje não vimos OOM, mas roleta-cloud ocupa só 31MB de 58GiB — sem `mem_limit` qualquer leak natural sobrecarrega host
+    - *Como*: `mem_limit: 512m`, `restart: unless-stopped`, `healthcheck: test: curl -f localhost:8766/health`
+    - *Esforço*: 30min
+
+11. **(Bônus) S-DOC-1: gerar `ARCHITECTURE.md` a partir do graphify**
+    - *Por quê*: graph.json tem 1700 nós; sem narrativa humana ninguém entende
+    - *Como*: `graphify summary . > ARCHITECTURE.md` + revisão manual
+    - *Esforço*: 1 dia
+
+**Resumo prioridades:**
+- **Faça agora (próxima sessão)**: P1 (#1, #2, #3)
+- **Próxima semana**: P2 (#4, #5, #6)
+- **Próximo mês**: P3 (#7, #8, #9) + P4 (#10, #11)
+

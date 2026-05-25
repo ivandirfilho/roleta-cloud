@@ -47,10 +47,66 @@ def set_state_provider(provider) -> None:
     _STATE_PROVIDER = provider
 
 try:
-    from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST  # type: ignore
+    from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Gauge, Counter  # type: ignore
     _METRICS_AVAILABLE = True
 except Exception:  # noqa: BLE001
     _METRICS_AVAILABLE = False
+
+
+# S-OBS-9: métricas Prometheus alimentadas pelos providers de /api/state e /api/strategy.
+# Atualizadas on-demand a cada scrape /metrics (não loop dedicado).
+_PROM_METRICS = None
+if _METRICS_AVAILABLE:
+    try:
+        _PROM_METRICS = {
+            "kill_pulls": Gauge("roleta_kill_pulls_total", "Total Kill Switch v3 pulls in process (persistido em state.json)"),
+            "adp_keys": Gauge("roleta_adaptive_state_keys_count", "Numero de chaves no _adaptive_state (alarmar se < 5)"),
+            "sigmoid_ok": Gauge("roleta_sigmoid_off_populated", "1 se sigmoid_off tem chaves, 0 vazio"),
+            "state_age": Gauge("roleta_state_file_age_seconds", "Segundos desde ultima escrita de state.json"),
+            "state_size": Gauge("roleta_state_file_size_bytes", "Tamanho do state.json em disco"),
+            "recent_acc_cw": Gauge("roleta_recent_acc_cw", "Accuracy rolling 100 spins direcao CW"),
+            "recent_acc_ccw": Gauge("roleta_recent_acc_ccw", "Accuracy rolling 100 spins direcao CCW"),
+            "seconds_since_spin": Gauge("roleta_seconds_since_last_spin", "Segundos desde ultimo spin processado"),
+            "scrape_errors": Counter("roleta_metrics_scrape_errors_total", "Falhas ao atualizar metricas durante scrape"),
+        }
+    except Exception:  # noqa: BLE001
+        _PROM_METRICS = None
+
+
+def _refresh_custom_metrics() -> None:
+    """S-OBS-9: chamado a cada GET /metrics; tolerante a providers ausentes."""
+    if not _PROM_METRICS:
+        return
+    try:
+        if _STATE_PROVIDER is not None:
+            st = _STATE_PROVIDER() or {}
+            bs = st.get("bet_advisor_state") or {}
+            _PROM_METRICS["kill_pulls"].set(float(bs.get("kill_pulls_total", 0)))
+            _PROM_METRICS["adp_keys"].set(float(st.get("adaptive_state_keys_count", 0)))
+            _PROM_METRICS["sigmoid_ok"].set(1.0 if st.get("sigmoid_off_populated") else 0.0)
+            age = st.get("state_file_age_seconds")
+            if age is not None:
+                _PROM_METRICS["state_age"].set(float(age))
+            size = st.get("state_file_size_bytes")
+            if size is not None:
+                _PROM_METRICS["state_size"].set(float(size))
+        if _STRATEGY_PROVIDER is not None:
+            sg = _STRATEGY_PROVIDER() or {}
+            ra = sg.get("recent_acc") or {}
+            cw = ra.get("cw_last_100")
+            ccw = ra.get("ccw_last_100")
+            if cw is not None:
+                _PROM_METRICS["recent_acc_cw"].set(float(cw))
+            if ccw is not None:
+                _PROM_METRICS["recent_acc_ccw"].set(float(ccw))
+            sec = sg.get("seconds_since_last_spin")
+            if sec is not None:
+                _PROM_METRICS["seconds_since_spin"].set(float(sec))
+    except Exception:  # noqa: BLE001
+        try:
+            _PROM_METRICS["scrape_errors"].inc()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _read_version() -> str:
@@ -85,6 +141,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"prometheus_client not installed")
                 return
+            _refresh_custom_metrics()  # S-OBS-9: atualiza gauges custom antes do scrape
             data = generate_latest(REGISTRY)
             self.send_response(200)
             self.send_header("Content-Type", CONTENT_TYPE_LATEST)
