@@ -593,7 +593,8 @@ class GameState:
             "martingale_cw": self.martingale_cw.to_dict(),
             "martingale_ccw": self.martingale_ccw.to_dict(),
             "pending_prediction": self.pending_prediction,
-            "adaptive_state": self._adaptive_state
+            "adaptive_state": self._adaptive_state,
+            "bet_advisor_state": self.bet_advisor.state_dict(),
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -681,6 +682,11 @@ class GameState:
             )
             # M15-ADA: Restaurar estado adaptativo (v1.6+, vazio se v1.5)
             gs._adaptive_state = data.get("adaptive_state", {})
+            # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
+            try:
+                gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))
+            except Exception as _e:
+                logger.warning(f"S-OBS-7: falha ao restaurar bet_advisor_state: {_e}")
             return gs
         except Exception as e:
             logger.error(f"Falha ao carregar state.json: {e}")

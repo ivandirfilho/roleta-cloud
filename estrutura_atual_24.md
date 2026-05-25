@@ -774,3 +774,59 @@ Counter é in-process; cada deploy reseta para 0. Não é crítico (rolling 60mi
 | Histórico backup | 4 base backups no B2 (incluindo o `_30` criado nesta sessão) |
 
 **FIM §12.** 3 sprints da §11 executadas e validadas live; mega-descoberta de wal-g já produtivo poupou esforço; 3 BUGs novos catalogados como observação para o próximo ciclo.
+
+
+---
+
+## §13 — Sprint pós-§12: S-OBS-7 (kill counter persistente) + auditoria live (2026-05-24 22:30 BRT)
+
+### Stack MCP usada
+graphify (re-update, sem deltas) + filesystem + sequential-thinking + brave + memory
+
+### Estado live coletado (≤2 min pós-restart anterior)
+- App `roleta-cloud` v4.4.0 healthy (uptime 2min), `roleta-pg` 1h, `cdc-worker` 1h
+- session `56b2b45f`, last_number=5, anti-horario
+- **recent_acc**: `cw=48.8%` (↑ de 47.5), `ccw=44.2%` (↓ de 45.2)
+- **sigmoid_off**: `ccw_off2=11.70`, `cw_off3=11.40`, `cw_off2=10.76`, `ccw_off3=10.61` — ainda colados perto do topo da banda [8,12], confirma tendência BUG-NOVO-09
+- **decisions pós-§12 (id>3905)**: 6 totais → 4 APOSTAR / 2 PULAR, **2 com KILL v3** (33% — ainda alto, amostra ínfima)
+- **`/api/strategy.kill_switch.pulls_total = 0`** porém DB mostra 2 KILL v3 → **confirma BUG-NOVO-08** (counter in-process zerou no restart de 2 min atrás)
+- **0 errors** em `roleta-cloud` e `cdc-worker` nos últimos 30 min, **0 warns `legacy_spin_deprecated`** (S-CLEAN-1 sem regressão)
+- **wal-g B2**: 4 base backups, último `base_..._30 @ 01:20:39Z` (S-WALG-2-EXEC validado, próximo às 22:30/22:00/etc cada 30min)
+
+### Implementação S-OBS-7 (BUG-NOVO-08 → resolvido)
+
+**Arquivos modificados:**
+
+1. `state/bet_advisor.py` — adicionados métodos:
+   - `state_dict()` → `{"kill_pulls_total": int, "last_kill_ts": float}`
+   - `load_state(data)` → tolerante a dict vazio/`None`, com try/except em conversões
+
+2. `state/game.py`:
+   - `save()` agora inclui `"bet_advisor_state": self.bet_advisor.state_dict()` no JSON
+   - `load()` chama `gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))` após restaurar `_adaptive_state`, com fallback logged
+
+**Por quê** (manutenabilidade ISO/IEC 25010 §6.7):
+- Modifiability: alteração isolada (2 arquivos, 0 mudança de assinatura pública)
+- Reliability/Recoverability: counter sobrevive `docker compose up -d --build`, eliminando "blind spot" de 2 min após cada deploy
+- Backward compat: load tolera state.json antigo sem `bet_advisor_state`
+
+**Como (validação local):**
+- Unit test manual: `state_dict()` ↔ `load_state()` round-trip OK (`pulls_total=7 → 7`); `load_state({})` não corrompe defaults
+- pytest: **156 passed, 7 skipped, 1 xfailed** (sem regressão)
+
+### Auditoria delta (estritamente bugs)
+
+| ID | Severidade | Onde | Sintoma | Status |
+|----|-----------|------|---------|--------|
+| BUG-NOVO-07 | 🟡 médio | `bet_advisor.py:95` | KILL v3 disparou 33% em 6 decisões pós-deploy + 40% em 10 pré-deploy. Amostra ainda < 30 spins (limite de decisão estatística) | **EM OBSERVAÇÃO** — aguardar 1h para validar via SQL `WHERE id > 3905` |
+| BUG-NOVO-08 | 🟡 médio | `bet_advisor.py` counter in-process | Counter zera em todo restart, perde-se observabilidade temporal | ✅ **CORRIGIDO** S-OBS-7 |
+| BUG-NOVO-09 | 🟡 baixo | `sda17.py:_pct_sigmoid_update` `reg_rate=0.20` | offsets `cw_off3=11.40` / `ccw_off2=11.70` continuam colados no topo da banda [8,12] mesmo após 30+ min | **EM OBSERVAÇÃO** — confirmar se >70% das amostras de 1h estão >11.5 antes de subir `reg_rate=0.30` |
+| BUG-NOVO-10 | 🟢 cosmético | `/api/strategy` retorna `last_pull_ts: null` quando counter=0 | Esperado: comportamento intencional (`None` se nunca disparou) | **NÃO É BUG** — manter |
+
+Nenhum erro encontrado em logs (`docker logs --since 30m`), nenhum traceback, nenhum aviso de `legacy_spin_deprecated`.
+
+### Sprints pendentes (carry-over → §14)
+- **S-STRAT-5** (BUG-NOVO-07): aguardar ≥1h dados live. Se `v3_pulls/total > 20%`, recalibrar para `c4 < 0.20 AND sda_score < 4` OU compor com `recent_acc < 0.40`.
+- **S-STRAT-6** (BUG-NOVO-09): se offsets >11.5 em >70% das amostras da próxima hora, subir `reg_rate` de 0.20 → 0.30 em `sda17.py`.
+- **S-CLEAN-2**: remover `handle_legacy_spin` do roteamento após 7 dias sem `[S-CLEAN-1]` warns.
+

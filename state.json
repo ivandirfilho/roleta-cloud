@@ -35,5 +35,9 @@
     "window_count": 0
   },
   "pending_prediction": {},
-  "adaptive_state": {}
+  "adaptive_state": {},
+  "bet_advisor_state": {
+    "kill_pulls_total": 0,
+    "last_kill_ts": 0.0
+  }
 }

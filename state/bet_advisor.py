@@ -58,6 +58,24 @@ class TripleRateAdvisor:
             "pulls_total": self._kill_pulls_total,
             "last_pull_ts": self._last_kill_ts if self._last_kill_ts else None,
         }
+
+    def state_dict(self) -> dict:
+        """S-OBS-7: estado serializavel para persistir em state.json (sobrevive restart)."""
+        return {
+            "kill_pulls_total": int(self._kill_pulls_total),
+            "last_kill_ts": float(self._last_kill_ts),
+        }
+
+    def load_state(self, data: dict) -> None:
+        """S-OBS-7: restaura counter apos restart. Tolera dict vazio/None."""
+        if not data:
+            return
+        try:
+            self._kill_pulls_total = int(data.get("kill_pulls_total", 0))
+            self._last_kill_ts = float(data.get("last_kill_ts", 0.0))
+        except (TypeError, ValueError):
+            self._kill_pulls_total = 0
+            self._last_kill_ts = 0.0
     
     def analyze(self, performance: List[bool], sda_score: int = 3) -> BetAdvice:
         """
