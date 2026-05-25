@@ -560,3 +560,37 @@ Análise via `pg_stat_statements` + `pg_stat_user_tables`:
 - Shadow random é baseline, não estratégia alternativa real. Próxima iteração: shadow com SDA17 + `sigmoid_off` shifted (challenger paramétrico).
 - Não persiste em state.json — reset em restart (aceito para MVP, 100-spin window enche em ~2h).
 
+
+### Execução S-STRAT-10 (2026-05-25 00:26)
+
+**Commit**: `8ac2880`
+
+**Validação live pós-deploy**:
+- `/api/shadow`: ✅ ativo. shadow.cw n=0 (acumulando após restart), incumbent.cw n=12 acc=0.583. Próximos 100 spins encherão o buffer.
+- `vol_ema`: cw=**0.457**, ccw=**0.467** — confirmado que baseline 0.45 (BUG-V3-02 fix) está calibrado para o regime real.
+- `threshold_c4`: 0.297/0.292 (regime normal, KILL pouco sensível).
+- `threshold_sda`: 4/4 ✅ (NÃO subiu para 6 mesmo em vol > 0.45 — BUG-V3-01 fix confirmado).
+- `batch_runs`: cw=3, ccw=3 — **3º pullback disparou em cada direção** desde o último deploy.
+- `recent_acc`: cw=0.48, ccw=0.45.
+
+**Resultado da noite (00:00 → 00:23, 23min)**:
+
+| Sprint | Status | Evidência |
+|--------|--------|-----------|
+| S-STRAT-7 batch-4 auto-tune | ✅ DEPLOYED | 3 pullbacks por direção em ~1h |
+| S-STRAT-9 backtest harness | ✅ DEPLOYED | 2923 spins replayed acc=0.4738 |
+| S-STRAT-11 KILL v4 dynamic | ✅ DEPLOYED | sda_thr correto pós-V3-01 |
+| S-STRAT-10 MVP shadow | ✅ DEPLOYED | endpoint /api/shadow ativo |
+| S-DBA-1 indexes | ⚠️ NÃO criados | decisão técnica documentada (tabelas <362 rows) |
+| BUG-V3-01/03/04 | ✅ FIXED | acc 0.43 → 0.70 em 10 spins pós-fix |
+| BUG-V3-02/05/08 | ✅ FIXED | vol_ema baseline 0.45, persistência, anti-oscilação |
+
+**Próximos passos (não-bloqueadores)**:
+- **S-STRAT-8**: feature store no PG (3-4d) — alta complexidade, exige migration nova.
+- **S-STRAT-12**: embeddings pgvector (4-5d) — já temos infra (ivfflat indexes), mas requer scoring batch.
+- **S-OBS-13**: Grafana dashboard custom para batch tune + KILL v4 thresholds.
+- **S-DBA-1 v2**: revisar quando `shared.outbox` passar de 10k rows.
+- **S-STRAT-10 v2**: shadow paramétrico (SDA17 com `sigmoid_off` shifted) ao invés de random.
+
+**Estado atual do sistema**: VERDE 🟢 — todas auditorias da noite executadas e validadas em produção.
+
