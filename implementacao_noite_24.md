@@ -524,3 +524,39 @@ Ordem mantida, mas:
 - Implementar S-STRAT-10 (A/B shadow challenger).
 - Coletar pg_stat_statements baseline para S-DBA-1 índices.
 
+
+---
+
+## §S-STRAT-10 + §S-DBA-1 (próximos passos — 2026-05-25 00:24)
+
+### S-DBA-1 — Decisão técnica: NÃO criar índices agora
+Análise via `pg_stat_statements` + `pg_stat_user_tables`:
+- `shared.outbox`: 362 rows, 280KB. Já tem `idx_outbox_pending` (partial index para status='pending'). Hot query `SELECT DISTINCT split_part(aggregate_id)` faz Seq Scan em **0.89ms** sobre 362 rows — overhead de novo índice (escritas + manutenção) NÃO compensa o ganho.
+- `cw.spins_vectors` / `ccw.spins_vectors`: 183/179 rows, 936KB cada. Já têm ivfflat + btree(ts) + btree(spin_uuid). Suficiente.
+- `shared.strategy_versions`: 1 row. N/A.
+- **Conclusão**: tabelas pequenas demais (max=362). Reavaliar quando alguma tabela passar de 10k rows. Documentar baseline atual.
+
+### S-STRAT-10 — MVP implementado
+**Design**: Shadow challenger é um baseline **random** (sorteia 17 do wheel europeu). Se incumbent não bate random + 4pp sustentado, há problema estrutural.
+
+**Arquivos**:
+- `state/game.py`: deques `shadow_hits_cw/ccw` (maxlen 100); `store_prediction` gera `shadow_numbers` aleatórios; `check_prediction` registra `shadow_hit`; novo método `get_shadow_stats`.
+- `server/health_server.py`: `set_shadow_provider` + endpoint `/api/shadow`.
+- `server/websocket.py`: registra `_shadow_snapshot` provider.
+
+**Schema /api/shadow**:
+`json
+{
+  "shadow": {"cw": {"n": 100, "hits": 45, "acc": 0.45}, "ccw": {...}},
+  "incumbent": {"cw": {"n": 100, "hits": 50, "acc": 0.50}, "ccw": {...}},
+  "edge_pp": {"cw": 5.0, "ccw": 4.0},
+  "baseline_random": 0.4595
+}
+`
+
+**Critério de aprovação live**: `edge_pp` ≥ +4pp sustentado por 200 spins por sentido.
+
+**Limitações reconhecidas** (aceitas para MVP):
+- Shadow random é baseline, não estratégia alternativa real. Próxima iteração: shadow com SDA17 + `sigmoid_off` shifted (challenger paramétrico).
+- Não persiste em state.json — reset em restart (aceito para MVP, 100-spin window enche em ~2h).
+

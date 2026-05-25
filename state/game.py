@@ -191,6 +191,11 @@ class GameState:
     # Performance Apostas - APENAS quando realmente aposta (base para Martingale)
     performance_bet_cw: deque = field(default_factory=lambda: deque(maxlen=12))
     performance_bet_ccw: deque = field(default_factory=lambda: deque(maxlen=12))
+
+    # S-STRAT-10 MVP — Shadow challenger (random baseline 17/37).
+    # Compara accuracy do incumbent vs random — se diff < 4pp, há problema.
+    shadow_hits_cw: deque = field(default_factory=lambda: deque(maxlen=100))
+    shadow_hits_ccw: deque = field(default_factory=lambda: deque(maxlen=100))
     
     # Calibração removida (momentum desabilitado)
     
@@ -323,6 +328,15 @@ class GameState:
             self.performance_sda17_cw.appendleft(hit)
         else:
             self.performance_sda17_ccw.appendleft(hit)
+
+        # S-STRAT-10 MVP — registra shadow_hit (random challenger).
+        shadow_numbers = pred.get("shadow_numbers", [])
+        if shadow_numbers:
+            shadow_hit = actual_number in shadow_numbers
+            if direction in ("cw", "horario"):
+                self.shadow_hits_cw.appendleft(shadow_hit)
+            else:
+                self.shadow_hits_ccw.appendleft(shadow_hit)
         
         # APENAS adicionar ao histórico BET se realmente apostou
         if bet_placed:
@@ -352,6 +366,15 @@ class GameState:
             sda_score: Score do SDA (para tracking)
             sda_centers: Lista de centros [C1, C2, C3] — SDA-21
         """
+        # S-STRAT-10 MVP — Shadow challenger random (17/37 = baseline acc 0.459).
+        # Se incumbent não bater random + 4pp, há problema estrutural na estratégia.
+        import random as _random
+        try:
+            wheel = list(roulette.WHEEL_SEQUENCE)
+            shadow_numbers = _random.sample(wheel, min(len(numbers), len(wheel)))
+        except Exception:
+            shadow_numbers = []
+
         self.pending_prediction = {
             "numbers": numbers,
             "direction": direction,
@@ -361,9 +384,32 @@ class GameState:
             "bet_placed": bet_placed,
             "tr_confidence": tr_confidence,
             "tr_reason": tr_reason,
-            "sda_score": sda_score
+            "sda_score": sda_score,
+            "shadow_numbers": shadow_numbers,
         }
     
+    def get_shadow_stats(self) -> Dict[str, Any]:
+        """S-STRAT-10 MVP — snapshot shadow vs incumbent para /api/shadow."""
+        def stats(perf_deq) -> Dict[str, Any]:
+            n = len(perf_deq)
+            hits = sum(1 for x in perf_deq if x)
+            return {"n": n, "hits": hits, "acc": (hits / n) if n else 0.0}
+
+        sd_cw = stats(self.shadow_hits_cw)
+        sd_ccw = stats(self.shadow_hits_ccw)
+        # Incumbent: usa sda17 perf (mesma base de Triple Rate).
+        inc_cw = stats(self.performance_sda17_cw)
+        inc_ccw = stats(self.performance_sda17_ccw)
+        return {
+            "shadow": {"cw": sd_cw, "ccw": sd_ccw},
+            "incumbent": {"cw": inc_cw, "ccw": inc_ccw},
+            "edge_pp": {
+                "cw": round((inc_cw["acc"] - sd_cw["acc"]) * 100, 1),
+                "ccw": round((inc_ccw["acc"] - sd_ccw["acc"]) * 100, 1),
+            },
+            "baseline_random": 17.0 / 37.0,
+        }
+
     def get_performance_stats(self) -> Dict[str, Any]:
         """
         Retorna estatísticas de performance para todas as 4 listas.

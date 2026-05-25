@@ -56,6 +56,16 @@ def set_batch_tune_provider(provider) -> None:
     global _BATCH_TUNE_PROVIDER
     _BATCH_TUNE_PROVIDER = provider
 
+
+# S-STRAT-10 MVP: provider opcional para snapshot do shadow challenger.
+_SHADOW_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_shadow_provider(provider) -> None:
+    """S-STRAT-10: registra callable() -> dict para /api/shadow."""
+    global _SHADOW_PROVIDER
+    _SHADOW_PROVIDER = provider
+
 try:
     from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Gauge, Counter  # type: ignore
     _METRICS_AVAILABLE = True
@@ -243,6 +253,28 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = _BATCH_TUNE_PROVIDER()
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
+            return
+        if self.path == "/api/shadow":
+            # S-STRAT-10 MVP: snapshot do shadow challenger (random baseline).
+            if _SHADOW_PROVIDER is None:
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"shadow provider not registered"}')
+                return
+            try:
+                payload = _SHADOW_PROVIDER()
                 body = json.dumps(payload, default=str).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

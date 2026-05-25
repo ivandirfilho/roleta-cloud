@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 32 files · ~53,882 words
+- 32 files · ~53,911 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1752 nodes · 1852 edges · 159 communities (144 shown, 15 thin omitted)
+- 1757 nodes · 1859 edges · 161 communities (145 shown, 16 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fc111649`
+- Built from commit: `cd8c28bd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -167,6 +167,8 @@
 - [[_COMMUNITY_Community 156|Community 156]]
 - [[_COMMUNITY_Community 157|Community 157]]
 - [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 160|Community 160]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -184,7 +186,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (159 total, 15 thin omitted)
+## Communities (161 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -227,8 +229,8 @@ Cohesion: 0.06
 Nodes (33): adaptive_state, last_direction, last_number, martingale_ccw, consecutive_hits, current_bet, gale_display, global_consecutive_hits (+25 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.14
-Nodes (11): Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Analisa timeline e prediz próxima força usando pipeline robusto., Analisa timeline e prediz próxima força usando pipeline robusto., Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Aplica força ao número, retorna número resultado. (+3 more)
+Cohesion: 0.25
+Nodes (6): Analisa timeline e prediz próxima força usando pipeline robusto., Analisa timeline e prediz próxima força usando pipeline robusto., Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Analisa timeline e prediz próxima força usando pipeline robusto.
 
 ### Community 11 - "Community 11"
 Cohesion: 0.06
@@ -391,8 +393,8 @@ Cohesion: 0.08
 Nodes (23): 0 · Resumo Executivo, 1.1 · SQLite — `data/decisions.db` · tabela `decisions`, 1.2 · Postgres (réplica analítica) — estado real, 1.3 · Root cause — porque o hook não disparou, 1.4 · Mitigações aplicadas nesta auditoria, 1.5 · Recomendação para próximo sprint, 1 · Engenharia Reversa das Últimas 6 Jogadas, 2 · Auditoria Item-a-Item · Plano `plano_implentacao_pos_sessao_24_05.md` (+15 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.09
-Nodes (23): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+15 more)
+Cohesion: 0.12
+Nodes (16): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+8 more)
 
 ### Community 61 - "Community 61"
 Cohesion: 0.07
@@ -411,8 +413,8 @@ Cohesion: 0.09
 Nodes (23): code:block2 (Dia 0 (HOJE): B-7 (fix TS-FMT — 30min) + B-1 (lag) + B-2 (la), code:block3 (p50    | p95     | p99), code:block4 (Dia 0 (HOJE - parcial): ✅ v2 plan + auditoria 30min + descob), IX. Sprints v2 (reordenados pela auditoria 30min), 🟥 S-A v2 — Estabilidade P0 (1 dia), 🟦 S-B v2 — Observabilidade (1,5 dia, começar AGORA), 🟧 S-C v2, 🟩 S-E v2, ⬜ S-G v2 — sem mudança estrutural, 🟨 S-D v2 — Performance (PROMOVIDO para semana 1) (+15 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.17
-Nodes (8): Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi, QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES).
+Cohesion: 0.14
+Nodes (12): Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi, QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0 (+4 more)
 
 ### Community 66 - "Community 66"
 Cohesion: 0.14
@@ -499,16 +501,16 @@ Cohesion: 0.22
 Nodes (9): 5.1 Provisionamento (`az vm create` esperado), 5.2 Cloud-init / Script de inicialização (executar no first-boot), 5.3 Managed Identity + permissões no Key Vault, 5.4 Validação pós-boot (script `check-vm.sh` que o agente roda via SSH), 5. VM substituta — especificação detalhada, code:bash (# Pega principal ID da identidade do sistema da VM), code:bash (#!/bin/bash), code:bash (az vm create \) (+1 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.14
-Nodes (11): Distância circular entre dois números na roda., Distância circular entre dois números na roda., M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h (+3 more)
+Cohesion: 0.25
+Nodes (6): M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h
 
 ### Community 88 - "Community 88"
 Cohesion: 0.17
 Nodes (12): 0. Sumário executivo, code:block1 (Semana 1: S-B (2d) + S-A (1d) + S-G em paralelo (0,5d)), I.1 Pontos verificados live e CONFIRMADOS, I.2 Achados NOVOS desta auditoria, II.1 Riscos identificados nos próprios sprints, II.2 Reordenação aplicada após auto-crítica, PARTE I — Auditoria do `organizacao_de_arquivos.md`, PARTE II — Auditoria do Sprint Plan (auto-crítica) (+4 more)
 
 ### Community 89 - "Community 89"
-Cohesion: 0.25
-Nodes (8): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────), code:block3 (Sem1     Sem2     Sem3     Sem4     Sem5     Sem6), 📜 DIRETIVAS INEGOCIÁVEIS DO PROJETO, 🎯 FINAL — Refatoração Proposta Roleta Cloud v5.0, Visão consolidada (Gantt textual)
+Cohesion: 0.15
+Nodes (13): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────) (+5 more)
 
 ### Community 90 - "Community 90"
 Cohesion: 0.25
@@ -615,8 +617,8 @@ Cohesion: 0.33
 Nodes (6): 8.1 Criação, 8.2 Permissões, 8.3 Como o YOLO Orchestrator vai usar (instruções para README de entrega), 8. Service Principal `sp-roleta-orch` (acesso do YOLO Orchestrator), code:bash (az ad sp create-for-rbac \), code:bash (# Login não-interativo no PC do Ivandir:)
 
 ### Community 116 - "Community 116"
-Cohesion: 0.22
-Nodes (7): Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda.
+Cohesion: 0.20
+Nodes (8): Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda.
 
 ### Community 117 - "Community 117"
 Cohesion: 0.25
@@ -675,8 +677,8 @@ Cohesion: 0.29
 Nodes (5): Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off
 
 ### Community 132 - "Community 132"
-Cohesion: 0.40
-Nodes (5): 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), code:block2 (DIREÇÃO)
+Cohesion: 0.29
+Nodes (7): 8. Checklist de execução (ordem cronológica exata), Semana 1 — Fase 0, Semana 2 — Fase 1, Semana 3-4 — Fase 2 (shadow começa), Semana 5 — Fase 3 (shadow contínuo), Semana 6 — Fase 3.4 + Fase 4, Semana 7+ — Fase 5 (opcional, sob aprovação separada)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.29
@@ -703,12 +705,12 @@ Cohesion: 0.15
 Nodes (9): _dk(), Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, QW-3 — métrica de reset martingale. Chamado externamente., QW-3 — métrica de reset martingale. Chamado externamente., Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, S-STRAT-7 — Auto-tune em LOTE de 4 spins por sentido (isolado).          Cada, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his (+1 more)
 
 ### Community 142 - "Community 142"
-Cohesion: 0.18
-Nodes (7): Verificacao dos cenarios criticos — v4.3 (M02-PctSigmoid), Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, S-STRAT-7 — snapshot leve para /api/batch_tune., S-STRAT-7 — snapshot leve para /api/batch_tune., SDA17Strategy, StrategyBase
+Cohesion: 0.20
+Nodes (8): S-STRAT-7 — snapshot leve para /api/batch_tune., Distância circular entre dois números na roda., Distância circular entre dois números na roda., Distância circular entre dois números na roda., Distância circular entre dois números na roda., Distância circular entre dois números na roda., S-STRAT-7 — snapshot leve para /api/batch_tune., S-STRAT-7 — snapshot leve para /api/batch_tune.
 
 ### Community 143 - "Community 143"
-Cohesion: 0.18
-Nodes (9): Retorna estado adaptativo para persistência., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)., Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Carrega estado adaptativo de persistência com validação.         Compatível com (+1 more)
+Cohesion: 0.15
+Nodes (11): Retorna estado adaptativo para persistência., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)., Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3)., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune). (+3 more)
 
 ### Community 147 - "Community 147"
 Cohesion: 0.29
@@ -734,22 +736,26 @@ Nodes (6): Dia 1 (manhã, 4h) — base infraestrutural, Dia 1 (tarde, 4h) — qu
 Cohesion: 0.06
 Nodes (30): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., broadcast_heartbeat(), get_ssl_context() (+22 more)
 
+### Community 159 - "Community 159"
+Cohesion: 0.29
+Nodes (6): Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Aplica força ao número, retorna número resultado.
+
 ## Knowledge Gaps
 - **925 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+920 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SDA17Strategy` connect `Community 142` to `Community 65`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 143`, `Community 116`, `Community 87`, `Community 156`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
-- **Why does `MessageHandler` connect `Community 7` to `Community 156`?**
-  _High betweenness centrality (0.005) - this node is a cross-community bridge._
+- **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
+- **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
+  _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
-  _1087 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1091 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**

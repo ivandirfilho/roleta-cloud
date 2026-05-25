@@ -1489,7 +1489,7 @@
       "source_file": "scripts/sim_temp/verify_scenarios.py",
       "source_location": "L1",
       "id": "scripts_sim_temp_verify_scenarios_py",
-      "community": 142,
+      "community": 160,
       "norm_label": "verify_scenarios.py"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_file": "scripts/sim_temp/verify_scenarios.py",
       "source_location": "L15",
       "id": "sim_temp_verify_scenarios_check",
-      "community": 142,
+      "community": 160,
       "norm_label": "check()"
     },
     {
@@ -1507,7 +1507,7 @@
       "source_file": "scripts/sim_temp/verify_scenarios.py",
       "source_location": "L1",
       "id": "sim_temp_verify_scenarios_rationale_1",
-      "community": 142,
+      "community": 160,
       "norm_label": "verificacao dos cenarios criticos \u2014 v4.3 (m02-pctsigmoid)"
     },
     {
@@ -1840,7 +1840,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L20",
       "id": "strategies_sda17_sda17strategy",
-      "community": 142,
+      "community": 65,
       "norm_label": "sda17strategy"
     },
     {
@@ -1849,7 +1849,7 @@
       "source_file": "",
       "source_location": "",
       "id": "strategybase",
-      "community": 142,
+      "community": 65,
       "norm_label": "strategybase"
     },
     {
@@ -1858,7 +1858,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L73",
       "id": "strategies_sda17_sda17strategy_init",
-      "community": 142,
+      "community": 65,
       "norm_label": ".__init__()"
     },
     {
@@ -2018,7 +2018,7 @@
       "label": ".update_adaptive()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L808",
+      "source_location": "L811",
       "id": "strategies_sda17_sda17strategy_update_adaptive",
       "community": 138,
       "norm_label": ".update_adaptive()"
@@ -2027,7 +2027,7 @@
       "label": ".get_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L848",
+      "source_location": "L851",
       "id": "strategies_sda17_sda17strategy_get_adaptive_state",
       "community": 143,
       "norm_label": ".get_adaptive_state()"
@@ -2036,7 +2036,7 @@
       "label": ".load_adaptive_state()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L877",
+      "source_location": "L880",
       "id": "strategies_sda17_sda17strategy_load_adaptive_state",
       "community": 143,
       "norm_label": ".load_adaptive_state()"
@@ -2045,7 +2045,7 @@
       "label": ".get_batch_tune_snapshot()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L997",
+      "source_location": "L1000",
       "id": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
       "community": 142,
       "norm_label": ".get_batch_tune_snapshot()"
@@ -2054,16 +2054,16 @@
       "label": "._circ_dist()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1013",
+      "source_location": "L1016",
       "id": "strategies_sda17_sda17strategy_circ_dist",
-      "community": 87,
+      "community": 142,
       "norm_label": "._circ_dist()"
     },
     {
       "label": "._wheel_index()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1025",
+      "source_location": "L1028",
       "id": "strategies_sda17_sda17strategy_wheel_index",
       "community": 116,
       "norm_label": "._wheel_index()"
@@ -2072,9 +2072,9 @@
       "label": "._apply_force()",
       "file_type": "code",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1034",
+      "source_location": "L1037",
       "id": "strategies_sda17_sda17strategy_apply_force",
-      "community": 10,
+      "community": 159,
       "norm_label": "._apply_force()"
     },
     {
@@ -2083,7 +2083,7 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L21",
       "id": "strategies_sda17_rationale_21",
-      "community": 142,
+      "community": 65,
       "norm_label": "estrategia m15-ada v4.3: m02-pctsigmoid \u2014 triple focus 17 numeros.          pi"
     },
     {
@@ -2243,17 +2243,17 @@
       "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L810",
-      "id": "strategies_sda17_rationale_810",
-      "community": 138,
+      "source_location": "L813",
+      "id": "strategies_sda17_rationale_813",
+      "community": 159,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his"
     },
     {
       "label": "Retorna estado adaptativo para persist\u00eancia (v1.8 \u2014 S-STRAT-7 batch tune).",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L849",
-      "id": "strategies_sda17_rationale_849",
+      "source_location": "L852",
+      "id": "strategies_sda17_rationale_852",
       "community": 143,
       "norm_label": "retorna estado adaptativo para persistencia (v1.8 \u2014 s-strat-7 batch tune)."
     },
@@ -2261,8 +2261,8 @@
       "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L878",
-      "id": "strategies_sda17_rationale_878",
+      "source_location": "L881",
+      "id": "strategies_sda17_rationale_881",
       "community": 143,
       "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com"
     },
@@ -2270,8 +2270,8 @@
       "label": "S-STRAT-7 \u2014 snapshot leve para /api/batch_tune.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L998",
-      "id": "strategies_sda17_rationale_998",
+      "source_location": "L1001",
+      "id": "strategies_sda17_rationale_1001",
       "community": 142,
       "norm_label": "s-strat-7 \u2014 snapshot leve para /api/batch_tune."
     },
@@ -2279,17 +2279,17 @@
       "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1014",
-      "id": "strategies_sda17_rationale_1014",
-      "community": 87,
+      "source_location": "L1017",
+      "id": "strategies_sda17_rationale_1017",
+      "community": 142,
       "norm_label": "distancia circular entre dois numeros na roda."
     },
     {
       "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1026",
-      "id": "strategies_sda17_rationale_1026",
+      "source_location": "L1029",
+      "id": "strategies_sda17_rationale_1029",
       "community": 116,
       "norm_label": "retorna o indice de um numero na sequencia da roda."
     },
@@ -2297,9 +2297,9 @@
       "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1041",
-      "id": "strategies_sda17_rationale_1041",
-      "community": 10,
+      "source_location": "L1044",
+      "id": "strategies_sda17_rationale_1044",
+      "community": 159,
       "norm_label": "aplica forca ao numero, retorna numero resultado."
     },
     {
@@ -6104,6 +6104,69 @@
       "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
+      "source_location": "L810",
+      "community": 138,
+      "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
+      "id": "strategies_sda17_rationale_810"
+    },
+    {
+      "label": "Retorna estado adaptativo para persist\u00eancia (v1.8 \u2014 S-STRAT-7 batch tune).",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L849",
+      "community": 143,
+      "norm_label": "retorna estado adaptativo para persistencia (v1.8 \u2014 s-strat-7 batch tune).",
+      "id": "strategies_sda17_rationale_849"
+    },
+    {
+      "label": "Carrega estado adaptativo de persist\u00eancia com valida\u00e7\u00e3o.         Compat\u00edvel com",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L878",
+      "community": 143,
+      "norm_label": "carrega estado adaptativo de persistencia com validacao.         compativel com",
+      "id": "strategies_sda17_rationale_878"
+    },
+    {
+      "label": "S-STRAT-7 \u2014 snapshot leve para /api/batch_tune.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L998",
+      "community": 142,
+      "norm_label": "s-strat-7 \u2014 snapshot leve para /api/batch_tune.",
+      "id": "strategies_sda17_rationale_998"
+    },
+    {
+      "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1014",
+      "community": 142,
+      "norm_label": "distancia circular entre dois numeros na roda.",
+      "id": "strategies_sda17_rationale_1014"
+    },
+    {
+      "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1026",
+      "community": 116,
+      "norm_label": "retorna o indice de um numero na sequencia da roda.",
+      "id": "strategies_sda17_rationale_1026"
+    },
+    {
+      "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1041",
+      "community": 159,
+      "norm_label": "aplica forca ao numero, retorna numero resultado.",
+      "id": "strategies_sda17_rationale_1041"
+    },
+    {
+      "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
+      "file_type": "rationale",
+      "source_file": "strategies/sda17.py",
       "source_location": "L797",
       "community": 138,
       "norm_label": "atualiza estado adaptativo apos resultado conhecido.         v4.3: atualiza his",
@@ -6137,15 +6200,6 @@
       "id": "strategies_sda17_rationale_985"
     },
     {
-      "label": "Dist\u00e2ncia circular entre dois n\u00fameros na roda.",
-      "file_type": "rationale",
-      "source_file": "strategies/sda17.py",
-      "source_location": "L1001",
-      "community": 87,
-      "norm_label": "distancia circular entre dois numeros na roda.",
-      "id": "strategies_sda17_rationale_1001"
-    },
-    {
       "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
@@ -6159,7 +6213,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L1028",
-      "community": 10,
+      "community": 159,
       "norm_label": "aplica forca ao numero, retorna numero resultado.",
       "id": "strategies_sda17_rationale_1028"
     },
@@ -6375,25 +6429,16 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L801",
-      "community": 87,
+      "community": 142,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_801"
-    },
-    {
-      "label": "Retorna o \u00edndice de um n\u00famero na sequ\u00eancia da roda.",
-      "file_type": "rationale",
-      "source_file": "strategies/sda17.py",
-      "source_location": "L813",
-      "community": 10,
-      "norm_label": "retorna o indice de um numero na sequencia da roda.",
-      "id": "strategies_sda17_rationale_813"
     },
     {
       "label": "Aplica for\u00e7a ao n\u00famero, retorna n\u00famero resultado.",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L828",
-      "community": 10,
+      "community": 159,
       "norm_label": "aplica forca ao numero, retorna numero resultado.",
       "id": "strategies_sda17_rationale_828"
     },
@@ -6600,7 +6645,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L786",
-      "community": 87,
+      "community": 142,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_786"
     },
@@ -7005,7 +7050,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L176",
-      "community": 132,
+      "community": 89,
       "norm_label": "2. estado atual auditado (snapshot 23/05)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_estado_atual_auditado_snapshot_23_05"
     },
@@ -7014,7 +7059,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L178",
-      "community": 132,
+      "community": 89,
       "norm_label": "2.1 conformidade com invariante de isolamento \u2014 codigo verificado linha-a-linha",
       "id": "roleta_cloud_final_refatoracao_proposta_2_1_conformidade_com_invariante_de_isolamento_c\u00f3digo_verificado_linha_a_linha"
     },
@@ -7023,7 +7068,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L192",
-      "community": 132,
+      "community": 89,
       "norm_label": "2.2 performance producao 23/05 (132 decisoes, 118 finalizadas, db `/app/data/decisions.db` no container)",
       "id": "roleta_cloud_final_refatoracao_proposta_2_2_performance_produ\u00e7\u00e3o_23_05_132_decis\u00f5es_118_finalizadas_db_app_data_decisions_db_no_container"
     },
@@ -7032,7 +7077,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L194",
-      "community": 132,
+      "community": 89,
       "norm_label": "code:block2 (direcao)",
       "id": "roleta_cloud_final_refatoracao_proposta_codeblock_2"
     },
@@ -7041,7 +7086,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L213",
-      "community": 132,
+      "community": 89,
       "norm_label": "2.3 score iso 25010 baseline \u2192 target v5.0",
       "id": "roleta_cloud_final_refatoracao_proposta_2_3_score_iso_25010_baseline_target_v5_0"
     },
@@ -7572,7 +7617,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L928",
-      "community": 60,
+      "community": 132,
       "norm_label": "8. checklist de execucao (ordem cronologica exata)",
       "id": "roleta_cloud_final_refatoracao_proposta_8_checklist_de_execu\u00e7\u00e3o_ordem_cronol\u00f3gica_exata"
     },
@@ -7581,7 +7626,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L930",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 1 \u2014 fase 0",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_1_fase_0"
     },
@@ -7590,7 +7635,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L937",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 2 \u2014 fase 1",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_2_fase_1"
     },
@@ -7599,7 +7644,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L945",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 3-4 \u2014 fase 2 (shadow comeca)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_3_4_fase_2_shadow_come\u00e7a"
     },
@@ -7608,7 +7653,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L951",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 5 \u2014 fase 3 (shadow continuo)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_5_fase_3_shadow_cont\u00ednuo"
     },
@@ -7617,7 +7662,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L956",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 6 \u2014 fase 3.4 + fase 4",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_6_fase_3_4_fase_4"
     },
@@ -7626,7 +7671,7 @@
       "file_type": "document",
       "source_file": "final_refatoracao_proposta.md",
       "source_location": "L964",
-      "community": 60,
+      "community": 132,
       "norm_label": "semana 7+ \u2014 fase 5 (opcional, sob aprovacao separada)",
       "id": "roleta_cloud_final_refatoracao_proposta_semana_7_fase_5_opcional_sob_aprova\u00e7\u00e3o_separada"
     },
@@ -15690,7 +15735,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L14",
-      "community": 142,
+      "community": 65,
       "norm_label": "estrategia m15-ada v4.3: m02-pctsigmoid \u2014 triple focus 17 numeros.          pi",
       "id": "strategies_sda17_rationale_14"
     },
@@ -15789,7 +15834,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L538",
-      "community": 87,
+      "community": 142,
       "norm_label": "distancia circular entre dois numeros na roda.",
       "id": "strategies_sda17_rationale_538"
     },
@@ -15807,7 +15852,7 @@
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
       "source_location": "L565",
-      "community": 10,
+      "community": 159,
       "norm_label": "aplica forca ao numero, retorna numero resultado.",
       "id": "strategies_sda17_rationale_565"
     }
@@ -20156,11 +20201,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L810",
+      "source_location": "L813",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_810",
+      "source": "strategies_sda17_rationale_813",
       "target": "strategies_sda17_sda17strategy_update_adaptive",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L810",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_810",
+      "target": "strategies_sda17_sda17strategy_update_adaptive"
     },
     {
       "relation": "rationale_for",
@@ -20206,11 +20261,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L849",
+      "source_location": "L852",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_849",
+      "source": "strategies_sda17_rationale_852",
       "target": "strategies_sda17_sda17strategy_get_adaptive_state",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L849",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_849",
+      "target": "strategies_sda17_sda17strategy_get_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20256,11 +20321,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L878",
+      "source_location": "L881",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_878",
+      "source": "strategies_sda17_rationale_881",
       "target": "strategies_sda17_sda17strategy_load_adaptive_state",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L878",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_878",
+      "target": "strategies_sda17_sda17strategy_load_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20306,11 +20381,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L998",
+      "source_location": "L1001",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_998",
+      "source": "strategies_sda17_rationale_1001",
       "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L998",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_998",
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot"
     },
     {
       "relation": "rationale_for",
@@ -20326,11 +20411,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1014",
+      "source_location": "L1017",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_1014",
+      "source": "strategies_sda17_rationale_1017",
       "target": "strategies_sda17_sda17strategy_circ_dist",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1014",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_1014",
+      "target": "strategies_sda17_sda17strategy_circ_dist"
     },
     {
       "relation": "rationale_for",
@@ -20376,11 +20471,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1026",
+      "source_location": "L1029",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_1026",
+      "source": "strategies_sda17_rationale_1029",
       "target": "strategies_sda17_sda17strategy_wheel_index",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1026",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_1026",
+      "target": "strategies_sda17_sda17strategy_wheel_index"
     },
     {
       "relation": "rationale_for",
@@ -20426,11 +20531,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "strategies/sda17.py",
-      "source_location": "L1041",
+      "source_location": "L1044",
       "weight": 1.0,
-      "source": "strategies_sda17_rationale_1041",
+      "source": "strategies_sda17_rationale_1044",
       "target": "strategies_sda17_sda17strategy_apply_force",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "strategies/sda17.py",
+      "source_location": "L1041",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "strategies_sda17_rationale_1041",
+      "target": "strategies_sda17_sda17strategy_apply_force"
     },
     {
       "relation": "rationale_for",
@@ -34464,5 +34579,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "fc111649a6dace4867cf97170a9936501a021be1"
+  "built_at_commit": "cd8c28bd0c865ba78bc4f47429d41a05e49436af"
 }

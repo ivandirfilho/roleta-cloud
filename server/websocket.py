@@ -119,6 +119,24 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"batch_tune_provider_register_failed: {_e}")
 
 
+# S-STRAT-10 MVP: provider de snapshot shadow challenger para /api/shadow
+try:
+    from server.health_server import set_shadow_provider as _set_shd_p
+
+    def _shadow_snapshot():
+        try:
+            if hasattr(game_state, "get_shadow_stats"):
+                return game_state.get_shadow_stats()
+        except Exception:  # noqa: BLE001
+            pass
+        return {}
+
+    _set_shd_p(_shadow_snapshot)
+    logger.info("shadow_provider_registered for /api/shadow")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"shadow_provider_register_failed: {_e}")
+
+
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
 try:
     from server.health_server import set_state_provider as _set_state_p
