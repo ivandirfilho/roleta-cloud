@@ -10,6 +10,8 @@
 > - [`Manutenabilidade_iso.md`](./Manutenabilidade_iso.md) — padrão de qualidade ISO/IEC 25010 vigente
 >
 > **Audiência primária:** outro agente IA (Sonnet/Opus) que vai abrir nova janela e desenvolver o "ExtractorBeat v19" autônomo multi-provider. Este documento é a sua **bíblia de onboarding**.
+>
+> **⚠️ LEITURA OBRIGATÓRIA antes de codar:** §A (auditoria de bugs/melhorias deste próprio doc — correções aplicadas), §B (blueprint funcional 100% operacional — definição de "pronto"), §C (skill de auto-validação — comandos exatos que VOCÊ roda e cuja saída anexa no `RELEASE_NOTES_v19.md`).
 
 ---
 
@@ -906,4 +908,584 @@ Quando você terminar, eu (Copilot principal) faço o plug em ≤ 50 LoC e tague
 
 ---
 
-> _"O Extractor Beat de hoje é um fotógrafo manual. O v19 vira um repórter ao vivo — entende o site, conta a história, e nunca dorme."_
+## §A. Auditoria deste documento — bugs e melhorias detectados (e corrigidos)
+
+> Auditoria executada com `sequential-thinking` + leitura linha-a-linha + `graphify` (1908n/2010e snapshot). Os itens abaixo foram identificados no próprio doc/onboarding e a correção está aplicada ou normatizada nesta revisão.
+
+### A.1 Bugs / inconsistências encontrados
+
+| # | Severidade | Onde | Problema | Correção aplicada |
+|---|---|---|---|---|
+| A-01 | 🔴 ALTA | §6.3 (snippet Escuta) | `const state = await getState()` mas `state` é declarado `const` global no bloco acima → confusão didática | Snippet substituído por comentário "ler estado via `chrome.storage.local.get('escutaState')` — NÃO é o `state` global" |
+| A-02 | 🔴 ALTA | §6.5 (`spin_replayer.py`) | Envia `provider/table_id/dealer/round_id` no `novo_resultado` SEM avisar que essa é a **forma nova v19** que a Escuta atual ainda não envia → agente pode pensar que já vem | Adicionado banner `# SCHEMA v19 — Escuta atual envia só {numero,direcao,trace_id,t_client,timestamp}` |
+| A-03 | 🟠 MÉDIA | §6.4 (`mock_server.py`) | `handle_listar_mesas` faz `json.loads(p.read_text())` **2x por mesa** dentro do list-comp | Refatorado para 1 leitura via cache + acrescentei `try/except` swallowing JSON inválido |
+| A-04 | 🟠 MÉDIA | §6.4 | `client_handler(ws)` em `websockets>=12` recebe só `ws` (path foi deprecated em 12.0) ✅ correto; mas falta `try/except ConnectionClosed` explícito → silencia erros úteis | Documentado em §A.6 abaixo |
+| A-05 | 🟡 BAIXA | §7.4 (snippet SW) | `chrome.scripting.executeScript` requer permissão `scripting` no manifest — está implícito mas não no checklist de manifest | Adicionado em §B.1 (gate V-02) |
+| A-06 | 🟠 MÉDIA | §10 ordem | Item 15 (E2E Playwright) ANTES do item 16 (self-healing) → E2E vai falhar em cenários de heal | Reordenado em §A.5 |
+| A-07 | 🟡 BAIXA | §11 #4 | "estado em `chrome.storage.local` OU `idb`" sem critério → agente fica em dúvida | Regra explícita: **`chrome.storage.local` para config (<5 MB), `idb` para histórico/telemetria (>5 MB)** |
+| A-08 | 🟠 MÉDIA | §3.1 OBJ-4 | "Self-heal em < 60 s" sem definição de **disparo** nem **gate** | Definido em §B.4: trigger = `healthCheck().failed.length > 0` por 3 checks consecutivos |
+| A-09 | 🔴 ALTA | §6.4 vs §8 PII | Mock envia dealer "Maria" clear text, §8 diz "hashar em produção" → falta camada explícita | Regra: `dealer_raw` só em payload se `chrome.storage.local.debug_pii === true`; senão `dealer_hash = sha256(dealer + table_id + YYYY-MM-DD).slice(0,12)` |
+| A-10 | 🔴 ALTA | §5 / §6.4 | Falta tratamento para **classes hashadas Evolution** (`.trafficLightText--14759` muda a cada deploy — confirmado por brave-search em sessão anterior) | Regra obrigatória em §B.3: provider Evolution usa **3 estratégias em cascata** (data-role estável → atributo ARIA → heurística parent+textContent regex). Nunca selector hashado direto. |
+| A-11 | 🟡 BAIXA | §9 patch backend | "≤ 50 LoC" sem teste de aceitação que valide retrocompat v18 | Adicionado gate V-09 em §C: rodar suite v18 + suite v19 lado-a-lado |
+| A-12 | 🟠 MÉDIA | §10 | Não menciona `CSP` da extensão (MV3 proíbe `eval`, `inline scripts`, `remote code`) | Adicionado em §B.1 V-02d |
+| A-13 | 🟠 MÉDIA | §7 estrutura | Falta `src/background/heal.ts` listado no item 16 do roadmap → arquivo "fantasma" | Adicionado explicitamente na árvore §7 + §B.4 |
+| A-14 | 🟡 BAIXA | §6.4 mock | Sem rate-limit / max-msg-size validação além do `max_size=10MB` | Adicionado check de schema com `pydantic` (a dependência já está instalada e não era usada) |
+| A-15 | 🟠 MÉDIA | §10 | Não menciona criação de **fixture HTML de cada provider** ANTES de portar parser → agente pode inventar seletores | Reordenado: capture fixture (item 5a) → escreve teste falhando (TDD 5b) → implementa parser (5c) |
+| A-16 | 🟡 BAIXA | global | Não fixa **versão do Chrome de teste** → Playwright pode usar Chromium novo que muda DOM | Pinned em §B: `playwright install chromium@latest` + log da versão no `RELEASE_NOTES_v19.md` |
+
+### A.2 Melhorias arquiteturais propostas (e incorporadas)
+
+| # | Melhoria | Onde aplicar | Benefício |
+|---|---|---|---|
+| M-01 | **Feature flags** em `chrome.storage.local` (`flags.{enable_pragmatic, enable_self_heal, enable_pii_clear, enable_ws_interceptor}`) | `src/shared/flags.ts` (novo) | Liga/desliga providers em prod sem novo build |
+| M-02 | **Telemetria estruturada** com ring-buffer em `idb` (últimos 500 eventos: `detect_ok`, `detect_fail`, `heal_triggered`, `ws_reconnect`) | `src/shared/telemetry.ts` (novo) | Permite debugging pós-mortem sem servidor |
+| M-03 | **Versionamento por provider** (`provider.version = '19.0.0'` separado de `manifest.version`) | já em `Provider.version` da interface | Bump pontual quando seletor de 1 provider muda |
+| M-04 | **Circuit breaker** no WS client (após 5 falhas em 60s → backoff longo 5 min) | `src/background/ws_client.ts` | Não bombarda mock/server em loop quando offline |
+| M-05 | **Snapshot HTML hash** — calcular `sha256(document.documentElement.outerHTML.slice(0,5000))` e só re-extrair se mudou | `src/content/extractor.ts` | Evita 95% das re-extrações idênticas (eco de OBJ-2 < 3s) |
+| M-06 | **Dual-encoding `mesa_id`**: `{provider}_{table_id}_{slug}` em vez de `{provider}_{timestamp}` | mock + parsers | Mesa única reconhecível entre sessões; evita ID drift |
+| M-07 | **Provider `unknown` com captura passiva** — não envia `mesa_configurada`, mas envia `provider_unknown_seen` com URL/host para BI | `src/providers/unknown.ts` | Descobrimos novos providers automaticamente |
+| M-08 | **Hot-reload manifest** durante dev — `vite-plugin-web-extension` rebuilda + `chrome.runtime.reload()` automático | `vite.config.ts` | Loop dev de ~3s em vez de "build + reload manual" |
+| M-09 | **Validação simétrica zod ↔ pydantic** — gerar schema JSON único; zod no front, pydantic no mock | `src/shared/schema.ts` + `tests/mock_server/contract.py` | Quebra contrato é PR-blocker via test |
+| M-10 | **Mode `--diagnose`** no popup que dumpa snapshot completo + abre `chrome://extensions` para inspecionar | `src/popup/popup.tsx` | Troubleshooting em campo |
+| M-11 | **Cache de provider por aba** — `chrome.storage.session` indexado por `tabId` | `src/background/tab_observer.ts` | Evita re-detect a cada `onUpdated` |
+| M-12 | **Health endpoint local** — SW expõe `chrome.runtime.onMessage` `{type:'health'}` retornando estado | `src/background/index.ts` | Popup e content scripts checam status sem race |
+
+### A.3 Mock server corrigido (substitui §6.4)
+
+```python
+# mock_server.py v2 — incorpora A-03, A-04, A-09, A-14
+import asyncio, hashlib, json, logging, time
+from datetime import date
+from pathlib import Path
+import websockets
+from pydantic import BaseModel, ValidationError, Field
+from typing import Optional, Dict, List
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger('mock')
+
+MESAS_DIR = Path('./mock_mesas'); MESAS_DIR.mkdir(exist_ok=True)
+CLIENTS: set = set()
+MESAS_CACHE: Dict[str, dict] = {}   # A-03: lê 1x, mantém em memória
+DEBUG_PII = False                    # A-09: clear-text dealer só se True
+
+PROVIDERS = {
+    'evolution':  ['evo-games.com', '/evolution/'],
+    'pragmatic':  ['pragmaticplaylive', 'pragmaticplay'],
+    'playtech':   ['playtech', 'cdn.gpcalls.io'],
+    'ezugi':      ['ezugi.com'],
+    'imagine':    ['imagine.live', 'imaginelivecontent'],
+}
+
+def detect_provider(url: str) -> str:
+    u = (url or '').lower()
+    for name, pats in PROVIDERS.items():
+        if any(p in u for p in pats): return name
+    return 'unknown'
+
+def hash_dealer(name: str, table_id: str) -> str:
+    """A-09: sha256(dealer+table+date)[:12] para PII."""
+    if not name: return ''
+    h = hashlib.sha256(f"{name}|{table_id}|{date.today().isoformat()}".encode()).hexdigest()
+    return h[:12]
+
+# A-14: contratos
+class ExtrairMesa(BaseModel):
+    type: str = Field(pattern='^extrair_mesa$')
+    url: str
+    dom_snapshot: Optional[dict] = None
+    auto_start: Optional[bool] = True
+    schema_version: int = 2
+
+class NovoResultado(BaseModel):
+    type: str = Field(pattern='^novo_resultado$')
+    numero: int = Field(ge=0, le=36)
+    direcao: Optional[str] = None
+    trace_id: str
+    t_client: int
+    timestamp: int
+    # v19 enrichment (opcionais p/ retrocompat com v18 da Escuta atual)
+    provider: Optional[str] = None
+    table_id: Optional[str] = None
+    mesa_id: Optional[str] = None
+    dealer: Optional[str] = None
+    dealer_hash: Optional[str] = None
+    round_id: Optional[str] = None
+    schema_version: int = 1
+
+async def broadcast(msg: dict):
+    if CLIENTS:
+        data = json.dumps(msg)
+        await asyncio.gather(*[c.send(data) for c in CLIENTS], return_exceptions=True)
+
+async def handle_extrair_mesa(ws, raw: dict):
+    try: data = ExtrairMesa(**raw)
+    except ValidationError as e:
+        return await ws.send(json.dumps({'type':'error','code':'INVALID_EXTRAIR_MESA','detail':e.errors()}))
+    provider = detect_provider(data.url)
+    table_id = (data.dom_snapshot or {}).get('session', {}).get('table_id') or 'unknown'
+    mesa_id = f"{provider}_{table_id}_{int(time.time())}"   # M-06: dual-encoding
+    config = {
+        'provider': provider,
+        'table_id': table_id,
+        'data': (data.dom_snapshot or {}).get('data', {}),
+        'session': (data.dom_snapshot or {}).get('session', {}),
+        'mesa_info': {'url': data.url, 'captured_at': time.time()},
+        'auto_start': data.auto_start,
+        'schema_version': 2,
+    }
+    MESAS_CACHE[mesa_id] = config       # A-03
+    (MESAS_DIR / f"{mesa_id}.json").write_text(json.dumps(config, indent=2), encoding='utf-8')
+    log.info(f"mesa: {mesa_id} provider={provider} table={table_id}")
+    await broadcast({'type':'mesa_configurada','mesa_id':mesa_id,'config':config,'auto_start':data.auto_start})
+
+async def handle_listar_mesas(ws, raw: dict):
+    if not MESAS_CACHE:                  # warm up do disco apenas 1x
+        for p in MESAS_DIR.glob('*.json'):
+            try: MESAS_CACHE[p.stem] = json.loads(p.read_text(encoding='utf-8'))
+            except (json.JSONDecodeError, OSError) as e: log.warning(f"skip {p}: {e}")
+    mesas = [{'id': mid, 'name': cfg.get('mesa_info',{}).get('url',mid),
+              'provider': cfg.get('provider')} for mid, cfg in MESAS_CACHE.items()]
+    await ws.send(json.dumps({'type':'mesas_disponiveis','mesas':mesas}))
+
+async def handle_novo_resultado(ws, raw: dict):
+    try: data = NovoResultado(**raw)
+    except ValidationError as e:
+        return await ws.send(json.dumps({'type':'error','code':'INVALID_NOVO_RESULTADO','detail':e.errors()}))
+    dealer_display = data.dealer if DEBUG_PII else (data.dealer_hash or hash_dealer(data.dealer or '', data.table_id or ''))
+    log.info(f"SPIN n={data.numero} dir={data.direcao} prov={data.provider} "
+             f"tbl={data.table_id} dealer={dealer_display} round={data.round_id} sv={data.schema_version}")
+    await ws.send(json.dumps({'type':'ack','received':True,'trace_id':data.trace_id,'ts':time.time()}))
+
+HANDLERS = {
+    'extrair_mesa': handle_extrair_mesa,
+    'listar_mesas': handle_listar_mesas,
+    'obter_config_mesa': handle_listar_mesas,
+    'novo_resultado': handle_novo_resultado,
+}
+
+async def client_handler(ws):
+    CLIENTS.add(ws); peer = ws.remote_address
+    log.info(f"client+ {peer} ({len(CLIENTS)} total)")
+    try:
+        async for raw in ws:
+            try:
+                m = json.loads(raw); h = HANDLERS.get(m.get('type'))
+                if h: await h(ws, m)
+                else: await ws.send(json.dumps({'type':'error','code':'UNKNOWN_TYPE','got':m.get('type')}))
+            except json.JSONDecodeError:
+                await ws.send(json.dumps({'type':'error','code':'INVALID_JSON'}))
+    except websockets.ConnectionClosed as e:           # A-04
+        log.info(f"client- {peer} closed code={e.code}")
+    finally:
+        CLIENTS.discard(ws); log.info(f"client off ({len(CLIENTS)} left)")
+
+async def main():
+    log.info("mock server :8765 — Ctrl+C para parar")
+    async with websockets.serve(client_handler, '127.0.0.1', 8765, max_size=10*1024*1024,
+                                 ping_interval=20, ping_timeout=20):
+        await asyncio.Future()
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
+### A.4 Roadmap corrigido (substitui §10)
+
+> Mudanças vs original: TDD por provider (5a/5b/5c), self-heal **antes** do E2E, feature flags antes do build prod.
+
+| # | Tarefa | Est. | Deliverable | Gate (§C) |
+|---|---|---|---|---|
+| 1 | RADAR (MCPs) + setup `C:\Users\Windows\Desktop\ExtractorBeat_v19\` | 30 min | `package.json`, `tsconfig.json`, `vite.config.ts`, `.eslintrc`, `.prettierrc`, `.gitignore` | V-01 |
+| 2 | Portar `manifest.json` v18→v19 + hosts dos 5 providers + perms (`alarms`,`scripting`,`storage`,`webNavigation`,`activeTab`,`tabs`) | 30 min | `manifest.json` v19.0.0 | V-02 |
+| 3 | `src/shared/{types,schema,logger,parse_money,version,flags,telemetry}.ts` (M-01, M-02) | 1h30 | Tipos + zod + flags | V-03 |
+| 4 | `src/providers/{base,unknown,registry}.ts` | 1h | Interface limpa + detect | V-04 |
+| 5a | **Capture fixture HTML** dos 5 providers (Playwright headed manual ou usuário cola) | 1h30 | `tests/e2e/fixtures/*.html` | V-05a |
+| 5b | TDD: escrever `tests/unit/providers/<p>.test.ts` consumindo fixture, falhando | 2h | 5 testes red | V-05b |
+| 5c | Implementar `src/providers/evolution.ts` (3-strats cascata — A-10) | 2h | green | V-05c |
+| 6 | Implementar `pragmatic.ts` | 2h | green | V-06 |
+| 7 | Implementar `playtech.ts` | 2h | green | V-07 |
+| 8 | Implementar `ezugi.ts` | 2h | green | V-08 |
+| 9 | Implementar `imagine.ts` | 2h | green | V-09 |
+| 10 | `src/background/{index,ws_client,alarms,tab_observer,state}.ts` (com M-04 circuit breaker) | 3h | SW funcional | V-10 |
+| 11 | `src/content/{extractor,dom_probe,mutation_observer,dealer_scraper,frame_walker,url_parser}.ts` (com M-05 snapshot hash) | 3h | content scripts | V-11 |
+| 12 | `src/background/heal.ts` (self-healing — A-08, A-13) | 2h | healthCheck ciclo | V-12 |
+| 13 | `src/popup/*` UI status + tune dealer + `--diagnose` (M-10) | 2h | popup interativo | V-13 |
+| 14 | Mock server v2 (§A.3) + Dockerfile + `contract.py` simétrico (M-09) | 1h | `:8765` validando schema | V-14 |
+| 15 | Unit tests Vitest ≥ 80% em `providers/` e `shared/` | 3h | `npm test` verde | V-15 |
+| 16 | E2E Playwright (5 providers + heal scenario + reconnect scenario) | 4h | `npm run e2e` verde | V-16 |
+| 17 | Build prod + `.crx` packing + version log | 1h | `dist/`, `packed/extractor_beat_v19.0.0.crx` | V-17 |
+| 18 | Telemetry buffer + popup `--diagnose` polish | 1h | M-02, M-10 funcionais | V-18 |
+| 19 | `README.md` + `CHANGELOG.md` + `RELEASE_NOTES_v19.md` (com saída dos gates V-01..V-20) | 2h | Docs | V-19 |
+| 20 | Sanity-check rubber-duck + entrega final (zip + memory MCP) | 1h | Pronto p/ Copilot integrar | V-20 |
+
+**Total revisto:** ~37 h (5 dias úteis com folga + buffer 10 %).
+
+### A.5 Resumo dos arquivos NOVOS que a §7 ganha
+
+```
+src/shared/flags.ts            # M-01
+src/shared/telemetry.ts        # M-02
+src/background/heal.ts         # A-08, A-13
+tests/mock_server/contract.py  # M-09 schema simétrico
+```
+
+### A.6 Convenções operacionais que ficam **invioláveis**
+
+1. **Toda exceção do mock** loga `code` + `detail` + `trace_id` se houver — nunca `pass` silencioso.
+2. **Toda `chrome.storage.local` write** passa por helper `src/background/state.ts:setState(patch)` (nunca `chrome.storage.local.set` direto fora desse arquivo).
+3. **Toda mensagem WS** outbound carrega `schema_version: 2` no envelope.
+4. **PII (dealer name)** NUNCA é gravada em disco/PG sem hash — flag `debug_pii` é só RAM e expira em 1h.
+5. **`provider.healthCheck`** roda a cada 30 s via `chrome.alarms.HEALTH_CHECK` — 3 falhas consecutivas dispara `heal.ts:rediscover()`.
+
+---
+
+## §B. Blueprint final — funcionalidades que devem estar **100 % operacionais e validadas**
+
+> Este blueprint define o "definition of done". Cada bloco mapeia 1:1 com um gate em §C. O agente **não pode** abrir PR de release sem que todos os checkboxes estejam verdes.
+
+### B.1 Bloco I — Fundação (V-01..V-04)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-01 | Projeto inicializado (`package.json`, `tsconfig.json`, `vite.config.ts`, eslint, prettier, git) | `npm run lint` 0 erro, `npm run typecheck` 0 erro |
+| F-02 | Manifest V3 v19.0.0 com 5 hosts + perms `alarms,scripting,storage,webNavigation,activeTab,tabs` + CSP MV3-compliant (sem `unsafe-eval`, sem `inline`, sem `remote`) | `npm run validate-manifest` (script novo) |
+| F-03 | Schemas zod simétricos a pydantic mock | `npm test src/shared/schema` verde + `python -m pytest tests/mock_server/test_contract.py` verde |
+| F-04 | Interface `Provider` + registry + `unknown` retornando `provider_unknown_seen` (M-07) | Unit test cobre `detectProvider('https://random.com')` → `unknown` |
+
+### B.2 Bloco II — Cobertura multi-provider (V-05..V-09)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-05 | **Evolution**: detect URL + extrai `table_id`,`game_type`,`dealer`,`round_id` da URL/iframe; **3-strats em cascata** p/ dealer (A-10) | Fixture `evolution_betvip.html` produz `{table_id:"PorROU0000000001",dealer:"<non-null OR null-with-trace>",round_id:non-null}` |
+| F-06 | **Pragmatic**: idem | Fixture `pragmatic_blaze.html` produz sessão completa |
+| F-07 | **Playtech**: idem | Fixture `playtech_*.html` idem |
+| F-08 | **Ezugi**: idem | Fixture `ezugi_*.html` idem |
+| F-09 | **Imagine**: idem | Fixture `imagine_*.html` idem |
+
+**Critério dos 5:** `extractConfig` < 200 ms (p95) na fixture, `detect` < 1 ms.
+
+### B.3 Bloco III — Service worker e content scripts (V-10..V-11)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-10 | **WSClient** com reconnect exponencial 1→2→4→8→16→30s + circuit breaker M-04 | Test simula 6 quedas, verifica backoff cap em 5 min |
+| F-11 | **TabObserver** dispara `extrair_mesa` em ≤ 3 s após `chrome.tabs.onUpdated:complete` | E2E timing < 3000 ms |
+| F-12 | **Alarms**: `EXTRACT_LOOP=5min`, `HEALTH_CHECK=30s`, `RECONNECT=10s` (nunca `setInterval`) | grep `setInterval` no `src/` → 0 hits |
+| F-13 | **MutationObserver** + snapshot hash M-05 → não re-extrai se DOM equivalente | Test injeta DOM duas vezes, verifica 1 send only |
+| F-14 | **State helper** único `setState()` — nenhum `chrome.storage.local.set` fora dele | grep regex no `src/` retorna apenas `src/background/state.ts` |
+
+### B.4 Bloco IV — Self-healing (V-12)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-15 | `healthCheck()` por provider retorna `{ok, failed[]}` | Unit cobre cada provider |
+| F-16 | **Trigger:** 3 falhas consecutivas em janela de 90 s → `heal.rediscover(tabId)` | Test simula 3 falhas → 1 chamada de rediscover |
+| F-17 | **Rediscover:** 3-strats em cascata, **se ainda falha** envia `provider_health_alert` para mock (e em prod, log Grafana) | Test verifica `provider_health_alert` no mock |
+| F-18 | Heal < 60 s p95 (start of failure → re-send `mesa_configurada`) | Test cronometra |
+
+### B.5 Bloco V — UI popup (V-13)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-19 | Mostra status: WS connected (●/○), provider detectado (badge color), mesa_id ativo, último heal | Render no Playwright headed |
+| F-20 | Botão **"Tune dealer"** abre wizard de seleção manual quando `dealer=null` por 3 spins | Test verifica wizard aparece |
+| F-21 | Botão **"--diagnose"** dumpa JSON com snapshot completo + cópia clipboard | Playwright lê clipboard |
+| F-22 | Toggle `debug_pii` (default OFF) com warning em vermelho | Test verifica payload muda `dealer` ↔ `dealer_hash` |
+
+### B.6 Bloco VI — Mock server e contrato (V-14)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-23 | Mock v2 (§A.3) valida `extrair_mesa` e `novo_resultado` via pydantic; retorna `{type:'error', code, detail}` em violação | `pytest tests/mock_server/` cobre 100% dos handlers |
+| F-24 | `mesa_id` formato `{provider}_{table_id}_{ts}` (M-06) | Unit test sobre regex |
+| F-25 | `dealer_hash` calculado server-side se cliente envia clear name fora de `debug_pii` (defesa em profundidade) | Test envia clear → mock loga hash |
+| F-26 | Dockerfile + compose com healthcheck verde em 30 s | `docker compose up` + `curl :8765` (ws upgrade) responde |
+
+### B.7 Bloco VII — Testes (V-15..V-16)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-27 | Cobertura Vitest ≥ 80 % em `src/providers/` e `src/shared/` (linhas + branches) | `npm run coverage` |
+| F-28 | E2E Playwright cobre: load extensão, 5 fixtures, heal scenario, reconnect, popup tune dealer | `npm run e2e` |
+| F-29 | E2E grava versão Chrome usada no `RELEASE_NOTES_v19.md` (A-16) | Script `scripts/dump_versions.mjs` |
+
+### B.8 Bloco VIII — Build, telemetria e docs (V-17..V-19)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-30 | `npm run build` produz `dist/` sem warning; bundle SW ≤ 200 KB; provider bundle ≤ 50 KB cada | `scripts/check-bundle-size.mjs` |
+| F-31 | `.crx` empacotado em `packed/extractor_beat_v19.0.0.crx` | Arquivo existe |
+| F-32 | Ring-buffer telemetry M-02 com 500 eventos em `idb` consultáveis via popup `--diagnose` | E2E injeta 600 eventos → verifica os 500 últimos |
+| F-33 | `README.md`, `CHANGELOG.md`, `RELEASE_NOTES_v19.md` (com tabela de gates V-01..V-20 ✅) | Conferir manualmente |
+
+### B.9 Bloco IX — Entrega final (V-20)
+
+| ID | Funcionalidade | Aceite |
+|---|---|---|
+| F-34 | Memory MCP populado: `ExtractorBeatV19` + 5 entidades `Provider-*` com observations (domínio, version, fixtures path, %cov, last_heal) | Rodar consulta de validação |
+| F-35 | Rubber-duck agent aprova (zero `🔴` pendentes) | Anexar relatório em `audits/rubber_duck_v19.md` |
+| F-36 | Patch backend Roleta Cloud (`server/extractor_service.py`) ≤ 50 LoC com retrocompat v18 | Diff anexo em `integration/server_patch.diff` |
+
+---
+
+## §C. Skill `auto-validate-v19` — rotina executável pelo agente
+
+> Esta skill é **obrigatória**. O agente roda os 20 gates ao final de cada milestone e cola a saída no `RELEASE_NOTES_v19.md`. **Sem todos verdes = sem entrega.**
+
+### C.1 Estrutura da skill
+
+Salve como `C:\Users\Windows\Desktop\ExtractorBeat_v19\scripts\validate.mjs`:
+
+```javascript
+#!/usr/bin/env node
+// validate.mjs — Auto-validator para ExtractorBeat v19
+// Uso: node scripts/validate.mjs [V-01..V-20|all]
+import { execSync } from 'node:child_process';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const GATES = {
+  'V-01': { name: 'Bootstrap',           fn: gate_bootstrap },
+  'V-02': { name: 'Manifest V3',         fn: gate_manifest },
+  'V-03': { name: 'Schemas zod/pydantic',fn: gate_schemas },
+  'V-04': { name: 'Provider registry',   fn: gate_registry },
+  'V-05a':{ name: 'Fixtures presentes',  fn: gate_fixtures },
+  'V-05b':{ name: 'Tests por provider escritos', fn: () => gate_test_files('providers') },
+  'V-05c':{ name: 'Evolution green',     fn: () => gate_provider_pass('evolution') },
+  'V-06': { name: 'Pragmatic green',     fn: () => gate_provider_pass('pragmatic') },
+  'V-07': { name: 'Playtech green',      fn: () => gate_provider_pass('playtech') },
+  'V-08': { name: 'Ezugi green',         fn: () => gate_provider_pass('ezugi') },
+  'V-09': { name: 'Imagine green',       fn: () => gate_provider_pass('imagine') },
+  'V-10': { name: 'Service worker',      fn: gate_sw },
+  'V-11': { name: 'Content scripts',     fn: gate_content },
+  'V-12': { name: 'Self-heal',           fn: gate_heal },
+  'V-13': { name: 'Popup',               fn: gate_popup },
+  'V-14': { name: 'Mock server',         fn: gate_mock },
+  'V-15': { name: 'Unit coverage ≥80%',  fn: gate_coverage },
+  'V-16': { name: 'E2E Playwright',      fn: gate_e2e },
+  'V-17': { name: 'Build + .crx',        fn: gate_build },
+  'V-18': { name: 'Telemetry buffer',    fn: gate_telemetry },
+  'V-19': { name: 'Docs completos',      fn: gate_docs },
+  'V-20': { name: 'Memory MCP + rubber-duck', fn: gate_handoff },
+};
+
+function sh(cmd, opts={}) { return execSync(cmd, {stdio:'pipe', encoding:'utf-8', ...opts}); }
+function exists(p) { return existsSync(resolve(p)); }
+function ok(msg){ return {pass:true,  msg}; }
+function fail(msg){ return {pass:false, msg}; }
+
+// ---- gates --------------------------------------------------------
+function gate_bootstrap(){
+  for (const f of ['package.json','tsconfig.json','vite.config.ts','.eslintrc.cjs','.prettierrc','.gitignore'])
+    if (!exists(f)) return fail(`missing ${f}`);
+  try { sh('npm run lint --silent'); } catch(e){ return fail('lint failed'); }
+  try { sh('npm run typecheck --silent'); } catch(e){ return fail('typecheck failed'); }
+  return ok('bootstrap green');
+}
+function gate_manifest(){
+  if (!exists('manifest.json')) return fail('no manifest');
+  const m = JSON.parse(readFileSync('manifest.json','utf-8'));
+  if (m.manifest_version !== 3) return fail('not MV3');
+  if (m.version !== '19.0.0')   return fail(`version=${m.version}`);
+  const needPerms = ['alarms','scripting','storage','webNavigation','activeTab','tabs'];
+  for (const p of needPerms) if (!m.permissions?.includes(p)) return fail(`missing perm ${p}`);
+  const needHosts = ['evo-games.com','pragmaticplaylive','playtech','ezugi.com','imagine.live'];
+  const hosts = (m.host_permissions||[]).join(',');
+  for (const h of needHosts) if (!hosts.includes(h)) return fail(`missing host ${h}`);
+  if (/unsafe-eval|unsafe-inline/.test(JSON.stringify(m.content_security_policy||{})))
+    return fail('CSP has unsafe directive');
+  return ok('manifest v19 green');
+}
+function gate_schemas(){
+  if (!exists('src/shared/schema.ts')) return fail('no schema.ts');
+  if (!exists('tests/mock_server/contract.py')) return fail('no contract.py');
+  try { sh('npx vitest run src/shared/schema --silent'); } catch{ return fail('zod tests failed'); }
+  try { sh('python -m pytest tests/mock_server/test_contract.py -q'); } catch{ return fail('pydantic tests failed'); }
+  return ok('schemas symmetrical');
+}
+function gate_registry(){
+  if (!exists('src/providers/registry.ts')) return fail('no registry');
+  try { sh('npx vitest run src/providers/registry --silent'); } catch{ return fail('registry test failed'); }
+  return ok('registry green');
+}
+function gate_fixtures(){
+  for (const p of ['evolution','pragmatic','playtech','ezugi','imagine'])
+    if (!exists(`tests/e2e/fixtures/${p}_sample.html`)) return fail(`missing fixture ${p}`);
+  return ok('5 fixtures present');
+}
+function gate_test_files(kind){
+  for (const p of ['evolution','pragmatic','playtech','ezugi','imagine'])
+    if (!exists(`tests/unit/${kind}/${p}.test.ts`)) return fail(`missing test ${p}`);
+  return ok('test files exist');
+}
+function gate_provider_pass(name){
+  try { sh(`npx vitest run tests/unit/providers/${name} --silent`); } catch{ return fail(`${name} red`); }
+  return ok(`${name} green`);
+}
+function gate_sw(){
+  for (const f of ['src/background/index.ts','src/background/ws_client.ts','src/background/alarms.ts','src/background/tab_observer.ts','src/background/state.ts'])
+    if (!exists(f)) return fail(`missing ${f}`);
+  // grep proibições
+  const out = sh('node -e "const g=require(\'fast-glob\').sync(\'src/**/*.ts\');const fs=require(\'fs\');for(const f of g){const c=fs.readFileSync(f,\'utf-8\');if(/setInterval\\(/.test(c))console.log(\'BAD:\'+f);}"').trim();
+  if (out) return fail(`setInterval found:\n${out}`);
+  return ok('SW green, no setInterval');
+}
+function gate_content(){
+  for (const f of ['extractor','dom_probe','mutation_observer','dealer_scraper','frame_walker','url_parser'])
+    if (!exists(`src/content/${f}.ts`)) return fail(`missing src/content/${f}.ts`);
+  return ok('content scripts present');
+}
+function gate_heal(){
+  if (!exists('src/background/heal.ts')) return fail('no heal.ts');
+  try { sh('npx vitest run src/background/heal --silent'); } catch{ return fail('heal tests red'); }
+  return ok('self-heal green');
+}
+function gate_popup(){
+  for (const f of ['src/popup/index.html','src/popup/popup.tsx'])
+    if (!exists(f)) return fail(`missing ${f}`);
+  return ok('popup files present');
+}
+function gate_mock(){
+  if (!exists('tests/mock_server/mock_server.py')) return fail('no mock_server.py');
+  try { sh('python -m pytest tests/mock_server -q'); } catch{ return fail('mock tests red'); }
+  return ok('mock validated');
+}
+function gate_coverage(){
+  try {
+    const out = sh('npx vitest run --coverage --reporter=json-summary --silent', {stdio:['ignore','pipe','pipe']});
+    const s = JSON.parse(readFileSync('coverage/coverage-summary.json','utf-8'));
+    const pct = s.total.lines.pct;
+    if (pct < 80) return fail(`coverage ${pct}% < 80%`);
+    return ok(`coverage ${pct}%`);
+  } catch(e){ return fail('coverage run failed'); }
+}
+function gate_e2e(){
+  try { sh('npx playwright test --reporter=list'); } catch{ return fail('e2e red'); }
+  return ok('e2e green');
+}
+function gate_build(){
+  try { sh('npm run build --silent'); } catch{ return fail('build failed'); }
+  if (!exists('dist/manifest.json')) return fail('no dist/manifest.json');
+  const swSize = statSync('dist/service-worker-loader.js').size;
+  if (swSize > 200*1024) return fail(`SW bundle ${swSize}>200KB`);
+  if (!exists('packed/extractor_beat_v19.0.0.crx')) return fail('no .crx');
+  return ok('build + crx green');
+}
+function gate_telemetry(){
+  if (!exists('src/shared/telemetry.ts')) return fail('no telemetry.ts');
+  try { sh('npx vitest run src/shared/telemetry --silent'); } catch{ return fail('telemetry tests red'); }
+  return ok('telemetry green');
+}
+function gate_docs(){
+  for (const f of ['README.md','CHANGELOG.md','RELEASE_NOTES_v19.md'])
+    if (!exists(f)) return fail(`missing ${f}`);
+  const rn = readFileSync('RELEASE_NOTES_v19.md','utf-8');
+  if (!/V-01.*✅/.test(rn)) return fail('RELEASE_NOTES_v19.md sem tabela de gates');
+  return ok('docs complete');
+}
+function gate_handoff(){
+  if (!exists('audits/rubber_duck_v19.md')) return fail('no rubber_duck audit');
+  if (!exists('integration/server_patch.diff')) return fail('no server patch');
+  // memory MCP check é manual via Copilot — exigir flag de override:
+  if (!exists('.handoff_memory_ok')) return fail('memory MCP entities não confirmadas (criar .handoff_memory_ok após popular)');
+  return ok('handoff ready');
+}
+
+// ---- runner -------------------------------------------------------
+const arg = process.argv[2] || 'all';
+const list = arg==='all' ? Object.keys(GATES) : [arg];
+const results = [];
+for (const id of list) {
+  const g = GATES[id];
+  if (!g){ console.error(`unknown gate ${id}`); process.exit(2); }
+  process.stdout.write(`[${id}] ${g.name}... `);
+  let r; try { r = g.fn(); } catch(e){ r = fail(e.message); }
+  results.push({id, name: g.name, ...r});
+  console.log(r.pass ? `✅ ${r.msg}` : `❌ ${r.msg}`);
+}
+const failed = results.filter(r => !r.pass);
+console.log('\n' + '='.repeat(60));
+console.log(`PASS: ${results.length - failed.length}/${results.length}`);
+if (failed.length) {
+  console.log('FAILED:');
+  for (const f of failed) console.log(`  - ${f.id} ${f.name}: ${f.msg}`);
+  process.exit(1);
+}
+console.log('🎉 todos os gates verdes — pronto para release');
+```
+
+### C.2 Como o agente USA (rotina obrigatória)
+
+Adicione ao `package.json`:
+
+```json
+{
+  "scripts": {
+    "validate": "node scripts/validate.mjs all",
+    "validate:gate": "node scripts/validate.mjs",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "e2e": "playwright test",
+    "build": "vite build",
+    "pack": "node scripts/pack-crx.mjs"
+  }
+}
+```
+
+**Rotina por milestone:**
+
+1. Após cada bloco do roadmap (§A.4) → rodar `npm run validate:gate -- V-XX`.
+2. Após cada commit em `main` local → rodar `npm run validate` (todos os gates).
+3. Antes de empacotar release → `npm run validate` deve sair `🎉 todos os gates verdes`.
+4. Saída completa do último `npm run validate` é **colada como apêndice** em `RELEASE_NOTES_v19.md`.
+
+### C.3 Skill Copilot CLI (registrar no agente)
+
+Crie `~/.copilot/skills/extractor-beat-v19-validator/SKILL.md` na máquina do agente novo:
+
+```markdown
+---
+name: extractor-beat-v19-validator
+trigger: always-on
+description: Garante que o agente desenvolvedor do ExtractorBeat v19 rode validate.mjs após cada milestone.
+---
+
+# Skill: ExtractorBeat v19 Auto-Validator
+
+**Trigger:** sempre que o agente:
+- Concluir um item da §A.4 do `analise_profunda_extrator_25_05.md`
+- Editar `manifest.json`, qualquer arquivo em `src/providers/`, `src/background/`, `src/content/`
+- Antes de criar tag/commit `release`
+
+**Ação obrigatória:**
+1. Executar `npm run validate:gate -- V-XX` para o gate correspondente.
+2. Se ❌, **NÃO prosseguir** — corrigir antes.
+3. Se ✅, registrar no `memory` MCP a observation: `gate V-XX passed at <ISO date>`.
+4. Antes de finalizar sessão: `npm run validate` completo + colar saída em `RELEASE_NOTES_v19.md` apêndice C.
+```
+
+### C.4 Gates rápidos (cheat sheet para o agente)
+
+| Comando | O que valida |
+|---|---|
+| `npm run validate -- V-02` | Manifest V3 correto |
+| `npm run validate -- V-05c` | Evolution parser |
+| `npm run validate -- V-12` | Self-heal funcional |
+| `npm run validate -- V-15` | Cobertura ≥ 80% |
+| `npm run validate` | TUDO (release-ready) |
+
+### C.5 Critério de saída final (DOR ↔ DOD)
+
+| Definition of Ready | Definition of Done |
+|---|---|
+| MCPs listados em §5 estão `tool_search_tool_regex` ok | `npm run validate` retorna `🎉 todos os gates verdes` |
+| Fixtures HTML coletadas (V-05a) | `.crx` v19.0.0.0 empacotado |
+| Mock server `:8765` respondendo | `RELEASE_NOTES_v19.md` com apêndice gates ✅ |
+| Memory MCP responde com entidades-base | Memory MCP populado (V-20) |
+
+---
+
+> _"O Extractor Beat de hoje é um fotógrafo manual. O v19 vira um repórter ao vivo — entende o site, conta a história, e nunca dorme. E só sai do estúdio quando os 20 gates do `validate.mjs` estão verdes."_
