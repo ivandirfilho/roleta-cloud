@@ -100,6 +100,52 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"strategy_provider_register_failed: {_e}")
 
 
+# S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
+try:
+    from server.health_server import set_state_provider as _set_state_p
+    from app_config.settings import settings as _settings
+    import os as _os
+
+    def _state_snapshot():
+        import time as _time
+        adp = strategy.get_adaptive_state() if hasattr(strategy, "get_adaptive_state") else {}
+        bet_state = {}
+        try:
+            if hasattr(game_state, "bet_advisor") and hasattr(game_state.bet_advisor, "state_dict"):
+                bet_state = game_state.bet_advisor.state_dict()
+        except Exception:  # noqa: BLE001
+            pass
+        sf = str(_settings.state_file)
+        sf_size = None
+        sf_age = None
+        try:
+            st = _os.stat(sf)
+            sf_size = st.st_size
+            sf_age = round(_time.time() - st.st_mtime, 1)
+        except Exception:  # noqa: BLE001
+            pass
+        adp_keys = sorted(list(adp.keys())) if isinstance(adp, dict) else []
+        sigmoid_off = adp.get("sigmoid_off", {}) if isinstance(adp, dict) else {}
+        recent_hits = adp.get("recent_hits", {}) if isinstance(adp, dict) else {}
+        recent_hits_lens = {k: len(v) if hasattr(v, "__len__") else 0 for k, v in recent_hits.items()}
+        return {
+            "adaptive_state_keys_count": len(adp_keys),
+            "adaptive_state_keys": adp_keys,
+            "sigmoid_off_populated": bool(sigmoid_off),
+            "recent_hits_lens": recent_hits_lens,
+            "bet_advisor_state": bet_state,
+            "state_file_path": sf,
+            "state_file_size_bytes": sf_size,
+            "state_file_age_seconds": sf_age,
+            "ts": int(_time.time()),
+        }
+
+    _set_state_p(_state_snapshot)
+    logger.info("state_provider_registered for /api/state")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"state_provider_register_failed: {_e}")
+
+
 async def broadcast_heartbeat():
     """Envia estado atual para todos os clientes a cada 1 segundo."""
     while True:

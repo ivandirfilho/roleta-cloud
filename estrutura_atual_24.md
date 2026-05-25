@@ -891,3 +891,68 @@ A amostra anterior de 6-10 spins (33%/40% KILL) era estatisticamente insignifica
 - **S-CLEAN-2** (manter): remover `handle_legacy_spin` do roteamento após 7 dias sem warns `[S-CLEAN-1]`
 - **S-OBS-8** (novo, baixa prioridade): adicionar `/api/health/state` retornando `{adaptive_state_keys_count, bet_advisor_state, last_save_age_seconds}` para detectar perda de estado em monitor externo
 
+
+
+---
+
+## §15 — Sprint pós-§14: S-OBS-8 (`/api/state` health endpoint) + auditoria profunda live (2026-05-24 22:40 BRT)
+
+### Stack MCP usada
+graphify (re-update) + filesystem + sequential-thinking + brave + memory
+
+### Estado live (1h, query corrigida `-60 minutes`)
+- **110 decisions**, 99 APOSTAR / 11 PULAR (90% bet-rate)
+- **acc apostando**: anti-horario 52.1% (48), horario 48.8% (41) — **break-even+**
+- **KILL v3 = 7/100 = 7%** ✅ confirmado segunda hora consecutiva
+- **gale dist**: G1=81 (54% hit), G2=4 (0%), G3=4 (25%) — concentração saudável em G1
+- **sigmoid**: `cw_off2=11.61`, `ccw_off2=11.22` — leve queda do topo, sem ação
+- Sessions: 3 sessões nas últimas 15 min (devido aos meus deploys; cada deploy gera nova session_id)
+- Memória: roleta-cloud 31MB, cdc-worker 24MB, pg 84MB (servidor com 58GiB → folga gigantesca)
+- Outbox PG: 226 processed, 0 pending. Range 4h14min sem buffering
+
+### Implementação S-OBS-8
+
+**Arquivos modificados:**
+
+1. `server/health_server.py`:
+   - +`_STATE_PROVIDER` global + `set_state_provider(provider)` (paralelo a `_STRATEGY_PROVIDER`)
+   - +handler `/api/state` no `_Handler.do_GET` retornando 200/503/500 conforme provider
+
+2. `server/websocket.py`:
+   - +bloco try/except registrando `_state_snapshot()` que retorna:
+     - `adaptive_state_keys_count` + `adaptive_state_keys[]` — detecta `{}` vazio
+     - `sigmoid_off_populated` (bool)
+     - `recent_hits_lens` (cw/ccw deque sizes)
+     - `bet_advisor_state` (kill counter persistido)
+     - `state_file_path` + `state_file_size_bytes` + `state_file_age_seconds`
+
+**Por quê (ISO/IEC 25010 §6.7 Maintainability / §6.4 Reliability):**
+Externaliza saúde do estado runtime para Prometheus/curl/cron alarms. Permite detectar regressão tipo BUG-NOVO-11 (perda de adaptive_state em deploy) em segundos via monitor externo, sem precisar inspecionar logs.
+
+**Validação local:**
+- pytest: **156 passed** (sem regressão)
+- Import resolvido: `app_config.settings` (não `config.settings`)
+
+### Auditoria delta — 5 sinais procurados, 0 bugs reais novos
+
+| Sinal | Resultado |
+|---|---|
+| Erros 60min em containers | apenas warnings benignos (`health_server_started`, `OutboxPublisher inicializado`) — os ERROR PG vistos foram MINHAS queries de teste com sintaxe errada (`-60 min` em vez de `-60 minutes`) |
+| `/api/health` | 404 — não existe; **`/health` ✅ 200** (não é bug, apenas convenção) |
+| `pg_replication_slots` 0 rows | esperado (wal-g sem slot lógico) |
+| wal-g backups | 5 visíveis (retention enxuta), último `_33 @ 01:30:07Z`. Cron */30 confirmado |
+| state.json idade | atualizado a cada spin (~30-60s), 5KB rich payload |
+
+### Status BUGs
+
+| # | Status |
+|---|---|
+| 07/10/14/15 | ❌ falsos positivos |
+| 08 (counter zera) | ✅ §13 S-OBS-7 |
+| 09 (sigmoid topo) | 🟢 estável |
+| 11 (state.json git) | ✅ §14 S-CFG-1 |
+
+### Pendentes → §16
+- **S-CLEAN-2**: remover `handle_legacy_spin` após 7 dias sem warns
+- **S-OBS-9** (novo): adicionar métrica Prometheus `roleta_kill_pulls_total` + `roleta_adaptive_state_size` consumindo /api/state, p/ alarms automáticos
+

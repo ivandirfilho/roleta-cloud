@@ -30,11 +30,21 @@ _VERSION: str = "unknown"
 # Setado por server.websocket no boot; se ausente, /api/strategy retorna 503.
 _STRATEGY_PROVIDER = None  # type: ignore[var-annotated]
 
+# S-OBS-8: provider opcional para saúde do estado adaptativo persistido.
+# Setado por server.websocket no boot; se ausente, /api/state retorna 503.
+_STATE_PROVIDER = None  # type: ignore[var-annotated]
+
 
 def set_strategy_provider(provider) -> None:
     """Registra callable() -> dict para /api/strategy. Idempotente."""
     global _STRATEGY_PROVIDER
     _STRATEGY_PROVIDER = provider
+
+
+def set_state_provider(provider) -> None:
+    """S-OBS-8: registra callable() -> dict para /api/state. Idempotente."""
+    global _STATE_PROVIDER
+    _STATE_PROVIDER = provider
 
 try:
     from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST  # type: ignore
@@ -91,6 +101,28 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = _STRATEGY_PROVIDER()
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
+            return
+        if self.path == "/api/state":
+            # S-OBS-8: saúde do estado adaptativo persistido (para monitor externo)
+            if _STATE_PROVIDER is None:
+                self.send_response(503)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"state provider not registered"}')
+                return
+            try:
+                payload = _STATE_PROVIDER()
                 body = json.dumps(payload, default=str).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
