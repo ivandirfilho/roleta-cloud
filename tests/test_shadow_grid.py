@@ -204,46 +204,87 @@ def test_check_prediction_after_restart_uses_str_keys():
 
 # --------- S-STRAT-13.1: EMA + sustained edge + suggestion ----------
 
-def test_shadow_ema_updates_on_get_stats(gs):
-    """EMA deve ser inicializada e atualizada por shift no _adaptive_state."""
+def test_shadow_ema_updates_on_spin(gs):
+    """BUG-V4-01: EMA atualiza por SPIN (via _update_shadow_ema_on_spin), nao por scrape."""
     # popula challenger 3 com edge alto vs incumbent baixo
     for _ in range(50):
         gs.incumbent_shadow_cw.appendleft(False)
         gs.incumbent_shadow_ccw.appendleft(False)
         gs.shadow_grid[3]["cw"].appendleft(True)
         gs.shadow_grid[3]["ccw"].appendleft(True)
+    # 1 chamada simulando 1 spin
+    gs._update_shadow_ema_on_spin()
     snap = gs.get_shadow_stats()
     ch3 = [c for c in snap["challengers"] if c["shift"] == 3][0]
     assert ch3["edge_ema"] > 0.0
-    # EMA com alpha=0.05 numa unica chamada: edge*0.05 = 1.0*0.05 = 0.05
-    assert abs(ch3["edge_ema"] - 0.05) < 0.001
-    assert ch3["sustained_spins"] == 1  # >0.04 → incrementou
+    assert abs(ch3["edge_ema"] - 0.05) < 0.001  # 1.0 * 0.05 = 0.05
+    assert ch3["sustained_spins"] == 1
+
+
+def test_ema_does_not_drift_on_pure_read(gs):
+    """BUG-V4-01: get_shadow_stats nao deve mutar EMA (apenas leitura)."""
+    for _ in range(50):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[3]["cw"].appendleft(True)
+        gs.shadow_grid[3]["ccw"].appendleft(True)
+    gs._update_shadow_ema_on_spin()  # 1 spin
+    snap1 = gs.get_shadow_stats()
+    # Multiplas leituras nao devem alterar EMA nem sustained
+    for _ in range(50):
+        snap_n = gs.get_shadow_stats()
+    ch3_1 = [c for c in snap1["challengers"] if c["shift"] == 3][0]
+    ch3_n = [c for c in snap_n["challengers"] if c["shift"] == 3][0]
+    assert ch3_1["edge_ema"] == ch3_n["edge_ema"]
+    assert ch3_1["sustained_spins"] == ch3_n["sustained_spins"] == 1
 
 
 def test_suggestion_emerges_after_sustained(gs):
-    """Suggestion deve aparecer quando sustained_spins atinge 200."""
+    """Suggestion deve aparecer quando sustained_spins atinge 200 (por SPIN)."""
     for _ in range(50):
         gs.incumbent_shadow_cw.appendleft(False)
         gs.incumbent_shadow_ccw.appendleft(False)
         gs.shadow_grid[5]["cw"].appendleft(True)
         gs.shadow_grid[5]["ccw"].appendleft(True)
-    # Forca sustained ate o threshold via chamadas repetidas
     for _ in range(210):
-        snap = gs.get_shadow_stats()
+        gs._update_shadow_ema_on_spin()
+    snap = gs.get_shadow_stats()
     assert snap["suggestion"] is not None
     assert snap["suggestion"]["shift"] == 5
     assert snap["suggestion"]["applied"] is False
 
 
+def test_suggestion_preserves_applied_flag(gs):
+    """BUG-V4-02: marcar applied=True nao deve ser sobrescrito por novos spins."""
+    for _ in range(50):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[5]["cw"].appendleft(True)
+        gs.shadow_grid[5]["ccw"].appendleft(True)
+    for _ in range(210):
+        gs._update_shadow_ema_on_spin()
+    # Humano marca applied
+    gs._adaptive_state["suggested_shift"]["applied"] = True
+    original_ts = gs._adaptive_state["suggested_shift"]["ts"]
+    # Mais 50 spins com mesmo edge
+    for _ in range(50):
+        gs._update_shadow_ema_on_spin()
+    final = gs._adaptive_state["suggested_shift"]
+    assert final["applied"] is True, "applied flag foi sobrescrito (BUG-V4-02)"
+    assert final["shift"] == 5
+    assert final["ts"] == original_ts  # ts original preservado
+
+
 def test_no_suggestion_when_edge_below_threshold(gs):
-    """Edge ~0.03 (banda morta) nao deve gerar suggestion mesmo apos 200 chamadas."""
+    """Edge ~0.0 (banda morta) nao deve gerar suggestion mesmo apos 210 spins."""
     for _ in range(50):
         gs.incumbent_shadow_cw.appendleft(False)
         gs.incumbent_shadow_ccw.appendleft(False)
         gs.shadow_grid[1]["cw"].appendleft(False)
         gs.shadow_grid[1]["ccw"].appendleft(False)
     for _ in range(210):
-        snap = gs.get_shadow_stats()
+        gs._update_shadow_ema_on_spin()
+    snap = gs.get_shadow_stats()
     assert snap.get("suggestion") is None
 
 

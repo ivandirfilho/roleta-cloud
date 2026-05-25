@@ -397,6 +397,13 @@ class GameState:
                     self.shadow_hits_cw.appendleft(sh_hit)
                 else:
                     self.shadow_hits_ccw.appendleft(sh_hit)
+
+        # BUG-A24-V4-01: S-STRAT-13.1 EMA + sustained DEVEM atualizar por SPIN,
+        # nao por scrape HTTP. Antes vivia em get_shadow_stats (chamado a cada
+        # 2-15s pelo Prometheus/dashboard) → sustained chegava a 200 em ~6min
+        # em vez de ~100min (200 spins reais). Suggestion prematura. Agora
+        # roda 1x por spin aqui.
+        self._update_shadow_ema_on_spin()
         
         # APENAS adicionar ao histórico BET se realmente apostou
         if bet_placed:
@@ -460,12 +467,76 @@ class GameState:
             "shadow_numbers_by_shift": shadow_by_shift,
         }
 
+    def _update_shadow_ema_on_spin(self) -> None:
+        """S-STRAT-13.1 BUG-V4-01: atualiza EMA + sustained 1x por spin (em
+        check_prediction), nao por scrape HTTP. Tambem gera/persiste a
+        suggested_shift preservando flag 'applied' do humano (BUG-V4-02).
+        """
+        def acc(d) -> float:
+            n = len(d)
+            return (sum(1 for x in d if x) / n) if n else 0.0
+
+        inc_cw_acc = acc(self.incumbent_shadow_cw)
+        inc_ccw_acc = acc(self.incumbent_shadow_ccw)
+
+        shadow_state = self._adaptive_state.setdefault("shadow_ema", {})
+        alpha = 0.05
+        per_shift_snapshot: Dict[str, Dict[str, Any]] = {}
+        for shift in self.SHADOW_SHIFTS:
+            grid = self.shadow_grid.get(shift, {})
+            sd_cw_n = len(grid.get("cw", deque()))
+            sd_ccw_n = len(grid.get("ccw", deque()))
+            sd_cw_acc = acc(grid.get("cw", deque()))
+            sd_ccw_acc = acc(grid.get("ccw", deque()))
+            edge_avg_raw = ((sd_cw_acc - inc_cw_acc) + (sd_ccw_acc - inc_ccw_acc)) / 2.0
+            sk = str(shift)
+            ema_entry = shadow_state.setdefault(sk, {"ema": 0.0, "sustained": 0})
+            ema_entry["ema"] = float(ema_entry.get("ema", 0.0)) * (1 - alpha) + edge_avg_raw * alpha
+            mature = sd_cw_n >= 50 and sd_ccw_n >= 50
+            if mature and ema_entry["ema"] > 0.04:
+                ema_entry["sustained"] = int(ema_entry.get("sustained", 0)) + 1
+            elif ema_entry["ema"] < 0.02:
+                ema_entry["sustained"] = max(0, int(ema_entry.get("sustained", 0)) - 1)
+            per_shift_snapshot[sk] = {
+                "shift": shift,
+                "edge_ema": ema_entry["ema"],
+                "sustained": ema_entry["sustained"],
+                "n_cw": sd_cw_n,
+                "n_ccw": sd_ccw_n,
+            }
+
+        # BUG-V4-02: preservar applied flag se humano ja marcou.
+        SUSTAIN_THRESHOLD = 200
+        promotable = [
+            s for s in per_shift_snapshot.values()
+            if s["sustained"] >= SUSTAIN_THRESHOLD
+            and s["edge_ema"] > 0.04
+            and s["n_cw"] >= 50 and s["n_ccw"] >= 50
+        ]
+        existing = self._adaptive_state.get("suggested_shift") or {}
+        if promotable:
+            top = max(promotable, key=lambda s: s["edge_ema"])
+            # Se ja existe suggestion para o mesmo shift, preservar applied/ts.
+            if existing.get("shift") == top["shift"]:
+                existing["edge_ema"] = round(top["edge_ema"], 5)
+                existing["sustained_spins"] = top["sustained"]
+                # NAO sobrescreve 'applied' nem 'ts' originais
+            else:
+                # Novo shift dominante: reset suggestion.
+                self._adaptive_state["suggested_shift"] = {
+                    "shift": top["shift"],
+                    "edge_ema": round(top["edge_ema"], 5),
+                    "sustained_spins": top["sustained"],
+                    "applied": False,
+                    "ts": time.time(),
+                }
+        # Se nao ha promotable, mantem suggestion antiga (humano pode ainda nao
+        # ter aplicado). Se quiser invalidar, deve setar applied=True explicito.
+
     def get_shadow_stats(self) -> Dict[str, Any]:
         """S-STRAT-13 + S-STRAT-13.1 — snapshot shadow grid + auto-suggestion.
 
-        Retorna por shift: acc cw/ccw, edge_pp vs incumbent (janela paralela
-        maxlen=100, BUG-V3-17), n. Identifica challenger campeao e gera
-        suggestion automatica via EMA + histerese (S-STRAT-13.1).
+        Read-only: apenas le o estado pre-computado em check_prediction (BUG-V4-01).
         """
         def stats(perf_deq) -> Dict[str, Any]:
             n = len(perf_deq)
@@ -477,8 +548,7 @@ class GameState:
         inc_cw = stats(self.incumbent_shadow_cw)
         inc_ccw = stats(self.incumbent_shadow_ccw)
 
-        # S-STRAT-13.1: bootstrap do estado EMA persistido.
-        shadow_state = self._adaptive_state.setdefault("shadow_ema", {})
+        shadow_state = self._adaptive_state.get("shadow_ema") or {}
 
         challengers: List[Dict[str, Any]] = []
         for shift in self.SHADOW_SHIFTS:
@@ -488,18 +558,9 @@ class GameState:
             edge_cw = round((sd_cw["acc"] - inc_cw["acc"]) * 100, 1)
             edge_ccw = round((sd_ccw["acc"] - inc_ccw["acc"]) * 100, 1)
 
-            # S-STRAT-13.1: EMA do edge medio (alpha=0.05) + sustained counter
-            # com banda morta anti-thrashing (PLAN-V2-01).
-            edge_avg_raw = ((sd_cw["acc"] - inc_cw["acc"]) + (sd_ccw["acc"] - inc_ccw["acc"])) / 2.0
-            sk = str(shift)
-            ema_entry = shadow_state.setdefault(sk, {"ema": 0.0, "sustained": 0})
-            alpha = 0.05
-            ema_entry["ema"] = float(ema_entry.get("ema", 0.0)) * (1 - alpha) + edge_avg_raw * alpha
-            mature = sd_cw["n"] >= 50 and sd_ccw["n"] >= 50
-            if mature and ema_entry["ema"] > 0.04:
-                ema_entry["sustained"] = int(ema_entry.get("sustained", 0)) + 1
-            elif ema_entry["ema"] < 0.02:
-                ema_entry["sustained"] = max(0, int(ema_entry.get("sustained", 0)) - 1)
+            # BUG-V4-01: EMA/sustained apenas LEITURA aqui (atualiza por spin).
+            ema_entry = shadow_state.get(str(shift), {"ema": 0.0, "sustained": 0})
+
             # BUG-A24-V3-22: alinhar criterio do alert com champion
             # (n>=30 em ambas direcoes em vez de apenas uma).
             beats_inc = (
@@ -513,8 +574,8 @@ class GameState:
                 "ccw": sd_ccw,
                 "edge_pp_cw": edge_cw,
                 "edge_pp_ccw": edge_ccw,
-                "edge_ema": round(ema_entry["ema"], 5),
-                "sustained_spins": ema_entry["sustained"],
+                "edge_ema": round(float(ema_entry.get("ema", 0.0)), 5),
+                "sustained_spins": int(ema_entry.get("sustained", 0)),
                 "avg_acc": round((sd_cw["acc"] + sd_ccw["acc"]) / 2, 4),
                 "beats_incumbent": beats_inc,
             })
@@ -523,28 +584,8 @@ class GameState:
         champion = max(eligible, key=lambda c: c["avg_acc"], default=None)
         any_beats = any(c["beats_incumbent"] for c in challengers)
 
-        # S-STRAT-13.1: gera/atualiza suggestion quando algum challenger
-        # acumula sustained>=200 com edge_ema mantido. Sem auto-apply.
-        SUSTAIN_THRESHOLD = 200
-        promotable = [c for c in challengers
-                      if c["sustained_spins"] >= SUSTAIN_THRESHOLD
-                      and c["edge_ema"] > 0.04
-                      and c["cw"]["n"] >= 50 and c["ccw"]["n"] >= 50]
-        suggestion = None
-        if promotable:
-            top = max(promotable, key=lambda c: c["edge_ema"])
-            suggestion = {
-                "shift": top["shift"],
-                "edge_ema": top["edge_ema"],
-                "sustained_spins": top["sustained_spins"],
-                "applied": False,
-                "ts": time.time(),
-            }
-            # Persiste para sobreviver restart
-            self._adaptive_state["suggested_shift"] = suggestion
-        else:
-            # Mantem suggestion antiga se ainda presente (humano nao aplicou)
-            suggestion = self._adaptive_state.get("suggested_shift")
+        # BUG-V4-01/V4-02: suggestion lida do _adaptive_state (escrita por spin).
+        suggestion = self._adaptive_state.get("suggested_shift")
 
         return {
             "design": "shadow_grid_v1",

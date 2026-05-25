@@ -380,5 +380,97 @@ test_shadow_grid.py: 17 passed (anterior: 12)
 5. Smoke-test: `/api/shadow` retorna `suggestion: null` (cold-start) + `challengers[].edge_ema=0.0`
 6. Smoke-test webhook: `curl localhost:9093/-/ready` + amplificar contador via regra "always firing" (não fizemos pra não poluir; smoke-test futuro).
 
+---
+
+## 9. §AUDIT-V4 — Auditoria pós-deploy V3 (S-STRAT-13.1 + AlertManager live)
+**Timestamp:** 2026-05-25 ~04:18 UTC
+**Stack MCP:** graphify (regen) + filesystem + sequential-thinking + memory + brave.
+**Escopo:** revisar criticamente o que acabou de subir live em V3, antes que silent bugs corrompam dados.
+
+### 9.1 Bugs encontrados
+
+#### 🔴 BUG-A24-V4-01 — EMA + sustained atualizam por SCRAPE HTTP, não por SPIN (suggestion prematura)
+- **Severidade:** **crítica** (compromete totalmente S-STRAT-13.1).
+- **Onde:** `state/game.py::get_shadow_stats` (V3).
+- **Causa raiz:** `shadow_state = self._adaptive_state.setdefault("shadow_ema", {})` + cálculo de EMA + `sustained += 1` rodavam **a cada chamada** do método. Mas `get_shadow_stats` é chamado pelo Prometheus a cada 15s **E** pelo endpoint `/api/shadow` (potencialmente a cada 2s pelo dashboard).
+- **Cálculo do impacto:**
+  - 1 spin real ≈ 30-40s.
+  - Em 1 hora: ~120 spins reais, mas ~240 scrapes Prometheus + ~1800 GETs do dashboard ≈ **~2000 chamadas/hora**.
+  - `sustained ≥ 200` atingido em **~6 minutos real-time** se edge_ema permanecer > 0.04, em vez de **~200 spins reais (~100min)**.
+  - Suggestion **falsa** dispararia 17× mais rápido do que o desenho originalmente projetado.
+- **Fix:** novo método `_update_shadow_ema_on_spin()` chamado UMA vez em `check_prediction` (após registrar os hits). `get_shadow_stats` vira **read-only** — apenas serializa o estado pré-computado.
+- **Status:** ✅ corrigido (+ regression test `test_ema_does_not_drift_on_pure_read`).
+
+#### 🔴 BUG-A24-V4-02 — `suggestion.applied=True` sobrescrito a cada update
+- **Severidade:** **alta** (suggestion nunca pode ser "consumida").
+- **Onde:** `state/game.py::get_shadow_stats` (V3) linhas 533-544.
+- **Causa raiz:** quando `promotable` listava algum shift, o código sobrescrevia `self._adaptive_state["suggested_shift"]` com `{"applied": False, "ts": now}`. Se humano marcasse `applied=True` (via endpoint POST/PATCH no futuro), a próxima chamada de scrape resetava para `False` imediatamente.
+- **Fix:** se já existe suggestion para o **mesmo shift**, preservar `applied` e `ts` originais; só atualizar `edge_ema` e `sustained_spins`. Novo shift dominante reseta tudo.
+- **Status:** ✅ corrigido (+ regression test `test_suggestion_preserves_applied_flag`).
+
+#### 🟡 BUG-A24-V4-03 — Race condition potencial em `_adaptive_state` mutação cross-thread
+- **Severidade:** baixa (GIL + dict.setdefault são atômicos no CPython).
+- **Causa raiz:** `get_shadow_stats` era chamado pelo HTTP handler (thread daemon) e mutava `_adaptive_state`. `check_prediction` rodava no event loop principal.
+- **Mitigação automática:** o fix V4-01 elimina a mutação cross-thread — `get_shadow_stats` agora é read-only. Race deixa de existir.
+- **Status:** ✅ eliminado como efeito colateral do fix V4-01.
+
+#### 🟢 BUG-A24-V4-04 — webhook `do_POST` aceita Content-Length=0
+- **Severidade:** cosmético.
+- **Causa raiz:** se AlertManager mandar com chunked encoding (raro), `Content-Length` ausente → `length=0` → `payload="{}"` → loga "alerts=0" silenciosamente.
+- **Decisão:** não corrigir — AlertManager 0.27.0 sempre envia Content-Length. Marcado como nota para futuro.
+- **Status:** ⏸ aceito.
+
+### 9.2 Auditoria do código não relacionado a V3 (smoke check)
+
+| Item | Resultado |
+|---|---|
+| `obs/alertmanager.yml` syntax (v0.27 matchers) | ✅ Prometheus aceitou (1 active alertmanager) |
+| `webhook_configs.max_alerts: 0` | ✅ "0 = ilimitado" oficialmente documentado |
+| `volume alertmanager-data` permissões (user 65534) | ✅ container subiu healthy |
+| `roleta_alertmanager_webhook_received_total` cardinality | ✅ contained (severity ∈ {critical,warning,info}; alertname bounded por regras) |
+| Inhibit rule critical→warning (equal alertname) | ✅ |
+| Prometheus reload reflete novo `alerting:` | ✅ via docker restart |
+
+### 9.3 Diagrama do fluxo correto pós-V4
+
+```
+spin chega
+   │
+   ▼
+check_prediction
+   ├─ atualiza performance_sda17 (maxlen=12, base TR)
+   ├─ atualiza incumbent_shadow (maxlen=100, baseline shadow) ← V3-17
+   ├─ atualiza shadow_grid[shift][side] para cada shift ← V3 base
+   └─ _update_shadow_ema_on_spin()  ← V4-01 NOVO
+            ├─ calcula EMA por shift (alpha=0.05)
+            ├─ sustained += 1 se ema>0.04 & maduro
+            ├─ sustained -= 1 se ema<0.02
+            └─ se promotable: cria/atualiza suggested_shift PRESERVANDO 'applied' ← V4-02
+
+/api/shadow (scrape Prom/dashboard)
+   │
+   ▼
+get_shadow_stats  ← read-only puro (nao muta)
+```
+
+### 9.4 Validação local
+```
+19 passed test_shadow_grid.py (anterior: 17)
++test_shadow_ema_updates_on_spin (renomeado de _on_get_stats)
++test_ema_does_not_drift_on_pure_read (NOVO V4-01 regression)
++test_suggestion_preserves_applied_flag (NOVO V4-02 regression)
+
+183 passed total (anterior: 181)
+```
+
+### 9.5 Deploy V4
+- Commit: `<próximo>` — fix(shadow): V4-01 EMA por spin + V4-02 preserva applied
+- Deploy: `docker compose ... up -d --build roleta-cloud` (apenas state/game.py mudou, dispensa restart Prometheus/AlertManager)
+
+### 9.6 Impacto real estimado
+**Sem V4-01**, a suggestion teria emergido em ~6min (potencialmente falsa) e o humano teria sido alertado para "promover shift X" baseado em ruído. **Com V4-01**, a suggestion só emerge após 200 SPINS REAIS, conforme o design original.
+
+**Status final V4: VERDE 🟢. 2 bugs críticos pré-produção interceptados antes de gerarem sinal falso para o humano operador. Sistema agora reflete fielmente o desenho de S-STRAT-13.1.**
+
 
 
