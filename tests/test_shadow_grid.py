@@ -310,3 +310,54 @@ def test_incumbent_shadow_populated_on_check_prediction(gs):
     gs.check_prediction(actual_number=15)  # miss
     assert len(gs.incumbent_shadow_ccw) == 1
     assert gs.incumbent_shadow_ccw[0] is False
+
+
+# ---------- S-STRAT-13.1 auto-promote ----------
+
+def _seed_dominant_shift(gs, shift: int, samples: int = 50):
+    for _ in range(samples):
+        gs.incumbent_shadow_cw.appendleft(False)
+        gs.incumbent_shadow_ccw.appendleft(False)
+        gs.shadow_grid[shift]["cw"].appendleft(True)
+        gs.shadow_grid[shift]["ccw"].appendleft(True)
+
+
+def test_auto_promote_disabled_by_default(gs):
+    """settings.shadow_auto_promote_enabled=False ⇒ nunca auto-promove."""
+    _seed_dominant_shift(gs, 5)
+    for _ in range(500):
+        gs._update_shadow_ema_on_spin()
+    sug = gs._adaptive_state.get("suggested_shift") or {}
+    assert sug.get("shift") == 5
+    assert sug.get("auto_promoted") is not True
+    assert sug.get("applied") is False
+
+
+def test_auto_promote_fires_when_enabled(monkeypatch, gs):
+    """Quando settings.shadow_auto_promote_enabled=True e sustained>=400, marca applied+auto_promoted."""
+    from app_config import settings as _s
+    monkeypatch.setattr(_s.settings, "shadow_auto_promote_enabled", True, raising=False)
+    _seed_dominant_shift(gs, 3)
+    for _ in range(450):
+        gs._update_shadow_ema_on_spin()
+    sug = gs._adaptive_state.get("suggested_shift") or {}
+    assert sug.get("shift") == 3
+    assert sug.get("applied") is True
+    assert sug.get("auto_promoted") is True
+    history = gs._adaptive_state.get("auto_promotes") or []
+    assert len(history) >= 1
+    assert history[-1]["shift"] == 3
+
+
+def test_auto_promote_idempotent(monkeypatch, gs):
+    """Auto-promote para o mesmo shift não duplica entradas no histórico."""
+    from app_config import settings as _s
+    monkeypatch.setattr(_s.settings, "shadow_auto_promote_enabled", True, raising=False)
+    _seed_dominant_shift(gs, 1)
+    for _ in range(450):
+        gs._update_shadow_ema_on_spin()
+    first_len = len(gs._adaptive_state.get("auto_promotes") or [])
+    for _ in range(100):
+        gs._update_shadow_ema_on_spin()
+    assert len(gs._adaptive_state.get("auto_promotes") or []) == first_len
+

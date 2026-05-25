@@ -112,6 +112,8 @@ if _METRICS_AVAILABLE:
             "shadow_suggested_shift": Gauge("roleta_shadow_suggested_shift", "Shift sugerido pelo auto-promote (0 se nenhum)"),
             "shadow_edge_ema": Gauge("roleta_shadow_edge_ema", "EMA do edge medio (alpha=0.05) por shift", ["shift"]),
             "shadow_sustained": Gauge("roleta_shadow_sustained_spins", "Contador sustained_edge por shift", ["shift"]),
+            # S-STRAT-13.1 promoção automática: contador de promoções aplicadas
+            "shadow_auto_promotes": Counter("roleta_shadow_auto_promotes_total", "Total de auto-promotes do shadow grid", ["shift"]),
             # S-OBS-16: receiver webhook do AlertManager
             "alerts_received": Counter("roleta_alertmanager_webhook_received_total", "Total de alertas recebidos via webhook do AlertManager", ["severity", "alertname"]),
         }

@@ -507,6 +507,8 @@ class GameState:
 
         # BUG-V4-02: preservar applied flag se humano ja marcou.
         SUSTAIN_THRESHOLD = 200
+        # S-STRAT-13.1 promoção automática: threshold superior + flag opt-in.
+        AUTO_PROMOTE_THRESHOLD = 400
         promotable = [
             s for s in per_shift_snapshot.values()
             if s["sustained"] >= SUSTAIN_THRESHOLD
@@ -530,8 +532,60 @@ class GameState:
                     "applied": False,
                     "ts": time.time(),
                 }
+            # S-STRAT-13.1: auto-promote (opt-in via settings.shadow_auto_promote_enabled).
+            self._maybe_auto_promote_shift(top)
         # Se nao ha promotable, mantem suggestion antiga (humano pode ainda nao
         # ter aplicado). Se quiser invalidar, deve setar applied=True explicito.
+
+    def _maybe_auto_promote_shift(self, top: Dict[str, Any]) -> None:
+        """S-STRAT-13.1 — auto-promove um shift quando sustained ≥ AUTO_PROMOTE_THRESHOLD.
+
+        Comportamento:
+        - Opt-in via getattr(settings, 'shadow_auto_promote_enabled', False).
+          Mantém auto-promote DESLIGADO por padrão (humano-in-the-loop).
+        - Quando atinge threshold: marca suggestion.applied=True + auto_promoted=True;
+          registra em _adaptive_state['auto_promotes'] (lista append, last 20);
+          loga evento [SHADOW-AUTO-PROMOTE]; incrementa counter Prometheus se disponível.
+        - Idempotente: se já foi auto-promovido para esse shift, no-op.
+        """
+        AUTO_PROMOTE_THRESHOLD = 400
+        try:
+            enabled = bool(getattr(settings, "shadow_auto_promote_enabled", False))
+        except Exception:  # noqa: BLE001
+            enabled = False
+        if not enabled:
+            return
+        if top["sustained"] < AUTO_PROMOTE_THRESHOLD:
+            return
+        suggestion = self._adaptive_state.get("suggested_shift") or {}
+        if suggestion.get("auto_promoted") and suggestion.get("shift") == top["shift"]:
+            return  # já promovido para esse shift
+        # Marca applied + auto_promoted
+        suggestion["applied"] = True
+        suggestion["auto_promoted"] = True
+        suggestion["auto_promoted_ts"] = time.time()
+        self._adaptive_state["suggested_shift"] = suggestion
+        # Histórico curto
+        history = self._adaptive_state.setdefault("auto_promotes", [])
+        history.append({
+            "shift": top["shift"],
+            "edge_ema": round(top["edge_ema"], 5),
+            "sustained": top["sustained"],
+            "ts": time.time(),
+        })
+        if len(history) > 20:
+            del history[: len(history) - 20]
+        logger.warning(
+            "[SHADOW-AUTO-PROMOTE] shift=%s edge_ema=%.4f sustained=%d",
+            top["shift"], top["edge_ema"], top["sustained"],
+        )
+        # Counter Prometheus (defensivo — health_server pode não estar carregado em tests)
+        try:
+            from server import health_server as _hs
+            if _hs._PROM_METRICS and "shadow_auto_promotes" in _hs._PROM_METRICS:
+                _hs._PROM_METRICS["shadow_auto_promotes"].labels(shift=str(top["shift"])).inc()
+        except Exception:  # noqa: BLE001
+            pass
 
     def get_shadow_stats(self) -> Dict[str, Any]:
         """S-STRAT-13 + S-STRAT-13.1 — snapshot shadow grid + auto-suggestion.

@@ -32,4 +32,7 @@ class Settings(BaseSettings):
     auth: AuthSettings = Field(default_factory=AuthSettings)
     game: GameSettings = Field(default_factory=GameSettings)
 
+    # S-STRAT-13.1: opt-in para auto-promote do shadow grid (default OFF).
+    shadow_auto_promote_enabled: bool = Field(default=False, validation_alias="SHADOW_AUTO_PROMOTE_ENABLED")
+
 settings = Settings()

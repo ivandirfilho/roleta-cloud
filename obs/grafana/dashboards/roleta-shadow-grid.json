@@ -1,0 +1,52 @@
+{
+  "title": "Roleta Cloud — Shadow Grid (S-OBS-15)",
+  "uid": "roleta-shadow",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-3h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "direction",
+        "type": "custom",
+        "query": "cw,ccw",
+        "current": { "text": "cw", "value": "cw" },
+        "options": [
+          { "text": "cw", "value": "cw", "selected": true },
+          { "text": "ccw", "value": "ccw", "selected": false }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    { "id": 1, "type": "stat", "title": "Champion shift", "gridPos": {"x":0,"y":0,"w":4,"h":4},
+      "targets": [{"expr":"roleta_shadow_champion_shift"}],
+      "fieldConfig":{"defaults":{"thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]}}} },
+    { "id": 2, "type": "stat", "title": "Suggested shift (auto-promote)", "gridPos": {"x":4,"y":0,"w":4,"h":4},
+      "targets": [{"expr":"roleta_shadow_suggested_shift"}] },
+    { "id": 3, "type": "stat", "title": "Shadow alert", "gridPos": {"x":8,"y":0,"w":4,"h":4},
+      "targets": [{"expr":"roleta_shadow_alert"}],
+      "fieldConfig":{"defaults":{"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1}]}}} },
+    { "id": 4, "type": "stat", "title": "Alerts received total", "gridPos": {"x":12,"y":0,"w":4,"h":4},
+      "targets": [{"expr":"sum(roleta_alerts_received_total)"}] },
+    { "id": 5, "type": "stat", "title": "Auto-promotes total", "gridPos": {"x":16,"y":0,"w":4,"h":4},
+      "targets": [{"expr":"sum(roleta_shadow_auto_promotes_total)"}] },
+
+    { "id": 10, "type": "timeseries", "title": "Shadow accuracy by shift ($direction)", "gridPos": {"x":0,"y":4,"w":12,"h":8},
+      "targets": [{"expr":"roleta_shadow_acc{direction=\"$direction\"}","legendFormat":"shift={{shift}}"}] },
+    { "id": 11, "type": "timeseries", "title": "Shadow edge (pp) by shift ($direction)", "gridPos": {"x":12,"y":4,"w":12,"h":8},
+      "targets": [{"expr":"roleta_shadow_edge_pp{direction=\"$direction\"}","legendFormat":"shift={{shift}}"}],
+      "fieldConfig":{"defaults":{"unit":"percentunit"}} },
+
+    { "id": 20, "type": "timeseries", "title": "Edge EMA (alpha=0.05)", "gridPos": {"x":0,"y":12,"w":12,"h":8},
+      "targets": [{"expr":"roleta_shadow_edge_ema","legendFormat":"shift={{shift}}"}] },
+    { "id": 21, "type": "timeseries", "title": "Sustained edge counter", "gridPos": {"x":12,"y":12,"w":12,"h":8},
+      "targets": [{"expr":"roleta_shadow_sustained_spins","legendFormat":"shift={{shift}}"}] },
+
+    { "id": 30, "type": "bargauge", "title": "Samples per shift ($direction)", "gridPos": {"x":0,"y":20,"w":12,"h":6},
+      "targets": [{"expr":"roleta_shadow_samples_n{direction=\"$direction\"}","legendFormat":"shift={{shift}}"}] },
+    { "id": 31, "type": "table", "title": "Top-edge per shift (snapshot)", "gridPos": {"x":12,"y":20,"w":12,"h":6},
+      "targets": [{"expr":"topk(4, roleta_shadow_edge_pp)","format":"table","instant":true}] }
+  ]
+}

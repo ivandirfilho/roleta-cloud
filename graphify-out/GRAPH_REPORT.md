@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 32 files · ~53,957 words
+- 33 files · ~56,060 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1760 nodes · 1864 edges · 161 communities (145 shown, 16 thin omitted)
+- 1799 nodes · 1903 edges · 162 communities (146 shown, 16 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1b09372a`
+- Built from commit: `195e43e8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -169,6 +169,7 @@
 - [[_COMMUNITY_Community 158|Community 158]]
 - [[_COMMUNITY_Community 159|Community 159]]
 - [[_COMMUNITY_Community 160|Community 160]]
+- [[_COMMUNITY_Community 161|Community 161]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -186,7 +187,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (161 total, 16 thin omitted)
+## Communities (162 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -218,7 +219,7 @@ Nodes (34): 1. Resumo das Sessoes Pos-Deploy SmartGale v5, 2.1 O Problema, 2.2 I
 
 ### Community 7 - "Community 7"
 Cohesion: 0.07
-Nodes (22): MessageHandler, Manipulador de mensagens WebSocket., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Processa uma mensagem recebida., Processa uma mensagem recebida., Processa extração de mesa e salva config., Retorna lista de mesas configuradas. (+14 more)
+Nodes (25): MessageHandler, Manipulador de mensagens WebSocket., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Processa uma mensagem recebida., Processa uma mensagem recebida., Processa extração de mesa e salva config., Retorna lista de mesas configuradas. (+17 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.10
@@ -740,8 +741,12 @@ Nodes (32): handle_shutdown(), main(), Handler para shutdown graceful., Handler 
 Cohesion: 0.29
 Nodes (6): Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Aplica força ao número, retorna número resultado.
 
+### Community 161 - "Community 161"
+Cohesion: 0.06
+Nodes (35): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica — como cada decisão é tomada, §2 Engenharia reversa — janela live disponível, §3 Ciclo 1 — auditoria + correção (outbox observabilidade), §4 Ciclo 2 — `incumbent_shadow` rampup tardio, §5 Ciclo 3 — `shadow_ema = None` aparentemente travado, §6 Ciclo 4 — Gale level inconsistente em logs vs PG, §7 Ciclo 5 — KILL v4 thresholds dinâmicos: documentação ausente (+27 more)
+
 ## Knowledge Gaps
-- **925 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+920 more)
+- **950 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+945 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -750,12 +755,12 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
+- **Why does `MessageHandler` connect `Community 7` to `Community 156`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
-  _1091 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1118 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
