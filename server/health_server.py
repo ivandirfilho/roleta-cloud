@@ -340,6 +340,65 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
+        if self.path.startswith("/api/regime"):
+            # S-STRAT-12: regime similarity via pgvector
+            # /api/regime?direction=cw[&limit=20]
+            # Usa últimas raw_features do schema como query_vec (proxy do regime atual)
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            direction = (qs.get("direction", ["cw"])[0] or "cw").lower()
+            try:
+                limit = int(qs.get("limit", ["20"])[0])
+            except Exception:  # noqa: BLE001
+                limit = 20
+            if direction not in ("cw", "ccw"):
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"direction must be cw|ccw"}')
+                return
+            try:
+                from database.regime_similarity import RegimeSimilarityReader
+                import psycopg2  # noqa: F401  (ensure dep available)
+                import os as _os
+                dsn = _os.environ.get("ROLETA_PG_DSN")
+                if not dsn:
+                    raise RuntimeError("ROLETA_PG_DSN not set")
+                # Pega último raw_features do mesmo schema como query
+                import psycopg2 as _pg
+                _c = _pg.connect(dsn)
+                _c.autocommit = True
+                try:
+                    with _c.cursor() as cur:
+                        cur.execute(
+                            f"SELECT raw_features::text FROM {direction}.spins_vectors ORDER BY id DESC LIMIT 1;"
+                        )
+                        row = cur.fetchone()
+                finally:
+                    _c.close()
+                if not row or not row[0]:
+                    payload = {"direction": direction, "n": 0, "reason": "no vectors yet"}
+                else:
+                    # raw_features::text vem como "[1,2,3,4,5,6]"
+                    import json as _json
+                    qvec = _json.loads(row[0])
+                    reader = RegimeSimilarityReader(dsn=dsn)
+                    score = reader.regime_score(direction, qvec, limit=limit)
+                    sims = reader.find_similar(direction, qvec, limit=min(limit, 10))
+                    reader.close()
+                    payload = {**score, "top_similar": sims}
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc), "type": type(exc).__name__}).encode())
+            return
         if self.path == "/":
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")

@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 33 files · ~56,282 words
+- 34 files · ~56,494 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1805 nodes · 1909 edges · 162 communities (146 shown, 16 thin omitted)
+- 1809 nodes · 1913 edges · 163 communities (146 shown, 17 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `489b5f88`
+- Built from commit: `7adc0d2a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -170,6 +170,7 @@
 - [[_COMMUNITY_Community 159|Community 159]]
 - [[_COMMUNITY_Community 160|Community 160]]
 - [[_COMMUNITY_Community 161|Community 161]]
+- [[_COMMUNITY_Community 162|Community 162]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -187,7 +188,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (162 total, 16 thin omitted)
+## Communities (163 total, 17 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -394,8 +395,8 @@ Cohesion: 0.08
 Nodes (23): 0 · Resumo Executivo, 1.1 · SQLite — `data/decisions.db` · tabela `decisions`, 1.2 · Postgres (réplica analítica) — estado real, 1.3 · Root cause — porque o hook não disparou, 1.4 · Mitigações aplicadas nesta auditoria, 1.5 · Recomendação para próximo sprint, 1 · Engenharia Reversa das Últimas 6 Jogadas, 2 · Auditoria Item-a-Item · Plano `plano_implentacao_pos_sessao_24_05.md` (+15 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.09
-Nodes (23): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+15 more)
+Cohesion: 0.12
+Nodes (16): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+8 more)
 
 ### Community 61 - "Community 61"
 Cohesion: 0.07
@@ -510,8 +511,8 @@ Cohesion: 0.17
 Nodes (12): 0. Sumário executivo, code:block1 (Semana 1: S-B (2d) + S-A (1d) + S-G em paralelo (0,5d)), I.1 Pontos verificados live e CONFIRMADOS, I.2 Achados NOVOS desta auditoria, II.1 Riscos identificados nos próprios sprints, II.2 Reordenação aplicada após auto-crítica, PARTE I — Auditoria do `organizacao_de_arquivos.md`, PARTE II — Auditoria do Sprint Plan (auto-crítica) (+4 more)
 
 ### Community 89 - "Community 89"
-Cohesion: 0.25
-Nodes (8): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────), code:block3 (Sem1     Sem2     Sem3     Sem4     Sem5     Sem6), 📜 DIRETIVAS INEGOCIÁVEIS DO PROJETO, 🎯 FINAL — Refatoração Proposta Roleta Cloud v5.0, Visão consolidada (Gantt textual)
+Cohesion: 0.15
+Nodes (13): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────) (+5 more)
 
 ### Community 90 - "Community 90"
 Cohesion: 0.25
@@ -678,8 +679,8 @@ Cohesion: 0.29
 Nodes (5): Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off
 
 ### Community 132 - "Community 132"
-Cohesion: 0.40
-Nodes (5): 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), code:block2 (DIREÇÃO)
+Cohesion: 0.29
+Nodes (7): 8. Checklist de execução (ordem cronológica exata), Semana 1 — Fase 0, Semana 2 — Fase 1, Semana 3-4 — Fase 2 (shadow começa), Semana 5 — Fase 3 (shadow contínuo), Semana 6 — Fase 3.4 + Fase 4, Semana 7+ — Fase 5 (opcional, sob aprovação separada)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.29
@@ -748,7 +749,7 @@ Nodes (37): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica —
 ## Knowledge Gaps
 - **952 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+947 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -756,9 +757,9 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Why does `MessageHandler` connect `Community 7` to `Community 156`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
+- **Why does `MessageHandler` connect `Community 7` to `Community 156`?**
+  _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
   _1124 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**
