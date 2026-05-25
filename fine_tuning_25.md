@@ -246,7 +246,23 @@ Implementação completa fica fora do escopo desta sessão (sprint dedicado em `
 - AlertManager up + endpoint `/api/alerts/sink` registrado.
 - 183 testes passando.
 
-### Próximos passos sugeridos (priorizados)
+### Sprints concluídos (24/11 noite)
+
+- ✅ OBS-25-01 — patch outbox `spin_features` (commit `a5739b4`)
+- ✅ GALE-25-04 — `applied_gale_level` (commit `a5739b4`)
+- ✅ S-STRAT-13.1 — auto-promote opt-in (commit `58b4e36`)
+- ✅ S-OBS-15 — dashboard Grafana shadow grid (commit `58b4e36`)
+- ✅ S-STRAT-11 — CONFIRMADO já implementado em `bet_advisor.py` (thresholds dinâmicos por volatilidade EMA)
+- ✅ S-STRAT-14 — bandit ε-greedy entre shifts do shadow grid (commit `4bff786`, deployed)
+  - `_update_bandit_on_spin` em `state/game.py`: arms 1/3/5/10 alimentados por hit do head cw+ccw
+  - ε cold-start 1.0 → 0.10 quando min(arm.n) ≥ 10
+  - `recommended_shift` arg-max(mean) com prob 1-ε
+  - Métricas: `roleta_bandit_{epsilon,recommended_shift,arm_n,arm_mean,total_pulls}`
+  - Exposto em `/api/strategy.bandit`
+  - 194 testes passing (era 190)
+
+## Próximos passos
+ sugeridos (priorizados)
 1. **OBS-25-01** — ✅ **IMPLEMENTADO** (commit `a5739b4`): payload `spin_features.meta` agora inclui `spin_number`, `centro_previsto`, `applied_gale_level`; novo evento `spin_result` publicado pelo `maybe_publish_spin_result` após `db_service.update_result`, com `hit` e `actual_number`. Validado live: PG mostra `spin_features=3, spin_result=1` na janela 04:44 UTC. Backtest offline (S-STRAT-9) desbloqueado.
 2. Re-rodar engenharia reversa em janela ≥1 h após restart para coletar ≥60 spins e popular EMA real.
 3. **GALE-25-04** — ✅ **IMPLEMENTADO** (mesmo commit): meta espelha `applied_gale_level` separado de `gale_level`.
