@@ -1158,3 +1158,20 @@ mem_reservation: 64m  # garante SLA mínimo
 - **S-CLEAN-2**: 7 dias sem warn (não acionado ainda)
 - **S-DASH-1**: HTML dashboard live consumindo /api/state + /api/strategy
 
+
+### Auditoria PÓS-implementação (10 min após deploy)
+
+Validação extra:
+
+| Verificação | Resultado |
+|---|---|
+| **mem_limit ativo** | 31 MiB / **512 MiB (6.05%)** ✅ |
+| **Healthcheck** | `Status=healthy, FailingStreak=0`, payload version=4.4.0 ✅ |
+| **state.json untracked** | confirm: `git ls-files state.json` = 0 ✅ |
+| **Outbox PG** | 242 processed, 0 pending, 13s lag desde último ✅ |
+| **Decisions live** | ids 3937-3941 (5 novos pós-deploy, todos APOSTAR, G1-G3 ativo) |
+| **Sistema reagindo a perdas** | `martingale.cw.level=3` + `drift_freeze.ccw=3` ATIVOS — Martingale escalou para G3 + freeze CCW por 3 spins (comportamento ESPERADO de proteção) ✅ |
+| **Erros pós-deploy** | 0 ERROR / 0 Traceback / 0 OOM |
+
+**🟢 Nenhum bug novo detectado pós-implementação. Sistema robusto.**
+
