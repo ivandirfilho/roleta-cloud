@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 34 files · ~56,494 words
+- 34 files · ~56,527 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1809 nodes · 1913 edges · 163 communities (146 shown, 17 thin omitted)
+- 1809 nodes · 1913 edges · 165 communities (145 shown, 20 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7adc0d2a`
+- Built from commit: `9153e1f6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -171,6 +171,8 @@
 - [[_COMMUNITY_Community 160|Community 160]]
 - [[_COMMUNITY_Community 161|Community 161]]
 - [[_COMMUNITY_Community 162|Community 162]]
+- [[_COMMUNITY_Community 163|Community 163]]
+- [[_COMMUNITY_Community 164|Community 164]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `SDA17Strategy` - 30 edges
@@ -188,7 +190,7 @@
 - `main()` --calls--> `start_server()`  [EXTRACTED]
   main.py → server/websocket.py
 
-## Communities (163 total, 17 thin omitted)
+## Communities (165 total, 20 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.18
@@ -255,8 +257,8 @@ Cohesion: 0.12
 Nodes (17): 4.1.1 Mudanças nas Constantes (linhas 24-32), 4.1.2 Novo Método: `_get_adaptive_offset(direction)`, 4.1.3 Novo Método: `update_adaptive(direction, c1, actual_result)`, 4.1.4 Mudanças no `analyze()` (linhas 117-175), 4.1.5 Atualização do `details` no Retorno, 4.1.6 Métodos a REMOVER, 4.1.7 Novo Método: Serialização do Estado Adaptativo, 4.1.8 Atualização da Assinatura de `analyze()` (+9 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.14
-Nodes (6): M05_AdaptiveEWMA, M10_MAD_Robust, M12_PercentileBand, EWMA com alpha adaptativo: erro maior → alpha maior → resposta mais rápida., MAD (Median Absolute Deviation) para identificar outliers e ajustar só com dados, Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
+Cohesion: 0.23
+Nodes (4): circ_dir(), M12_PercentileBand, Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Mantém offset entre 25º e 75º percentil dos oracle offsets recentes.
 
 ### Community 17 - "Community 17"
 Cohesion: 0.26
@@ -266,13 +268,9 @@ Nodes (9): circ_dist(), clamp(), coverage_set(), error_pct(), M11_BayesianPoster
 Cohesion: 0.18
 Nodes (11): 5.1 Adequação Funcional (Functional Suitability), 5.2 Confiabilidade (Reliability), 5.3 Manutenibilidade (Maintainability), 5.4 Eficiência de Desempenho (Performance Efficiency), 5.5 Compatibilidade (Compatibility), 5.6 Usabilidade (Usability), 5.7 Segurança (Security), 5.8 Portabilidade (Portability) (+3 more)
 
-### Community 19 - "Community 19"
-Cohesion: 0.20
-Nodes (6): circ_dir(), M01_PercentualLinear, M03_PercentualThreshold, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Returns +1 if result is CW from c1, -1 if CCW, 0 if same., Ajuste linear baseado em % do erro. Hit: tighten 5% para center=10. Miss: mover
-
 ### Community 20 - "Community 20"
-Cohesion: 0.18
-Nodes (7): BaseModel, M08_DampedPID, M15_EnsembleVote, PID com anti-windup e filtro derivativo para prevenir oscilação., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec, Classe base para todos os modelos., Chamado após cada jogada com feedback.
+Cohesion: 0.17
+Nodes (7): BaseModel, M03_PercentualThreshold, M14_GradientDescent, Só ajusta se erro > 7 posições (ignora misses pequenos como ruído)., Gradiente numérico: testa off±1 contra últimas 3 jogadas, step na direção do gra, Classe base para todos os modelos., Chamado após cada jogada com feedback.
 
 ### Community 21 - "Community 21"
 Cohesion: 0.20
@@ -287,8 +285,8 @@ Cohesion: 0.20
 Nodes (10): 6.1 Checklist de Validação Local (conforme `deployci_cd.md` §2), 6.2 Arquivos Modificados (para commit), 6.3 Commit Sugerido, 6.4 Migração de Dados, 6.5 Rollback Plan, code:block16 (core/engine.py           +11 linhas  (BUG-TASK-001)), code:block17 (fix(v4.0.3): correções auditoria Bayesiana — 9 bugs), code:block18 (Migração automática no startup:) (+2 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.27
-Nodes (4): M04_EMA_ErrorTracking, M09_Kalman, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo.
+Cohesion: 0.21
+Nodes (6): M04_EMA_ErrorTracking, M09_Kalman, M15_EnsembleVote, EMA de erros direcionais com alpha=0.3, converte em ajuste de offset., Filtro de Kalman 1D para estimação de offset ótimo., Média ponderada dos 3 melhores sub-modelos (M01,M04,M09), pesos por accuracy rec
 
 ### Community 25 - "Community 25"
 Cohesion: 0.22
@@ -749,7 +747,7 @@ Nodes (37): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica —
 ## Knowledge Gaps
 - **952 isolated node(s):** `pause_app.sh script`, `setup_server.sh script`, `walg-backup-daily.sh script`, `walg-enable-30min.sh script`, `walg-restore-drill.sh script` (+947 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

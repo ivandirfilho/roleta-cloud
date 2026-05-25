@@ -832,7 +832,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L20",
       "id": "sim_temp_sim_15_models_circ_dir",
-      "community": 19,
+      "community": 16,
       "norm_label": "circ_dir()"
     },
     {
@@ -895,7 +895,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L64",
       "id": "sim_temp_sim_15_models_basemodel_get_offsets",
-      "community": 19,
+      "community": 16,
       "norm_label": ".get_offsets()"
     },
     {
@@ -913,7 +913,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L71",
       "id": "sim_temp_sim_15_models_basemodel_error_info",
-      "community": 19,
+      "community": 16,
       "norm_label": "._error_info()"
     },
     {
@@ -967,7 +967,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L121",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold",
-      "community": 19,
+      "community": 20,
       "norm_label": "m03_percentualthreshold"
     },
     {
@@ -976,7 +976,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L124",
       "id": "sim_temp_sim_15_models_m03_percentualthreshold_update",
-      "community": 19,
+      "community": 20,
       "norm_label": ".update()"
     },
     {
@@ -1012,7 +1012,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L165",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma",
-      "community": 16,
+      "community": 45,
       "norm_label": "m05_adaptiveewma"
     },
     {
@@ -1021,7 +1021,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L168",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_init",
-      "community": 16,
+      "community": 45,
       "norm_label": ".__init__()"
     },
     {
@@ -1039,7 +1039,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L192",
       "id": "sim_temp_sim_15_models_m05_adaptiveewma_find_oracle",
-      "community": 16,
+      "community": 45,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1102,7 +1102,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L269",
       "id": "sim_temp_sim_15_models_m08_dampedpid",
-      "community": 20,
+      "community": 163,
       "norm_label": "m08_dampedpid"
     },
     {
@@ -1111,7 +1111,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L272",
       "id": "sim_temp_sim_15_models_m08_dampedpid_init",
-      "community": 20,
+      "community": 163,
       "norm_label": ".__init__()"
     },
     {
@@ -1120,7 +1120,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L281",
       "id": "sim_temp_sim_15_models_m08_dampedpid_update",
-      "community": 20,
+      "community": 163,
       "norm_label": ".update()"
     },
     {
@@ -1165,7 +1165,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L357",
       "id": "sim_temp_sim_15_models_m10_mad_robust",
-      "community": 16,
+      "community": 164,
       "norm_label": "m10_mad_robust"
     },
     {
@@ -1174,7 +1174,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L360",
       "id": "sim_temp_sim_15_models_m10_mad_robust_init",
-      "community": 16,
+      "community": 164,
       "norm_label": ".__init__()"
     },
     {
@@ -1192,7 +1192,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L396",
       "id": "sim_temp_sim_15_models_m10_mad_robust_find_oracle",
-      "community": 16,
+      "community": 164,
       "norm_label": "._find_oracle()"
     },
     {
@@ -1291,7 +1291,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L514",
       "id": "sim_temp_sim_15_models_m14_gradientdescent",
-      "community": 45,
+      "community": 20,
       "norm_label": "m14_gradientdescent"
     },
     {
@@ -1300,7 +1300,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L517",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_init",
-      "community": 45,
+      "community": 20,
       "norm_label": ".__init__()"
     },
     {
@@ -1309,7 +1309,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L522",
       "id": "sim_temp_sim_15_models_m14_gradientdescent_update",
-      "community": 45,
+      "community": 20,
       "norm_label": ".update()"
     },
     {
@@ -1318,7 +1318,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L552",
       "id": "sim_temp_sim_15_models_m15_ensemblevote",
-      "community": 20,
+      "community": 24,
       "norm_label": "m15_ensemblevote"
     },
     {
@@ -1336,7 +1336,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L561",
       "id": "sim_temp_sim_15_models_m15_ensemblevote_update",
-      "community": 19,
+      "community": 16,
       "norm_label": ".update()"
     },
     {
@@ -1354,7 +1354,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L21",
       "id": "sim_temp_sim_15_models_rationale_21",
-      "community": 19,
+      "community": 16,
       "norm_label": "returns +1 if result is cw from c1, -1 if ccw, 0 if same."
     },
     {
@@ -1408,7 +1408,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L122",
       "id": "sim_temp_sim_15_models_rationale_122",
-      "community": 19,
+      "community": 20,
       "norm_label": "so ajusta se erro > 7 posicoes (ignora misses pequenos como ruido)."
     },
     {
@@ -1426,7 +1426,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L166",
       "id": "sim_temp_sim_15_models_rationale_166",
-      "community": 16,
+      "community": 45,
       "norm_label": "ewma com alpha adaptativo: erro maior \u2192 alpha maior \u2192 resposta mais rapida."
     },
     {
@@ -1453,7 +1453,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L270",
       "id": "sim_temp_sim_15_models_rationale_270",
-      "community": 20,
+      "community": 163,
       "norm_label": "pid com anti-windup e filtro derivativo para prevenir oscilacao."
     },
     {
@@ -1471,7 +1471,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L358",
       "id": "sim_temp_sim_15_models_rationale_358",
-      "community": 16,
+      "community": 164,
       "norm_label": "mad (median absolute deviation) para identificar outliers e ajustar so com dados"
     },
     {
@@ -1507,7 +1507,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L515",
       "id": "sim_temp_sim_15_models_rationale_515",
-      "community": 45,
+      "community": 20,
       "norm_label": "gradiente numerico: testa off\u00b11 contra ultimas 3 jogadas, step na direcao do gra"
     },
     {
@@ -1516,7 +1516,7 @@
       "source_file": "scripts/sim_temp/sim_15_models.py",
       "source_location": "L553",
       "id": "sim_temp_sim_15_models_rationale_553",
-      "community": 20,
+      "community": 24,
       "norm_label": "media ponderada dos 3 melhores sub-modelos (m01,m04,m09), pesos por accuracy rec"
     },
     {
@@ -2801,7 +2801,7 @@
       "label": "Pr\u00f3ximos passos",
       "file_type": "document",
       "source_file": "fine_tuning_25.md",
-      "source_location": "L266",
+      "source_location": "L267",
       "id": "roleta_cloud_fine_tuning_25_pr\u00f3ximos_passos",
       "community": 161,
       "norm_label": "proximos passos"
@@ -16576,9 +16576,9 @@
       "source_file": "migrations/versions/0006_spin_features.py",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "migrations_versions_0006_spin_features_py",
-      "target": "versions_0006_spin_features_spin_features_ddl",
-      "confidence_score": 1.0
+      "target": "versions_0006_spin_features_spin_features_ddl"
     },
     {
       "relation": "contains",
@@ -16586,9 +16586,9 @@
       "source_file": "migrations/versions/0006_spin_features.py",
       "source_location": "L52",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "migrations_versions_0006_spin_features_py",
-      "target": "versions_0006_spin_features_upgrade",
-      "confidence_score": 1.0
+      "target": "versions_0006_spin_features_upgrade"
     },
     {
       "relation": "contains",
@@ -16596,9 +16596,9 @@
       "source_file": "migrations/versions/0006_spin_features.py",
       "source_location": "L57",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "migrations_versions_0006_spin_features_py",
-      "target": "versions_0006_spin_features_downgrade",
-      "confidence_score": 1.0
+      "target": "versions_0006_spin_features_downgrade"
     },
     {
       "relation": "calls",
@@ -16607,9 +16607,9 @@
       "source_file": "migrations/versions/0006_spin_features.py",
       "source_location": "L53",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "versions_0006_spin_features_upgrade",
-      "target": "versions_0006_spin_features_spin_features_ddl",
-      "confidence_score": 1.0
+      "target": "versions_0006_spin_features_spin_features_ddl"
     },
     {
       "relation": "contains",
@@ -35588,5 +35588,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7adc0d2ac9db6f46f8cc6e633bb2009b26a758bb"
+  "built_at_commit": "9153e1f60692f401050df7e5cf83aa15bb9a06db"
 }
