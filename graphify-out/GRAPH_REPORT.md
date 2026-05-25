@@ -1,16 +1,16 @@
 # Graph Report - Roleta Cloud  (2026-05-25)
 
 ## Corpus Check
-- 32 files · ~53,911 words
+- 32 files · ~53,957 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1757 nodes · 1859 edges · 161 communities (145 shown, 16 thin omitted)
+- 1760 nodes · 1864 edges · 161 communities (145 shown, 16 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `cd8c28bd`
+- Built from commit: `1b09372a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -593,7 +593,7 @@ Cohesion: 0.33
 Nodes (6): code:python (# __init__:), Implementação (~30 LoC), Métrica de validação, O quê, QW-4 — Hot Center **Substitution** (não pula, troca) ⭐⭐⭐, Risco
 
 ### Community 110 - "Community 110"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (8): code:block6 (HOJE (Dia 0+):  S-H (regressão) ← obrigatório antes de qualq), 🔬 VERSÃO 4 — Auditoria de tudo que foi feito + auditoria das propostas (24/05 20:35 BRT), XX. DAG de execução v4, XXII.1 ✅ S-M0 (observability stack), XXII.2 ✅ S-I (LISTEN/NOTIFY aditivo), XXII.3 Pendente (próxima sessão), XXII.4 Bonus: bugs latentes corrigidos colateralmente, XXII. Execução v4.1 — S-M0 + S-I em produção
 
 ### Community 111 - "Community 111"
@@ -681,7 +681,7 @@ Cohesion: 0.29
 Nodes (7): 8. Checklist de execução (ordem cronológica exata), Semana 1 — Fase 0, Semana 2 — Fase 1, Semana 3-4 — Fase 2 (shadow começa), Semana 5 — Fase 3 (shadow contínuo), Semana 6 — Fase 3.4 + Fase 4, Semana 7+ — Fase 5 (opcional, sob aprovação separada)
 
 ### Community 133 - "Community 133"
-Cohesion: 0.29
+Cohesion: 0.33
 Nodes (6): code:block5 ([B-7 RESOLVIDO] → guideline), 🔍 VERSÃO 3 — Auditoria do v2 + execução (24/05 20:25 BRT), XIII. Bugs/incoerencias do PRÓPRIO v2 (auto-audit), XIV. Melhorias estruturais propostas, XV. Snapshot live v3 (20:25 BRT, janela 30min real), XVI. Cronograma v3 único (dependência DAG)
 
 ### Community 134 - "Community 134"
@@ -734,7 +734,7 @@ Nodes (6): Dia 1 (manhã, 4h) — base infraestrutural, Dia 1 (tarde, 4h) — qu
 
 ### Community 156 - "Community 156"
 Cohesion: 0.06
-Nodes (30): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., broadcast_heartbeat(), get_ssl_context() (+22 more)
+Nodes (32): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal., broadcast_heartbeat(), get_ssl_context() (+24 more)
 
 ### Community 159 - "Community 159"
 Cohesion: 0.29
@@ -749,11 +749,11 @@ Nodes (6): Aplica força ao número, retorna número resultado., Aplica força a
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SDA17Strategy` connect `Community 65` to `Community 160`, `Community 130`, `Community 101`, `Community 138`, `Community 10`, `Community 142`, `Community 143`, `Community 116`, `Community 87`, `Community 156`, `Community 159`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+- **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
+  _High betweenness centrality (0.005) - this node is a cross-community bridge._
 - **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 21` to `Community 34`, `Community 4`, `Community 39`, `Community 40`, `Community 13`, `Community 22`, `Community 30`, `Community 25`, `Community 95`, `Community 31`?**
   _High betweenness centrality (0.005) - this node is a cross-community bridge._
-- **Why does `📨 Solicitação de Provisionamento — Estrutura Azure + VM substituta para Roleta Cloud v5.0` connect `Community 69` to `Community 129`, `Community 100`, `Community 76`, `Community 81`, `Community 115`, `Community 86`, `Community 126`?**
-  _High betweenness centrality (0.004) - this node is a cross-community bridge._
 - **What connects `Handler para shutdown graceful.`, `Ponto de entrada principal.`, `S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar` to the rest of the system?**
   _1091 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 1` be split into smaller, more focused modules?**

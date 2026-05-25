@@ -1727,10 +1727,19 @@
       "norm_label": "_batch_tune_snapshot()"
     },
     {
+      "label": "_shadow_snapshot()",
+      "file_type": "code",
+      "source_file": "server/websocket.py",
+      "source_location": "L126",
+      "id": "server_websocket_shadow_snapshot",
+      "community": 156,
+      "norm_label": "_shadow_snapshot()"
+    },
+    {
       "label": "_state_snapshot()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L128",
+      "source_location": "L146",
       "id": "server_websocket_state_snapshot",
       "community": 156,
       "norm_label": "_state_snapshot()"
@@ -1739,7 +1748,7 @@
       "label": "broadcast_heartbeat()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L168",
+      "source_location": "L186",
       "id": "server_websocket_broadcast_heartbeat",
       "community": 156,
       "norm_label": "broadcast_heartbeat()"
@@ -1748,7 +1757,7 @@
       "label": "handler()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L219",
+      "source_location": "L237",
       "id": "server_websocket_handler",
       "community": 156,
       "norm_label": "handler()"
@@ -1757,7 +1766,7 @@
       "label": "get_ssl_context()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L251",
+      "source_location": "L269",
       "id": "server_websocket_get_ssl_context",
       "community": 156,
       "norm_label": "get_ssl_context()"
@@ -1766,7 +1775,7 @@
       "label": "start_server()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L269",
+      "source_location": "L287",
       "id": "server_websocket_start_server",
       "community": 156,
       "norm_label": "start_server()"
@@ -1775,8 +1784,8 @@
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L169",
-      "id": "server_websocket_rationale_169",
+      "source_location": "L187",
+      "id": "server_websocket_rationale_187",
       "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo."
     },
@@ -1784,8 +1793,8 @@
       "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L220",
-      "id": "server_websocket_rationale_220",
+      "source_location": "L238",
+      "id": "server_websocket_rationale_238",
       "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -"
     },
@@ -1793,8 +1802,8 @@
       "label": "Cria contexto SSL se habilitado.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L252",
-      "id": "server_websocket_rationale_252",
+      "source_location": "L270",
+      "id": "server_websocket_rationale_270",
       "community": 156,
       "norm_label": "cria contexto ssl se habilitado."
     },
@@ -1802,8 +1811,8 @@
       "label": "Inicia o servidor WebSocket.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L270",
-      "id": "server_websocket_rationale_270",
+      "source_location": "L288",
+      "id": "server_websocket_rationale_288",
       "community": 156,
       "norm_label": "inicia o servidor websocket."
     },
@@ -5017,7 +5026,7 @@
       "source_file": "sprints_evolucao_pos_24_05.md",
       "source_location": "L1",
       "id": "sprints_evolucao_pos_24_05_md",
-      "community": 133,
+      "community": 110,
       "norm_label": "sprints_evolucao_pos_24_05.md"
     },
     {
@@ -6101,6 +6110,33 @@
       "norm_label": "parte g \u00b7 resultado final (validado em prod)"
     },
     {
+      "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L169",
+      "community": 156,
+      "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
+      "id": "server_websocket_rationale_169"
+    },
+    {
+      "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L220",
+      "community": 156,
+      "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
+      "id": "server_websocket_rationale_220"
+    },
+    {
+      "label": "Cria contexto SSL se habilitado.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L252",
+      "community": 156,
+      "norm_label": "cria contexto ssl se habilitado.",
+      "id": "server_websocket_rationale_252"
+    },
+    {
       "label": "Atualiza estado adaptativo ap\u00f3s resultado conhecido.         v4.3: Atualiza his",
       "file_type": "rationale",
       "source_file": "strategies/sda17.py",
@@ -6459,15 +6495,6 @@
       "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
       "id": "server_websocket_rationale_155"
-    },
-    {
-      "label": "Cria contexto SSL se habilitado.",
-      "file_type": "rationale",
-      "source_file": "server/websocket.py",
-      "source_location": "L187",
-      "community": 156,
-      "norm_label": "cria contexto ssl se habilitado.",
-      "id": "server_websocket_rationale_187"
     },
     {
       "label": "Inicia o servidor WebSocket.",
@@ -18951,6 +18978,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
+      "source_location": "L126",
+      "weight": 1.0,
+      "source": "server_websocket_py",
+      "target": "server_websocket_shadow_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
       "source_location": "L109",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19034,6 +19071,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
+      "source_location": "L187",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_187",
+      "target": "server_websocket_broadcast_heartbeat",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
       "source_location": "L169",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19079,6 +19126,16 @@
       "confidence_score": 1.0,
       "source": "server_websocket_rationale_44",
       "target": "server_websocket_broadcast_heartbeat"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L238",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_238",
+      "target": "server_websocket_handler",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -19145,6 +19202,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
+      "source_location": "L270",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_270",
+      "target": "server_websocket_get_ssl_context",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
       "source_location": "L252",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -19195,11 +19262,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L270",
+      "source_location": "L288",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "server_websocket_rationale_270",
-      "target": "server_websocket_start_server"
+      "source": "server_websocket_rationale_288",
+      "target": "server_websocket_start_server",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -19210,6 +19277,16 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "server_init_py",
+      "target": "server_websocket_start_server"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L270",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_270",
       "target": "server_websocket_start_server"
     },
     {
@@ -20203,9 +20280,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L813",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_813",
-      "target": "strategies_sda17_sda17strategy_update_adaptive",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_update_adaptive"
     },
     {
       "relation": "rationale_for",
@@ -20263,9 +20340,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L852",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_852",
-      "target": "strategies_sda17_sda17strategy_get_adaptive_state",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20323,9 +20400,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L881",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_881",
-      "target": "strategies_sda17_sda17strategy_load_adaptive_state",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_load_adaptive_state"
     },
     {
       "relation": "rationale_for",
@@ -20383,9 +20460,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L1001",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_1001",
-      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_get_batch_tune_snapshot"
     },
     {
       "relation": "rationale_for",
@@ -20413,9 +20490,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L1017",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_1017",
-      "target": "strategies_sda17_sda17strategy_circ_dist",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_circ_dist"
     },
     {
       "relation": "rationale_for",
@@ -20473,9 +20550,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L1029",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_1029",
-      "target": "strategies_sda17_sda17strategy_wheel_index",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_wheel_index"
     },
     {
       "relation": "rationale_for",
@@ -20533,9 +20610,9 @@
       "source_file": "strategies/sda17.py",
       "source_location": "L1044",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "strategies_sda17_rationale_1044",
-      "target": "strategies_sda17_sda17strategy_apply_force",
-      "confidence_score": 1.0
+      "target": "strategies_sda17_sda17strategy_apply_force"
     },
     {
       "relation": "rationale_for",
@@ -34579,5 +34656,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "cd8c28bd0c865ba78bc4f47429d41a05e49436af"
+  "built_at_commit": "1b09372a94777d2bb7370f6d7c4e5bfe50c4b1c4"
 }

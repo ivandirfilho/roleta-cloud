@@ -366,12 +366,19 @@ class GameState:
             sda_score: Score do SDA (para tracking)
             sda_centers: Lista de centros [C1, C2, C3] — SDA-21
         """
-        # S-STRAT-10 MVP — Shadow challenger random (17/37 = baseline acc 0.459).
-        # Se incumbent não bater random + 4pp, há problema estrutural na estratégia.
-        import random as _random
+        # S-STRAT-10 v2 — Shadow challenger PARAMÉTRICO: mesmos N números do
+        # incumbent mas ROTACIONADOS +5 posições no wheel europeu. Testa
+        # hipótese: "estratégia está off-by-5 no centro?" Se shadow bate mais,
+        # ajustar sigmoid_off; se incumbent bate mais, calibração está OK.
         try:
             wheel = list(roulette.WHEEL_SEQUENCE)
-            shadow_numbers = _random.sample(wheel, min(len(numbers), len(wheel)))
+            wheel_size = len(wheel)
+            shift = 5
+            idx_map = {n: i for i, n in enumerate(wheel)}
+            shadow_numbers = [
+                wheel[(idx_map[n] + shift) % wheel_size]
+                for n in numbers if n in idx_map
+            ]
         except Exception:
             shadow_numbers = []
 
@@ -389,7 +396,7 @@ class GameState:
         }
     
     def get_shadow_stats(self) -> Dict[str, Any]:
-        """S-STRAT-10 MVP — snapshot shadow vs incumbent para /api/shadow."""
+        """S-STRAT-10 v2 — snapshot shadow paramétrico (wheel rotation +5) vs incumbent."""
         def stats(perf_deq) -> Dict[str, Any]:
             n = len(perf_deq)
             hits = sum(1 for x in perf_deq if x)
@@ -397,10 +404,10 @@ class GameState:
 
         sd_cw = stats(self.shadow_hits_cw)
         sd_ccw = stats(self.shadow_hits_ccw)
-        # Incumbent: usa sda17 perf (mesma base de Triple Rate).
         inc_cw = stats(self.performance_sda17_cw)
         inc_ccw = stats(self.performance_sda17_ccw)
         return {
+            "design": "wheel_rotation_+5",
             "shadow": {"cw": sd_cw, "ccw": sd_ccw},
             "incumbent": {"cw": inc_cw, "ccw": inc_ccw},
             "edge_pp": {
@@ -408,6 +415,12 @@ class GameState:
                 "ccw": round((inc_ccw["acc"] - sd_ccw["acc"]) * 100, 1),
             },
             "baseline_random": 17.0 / 37.0,
+            "alert": (
+                "shadow_beating_incumbent"
+                if (sd_cw["acc"] > inc_cw["acc"] and sd_cw["n"] >= 30)
+                or (sd_ccw["acc"] > inc_ccw["acc"] and sd_ccw["n"] >= 30)
+                else "ok"
+            ),
         }
 
     def get_performance_stats(self) -> Dict[str, Any]:
