@@ -17,6 +17,10 @@ import os
 import sys
 from pathlib import Path
 
+# Garante que /app (raiz do repo) está no sys.path quando rodado como
+# `python scripts/train_autoencoder.py` — senão `models.spin_encoder` falha.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("train_autoencoder")
 
