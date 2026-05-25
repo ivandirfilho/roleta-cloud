@@ -594,3 +594,46 @@ Análise via `pg_stat_statements` + `pg_stat_user_tables`:
 
 **Estado atual do sistema**: VERDE 🟢 — todas auditorias da noite executadas e validadas em produção.
 
+
+---
+
+## §S-STRAT-10 v2 + §S-OBS-13 (2026-05-25 00:33)
+
+### S-STRAT-10 v2 — Shadow paramétrico (wheel rotation +5)
+**Mudança vs MVP**: substituído `random.sample` por **rotação determinística +5 posições no wheel europeu**. 
+**Hipótese testada**: estratégia incumbent está sintonizada corretamente OU está off-by-N no centro? Se shadow_acc > incumbent_acc por >30 spins, alerta dispara.
+
+**Schema atualizado**:
+`json
+{
+  "design": "wheel_rotation_+5",
+  "shadow": {"cw": {...}, "ccw": {...}},
+  "incumbent": {...},
+  "edge_pp": {"cw": ..., "ccw": ...},
+  "baseline_random": 0.4595,
+  "alert": "ok" | "shadow_beating_incumbent"
+}
+`
+
+**Live pós-deploy**: shadow.cw n=0 (rampup), incumbent já com n=12 (carry persistido). Buffer enche em ~100 spins.
+
+### S-OBS-13 — Grafana dashboard expandido
+**8 painéis novos** em `obs/grafana/dashboards/roleta-overview.json`:
+| ID | Painel | Métrica |
+|----|--------|---------|
+| 30 | Batch tune pullbacks | `roleta_batch_tune_pullback_{cw,ccw}_total` |
+| 31 | Batch tune last delta | `roleta_batch_tune_last_delta_{cw,ccw}` |
+| 32 | KILL v4 thresholds c4 | `roleta_kill_threshold_c4_{cw,ccw}` |
+| 33 | KILL v4 thresholds sda | `roleta_kill_threshold_sda_{cw,ccw}` |
+| 34-37 | Runs + Pending stat panels | `roleta_batch_tune_{runs,pending}_*` |
+
+**Validação live**: `curl :3000/api/health` → ok. Dashboard `roleta-overview.json` carregado em `/var/lib/grafana/dashboards/`. Auto-reload via provisioning.
+
+**Commit**: `37429aa`
+
+### Próximas janelas sugeridas
+- **S-OBS-14**: AlertManager rules para `shadow_beating_incumbent` + `KILL pulls > 30/h`.
+- **S-STRAT-13**: shadow grid — testar rotações {+1, +3, +5, +10} simultâneas em deques separados (4 challengers).
+- **S-STRAT-8**: feature store PG (continua adiado).
+- **S-STRAT-12**: pgvector embeddings (continua adiado).
+
