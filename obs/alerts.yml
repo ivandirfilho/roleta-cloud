@@ -70,7 +70,7 @@ groups:
 
       # Volatilidade extrema sustentada — pode indicar dealer/mesa anômala.
       - alert: RoletaVolatilityExtreme
-        expr: (max(roleta_recent_acc_cw, roleta_recent_acc_ccw) > 0.65) or (min(roleta_recent_acc_cw, roleta_recent_acc_ccw) < 0.30)
+        expr: (roleta_recent_acc_cw > 0.65) or (roleta_recent_acc_ccw > 0.65) or (roleta_recent_acc_cw < 0.30) or (roleta_recent_acc_ccw < 0.30)
         for: 10m
         labels: { severity: info, component: strategy }
         annotations:
