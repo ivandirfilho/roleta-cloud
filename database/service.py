@@ -139,9 +139,19 @@ class DatabaseService:
         """Salva uma decisão."""
         return self.repository.save_decision(decision)
 
-    def update_result(self, decision_id: int, hit: bool, actual_number: int):
-        """Atualiza resultado de uma decisão."""
-        self.repository.update_result(decision_id, hit, actual_number)
+    def update_result(self, decision_id: int, hit: bool, actual_number: int,
+                       calibration_error: Optional[int] = None):
+        """Atualiza resultado de uma decisão.
+
+        B-10 (26/05): kwarg calibration_error agora é propagado para o
+        repository. Antes era engolido por TypeError silencioso, deixando
+        decisions.calibration_error 0/N filled mesmo após B-09 corrigir
+        o pending['centers'].
+        """
+        self.repository.update_result(
+            decision_id, hit, actual_number,
+            calibration_error=calibration_error,
+        )
 
     def update_session_stats(self, session_id: str):
         """Recalcula stats da sessão a partir das decisions."""

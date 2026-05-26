@@ -36,15 +36,18 @@ class DecisionRepository(ABC):
         pass
     
     @abstractmethod
-    def update_result(self, decision_id: int, hit: bool, actual_number: int) -> None:
+    def update_result(self, decision_id: int, hit: bool, actual_number: int,
+                       calibration_error: Optional[int] = None) -> None:
         """
         Atualiza o resultado de uma decisão.
         Chamado quando o próximo spin revela se acertamos.
-        
+
         Args:
             decision_id: ID da decisão
             hit: True se acertou, False se errou
             actual_number: Número que realmente saiu
+            calibration_error: distância (em casas da roda) entre centro
+                previsto e número real. None → coluna preservada.
         """
         pass
     
