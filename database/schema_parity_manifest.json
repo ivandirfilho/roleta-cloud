@@ -1,0 +1,35 @@
+{
+  "_doc": "SP-04 schema parity manifest. Atualize via `python tools/snapshot_sqlite_schema.py > database/schema_sqlite_snapshot.json` quando uma migracao SQLite for legitima. O teste tests/test_schema_parity.py compara o snapshot acima com o schema vivo do SQLiteDecisionRepository e valida a lista must_propagate_to_pg.",
+  "must_propagate_to_pg": {
+    "decisions": [
+      "spin_number",
+      "spin_direction",
+      "sda_score",
+      "sda_center",
+      "sda_centers",
+      "final_action",
+      "gale_level",
+      "result_hit",
+      "result_actual",
+      "calibration_error"
+    ]
+  },
+  "pg_target_table": {
+    "decisions": ["cw.spin_features", "ccw.spin_features"]
+  },
+  "sqlite_only_allowed": [
+    "performance_snapshot",
+    "calibration_offset",
+    "action_reason",
+    "tr_reason",
+    "tr_confidence"
+  ],
+  "pg_only_allowed": [
+    "last_20_hits",
+    "meta",
+    "recent_acc_10",
+    "recent_acc_50",
+    "streak_miss",
+    "streak_hit"
+  ]
+}

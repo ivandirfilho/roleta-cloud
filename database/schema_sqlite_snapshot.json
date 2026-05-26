@@ -1,0 +1,274 @@
+{
+  "decisions": [
+    {
+      "name": "action_reason",
+      "type": "TEXT"
+    },
+    {
+      "name": "calibration_error",
+      "type": "INTEGER"
+    },
+    {
+      "name": "calibration_offset",
+      "type": "INTEGER"
+    },
+    {
+      "name": "final_action",
+      "type": "TEXT"
+    },
+    {
+      "name": "gale_bet_value",
+      "type": "INTEGER"
+    },
+    {
+      "name": "gale_level",
+      "type": "INTEGER"
+    },
+    {
+      "name": "gale_window_count",
+      "type": "INTEGER"
+    },
+    {
+      "name": "gale_window_hits",
+      "type": "INTEGER"
+    },
+    {
+      "name": "id",
+      "type": "INTEGER"
+    },
+    {
+      "name": "performance_snapshot",
+      "type": "TEXT"
+    },
+    {
+      "name": "result_actual",
+      "type": "INTEGER"
+    },
+    {
+      "name": "result_hit",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "sda_center",
+      "type": "INTEGER"
+    },
+    {
+      "name": "sda_centers",
+      "type": "TEXT"
+    },
+    {
+      "name": "sda_numbers",
+      "type": "TEXT"
+    },
+    {
+      "name": "sda_offset",
+      "type": "INTEGER"
+    },
+    {
+      "name": "sda_offset_type",
+      "type": "TEXT"
+    },
+    {
+      "name": "sda_predicted_force",
+      "type": "INTEGER"
+    },
+    {
+      "name": "sda_score",
+      "type": "INTEGER"
+    },
+    {
+      "name": "sda_should_bet",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "session_id",
+      "type": "TEXT"
+    },
+    {
+      "name": "spin_direction",
+      "type": "TEXT"
+    },
+    {
+      "name": "spin_force",
+      "type": "INTEGER"
+    },
+    {
+      "name": "spin_number",
+      "type": "INTEGER"
+    },
+    {
+      "name": "timestamp",
+      "type": "DATETIME"
+    },
+    {
+      "name": "tr_c4_rate",
+      "type": "REAL"
+    },
+    {
+      "name": "tr_confidence",
+      "type": "TEXT"
+    },
+    {
+      "name": "tr_l12_rate",
+      "type": "REAL"
+    },
+    {
+      "name": "tr_m6_rate",
+      "type": "REAL"
+    },
+    {
+      "name": "tr_reason",
+      "type": "TEXT"
+    },
+    {
+      "name": "tr_should_bet",
+      "type": "BOOLEAN"
+    }
+  ],
+  "gale_windows": [
+    {
+      "name": "bet_rate_at_start",
+      "type": "REAL"
+    },
+    {
+      "name": "calibration_offset",
+      "type": "INTEGER"
+    },
+    {
+      "name": "direction",
+      "type": "TEXT"
+    },
+    {
+      "name": "ended_at",
+      "type": "DATETIME"
+    },
+    {
+      "name": "gale_level",
+      "type": "INTEGER"
+    },
+    {
+      "name": "id",
+      "type": "INTEGER"
+    },
+    {
+      "name": "next_level",
+      "type": "INTEGER"
+    },
+    {
+      "name": "result",
+      "type": "TEXT"
+    },
+    {
+      "name": "sda17_rate_at_start",
+      "type": "REAL"
+    },
+    {
+      "name": "started_at",
+      "type": "DATETIME"
+    },
+    {
+      "name": "total_hits",
+      "type": "INTEGER"
+    },
+    {
+      "name": "total_plays",
+      "type": "INTEGER"
+    }
+  ],
+  "sessions": [
+    {
+      "name": "end_time",
+      "type": "DATETIME"
+    },
+    {
+      "name": "id",
+      "type": "TEXT"
+    },
+    {
+      "name": "max_gale_reached",
+      "type": "INTEGER"
+    },
+    {
+      "name": "start_time",
+      "type": "DATETIME"
+    },
+    {
+      "name": "total_bets",
+      "type": "INTEGER"
+    },
+    {
+      "name": "total_hits",
+      "type": "INTEGER"
+    },
+    {
+      "name": "total_profit",
+      "type": "REAL"
+    },
+    {
+      "name": "total_resets",
+      "type": "INTEGER"
+    },
+    {
+      "name": "total_spins",
+      "type": "INTEGER"
+    },
+    {
+      "name": "total_stops",
+      "type": "INTEGER"
+    }
+  ],
+  "window_plays": [
+    {
+      "name": "actual_number",
+      "type": "INTEGER"
+    },
+    {
+      "name": "center_predicted",
+      "type": "INTEGER"
+    },
+    {
+      "name": "hit",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "id",
+      "type": "INTEGER"
+    },
+    {
+      "name": "play_number",
+      "type": "INTEGER"
+    },
+    {
+      "name": "sda_score",
+      "type": "INTEGER"
+    },
+    {
+      "name": "spin_direction",
+      "type": "TEXT"
+    },
+    {
+      "name": "spin_force",
+      "type": "INTEGER"
+    },
+    {
+      "name": "spin_number",
+      "type": "INTEGER"
+    },
+    {
+      "name": "timestamp",
+      "type": "DATETIME"
+    },
+    {
+      "name": "tr_confidence",
+      "type": "TEXT"
+    },
+    {
+      "name": "tr_reason",
+      "type": "TEXT"
+    },
+    {
+      "name": "window_id",
+      "type": "INTEGER"
+    }
+  ]
+}

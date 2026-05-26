@@ -687,3 +687,25 @@ Agora: 1) counter Prometheus alerta-vel por exc_type=TypeError; 2) em CI/dev STR
 ### Proximo: SP-04 (schema parity SQLite<->PG) — sem deps, manutenibilidade ISO.
 
 ---
+
+---
+
+## §25 — SP-04 ENTREGUE ✅
+
+**Objetivo:** detectar drift de schema SQLite vs PG antes que vire B-10.
+
+### Entregas
+- `database/schema_sqlite_snapshot.json` — snapshot vivo (274 linhas, 5 tabelas).
+- `database/schema_parity_manifest.json` — declaracao explicita de:
+  - `must_propagate_to_pg` — 10 colunas criticas de `decisions`
+  - `pg_target_table` — mapping para `cw/ccw.spin_features`
+  - `sqlite_only_allowed` / `pg_only_allowed` — whitelists conscientes
+- `tools/snapshot_sqlite_schema.py` — regenera snapshot apos migracao legitima.
+- `tests/test_schema_parity.py` — 5 testes (snapshot==live, manifest consistente, PG live se DSN).
+- CI: rodando via pytest no step existente.
+
+### Suite: 289 -> **293 passing** (+4, 1 skipped sem PG).
+
+### Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2.
+
+---
