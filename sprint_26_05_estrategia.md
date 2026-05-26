@@ -1157,3 +1157,55 @@ Counterfactual:
 **Suite:** 249 → **279 passing** (+30, zero regressões)
 **Pendente:** NEW-09 (bisect FeatureStore opt-in) — requer dados pós-fix; pode aguardar 24h de tráfego pós-mesa-retomada.
 
+
+## §22 — B-10 hotfix: DatabaseService.update_result kwarg engolido (26/05, ~21h28)
+
+### Sintoma
+Mesmo após B-09 (d6935b5) corrigir pending["centers"] em prod, query no DB
+mostrava `calibration_error` **0/349 NULL na ultima hora** (1184/1184 NULL em 24h).
+O log do container exibia `DISTÂNCIA: N casas` normalmente — ou seja, o
+cálculo era feito, mas algo no caminho até o DB silenciava.
+
+### Causa raiz
+`database/service.py:142` era um wrapper de 2 linhas que **não aceitava**
+o kwarg `calibration_error`. Quando `message_handler.py:388` chamava
+`db_service.update_result(..., calibration_error=_cal_err)`, Python
+levantava `TypeError: DatabaseService.update_result() got an unexpected
+keyword argument 'calibration_error'` — exception capturada pelo bloco
+`except Exception as db_error` em `message_handler.py:466` e logada
+como erro genérico de DB, mas o resultado original ainda era considerado
+"persistido" pelo restante do fluxo.
+
+Confirmado em logs de prod:
+
+`
+[error] ❌ Erro ao salvar decisão no DB: DatabaseService.update_result()
+got an unexpected keyword argument 'calibration_error' (session=b960c69a)
+`
+
+### Fix (commit `cf3570d`)
+- `database/service.py:142` — kwarg `calibration_error: Optional[int] = None`
+  propagado para `self.repository.update_result(...)`.
+- `database/repository.py:39` — interface abstrata atualizada para refletir
+  o contrato real do SQLite repo.
+- `tests/test_b10_service_kwarg.py` — 3 testes: assinatura (inspect),
+  propagação de valor, `None` preserva coluna.
+
+### Validação live
+Mesa retomada às 21:28. Primeira decisão pós-deploy:
+
+`
+2026-05-26T21:28:04.823 | APOSTAR | hit=1 | calibration_error=0
+`
+
+grep "unexpected keyword argument" em logs dos últimos 2min: **0 ocorrências**.
+
+### Suite
+279 → **282 passing** (+3, zero regressão).
+
+### Lição
+B-09 (chave `"centers"`) e B-10 (kwarg engolido) são bugs do mesmo
+"caminho silencioso": cálculo correto + persistência quebrada + log
+de erro genérico camuflado. **NEW-12** (alerta fill-rate <80%) é
+exatamente o sentinel que deveria ter pegado isso — agora cobrindo
+ambos. Se o fill-rate cair a zero de novo, alarme dispara em 15min.
