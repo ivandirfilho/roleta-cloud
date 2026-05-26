@@ -1034,3 +1034,64 @@ Commit `d6935b5` deployed em produção (187.45.181.75) às 20:51 UTC; container
 ### Lição aprendida (ISO 5.2 Disponibilidade)
 Bugs silenciosos pós-deploy só foram visíveis porque investigamos diretamente o DB de produção. **Recomendado** criar alerta Prometheus: `rate(decisions.calibration_error filled / decisions.result_actual filled) < 0.8 by 1h` → page. Adicionado à lista NEW-12.
 
+
+
+---
+
+## §19. NEW-12 ✅ DONE — Alerta Prometheus calibration_error fill-rate (ISO 5.2 Disponibilidade)
+
+**Lição direta de B-09:** o bug ficou invisível por horas porque não havia alarme apontando que a coluna `calibration_error` parou de receber dados. Esta sprint elimina a classe inteira de bugs silenciosos pós-deploy nessa pipeline.
+
+### Implementação
+
+**Métricas novas (server/health_server.py):**
+- `roleta_decisions_with_result_1h` — total APOSTAR com result_actual em 1h
+- `roleta_decisions_calibration_filled_1h` — quantos têm calibration_error
+- `roleta_calibration_fill_rate_1h` — ratio (0..1); default 1.0 quando total=0
+
+**Provider (server/websocket.py):**
+- Callable cacheado 30s → `db_service.repository.calibration_fill_stats()`
+- Tolerante a repos sem suporte (PG repo retorna zeros sem error)
+- Registrado via `set_calibration_provider` no boot
+
+**Query (database/sqlite_repo.py:445-475):**
+```sql
+SELECT COUNT(*), COUNT(calibration_error)
+FROM decisions
+WHERE timestamp >= datetime('now', '-60 minutes')
+  AND result_actual IS NOT NULL
+  AND final_action = 'APOSTAR'
+```
+
+**Regra (obs/alerts.yml:54-65):**
+```yaml
+- alert: RoletaCalibrationFillRateLow
+  expr: (roleta_calibration_fill_rate_1h < 0.8) and (roleta_decisions_with_result_1h >= 50)
+  for: 15m
+  severity: warning
+```
+Guard `>= 50` evita ruído em janelas de baixo tráfego (mesa parada).
+
+### Validação live (deploy fb94675)
+- `/metrics`: ✅ 3 séries novas expostas
+- Atualmente em prod: `total=308, filled=0, fill_rate=0.0` — confirma que B-09 deixou cicatriz histórica; assim que mesa retomar spins novos, fill_rate sobe.
+- Prometheus: `wget /api/v1/rules` → 12 alerts loaded, `RoletaCalibrationFillRateLow: True`
+- **Gotcha encontrado durante deploy:** bind-mount de `obs/alerts.yml` ficou stale após `git reset --hard` (inode mudou, prometheus continuava lendo conteúdo antigo). Solução: `docker restart roleta-prometheus`. Documentar isto no runbook para futuras alterações em alerts.yml.
+
+### Testes (tests/test_calibration_fill_stats.py)
+4 testes cobrindo: empty db, contagem correta, shape do dict, respeito ao parâmetro window_minutes. Suite: 261 → **265 passing**.
+
+---
+
+## §20. Resumo final desta sequência (Wave 3 + Hotfix + NEW-12)
+
+| Commit | Sprint | Mudança | Tests | Status |
+|---|---|---|---|---|
+| `a41210c` | MEL-ISO-004 + §16 audit | Circuit breaker SQLite | +9 | ✅ prod |
+| `d6935b5` | B-09 hotfix | pending["centers"] key fix | +3 | ✅ prod |
+| `79b4831` | docs §18 | Lição B-09 documentada | — | ✅ prod |
+| `fb94675` | NEW-12 | Alerta fill-rate + 12ª regra Prometheus | +4 | ✅ prod |
+
+**Suite total:** 249 → **265 passing** (+16 nesta sequência, +0 regressões)
+**Pendentes (precisam backtest — não autoexecutáveis):** NEW-07 (kill switch AGRESSIVO < 40%), NEW-08 (piso sda_thr ≥ 0.50), NEW-09 (bisect FeatureStore opt-in)
+
