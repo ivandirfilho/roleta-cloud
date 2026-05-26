@@ -173,19 +173,24 @@ class MessageHandler:
                     logger.info(f"  MARTINGALE ({bet_direction}): {martingale_info['transition']}")
                 logger.info(f"  Resultado: {'HIT' if hit_result else 'MISS'} | Gale {martingale_info.get('level_after', 1)} | Streak {martingale_info.get('consecutive_hits', 0)}")
 
-                # Log distância ao centro predito (diagnóstico E4)
+                # Sprint W-01 + W-02 + B-08 (26/05/2026):
+                # calcula wheel_dist usando helper canonico e persiste em
+                # decisions.calibration_error (coluna existia ha tempos mas
+                # nunca foi populada — 1232/1232 NULL em 24h pre-fix).
                 sda_centers = pending.get("sda_centers", [])
+                wheel_dist_val: Optional[int] = None
                 if sda_centers:
-                    wheel = roulette.WHEEL_SEQUENCE
                     try:
-                        idx_actual = wheel.index(numero)
-                        min_dist = min(
-                            min(abs(idx_actual - wheel.index(c)), len(wheel) - abs(idx_actual - wheel.index(c)))
-                            for c in sda_centers if c in wheel
+                        wheel_dist_val = roulette.compute_wheel_dist_min_to_set(
+                            sda_centers, numero
                         )
-                        logger.info(f"  DISTÂNCIA: {min_dist} casas do centro mais próximo (centros={sda_centers})")
-                    except (ValueError, TypeError):
-                        pass
+                        if wheel_dist_val is not None:
+                            logger.info(
+                                f"  DISTÂNCIA: {wheel_dist_val} casas do centro "
+                                f"mais próximo (centros={sda_centers})"
+                            )
+                    except (ValueError, TypeError) as _e:
+                        logger.debug(f"wheel_dist skipped: {_e}")
 
                 # Tracking de janelas para ML/Dashboard
                 try:
@@ -369,7 +374,13 @@ class MessageHandler:
 
             # Atualizar resultado da decisão anterior (se existia)
             if self.last_decision_id and hit_result is not None:
-                db_service.update_result(self.last_decision_id, hit_result, numero)
+                # W-02/B-08: wheel_dist_val pode ter sido calculado acima;
+                # se nao (sda_centers vazio), passamos None e a coluna fica intacta.
+                _cal_err = wheel_dist_val if 'wheel_dist_val' in locals() else None
+                db_service.update_result(
+                    self.last_decision_id, hit_result, numero,
+                    calibration_error=_cal_err
+                )
                 # OBS-25-01: publicar spin_result no outbox para backtest offline
                 try:
                     from database.outbox_integration import maybe_publish_spin_result

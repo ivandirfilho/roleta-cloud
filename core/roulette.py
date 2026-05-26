@@ -315,7 +315,94 @@ class RouletteCore:
     def all_numbers(self) -> List[int]:
         """Retorna todos os números da roleta em ordem da roda"""
         return self.WHEEL_SEQUENCE.copy()
-    
+
+    # ========== WHEEL DISTANCE (sprint W-01 — 26/05/2026) ==========
+
+    def compute_wheel_dist(self, predicted_center: int, actual: int) -> int:
+        """
+        Distância mínima em casas da roda entre `predicted_center` e `actual`.
+
+        Pergunta de ouro do fine-tuning: "quão perto o centro previsto ficou do
+        número real?". Retorna 0..18 (mínimo entre dois arcos do círculo de 37).
+
+        Args:
+            predicted_center: número (0-36) que foi previsto como centro.
+            actual: número (0-36) realmente sorteado.
+
+        Returns:
+            Distância mínima (0..18). Sempre não-negativo.
+
+        Raises:
+            ValueError: se algum dos números estiver fora de 0..36.
+        """
+        if not self.is_valid_number(predicted_center):
+            raise ValueError(f"predicted_center inválido: {predicted_center}")
+        if not self.is_valid_number(actual):
+            raise ValueError(f"actual inválido: {actual}")
+        idx_p = self._position_map[predicted_center]
+        idx_a = self._position_map[actual]
+        diff = abs(idx_a - idx_p)
+        return min(diff, self.TOTAL_SLOTS - diff)
+
+    def compute_wheel_dist_dir(self, predicted_center: int, actual: int,
+                                direction: 'Direction') -> int:
+        """
+        Distância sinalizada conforme direção do giro.
+
+        Convenção: percorrer a roda no sentido `direction` indo de
+        `predicted_center` até `actual`. Resultado em [-18, +18] onde o sinal
+        indica se o real chegou "antes" (negativo, ainda não tinha alcançado o
+        centro) ou "depois" (positivo, passou do centro) do ponto previsto.
+
+        Args:
+            predicted_center: número previsto (0-36).
+            actual: número real (0-36).
+            direction: `Direction.CLOCKWISE` ou `Direction.COUNTERCLOCKWISE`.
+
+        Returns:
+            Distância com sinal em [-18, +18].
+        """
+        if not self.is_valid_number(predicted_center):
+            raise ValueError(f"predicted_center inválido: {predicted_center}")
+        if not self.is_valid_number(actual):
+            raise ValueError(f"actual inválido: {actual}")
+        idx_p = self._position_map[predicted_center]
+        idx_a = self._position_map[actual]
+        n = self.TOTAL_SLOTS
+        # delta no sentido horário (índices crescem no sentido WHEEL_SEQUENCE)
+        delta_cw = (idx_a - idx_p) % n
+        if direction == Direction.CLOCKWISE:
+            return delta_cw if delta_cw <= n // 2 else delta_cw - n
+        # anti-horário: inverte sentido
+        delta_ccw = (idx_p - idx_a) % n
+        return delta_ccw if delta_ccw <= n // 2 else delta_ccw - n
+
+    def compute_wheel_dist_min_to_set(self, centers: List[int], actual: int) -> int:
+        """
+        Distância mínima entre `actual` e o conjunto `centers` (predições).
+
+        Útil quando há múltiplos centros previstos (multi-bet) — devolve o
+        menor `compute_wheel_dist` entre todos. Centros inválidos são ignorados
+        silenciosamente (defesa em profundidade para dados legados).
+
+        Returns:
+            Distância mínima (0..18) OU `None` se nenhum center válido.
+        """
+        if not self.is_valid_number(actual):
+            raise ValueError(f"actual inválido: {actual}")
+        idx_a = self._position_map[actual]
+        n = self.TOTAL_SLOTS
+        best: Optional[int] = None
+        for c in centers:
+            if not isinstance(c, int) or not self.is_valid_number(c):
+                continue
+            idx_c = self._position_map[c]
+            diff = abs(idx_a - idx_c)
+            d = min(diff, n - diff)
+            if best is None or d < best:
+                best = d
+        return best
+
     def __repr__(self):
         return f"RouletteCore(slots={self.TOTAL_SLOTS})"
 

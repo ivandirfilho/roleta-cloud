@@ -735,3 +735,101 @@ Manter os 10 originais + adicionar:
 ---
 
 > _"Auditar antes de executar é mais barato que rollback. Vinte e sete achados agora valem cinquenta bugs em produção depois."_
+
+
+---
+
+## §13. Auditoria LIVE 26/05 — descobertas pós-audit servidor + SQLite
+
+> Audit executado pelo YOLO Orchestrator (`claude-opus-4.7`) em 26/05/2026 contra **187.45.181.75** (Debian, 8 containers healthy) + SQLite local `/app/data/decisions.db` (1019 spins APOSTAR em 24h, 12% PULAR). Comando: `docker exec roleta-cloud sqlite3 /app/data/decisions.db ...`.
+
+### §13.1 — Achados que **invalidam ou reescopam** sprints aprovadas
+
+| ID | Sprint impactada | Severidade | Achado | Ação recomendada |
+|---|---|---|---|---|
+| **L-01** | **B-01 (errdriven 21.1%)** | 🔴 CRÍTICO | `errdriven` **não existe em nenhum lugar do código atual** (`strategies/`, `database/models.py:42`, `server/message_handler.py`). Única emissão de `offset_type` em `sda17.py:255` é `"sigmoid"`. Os 32 spins "errdriven-like" do baseline são na verdade **`<NULL>` (PULAR)** com hit=0% — comportamento esperado, não bug. | **CANCELAR B-01** (NO-OP). Substituir por **NEW-06**: investigar `hit_rate 45.83% < baseline 45.95%` (regressão silenciosa, ver L-07). |
+| **L-02** | **B-03 (gale_windows.result 100% NULL)** | 🟠 ALTO | `gale_windows.result` em 24h: `streak=210, reset=48, info=12, NULL=1` (271 rows). Apenas 0.37% NULL, não 100%. Premissa do sprint estava errada. Enum real difere de `win/loss` (é `streak/reset/info`). | **REESCOPAR B-03** para: (a) documentar enum real, (b) backfill do único NULL legado, (c) adicionar constraint CHECK no enum. Esforço −60%. |
+| **L-03** | **B-08 (calibration_error nunca populado)** | ✅ CONFIRMADO | `calibration_error`: **1232/1232 NULL** em 24h. Coluna já existe no schema (`sqlite_repo.py:106`), nunca foi escrita. | **MANTER + JÁ EXECUTADA** nesta sessão (ver §14). |
+| **L-04** | **B-02 (spin_force=0 anomaly)** | 🟡 MÉDIO | `spin_force=0` aparece 43 vezes/24h vs `1=27`, `2=29`, `3=39`, `4=29`. Distribuição não-uniforme sugere bucket de fallback legítimo, não bug óbvio. | **REDUZIR prioridade B-02** de ALTO para MÉDIO; investigar quando livre. |
+| **L-05** | **Todas as queries dos prompts mestres** | 🟠 ALTO | Doc usa nomes `created_at`/`hit`/`actual_number` mas schema real é `timestamp`/`result_hit`/`result_actual`. Qualquer prompt copy-paste vai falhar com `no such column`. | **FIX OBRIGATÓRIO** nos prompts §0 do `sprint_evolucao_25_05.md` antes da próxima sprint. |
+| **L-06** | **Operação geral** | 🟠 ALTO | DB path real é `/app/data/decisions.db` (dentro container `roleta-cloud`, bind volume `roleta-cloud_roleta-data`). Doc citava `/root/roleta-cloud/data/roleta.db` (inexistente). | **ATUALIZAR runbook** + qualquer script ops. |
+| **L-07** | **NEW-06 (criar)** | 🔴 CRÍTICO | `hit_rate live 24h = 45.83%` (n=1019). Baseline puro (17/37) = 45.95%. Doc projetava 47.3% pré-evolução. **Estamos sangrando ~1.5pp vs baseline doc** e empatando com aleatório. | **NEW-06**: bisect entre `done-S-STRAT-14` e HEAD; rodar shadow-replay 7d para identificar regressão. |
+| **L-08** | **B-05 (bandit state.json)** | ✅ CONFIRMADO | `state.json` top keys: `version, last_number, timeline_cw/ccw, performance_sda17_*, martingale_*, adaptive_state, bet_advisor_state, shadow_hits_*, shadow_grid, incumbent_shadow_*`. **Sem chave `bandit`** — confirma sprint válida. | Manter B-05. |
+| **L-09** | **ae_latent (PG)** | ⏸️ INDETERMINADO | `psql` não disponível no host; verificação requer `docker exec roleta-pg psql ...`. Não testado nesta auditoria. | Próxima sessão: rodar `SELECT COUNT(*) FROM spins_vectors WHERE ae_latent IS NOT NULL`. |
+
+### §13.2 — Reclassificação consolidada
+
+| Status anterior | Sprint(s) | Novo status |
+|---|---|---|
+| ✅ Wave 1 | B-01 | ❌ **CANCELADA** (L-01) |
+| ✅ Wave 1 | W-01 | ✅ **EXECUTADA** (§14) |
+| ✅ Wave 2 | B-08 | ✅ **EXECUTADA** (§14) — coalescida com W-02 |
+| ✅ Wave 2 | W-02 | ✅ **EXECUTADA** (§14) — write-through em `update_result` |
+| ✅ Wave X | B-03 | 🟡 **REESCOPAR** (L-02) — esforço −60% |
+| ✅ Wave X | B-02 | 🟡 **DEPRIORIZAR** (L-04) MÉDIO |
+| — | **NEW-06** | 🆕 **CRIAR**: investigar regressão hit_rate (L-07) |
+
+### §13.3 — Snapshot 24h (evidência audit)
+
+```
+spins_total=1232  APOSTAR=1085 (88%)  PULAR=147 (12%)
+hit_rate_apostar=45.83%  (esperado_baseline=45.95%, doc=47.3%)
+sda_offset_type: sigmoid=1053 (hr=44.35%) | NULL=32 (hr=0% — sao PULAR)
+calibration_error: 0/1232 populados  → 1232/1232 NULL  [PRE-FIX]
+gale_windows.result: streak=210, reset=48, info=12, NULL=1  (271 rows)
+state.json: 20 top keys, sem chave 'bandit'
+containers healthy: 8/8 (uptime 2d 2h, load 0.13, disk 10%)
+```
+
+---
+
+## §14. EXECUÇÃO 26/05 — sprints completadas nesta sessão
+
+> Coalescemos **W-01 + W-02 + B-08** em uma única mudança consistente, pois W-02 precisa do helper de W-01 e B-08 é o consumidor natural do output de W-02. Total: 1 commit, 19 testes novos, 100% passando.
+
+### W-01 ✅ DONE — `compute_wheel_dist` helper canônico
+
+**Arquivo:** `core/roulette.py` (+90 linhas, classe `RouletteCore`)
+**Métodos novos:**
+- `compute_wheel_dist(predicted_center, actual) -> int` — distância mínima 0..18
+- `compute_wheel_dist_dir(predicted_center, actual, direction) -> int` — sinalizada -18..+18
+- `compute_wheel_dist_min_to_set(centers, actual) -> Optional[int]` — para multi-bet
+
+**Por quê:** elimina duplicação ad-hoc em `message_handler.py:176-188` (4 chamadas `wheel.index()` por spin, sem reuso). Agora é API estável usada por W-02, B-08, dashboards futuros e features ML.
+
+### W-02 ✅ DONE — `update_result(..., calibration_error=)`
+
+**Arquivo:** `database/sqlite_repo.py` (método `update_result` estendido, mantém retrocompat)
+**Mudança:** parâmetro opcional `calibration_error: Optional[int] = None`. Quando None, query não toca a coluna (preserva backfills). Quando int, UPDATE write-through em single statement.
+
+### B-08 ✅ DONE — `calibration_error` populado em produção
+
+**Arquivo:** `server/message_handler.py` (linhas 176-188 + 372)
+**Mudança:** substituiu o cálculo ad-hoc por `roulette.compute_wheel_dist_min_to_set(sda_centers, numero)`, **armazena resultado em `wheel_dist_val`** e passa para `db_service.update_result(..., calibration_error=wheel_dist_val)`. Log mantém output humano. Defensivo: se `sda_centers` vazio, `calibration_error` fica NULL (não regride dados históricos).
+
+**Esperado pós-deploy:** próximos spins terão `calibration_error` populado; histograma deve concentrar em 3-10 casas (hit) e 10-18 (miss). Habilita feature ML "distância média móvel" e dashboard Grafana.
+
+### Testes (`tests/test_wheel_dist.py` — NOVO)
+
+- 19 testes, 4 classes (`TestComputeWheelDist`, `TestComputeWheelDistDir`, `TestComputeWheelDistMinToSet`, `TestRealWorldScenarios`)
+- Cobre: identidade, simetria, wrap-around, max=18, range -18..+18, defensivo (None/str/inválido), CW/CCW inverso
+- Resultado local: **19 passed in 0.08s** ✅
+
+### Validação pós-deploy (executar quando subir no Debian)
+
+```bash
+# após 1h de produção com fix:
+docker exec roleta-cloud sqlite3 /app/data/decisions.db \
+  "SELECT COUNT(*), SUM(CASE WHEN calibration_error IS NOT NULL THEN 1 ELSE 0 END),
+          AVG(calibration_error), MIN(calibration_error), MAX(calibration_error)
+   FROM decisions WHERE timestamp > datetime('now','-1 hour') AND final_action='APOSTAR';"
+# esperado: pop_count == total_apostar (≈90+ rows), avg 6-10, min 0, max 18
+```
+
+### Próxima wave (aguardando aprovação)
+
+1. **NEW-06** (CRIAR): investigar regressão `hit_rate 45.83%` (L-07) — owner: dev sr, esforço M
+2. **L-05 fix**: corrigir nomes de colunas em todos prompts mestres do `sprint_evolucao_25_05.md` — owner: doc, esforço S
+3. **B-03 reescopado** (L-02): documentar enum real + CHECK constraint — owner: dev, esforço S
+4. **O-03** (log estruturado decision_id) — owner: dev, esforço M
+

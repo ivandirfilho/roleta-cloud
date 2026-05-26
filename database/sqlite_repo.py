@@ -285,15 +285,33 @@ class SQLiteDecisionRepository(DecisionRepository):
         finally:
             conn.close()
     
-    def update_result(self, decision_id: int, hit: bool, actual_number: int) -> None:
-        """Atualiza o resultado de uma decisão."""
+    def update_result(self, decision_id: int, hit: bool, actual_number: int,
+                       calibration_error: Optional[int] = None) -> None:
+        """Atualiza o resultado de uma decisão.
+
+        Args:
+            decision_id: id da decisão a atualizar.
+            hit: True se o número apostado bateu na vizinhança prevista.
+            actual_number: número sorteado (0-36).
+            calibration_error: distância em casas da roda entre o centro
+                previsto e o número real (sprint W-02 + B-08 — 26/05/2026).
+                Quando None, a coluna não é atualizada para preservar valor
+                histórico (ex.: backfill).
+        """
         conn = self._get_connection()
         try:
-            conn.execute("""
-                UPDATE decisions 
-                SET result_hit = ?, result_actual = ?
-                WHERE id = ?
-            """, (hit, actual_number, decision_id))
+            if calibration_error is None:
+                conn.execute("""
+                    UPDATE decisions
+                    SET result_hit = ?, result_actual = ?
+                    WHERE id = ?
+                """, (hit, actual_number, decision_id))
+            else:
+                conn.execute("""
+                    UPDATE decisions
+                    SET result_hit = ?, result_actual = ?, calibration_error = ?
+                    WHERE id = ?
+                """, (hit, actual_number, int(calibration_error), decision_id))
             conn.commit()
         finally:
             conn.close()
