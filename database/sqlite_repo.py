@@ -4,6 +4,7 @@
 import sqlite3
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -12,6 +13,93 @@ from .repository import DecisionRepository
 from .models import Decision, Session
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# MEL-ISO-004 — Circuit Breaker para SQLite (Confiabilidade 5.3 Tolerância)
+# ============================================================================
+
+class CircuitBreakerOpen(RuntimeError):
+    """Levantada quando o circuit breaker do SQLite esta OPEN.
+
+    Sinaliza que muitas falhas consecutivas ocorreram e a aplicacao deve
+    parar de tentar I/O ate o cooldown expirar. Callers devem capturar e
+    degradar elegantemente (ex.: skip persistencia, logar warning).
+    """
+
+
+class _SQLiteCircuitBreaker:
+    """Circuit breaker stateful para conexoes SQLite.
+
+    Estados:
+      CLOSED   — operacao normal; conta falhas em janela deslizante
+      OPEN     — bloqueia todas as conexoes ate cooldown expirar
+      HALF_OPEN— testa UMA conexao; sucesso -> CLOSED, falha -> OPEN
+
+    Default thresholds (defensivos, podem ser tunados via ctor):
+      failure_threshold = 5 falhas em window_seconds
+      window_seconds    = 60s
+      cooldown_seconds  = 30s
+    """
+
+    _CLOSED = "CLOSED"
+    _OPEN = "OPEN"
+    _HALF_OPEN = "HALF_OPEN"
+
+    def __init__(self, failure_threshold: int = 5,
+                 window_seconds: float = 60.0,
+                 cooldown_seconds: float = 30.0):
+        self.failure_threshold = failure_threshold
+        self.window_seconds = window_seconds
+        self.cooldown_seconds = cooldown_seconds
+        self._state = self._CLOSED
+        self._failures: List[float] = []
+        self._opened_at: Optional[float] = None
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    def before_call(self) -> None:
+        """Decide se a chamada pode prosseguir. Raises CircuitBreakerOpen se nao."""
+        now = time.monotonic()
+        if self._state == self._OPEN:
+            if self._opened_at is None or now - self._opened_at >= self.cooldown_seconds:
+                self._state = self._HALF_OPEN
+                logger.warning("SQLite circuit HALF_OPEN — tentando reabrir")
+            else:
+                remaining = self.cooldown_seconds - (now - self._opened_at)
+                raise CircuitBreakerOpen(
+                    f"SQLite circuit OPEN — cooldown {remaining:.1f}s restantes"
+                )
+
+    def record_success(self) -> None:
+        if self._state != self._CLOSED:
+            logger.info(f"SQLite circuit RESET para CLOSED (era {self._state})")
+        self._state = self._CLOSED
+        self._failures.clear()
+        self._opened_at = None
+
+    def record_failure(self, exc: BaseException) -> None:
+        now = time.monotonic()
+        # Janela deslizante
+        self._failures = [t for t in self._failures if now - t <= self.window_seconds]
+        self._failures.append(now)
+        if self._state == self._HALF_OPEN:
+            # Falha na tentativa de reabrir -> re-abre
+            self._state = self._OPEN
+            self._opened_at = now
+            logger.error(
+                f"SQLite circuit re-OPEN (HALF_OPEN falhou): {type(exc).__name__}: {exc}"
+            )
+        elif len(self._failures) >= self.failure_threshold:
+            self._state = self._OPEN
+            self._opened_at = now
+            logger.error(
+                f"SQLite circuit OPEN — {len(self._failures)} falhas em "
+                f"{self.window_seconds}s. Cooldown {self.cooldown_seconds}s. "
+                f"Ultimo erro: {type(exc).__name__}: {exc}"
+            )
 
 
 class SQLiteDecisionRepository(DecisionRepository):
@@ -24,31 +112,49 @@ class SQLiteDecisionRepository(DecisionRepository):
     
     DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "decisions.db"
     
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None,
+                 circuit_breaker: Optional[_SQLiteCircuitBreaker] = None):
         """
         Inicializa conexão com SQLite.
         
         Args:
             db_path: Caminho para o arquivo .db (usa default se None)
+            circuit_breaker: MEL-ISO-004 — instancia opcional (default cria nova).
+                             Use mesmo instance entre repos para coordenar.
         """
         self.db_path = Path(db_path) if db_path else self.DEFAULT_DB_PATH
         
         # Criar diretório se não existe
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
+        # MEL-ISO-004: circuit breaker para evitar tempestade de retries
+        self._cb = circuit_breaker if circuit_breaker is not None else _SQLiteCircuitBreaker()
+
         # Inicializar schema
         self._init_schema()
         
         logger.info(f"SQLite repository initialized: {self.db_path}")
     
     def _get_connection(self) -> sqlite3.Connection:
-        """Retorna nova conexão com SQLite (WAL mode + busy timeout + FK)."""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.row_factory = sqlite3.Row
-        return conn
+        """Retorna nova conexão com SQLite (WAL mode + busy timeout + FK).
+
+        MEL-ISO-004: aplica circuit breaker. Se circuito OPEN, raises
+        CircuitBreakerOpen sem nem tentar a conexao. Falhas reais sao
+        contadas e podem abrir o circuito.
+        """
+        self._cb.before_call()
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.row_factory = sqlite3.Row
+        except sqlite3.Error as e:
+            self._cb.record_failure(e)
+            raise
+        else:
+            self._cb.record_success()
+            return conn
 
     def _execute_with_connection(self, func):
         """Executa função com conexão gerenciada (auto-close)."""

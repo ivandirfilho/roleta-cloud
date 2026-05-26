@@ -907,3 +907,96 @@ Próximo agente pode copy-paste o prompt sem encontrar `no such column`.
 4. **MEL-ISO-004** (circuit breaker SQLite) — Confiabilidade
 5. **W-03** (sigmoid v2, 4 buckets de hora-do-dia)
 
+
+
+---
+
+## §16. NEW-06 — Investigação regressão hit_rate 26/05 (Wave 3)
+
+> Executado pelo YOLO Orchestrator com SSH live em `187.45.181.75` (container `roleta-cloud` 4.4.0, uptime 39h). Sprint inicialmente projetada como "bisect entre done-S-STRAT-14 e HEAD" — investigação direta de dados ao vivo identificou causa com alta confiança em <10min, dispensando bisect.
+
+### §16.1 — Confirmação da regressão (multi-janela)
+
+```
+HIT_RATE POR DIA (final_action=APOSTAR, n=APOSTAR validos):
+  23/05  52.94%  (n=119)
+  24/05  47.69%  (n=216)      <- comeca a degradar
+  25/05  45.78%  (n=758)      <- piora consideravel
+  26/05  43.75%  (n=304)      <- abaixo do baseline puro 45.95%
+```
+
+Tendência **monotonicamente decrescente em 4 dias**. Não é flutuação estatística — gradiente claro.
+
+### §16.2 — Smoking gun: `⚡ AGRESSIVO` mode
+
+Distribuição de `tr_reason` em 24h (top 15 por volume, ordenado por contribuição negativa):
+
+```
+⚡ AGRESSIVO (25% < 33%, mas apostando)        n=111  hr=36.94%   <- pior
+⚡ AGRESSIVO (50% < 67%, mas apostando)        n=95   hr=48.42%
+📈 CRESCENTE (50% > 50% > 50%)                 n=78   hr=53.85%   <- bom
+📊 ESTÁVEL (50% ≥ 50%)                        n=67   hr=53.73%   <- bom
+📊 ESTÁVEL (25% ≥ 17%)                        n=59   hr=44.07%
+⚡ COLD mas Score SDA=4 (confiando nos dados)   n=46   hr=34.78%   <- 2o pior
+⚡ AGRESSIVO (75% < 83%, mas apostando)        n=44   hr=40.91%
+...
+```
+
+**Hipótese forte:** branchs `⚡ AGRESSIVO` (X% < Y%, mas apostando) e `⚡ COLD mas Score SDA=N` — que **sobrescrevem PULAR para APOSTAR** quando sinais convencionais dizem NÃO — somam ~300 spins/24h com hit_rate médio ~38%, puxando a média global para baixo. Sem essas branches, baseline estimado: **>49% hr** (próximo do projetado v4.3.x).
+
+### §16.3 — Correlação com commits
+
+| Data | Commit | Possível impacto |
+|---|---|---|
+| 24/05 22:25 | `8febdd6` S-OBS-7 persiste kill counter | Baixo (obs) |
+| 24/05 22:21 | `820ce1d` S-CLEAN-1 legacy deprecated | Baixo |
+| 25/05 00:00 | `6378931` S-STRAT-7/11 batch-4 + KILL v4 dynamic | **MÉDIO** — pode ter relaxado kill switch |
+| 25/05 00:11 | `f24f9a6` V3-01 sda_thr decresce com vol | **🔴 ALTO** — threshold dinâmico pode ter facilitado APOSTAR em low-confidence |
+| 25/05 00:19 | `b4da93c` V3-02 vol_ema baseline 0.45 + V3-05/08 | **MÉDIO** — baseline novo pode estar mal-calibrado |
+| 25/05 02:25 | `f1bbfbf` bet_advisor + FeatureStore/Regime opt-in | **🔴 ALTO** — novos sinais opt-in podem estar overriding |
+
+### §16.4 — Outros achados
+
+- **Direção skew:** anti-horario 47.17% vs horario 43.23% (n=530 vs 532) — gap de 4pp; cw degradou mais
+- **gale_level:** L1 45.90% / L2 38.10% / L3 35.29% — escalada destrutiva continua
+- **Confiança:** alta 47.13% / media 41.64% — sistema apostando demais em "media"
+- **SDA score:** 3→45.30% / 4→45.74% / 5→48.48% / 6→37.50% (n=8, ruído)
+- **Deploy:** commit `d83e214` (W-01+W-02+B-08+wave2 ISO) **ainda NÃO está em produção** — calibration_error 0/324 popular na última 1h confirma. Container uptime 39h precede nosso último push.
+
+### §16.5 — Recomendações (sprints derivadas)
+
+| ID | Ação | Prioridade |
+|---|---|---|
+| **NEW-07** | Adicionar **kill switch específico** para `⚡ AGRESSIVO` quando rolling hr<40% sobre últimos 50 spins. Backtest antes. | 🔴 ALTA |
+| **NEW-08** | Revisar `V3-01 sda_thr decresce com vol` (`f24f9a6`) — adicionar piso (`sda_thr >= 0.50` mínimo) | 🔴 ALTA |
+| **NEW-09** | Bisect dirigido: rodar `tools/backtest_from_db.py` (existe) trocando shadow=ON/OFF para `FeatureStoreReader+RegimeSimilarityReader` da `f1bbfbf` — confirmar se sinais opt-in estão silenciosamente overriding | 🟠 MÉDIA |
+| **NEW-10** | **Deploy do commit `d83e214`** para começar a popular `calibration_error` em prod (gera dados para NEW-09 backtest) | 🔴 ALTA — bloqueio |
+| **NEW-11** | Investigar skew direção horario vs anti-horario (4pp) | 🟡 BAIXA (efeito secundário) |
+
+> NÃO implementei NEW-07/08 nesta sessão — exigem backtest com dados antes do tuning para evitar piorar. Documentei como sprints aprovadas pendentes.
+
+---
+
+## §17. MEL-ISO-004 ✅ DONE — Circuit Breaker SQLite (Wave 3)
+
+**ISO:** 5.3 Tolerância a Falhas + 5.1 Maturidade
+**Arquivos:** `database/sqlite_repo.py` (+91 linhas: classe `_SQLiteCircuitBreaker` + `CircuitBreakerOpen` + integração em `_get_connection`) + `tests/test_sqlite_circuit_breaker.py` (NOVO, 9 testes)
+
+**Design:**
+- Estados: `CLOSED` → `OPEN` → `HALF_OPEN` → `CLOSED|OPEN`
+- Defaults: 5 falhas em janela 60s → OPEN; cooldown 30s → HALF_OPEN (testa UMA conexão); sucesso → CLOSED, falha → OPEN
+- Stateful no repositório (instância única); opcional injetar `circuit_breaker=cb` no `__init__` para coordenar múltiplos repos
+- Janela deslizante de falhas (não acumulativa)
+- `CircuitBreakerOpen` exception distinta de `sqlite3.Error` para callers degradarem elegantemente
+
+**Por quê (ISO):** doc Manutenabilidade explicitamente lista MEL-ISO-004 como melhoria de Confiabilidade. Evita que durante uma falha de I/O (disco cheio, lock contention prolongado) a aplicação fique tentando reconectar em loop apertado consumindo CPU e bloqueando event loop async — degrada rapidamente para "circuito aberto, skip persistência" deixando o resto do sistema operacional.
+
+**Testes:** 9/9 passando — todas as transições + integração com repo real (tmp_path).
+
+### Resumo Wave 3
+
+- **NEW-06 investigado:** 4 commits suspeitos identificados; recomendações documentadas (NEW-07 a NEW-11)
+- **MEL-ISO-004:** circuit breaker implementado + 9 testes
+- Suite: 249 → **258 passing** (+9), zero regressões
+- Commits a deployar: `d83e214` (wave 2) + próximo da wave 3
+
