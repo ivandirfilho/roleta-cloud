@@ -389,6 +389,16 @@ class MessageHandler:
                     self.last_decision_id, hit_result, numero,
                     calibration_error=_cal_err
                 )
+                # SP-07: preenche realized_lift / hit / wheel_dist no DNA
+                try:
+                    from database import dna_logger as _dna
+                    _dna.dna_update_realized(
+                        self.last_decision_id,
+                        hit=bool(hit_result),
+                        wheel_dist=_cal_err,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
                 # OBS-25-01: publicar spin_result no outbox para backtest offline
                 try:
                     from database.outbox_integration import maybe_publish_spin_result
@@ -431,6 +441,44 @@ class MessageHandler:
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
             decision_id = db_service.save_decision(decision)
+            # SP-07: emite DNA features apos save (best-effort, nunca quebra fluxo).
+            # ≥4 features por decisao conforme criterio do blueprint.
+            try:
+                from database import dna_logger as _dna
+                _action = "APOSTAR" if result.should_bet else "PULAR"
+                _sda_score = int(getattr(result, "score", 0) or 0)
+                _score_bucket = (
+                    "sweet_spot" if _sda_score == 4
+                    else ("high" if _sda_score >= 5 else "low")
+                )
+                _dna.dna_log_feature(
+                    decision_id, "sda_score",
+                    {"raw": _sda_score, "bucket": _score_bucket},
+                    spin_number=numero, direction=direcao, final_action=_action,
+                )
+                _dna.dna_log_feature(
+                    decision_id, "calibration_offset",
+                    {"raw": int(getattr(result, "calibration_offset", 0) or 0)},
+                    spin_number=numero, direction=direcao, final_action=_action,
+                )
+                _tr_c4 = float(getattr(advice, "c4_rate", 0.0) or 0.0)
+                _c4_bucket = (
+                    "hot" if _tr_c4 >= 0.55
+                    else ("warm" if _tr_c4 >= 0.45 else "cold")
+                )
+                _dna.dna_log_feature(
+                    decision_id, "tr_c4_rate",
+                    {"raw": _tr_c4, "bucket": _c4_bucket},
+                    spin_number=numero, direction=direcao, final_action=_action,
+                )
+                _kill = bool(getattr(advice, "should_bet", True)) is False
+                _dna.dna_log_feature(
+                    decision_id, "kill_v4",
+                    {"raw": _kill, "bucket": "off" if _kill else "on"},
+                    spin_number=numero, direction=direcao, final_action=_action,
+                )
+            except Exception:  # noqa: BLE001 — DNA nunca quebra fluxo
+                pass
             # ISO-S4 (O-03 — Analisabilidade): emite UM evento estruturado canonico
             # por decisao com decision_id + trace_id + acao + score. Permite
             # correlacionar logs ad-hoc do mesmo spin sem regex em texto livre.

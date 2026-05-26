@@ -14,6 +14,12 @@ def get_repository() -> DecisionRepository:
     global _repository
     if _repository is None:
         _repository = SQLiteDecisionRepository()
+        # SP-07: configurar dna_logger junto com repo (mesmo db_path)
+        try:
+            from . import dna_logger
+            dna_logger.configure(str(_repository.db_path), enabled=True)
+        except Exception:
+            pass
     return _repository
 
 
@@ -26,6 +32,11 @@ def init_database(db_path: str = None) -> None:
     """
     global _repository
     _repository = SQLiteDecisionRepository(db_path)
+    try:
+        from . import dna_logger
+        dna_logger.configure(str(_repository.db_path), enabled=True)
+    except Exception:
+        pass
 
 
 __all__ = [

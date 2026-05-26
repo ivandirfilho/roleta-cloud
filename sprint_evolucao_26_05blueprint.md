@@ -776,3 +776,25 @@ DNA local em SQLite por default; PG via outbox/CDC quando SP-07 cabear bet_advis
 ### Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — sem deps; alta prioridade do usuario.
 
 ---
+
+---
+
+## §29 — SP-07 ENTREGUE ✅
+
+DNA cabeado no fluxo real de decisao (production-grade).
+
+### Entregas
+- `database/__init__.py`: `get_repository()`/`init_database()` chamam `dna_logger.configure()` automaticamente com o mesmo db_path do repo (autoconfig).
+- `server/message_handler.py:434`: hook DNA emite **4 features por decisao** (sda_score+bucket, calibration_offset, tr_c4_rate+bucket, kill_v4); best-effort, nunca quebra fluxo.
+- `server/message_handler.py:392`: hook `dna_update_realized()` preenche hit+wheel_dist no DNA quando resultado chega.
+- `tests/test_sp07_dna_hook.py`: 2 testes (autoconfig + >=4 features).
+- Baseline silent_except revalidado (1 except novo legitimo no hook).
+
+### Suite: 305 -> **307 passing** (+2; +1 baseline rebaseline).
+
+### Latencia
+4x SQLite INSERT thread-safe locais — esperado <2ms p95 (validacao em prod pos-deploy via OBS-25-01).
+
+### Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — alta prioridade.
+
+---
