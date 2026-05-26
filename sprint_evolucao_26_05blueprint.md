@@ -659,3 +659,31 @@ próximo passo natural (sprint dependente).
 > **Próxima ação imediata recomendada:** rodar SP-01 (NEW-09 bisect) — viável agora pois calibration_error está populando desde B-10. Resultado define se há mais um bug oculto a corrigir ANTES de investir nas 5 ondas de DNA/dealer.
 
 **FIM do blueprint.** Use o prompt do §7 a cada sessão de implementação. Para qualquer dúvida ou re-priorização, consultar `Visualizacao_da_evolucao_25_05.md` (estratégia) + `Manutenabilidade_iso.md` (princípios) + `sprint_26_05_estrategia.md` (execução em curso).
+
+---
+
+## §24 — SP-05 ENTREGUE (26/05 23:40 UTC) ✅
+
+**Commit:** `244bed8` — eat(SP-05): safe_except helper + lint baseline + B-10-class protecao
+**Deploy:** roleta-cloud healthy 23:40:50 UTC, suite 282 -> **289 passing** (+7).
+
+### Entregas concretas
+
+1. `core/safe_except.py` — helper canonico (contextmanager + decorator).
+2. `tools/lint_silent_except.py` — baseline JSON com 9 arquivos rastreados; CI bloqueia aumento.
+3. `.silent_except_baseline.json` — snapshot inicial commitado.
+4. `server/message_handler.py:466` — primeiro consumidor: bloco que silenciou B-10 agora:
+   - Categoria explicita `db_save_decision`
+   - Counter `roleta_silent_exception_total{module,category,exc_type}`
+   - Em `STRICT_SILENT_EXCEPT=1`, re-raise de TypeError/AttributeError (catch dev-time)
+5. `.github/workflows/ci.yml` — novo step **Silent except baseline lint**.
+6. `tests/test_sp05_safe_except.py` — 7 testes (engulir, reraise, strict, decorator, baseline existe, lint clean).
+
+### Como pegaria B-10 hoje
+
+Antes: `TypeError: got unexpected keyword 'calibration_error'` virava log warning generico por 24h.
+Agora: 1) counter Prometheus alerta-vel por exc_type=TypeError; 2) em CI/dev STRICT=1, falha fast.
+
+### Proximo: SP-04 (schema parity SQLite<->PG) — sem deps, manutenibilidade ISO.
+
+---
