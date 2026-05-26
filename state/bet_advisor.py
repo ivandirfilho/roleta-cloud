@@ -84,6 +84,17 @@ class TripleRateAdvisor:
         self._blacklist_enabled: bool = _os.environ.get(
             "BET_BLACKLIST_ENABLED", "0"
         ).strip().lower() in ("1", "true", "yes", "on")
+        # NEW-08 (26/05): piso opt-in para sda_thr dinamico. Default = 2 (sem efeito).
+        # Subir para 3 ou 4 endurece o kill switch em regimes de alta vol — efeito
+        # bidirecional, recomenda-se rodar com BET_BLACKLIST_ENABLED simultaneamente
+        # e monitorar fill_rate + hit_rate por >=4h antes de elevar mais.
+        try:
+            self._blacklist_sda_floor: int = max(
+                self.KILL_V4_SDA_MIN,
+                min(self.KILL_V4_SDA_MAX, int(_os.environ.get("BET_SDA_FLOOR", "2"))),
+            )
+        except (ValueError, TypeError):
+            self._blacklist_sda_floor = self.KILL_V4_SDA_MIN
         # S-STRAT-11 (BUG-V3-02 fix): EMA de volatility por direção.
         # Baseline 0.45 (mais realista para sinal binário com acc≈0.45-0.50)
         # — antes era 0.30 que considerava ruído normal como "alta volatility".
@@ -106,6 +117,8 @@ class TripleRateAdvisor:
             "blacklist": {
                 "enabled": bool(self._blacklist_enabled),
                 "kills_total": int(self._blacklist_kills_total),
+                # NEW-08: piso opt-in (default 2 = KILL_V4_SDA_MIN = no-op)
+                "sda_floor": int(self._blacklist_sda_floor),
             },
         }
 
@@ -197,6 +210,11 @@ class TripleRateAdvisor:
             sda_thr = 4 - round((vol - 0.45) * 4)
             c4_thr = max(self.KILL_V4_C4_MIN, min(self.KILL_V4_C4_MAX, c4_thr))
             sda_thr = max(self.KILL_V4_SDA_MIN, min(self.KILL_V4_SDA_MAX, sda_thr))
+            # NEW-08 (26/05): piso configuravel via env. Default = SDA_MIN(2).
+            # Permite tunar conservadorismo sem code-deploy. Justificado pela
+            # auditoria NEW-06 do regimen sda_thr decrescente (commit f24f9a6
+            # poderia ter sido validado se este piso fosse opt-in desde 24/05).
+            sda_thr = max(self._blacklist_sda_floor, int(sda_thr))
             self._kill_thr_c4[dk] = round(c4_thr, 4)
             self._kill_thr_sda[dk] = int(sda_thr)
         else:

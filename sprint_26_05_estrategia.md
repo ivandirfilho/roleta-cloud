@@ -1095,3 +1095,65 @@ Guard `>= 50` evita ruído em janelas de baixo tráfego (mesa parada).
 **Suite total:** 249 → **265 passing** (+16 nesta sequência, +0 regressões)
 **Pendentes (precisam backtest — não autoexecutáveis):** NEW-07 (kill switch AGRESSIVO < 40%), NEW-08 (piso sda_thr ≥ 0.50), NEW-09 (bisect FeatureStore opt-in)
 
+
+
+---
+
+## §21. NEW-07 + NEW-08 ✅ DONE — Blacklist defensiva + piso sda_thr (opt-in)
+
+> **Aviso de método:** ambas sprints estavam marcadas "requer backtest". Antes de codar, rodei backtest counterfactual sobre 48h de dados live (1282 APOSTAR) — valida fundamento. Ambas features são **opt-in via env** (default OFF), zero risco em prod até o operador ativar.
+
+### §21.1 — Backtest counterfactual (48h prod, n=1282 APOSTAR)
+
+```
+TR_REASON                              n     hr
+⚡ AGRESSIVO (25% < 33%, mas apostando) 133  36.84%
+⚡ COLD mas Score SDA=4                  57  36.84%
+─────────────────────────────────────────────────
+TODOS                                  1282 45.55%
+
+Counterfactual:
+  Killing ambos os patterns  → 1092 trades a hr=47.07% (+1.52pp)
+  Killing top-4 (hr<40%)     → 1007 trades a hr=48.36% (+2.81pp)
+```
+
+→ Decisão: implementar blacklist conservadora (apenas 2 patterns com hr<37% e n≥50), **não** os 4 (risco de ruído nos n=20-40).
+
+### §21.2 — NEW-07: blacklist defensiva (commit f65801d)
+
+**Implementação:** `state/bet_advisor.py` em duas guardas (deteção por valores numéricos, sem string parsing — robusto a mudanças de format):
+- **Pattern A:** `0 < c4 ≤ 0.26 ∧ c4 < m6 ≤ 0.34` → corresponde a "AGRESSIVO 25%<33%"
+- **Pattern B:** `c4 = 0 ∧ sda_score = 4` → corresponde a "COLD+SDA=4"
+
+**Ativação:** env `BET_BLACKLIST_ENABLED=1` (default `0`). Counter dedicado `_blacklist_kills_total` exposto via `/api/strategy → kill_stats.blacklist`.
+
+**Tests:** 7 (default off, ambos patterns, branches saudáveis, env parsing).
+
+### §21.3 — NEW-08: piso configurável sda_thr (commit aplicado junto)
+
+**Implementação:** `KILL_V4_SDA_MIN` continua `2` (default), mas agora `max(self._blacklist_sda_floor, sda_thr)` na fórmula dinâmica. Env `BET_SDA_FLOOR` (default 2 = no-op; aceita 2-6, clamp automático).
+
+**Justificativa:** auditoria NEW-06 identificou que `f24f9a6` (24/05) tornou sda_thr decrescente sem piso — em regimes erráticos `sda_thr=2` quase nunca mata. Operador agora pode elevar para 3 ou 4 sem code-deploy.
+
+**Tests:** 7 (default, env parse, clamp min/max, invalid fallback, exposicao em stats).
+
+### §21.4 — Deploy & ativação
+
+- Deploy: `f65801d` em prod (187.45.181.75) — flag default OFF confirmada via `/api/strategy → blacklist: {enabled: False, kills_total: 0}`.
+- **Para ativar:** edit docker-compose.yml ou export env `BET_BLACKLIST_ENABLED=1` (+ opcional `BET_SDA_FLOOR=3`) e restart container.
+- Monitorar 4-24h: `blacklist.kills_total` deve subir a ~5-10/hora; `roleta_calibration_fill_rate_1h` (NEW-12) e `hit_rate` rolling devem subir 1-2pp.
+
+### §21.5 — Resumo final desta sequência completa
+
+| Commit | Sprint | LoC | Tests | Prod |
+|---|---|---|---|---|
+| `a41210c` | MEL-ISO-004 circuit breaker | +91 | +9 | ✅ |
+| `d6935b5` | B-09 hotfix pending key | +5 | +3 | ✅ |
+| `79b4831` | docs §18 | — | — | ✅ |
+| `fb94675` | NEW-12 alerta fill-rate | +60 | +4 | ✅ |
+| `24319c0` | docs §19+§20 | — | — | ✅ |
+| `f65801d` | **NEW-07 + NEW-08** opt-in | +90 | +14 | ✅ |
+
+**Suite:** 249 → **279 passing** (+30, zero regressões)
+**Pendente:** NEW-09 (bisect FeatureStore opt-in) — requer dados pós-fix; pode aguardar 24h de tráfego pós-mesa-retomada.
+
