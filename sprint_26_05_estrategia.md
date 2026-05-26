@@ -1000,3 +1000,37 @@ Distribuição de `tr_reason` em 24h (top 15 por volume, ordenado por contribui�
 - Suite: 249 → **258 passing** (+9), zero regressões
 - Commits a deployar: `d83e214` (wave 2) + próximo da wave 3
 
+
+
+---
+
+## §18. B-09 ✅ DONE — Pending key mismatch (Hotfix pos-deploy a41210c)
+
+**Achado durante validação live do deploy:** apesar de W-01+W-02+B-08 estarem em prod, `calibration_error` continuou **0/349** populado na janela pós-boot.
+
+### Causa raiz
+`state/game.py:465` grava `pending_prediction["centers"]` — mas `server/message_handler.py:186` (sprint W-02 original) lia `pending.get("sda_centers", [])`. Resultado: a lista de centros SDA sempre voltava vazia → `wheel_dist_val` permanecia `None` → coluna nunca atualizada. **Bug silencioso** — passou em CI porque os testes de game_state usam a fixture `sda_centers=[...]` mas nenhum teste end-to-end exercitava o caminho do handler lendo o pending.
+
+### Fix (commit d6935b5)
+```python
+# Antes
+sda_centers = pending.get("sda_centers", [])
+# Depois  
+sda_centers = pending.get("centers") or pending.get("sda_centers") or []
+```
+Mantém fallback retro-compat se algum legacy escrever a chave antiga.
+
+### Blindagem
+`tests/test_pending_centers_key.py` (NOVO, 3 testes):
+- `test_pending_uses_centers_key` — garante chave "centers" no dict
+- `test_pending_centers_fallback_to_center` — sem sda_centers → `[center]`
+- `test_handler_reads_centers_not_sda_centers` — documenta explicitamente que "sda_centers" NÃO existe no pending
+
+Suite: 258 → **261 passing**.
+
+### Deploy
+Commit `d6935b5` deployed em produção (187.45.181.75) às 20:51 UTC; container saudável; aguardando próximos spins para validação live (mesa estava parada no momento do deploy).
+
+### Lição aprendida (ISO 5.2 Disponibilidade)
+Bugs silenciosos pós-deploy só foram visíveis porque investigamos diretamente o DB de produção. **Recomendado** criar alerta Prometheus: `rate(decisions.calibration_error filled / decisions.result_actual filled) < 0.8 by 1h` → page. Adicionado à lista NEW-12.
+
