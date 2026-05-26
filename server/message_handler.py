@@ -183,7 +183,9 @@ class MessageHandler:
                 # calcula wheel_dist usando helper canonico e persiste em
                 # decisions.calibration_error (coluna existia ha tempos mas
                 # nunca foi populada — 1232/1232 NULL em 24h pre-fix).
-                sda_centers = pending.get("sda_centers", [])
+                # B-09 (26/05): pending guarda chave "centers" (state/game.py:465),
+                # nao "sda_centers" — fallback ambos para retro-compat / safety.
+                sda_centers = pending.get("centers") or pending.get("sda_centers") or []
                 wheel_dist_val: Optional[int] = None
                 if sda_centers:
                     try:
