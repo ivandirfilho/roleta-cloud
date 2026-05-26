@@ -46,6 +46,19 @@ groups:
         annotations:
           summary: "Erros em refresh de métricas custom"
 
+      # NEW-12 (26/05): defesa contra bugs silenciosos pos-deploy
+      # (descoberto durante a sprint W-02: B-09 fez calibration_error
+      # cair a 0/N sem alarme). Dispara quando fill rate < 80% por 15min
+      # com volume minimo de 50 decisoes APOSTAR/h (evita ruido em
+      # janelas com pouco trafego).
+      - alert: RoletaCalibrationFillRateLow
+        expr: (roleta_calibration_fill_rate_1h < 0.8) and (roleta_decisions_with_result_1h >= 50)
+        for: 15m
+        labels: { severity: warning, component: observability }
+        annotations:
+          summary: "calibration_error fill rate {{ $value | humanizePercentage }} < 80% (1h)"
+          description: "Coluna calibration_error nao esta sendo populada. Investigar pending key mismatch (B-09-like) ou regressao no caminho W-01+W-02+B-08 do message_handler."
+
   - name: roleta_strategy_alerts
     interval: 30s
     rules:

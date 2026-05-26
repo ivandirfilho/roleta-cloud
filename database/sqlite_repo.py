@@ -441,7 +441,38 @@ class SQLiteDecisionRepository(DecisionRepository):
             conn.commit()
         finally:
             conn.close()
-    
+
+    def calibration_fill_stats(self, window_minutes: int = 60) -> dict:
+        """NEW-12 (26/05): conta decisoes APOSTAR com result_actual e
+        quantas dessas tem calibration_error NOT NULL na janela. Usado
+        como provider Prometheus para alertar bugs silenciosos do tipo
+        B-09 (pending key mismatch — fill rate cai a 0 silenciosamente).
+
+        Returns:
+            dict {"total": int, "filled": int}. total=0 quando nao ha
+            spins recentes (alerta nao dispara — fill_rate default=1.0).
+        """
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                f"""
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(calibration_error) AS filled
+                FROM decisions
+                WHERE timestamp >= datetime('now', '-{int(window_minutes)} minutes')
+                  AND result_actual IS NOT NULL
+                  AND final_action = 'APOSTAR'
+                """
+            ).fetchone()
+            if row is None:
+                return {"total": 0, "filled": 0}
+            return {"total": int(row[0] or 0), "filled": int(row[1] or 0)}
+        except Exception:
+            return {"total": 0, "filled": 0}
+        finally:
+            conn.close()
+
     def get_decision(self, decision_id: int) -> Optional[Decision]:
         """Busca uma decisão por ID."""
         conn = self._get_connection()

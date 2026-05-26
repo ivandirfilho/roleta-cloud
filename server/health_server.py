@@ -60,6 +60,17 @@ def set_batch_tune_provider(provider) -> None:
 # S-STRAT-10 MVP: provider opcional para snapshot do shadow challenger.
 _SHADOW_PROVIDER = None  # type: ignore[var-annotated]
 
+# NEW-12 (26/05): provider opcional callable() -> {"total": int, "filled": int}
+# para fill-rate de calibration_error. Boot registra em websocket apontando
+# para uma query SQLite cacheada (~30s).
+_CALIBRATION_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_calibration_provider(provider) -> None:
+    """NEW-12: registra callable() -> dict com keys 'total' e 'filled'."""
+    global _CALIBRATION_PROVIDER
+    _CALIBRATION_PROVIDER = provider
+
 
 def set_shadow_provider(provider) -> None:
     """S-STRAT-10: registra callable() -> dict para /api/shadow."""
@@ -122,6 +133,13 @@ if _METRICS_AVAILABLE:
             "bandit_total_pulls": Gauge("roleta_bandit_total_pulls", "Total de pulls do bandit"),
             # S-OBS-16: receiver webhook do AlertManager
             "alerts_received": Counter("roleta_alertmanager_webhook_received_total", "Total de alertas recebidos via webhook do AlertManager", ["severity", "alertname"]),
+            # NEW-12 (26/05): fill-rate de calibration_error — defesa contra
+            # bugs silenciosos como B-09 (pending key mismatch). Mede se o
+            # caminho W-01+W-02+B-08 (wheel_dist) esta realmente populando
+            # a coluna apos cada resultado.
+            "cal_total_1h": Gauge("roleta_decisions_with_result_1h", "Decisoes APOSTAR com result_actual NOT NULL na ultima 1h"),
+            "cal_filled_1h": Gauge("roleta_decisions_calibration_filled_1h", "Decisoes APOSTAR com calibration_error NOT NULL na ultima 1h"),
+            "cal_fill_rate": Gauge("roleta_calibration_fill_rate_1h", "Ratio calibration_error_filled / total_with_result (0..1) janela 1h"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -207,6 +225,14 @@ def _refresh_custom_metrics() -> None:
                 for sk, a in (bandit.get("arms") or {}).items():
                     _PROM_METRICS["bandit_n"].labels(shift=str(sk)).set(float(a.get("n", 0)))
                     _PROM_METRICS["bandit_mean"].labels(shift=str(sk)).set(float(a.get("mean", 0.0)))
+        # NEW-12: calibration_error fill-rate (defesa contra B-09-like bugs)
+        if _CALIBRATION_PROVIDER is not None:
+            cal = _CALIBRATION_PROVIDER() or {}
+            total = float(cal.get("total", 0) or 0)
+            filled = float(cal.get("filled", 0) or 0)
+            _PROM_METRICS["cal_total_1h"].set(total)
+            _PROM_METRICS["cal_filled_1h"].set(filled)
+            _PROM_METRICS["cal_fill_rate"].set(filled / total if total > 0 else 1.0)
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()

@@ -145,6 +145,38 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"shadow_provider_register_failed: {_e}")
 
 
+# NEW-12 (26/05): calibration_error fill-rate provider para Prometheus.
+# Defesa contra bugs silenciosos pos-deploy (vide B-09 — pending key
+# mismatch que fez fill rate cair a 0 sem alarme algum).
+try:
+    from server.health_server import set_calibration_provider as _set_cal_p
+    import time as _time_cal
+
+    _cal_cache = {"ts": 0.0, "val": {"total": 0, "filled": 0}}
+
+    def _calibration_snapshot():
+        """Cache de 30s — evita query a cada scrape /metrics (~5s)."""
+        now = _time_cal.time()
+        if now - _cal_cache["ts"] < 30.0:
+            return _cal_cache["val"]
+        try:
+            repo = db_service.repository
+            if hasattr(repo, "calibration_fill_stats"):
+                val = repo.calibration_fill_stats(window_minutes=60)
+            else:
+                val = {"total": 0, "filled": 0}
+            _cal_cache["val"] = val
+            _cal_cache["ts"] = now
+            return val
+        except Exception:
+            return _cal_cache["val"]
+
+    _set_cal_p(_calibration_snapshot)
+    logger.info("calibration_provider_registered for NEW-12 fill-rate alert")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"calibration_provider_register_failed: {_e}")
+
+
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
 try:
     from server.health_server import set_state_provider as _set_state_p
