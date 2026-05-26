@@ -465,15 +465,36 @@ class MessageHandler:
 
         except Exception as db_error:
             # BUG-SILENCE-1 fix: era warning, escalado para error + métrica
+            # SP-05 (26/05): instrumenta categoria + exc_type. TypeError /
+            # AttributeError aqui sao quase sempre bugs de assinatura
+            # (ver B-10: DatabaseService.update_result kwarg engolido).
+            # Em modo STRICT_SILENT_EXCEPT=1 esses tipos sao re-raised.
+            from core.safe_except import _CTR as _silent_ctr, _STRICT, _RERAISE_TYPES
+            _exc_type = type(db_error).__name__
             logger.error(
-                f"❌ Erro ao salvar decisão no DB: {db_error} "
+                f"❌ Erro ao salvar decisão no DB ({_exc_type}): {db_error} "
                 f"(session={self.current_session_id}, spin={numero})"
             )
+            if _silent_ctr is not None:
+                try:
+                    _silent_ctr.labels(
+                        module="server.message_handler",
+                        category="db_save_decision",
+                        exc_type=_exc_type,
+                    ).inc()
+                except Exception:
+                    pass
             try:
                 from database.outbox_integration import save_decision_failed_total
-                save_decision_failed_total.labels(reason=type(db_error).__name__).inc()
+                save_decision_failed_total.labels(reason=_exc_type).inc()
             except Exception:
                 pass
+            if _STRICT and isinstance(db_error, _RERAISE_TYPES):
+                logger.warning(
+                    "STRICT_SILENT_EXCEPT re-raising %s — provavel bug assinatura",
+                    _exc_type,
+                )
+                raise
 
         # Formato esperado pelo overlay
         overlay_response = {

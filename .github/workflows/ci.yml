@@ -70,5 +70,8 @@ jobs:
       - name: Schema symmetry check (ISO-S1 / NEW-03)
         run: python scripts/schema_symmetry.py
 
+      - name: Silent except baseline lint (SP-05)
+        run: python tools/lint_silent_except.py
+
       - name: Syntax check (all .py files)
         run: python -m py_compile main.py && find . -name "*.py" -not -path "./__pycache__/*" -not -path "./archive/*" | head -30 | xargs -I{} python -m py_compile {}
