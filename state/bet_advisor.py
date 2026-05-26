@@ -70,10 +70,20 @@ class TripleRateAdvisor:
 
     def __init__(self):
         """Inicializa o advisor."""
+        import os as _os
         # S-OBS-6: counter in-process de disparos do Kill Switch v3+
         # Resetado apenas em restart do processo (estado vivo, sem SQL)
         self._kill_pulls_total: int = 0
         self._last_kill_ts: float = 0.0
+        # NEW-07 (26/05): counter separado para kills por blacklist (feature flag).
+        # Justificado por backtest counterfactual de 48h em prod (sprint §21):
+        # branchs "AGRESSIVO 25%<33%" e "COLD+SDA=4" tem hr historico ~37%
+        # (n>=50 cada). Filtra apenas estes dois — defesa unidirecional.
+        # Ativacao via env BET_BLACKLIST_ENABLED=1 (default OFF, opt-in).
+        self._blacklist_kills_total: int = 0
+        self._blacklist_enabled: bool = _os.environ.get(
+            "BET_BLACKLIST_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on")
         # S-STRAT-11 (BUG-V3-02 fix): EMA de volatility por direção.
         # Baseline 0.45 (mais realista para sinal binário com acc≈0.45-0.50)
         # — antes era 0.30 que considerava ruído normal como "alta volatility".
@@ -91,6 +101,11 @@ class TripleRateAdvisor:
                 "vol_ema": dict(self._vol_ema),
                 "threshold_c4": dict(self._kill_thr_c4),
                 "threshold_sda": dict(self._kill_thr_sda),
+            },
+            # NEW-07: visibilidade do blacklist (mesmo quando off)
+            "blacklist": {
+                "enabled": bool(self._blacklist_enabled),
+                "kills_total": int(self._blacklist_kills_total),
             },
         }
 
@@ -225,6 +240,48 @@ class TripleRateAdvisor:
                 regime_signal=regime_signal,
             )
         
+        # ============================================
+        # NEW-07 (26/05) — BLACKLIST DEFENSIVA opt-in
+        # ============================================
+        # Backtest counterfactual em prod (48h, n=1282 APOSTAR):
+        #   * "AGRESSIVO 25%<33%" (n=133): hr=36.84%
+        #   * "COLD com SDA=4"    (n=57):  hr=36.84%
+        # Filtrando os dois: hr 45.55% -> 47.07% (+1.52pp), volume -15%.
+        # Detecta por valores numericos (nao parse string) para robustez.
+        # Ativacao via env BET_BLACKLIST_ENABLED=1 (default OFF).
+        if self._blacklist_enabled:
+            import time as _t_bl
+            # Pattern A: c4 baixo + c4<m6 + ambos pequenos (AGRESSIVO 25%<33%-like)
+            if 0 < c4 <= 0.26 and c4 < m6 <= 0.34:
+                self._blacklist_kills_total += 1
+                self._last_kill_ts = _t_bl.time()
+                return BetAdvice(
+                    should_bet=False,
+                    confidence="baixa",
+                    reason=(
+                        f"🛡️ NEW-07 blacklist: AGRESSIVO {c4:.0%}<{m6:.0%} "
+                        f"(hr historico <40%, n>=50)"
+                    ),
+                    c4_rate=c4, m6_rate=m6, l12_rate=l12,
+                    feature_signal=feature_signal,
+                    regime_signal=regime_signal,
+                )
+            # Pattern B: COLD (c4=0) com sda_score borderline (=4)
+            if c4 == 0 and sda_score == 4:
+                self._blacklist_kills_total += 1
+                self._last_kill_ts = _t_bl.time()
+                return BetAdvice(
+                    should_bet=False,
+                    confidence="baixa",
+                    reason=(
+                        f"🛡️ NEW-07 blacklist: COLD+SDA=4 "
+                        f"(hr historico <40%, n>=50)"
+                    ),
+                    c4_rate=c4, m6_rate=m6, l12_rate=l12,
+                    feature_signal=feature_signal,
+                    regime_signal=regime_signal,
+                )
+
         # ============================================
         # TUDO MAIS: APOSTAR
         # ============================================
