@@ -709,3 +709,23 @@ Agora: 1) counter Prometheus alerta-vel por exc_type=TypeError; 2) em CI/dev STR
 ### Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2.
 
 ---
+
+---
+
+## §26 — SP-02 ENTREGUE ✅
+
+**Backfill calibration_error em PROD:**
+- Antes: 0/3913 rows com calibration_error (todos NULL por causa de B-10).
+- Apos: **3996/3996 = 100% fill-rate** (3913 backfill + 83 novos pos-fix).
+- Distribuicao: dist=0 (5.2%), dist=1 (11.9%), dist=2 (11.8%), dist=3 (12.8%) — cauda longa decai como esperado.
+
+### Entregas
+- `tools/backfill_calibration_error.py` — dry-run default, --apply, --db
+- `tests/test_sp02_backfill.py` — 3 testes (dry, apply, idempotente)
+
+Suite: 293 -> **296 passing** (+3).
+Dataset historico agora utilizavel para SP-25 (loss 2D HIT+wheel_dist).
+
+### Proximo: SP-03 (CI/CD pull automatizado prod).
+
+---
