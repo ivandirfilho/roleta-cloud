@@ -1209,3 +1209,59 @@ B-09 (chave `"centers"`) e B-10 (kwarg engolido) são bugs do mesmo
 de erro genérico camuflado. **NEW-12** (alerta fill-rate <80%) é
 exatamente o sentinel que deveria ter pegado isso — agora cobrindo
 ambos. Se o fill-rate cair a zero de novo, alarme dispara em 15min.
+
+## §23 — Validação pós B-10 + refutação NEW-11 (26/05, ~22h00 UTC)
+
+### Fill-rate calibration_error pós-deploy `cf3570d`
+- 30 spins mais recentes: **27/30 = 90% filled** (vs 0% por 24h pré-fix).
+- Distribuição de distâncias: range 0..8, média 2.9.
+
+### Distribuição hits × distância (n=31, pós-B-10)
+
+| dist | n | hits | hr |
+|------|----|------|------|
+| 0    | 5  | 5    | 100% |
+| 1    | 5  | 5    | 100% |
+| 2    | 4  | 4    | 100% |
+| 3    | 5  | 1    | 20%  |
+| 4    | 4  | 0    | 0%   |
+| 5–8  | 8  | 0    | 0%   |
+
+**Modelo calibrado:** apostas que caem dentro da vizinhança coberta
+(distância ≤2 do centro mais próximo) ganham 100%. Misses concentram-se
+em distâncias ≥4 — não há "near miss" sistemático. `avg_dist_hits=1.07`
+vs `avg_dist_miss=4.63`. Útil como baseline para alerta futuro:
+`distancia_media_rolling > 3.5` poderia sinalizar descalibração.
+
+### NEW-11 (skew direção) — **REFUTADO**
+Hipótese: anti-horario ~+4pp consistente → guard estático.
+
+Dados 7d por dia:
+
+| data | anti hr | cw hr | Δ |
+|------|---------|-------|---|
+| 23/05 | 64.4% | 41.7% | anti +22.7 |
+| 24/05 | 41.5% | 53.6% | **cw +12.1** |
+| 25/05 | 46.9% | 44.7% | anti +2.2 |
+| 26/05 | 48.5% | 39.5% | anti +9.0 |
+
+Agregado 7d (n=714 vs 718): anti 47.90% / cw 44.57% (Δ=3.33pp).
+Z-test grosso ≈ **1.27** → p≈0.20, **não significativo**. Dia 24 inverteu
+o sinal — sinal **não-estacionário**, possivelmente confundido por
+regime/dealer. Guard estático causaria perda em dias de inversão.
+
+**Decisão:** não implementar guard estático. NEW-11 fica como **insight
+para regime-aware** (NEW-14 candidato futuro): considerar skew como
+feature do regime detector, não como blacklist.
+
+### Estado da sprint 26/05
+- 100% bugs (B-08, B-09, **B-10**) corrigidos + validados live.
+- Wave 3+4 ISO completa: 282 testes, 12 alertas Prometheus, 2 feature
+  flags defensivas opt-in (NEW-07/NEW-08), 1 sentinel anti-regressão
+  silenciosa (NEW-12).
+- NEW-09 (bisect FeatureStore) pendente — aguarda 24h de tráfego com
+  `calibration_error` populado (agora viável pós `cf3570d`).
+- NEW-11 refutado por análise; reciclar como insight regime-aware.
+
+Próxima janela natural: 27/05 — rodar `tools/backtest_from_db.py`
+com shadow ON/OFF para fechar NEW-09 com dados confiáveis.
