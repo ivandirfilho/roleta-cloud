@@ -729,3 +729,26 @@ Dataset historico agora utilizavel para SP-25 (loss 2D HIT+wheel_dist).
 ### Proximo: SP-03 (CI/CD pull automatizado prod).
 
 ---
+
+---
+
+## §27 — SP-03 ENTREGUE ✅
+
+**Pipeline pull-based em prod:**
+- Push em main -> CI verde -> systemd timer (2min) pulla -> healthcheck 3x -> rollback automatico se falhar.
+- Tempo estimado push->prod: **~3-4min**.
+
+### Entregas
+- `tools/deploy_pull.sh` (instalado em `/usr/local/bin/roleta-deploy-pull.sh`)
+- `tools/systemd/roleta-deploy.{service,timer}` (instalados, enabled+active no servidor)
+- `docs/DEPLOY.md` — instalacao + operacao + rollback manual + bypass
+- `tests/test_sp03_deploy.py` — 4 smoke tests (sintaxe + arquivos)
+- Log em `/var/log/roleta-deploy.log`, state em `/var/lib/roleta-deploy/last_good`
+
+### Verificacao
+`systemctl list-timers roleta-deploy.timer` mostra timer ativo, primeira exec sem-diff retornou exit 0 em 151ms.
+SSH manual continua funcionando para hotfixes.
+
+### Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2.
+
+---
