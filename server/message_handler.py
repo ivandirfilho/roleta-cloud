@@ -111,21 +111,27 @@ class MessageHandler:
                 await self.handle_legacy_spin(websocket, data, trace)
 
         except json.JSONDecodeError as e:
-            logger.error(f"JSON inválido: {e}")
+            # ISO-S2 (Seguranca / BUG-POST-004): nao expor detalhes internos.
+            # Detalhe completo vai para logs server-side; cliente recebe msg generica.
+            logger.error(f"JSON invalido: {e}", exc_info=True)
             error = ErrorOutput(
                 trace_id=trace.trace_id if trace else "unknown",
                 code=400,
-                message=f"JSON inválido: {str(e)}",
+                message="JSON invalido: payload nao pode ser parseado",
                 t_server=now_ms()
             )
             await websocket.send(error.model_dump_json())
 
         except Exception as e:
-            logger.error(f"Erro ao processar: {e}")
+            # ISO-S2 (Seguranca / BUG-POST-004): str(e) podia vazar paths/stack.
+            # Logamos detalhe completo server-side; cliente recebe mensagem opaca
+            # contendo apenas o trace_id para correlacao em suporte.
+            logger.error(f"Erro ao processar: {e}", exc_info=True)
+            _tid = trace.trace_id if trace else "unknown"
             error = ErrorOutput(
-                trace_id=trace.trace_id if trace else "unknown",
+                trace_id=_tid,
                 code=500,
-                message=str(e),
+                message=f"erro interno (trace_id={_tid})",
                 t_server=now_ms()
             )
             await websocket.send(error.model_dump_json())
@@ -423,6 +429,24 @@ class MessageHandler:
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
             decision_id = db_service.save_decision(decision)
+            # ISO-S4 (O-03 — Analisabilidade): emite UM evento estruturado canonico
+            # por decisao com decision_id + trace_id + acao + score. Permite
+            # correlacionar logs ad-hoc do mesmo spin sem regex em texto livre.
+            try:
+                import structlog as _structlog
+                _structlog.get_logger("decision").info(
+                    "decision_created",
+                    decision_id=decision_id,
+                    trace_id=trace.trace_id if trace else None,
+                    direction=direcao,
+                    spin_number=numero,
+                    final_action=("APOSTAR" if result.should_bet else "PULAR"),
+                    sda_score=getattr(result, "score", None),
+                    sda_center=getattr(result, "center", None),
+                    session_id=self.current_session_id,
+                )
+            except Exception:  # noqa: BLE001 — telemetria nunca quebra fluxo
+                pass
             if result.should_bet:
                 # SDA gerou predição → rastrear para verificar no próximo spin
                 self.last_decision_id = decision_id

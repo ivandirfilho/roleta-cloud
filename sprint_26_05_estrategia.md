@@ -833,3 +833,77 @@ docker exec roleta-cloud sqlite3 /app/data/decisions.db \
 3. **B-03 reescopado** (L-02): documentar enum real + CHECK constraint — owner: dev, esforço S
 4. **O-03** (log estruturado decision_id) — owner: dev, esforço M
 
+
+
+---
+
+## §15. EXECUÇÃO 26/05 — Wave 2 (priorizada por ISO/IEC 25010)
+
+> Reorganização: sprints pendentes reordenadas conforme `Manutenabilidade_iso.md` priorizando as características com menor score atual (6.5 Segurança, 7.5 Testabilidade, 7.3 Analisabilidade, 5.1 Maturidade). Coalescemos sprints originais com **gaps MEL-ISO-***  documentados.
+
+### ISO-S1 ✅ DONE — Schema symmetry CI (NEW-03 + MEL-ISO-002 ext.)
+
+**ISO:** 7.5 Testabilidade + 7.4 Modificabilidade
+**Arquivos:** `scripts/schema_symmetry.py` (NOVO, 4.1KB) + `.github/workflows/ci.yml` (+1 step)
+**Por quê:** evita drift entre schemas `cw/ccw` em PG — bug recorrente quando ALTER toca um lado só. Script funciona em 3 modos: (a) sem PG, checa arquivos SQL espelhados em `database/sql/cw|ccw/`; (b) com `--pg` ou `ROLETA_PG_DSN`, compara `information_schema.columns` ao vivo; (c) defensivo: nunca falha CI se PG não subiu.
+**Resultado local:** `python scripts/schema_symmetry.py` → exit 0 (cw/ccw dirs ausentes hoje — placeholder pronto para quando V-01a popular).
+**Nota MEL-ISO-002:** doc ISO diz "CI vazio" mas `.github/workflows/ci.yml` JÁ existe (76 linhas, matriz Python 3.12/3.13, PG service, pytest+lint). **Doc desatualizado** — apenas adicionei o step de symmetry.
+
+### ISO-S2 ✅ DONE — Sanitize ErrorOutput (BUG-POST-004 + MEL-ISO-001)
+
+**ISO:** 6.1 Confidencialidade (Segurança 6.5 → meta 7.5)
+**Arquivos:** `server/message_handler.py:113-137` + `tests/test_error_output_sanitize.py` (NOVO, 2 tests)
+**Mudança:** `ErrorOutput.message` ANTES expunha `str(e)` cru — agora retorna mensagem opaca (`"erro interno (trace_id=...)"` ou `"JSON invalido: payload nao pode ser parseado"`). Detalhe completo + stack trace vai para logger server-side com `exc_info=True`.
+**Defesa anti-regressão:** 2 testes validam que (a) path interno injetado em RuntimeError não aparece no `ws.sent[0].message`, mas APARECE no caplog; (b) payload com `secret_token=abc123` num JSON inválido não ecoa.
+**Resultado:** 2/2 tests passing.
+
+### ISO-S3 ⏭️ SKIPPED — BUG-POST-007 já resolvido
+
+**ISO:** 5.1 Maturidade
+`state/game.py:1129` já loga via `logger.error(f"Falha ao carregar state.json: {e}")` desde 31/03 v4.3.1. Doc Manutenibilidade desatualizado quanto a isto.
+
+### ISO-S4 ✅ DONE — structlog `decision_created` event (O-03)
+
+**ISO:** 7.3 Analisabilidade
+**Arquivo:** `server/message_handler.py:425-444` (+18 linhas)
+**Mudança:** após `db_service.save_decision(decision)`, emite UM evento canônico estruturado em logger `"decision"` com `decision_id`, `trace_id`, `direction`, `spin_number`, `final_action`, `sda_score`, `sda_center`, `session_id`. Try/except defensivo (telemetria nunca quebra fluxo).
+**Por quê:** permite correlação cross-log de todos os eventos do mesmo spin via `jq '.decision_id == 42'` no JSON da structlog — sem regex em texto livre. Habilita dashboards "spin histórico completo" e debugging de regressões (L-07).
+
+### ISO-S5 ✅ DONE — Fix colunas em prompts mestres (L-05)
+
+**ISO:** 7.3 Analisabilidade (doc accuracy)
+**Arquivo:** `sprint_evolucao_25_05.md:659-664`
+**Mudança:** query baseline hit_rate corrigida:
+- `sqlite3 /root/roleta-cloud/data/roleta.db` → `docker exec roleta-cloud sqlite3 /app/data/decisions.db`
+- `hit=1` → `result_hit=1`
+- `hit IS NOT NULL` → `result_hit IS NOT NULL`
+- `created_at` → `timestamp`
+
+Próximo agente pode copy-paste o prompt sem encontrar `no such column`.
+
+### ISO-S6 ✅ DONE — gale_windows.result enum backfill (B-03 reescopado)
+
+**ISO:** 1.2 Correção Funcional + 5.1 Maturidade
+**Arquivo:** `database/sqlite_repo.py:218-238` (auto-migration nova)
+**Mudança:** migration idempotente que (a) faz backfill `UPDATE gale_windows SET result='info' WHERE result IS NULL AND ended_at IS NOT NULL` — endereça o 1 NULL legado encontrado na audit live; (b) cria `idx_gale_windows_result` para queries de filtro por enum.
+**Por quê:** SQLite não permite `ALTER TABLE ADD CONSTRAINT CHECK` — backfill + índice servem como salvaguarda pragmática até migrarmos para PG (NEW-10 futuro) com CHECK real. Enum oficial documentado: `streak | reset | info`.
+
+### Resumo de impacto ISO (após Wave 2)
+
+| Caract. ISO | Score doc | Mudanças desta wave | Score projetado |
+|---|---|---|---|
+| 6.1 Confidencialidade | 5/10 (Seg total 6.5) | ISO-S2 sanitize | 7/10 |
+| 7.3 Analisabilidade | 7/10 | ISO-S4 evento canônico + ISO-S5 docs | 7.5/10 |
+| 7.5 Testabilidade | 6/10 | ISO-S1 symmetry CI + 2 novos testes | 6.5/10 |
+| 1.2 Correção Funcional | 9/10 | ISO-S6 backfill enum | 9/10 (mantém) |
+
+**Testes:** 247 → **249 passing**, 0 regressions.
+
+### Próxima wave (sugerida — aguarda aprovação)
+
+1. **NEW-06** (L-07): bisect regressão `hit_rate 45.83% < 45.95% baseline` via shadow replay 7d
+2. **NEW-01** (model_registry PG schema)
+3. **MEL-ISO-008** (assinatura device_id) — Segurança 6.5 Autenticidade
+4. **MEL-ISO-004** (circuit breaker SQLite) — Confiabilidade
+5. **W-03** (sigmoid v2, 4 buckets de hora-do-dia)
+

@@ -67,5 +67,8 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
 
+      - name: Schema symmetry check (ISO-S1 / NEW-03)
+        run: python scripts/schema_symmetry.py
+
       - name: Syntax check (all .py files)
         run: python -m py_compile main.py && find . -name "*.py" -not -path "./__pycache__/*" -not -path "./archive/*" | head -30 | xargs -I{} python -m py_compile {}

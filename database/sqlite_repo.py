@@ -214,6 +214,26 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.execute("ALTER TABLE decisions ADD COLUMN sda_offset_type TEXT DEFAULT ''")
                 conn.commit()
                 logger.info("Migration: added sda_offset, sda_offset_type columns to decisions")
+
+            # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
+            # Enum oficial observado em prod: 'streak', 'reset', 'info'.
+            # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
+            # (2) Indice parcial para queries de filtro por enum.
+            # NOTA: SQLite nao suporta ALTER TABLE ADD CONSTRAINT — CHECK seria
+            # exigido em CREATE TABLE; usamos backfill + indice como salvaguarda
+            # mais migrar PG (futuro NEW-10) com CHECK real.
+            try:
+                conn.execute(
+                    "UPDATE gale_windows SET result='info' "
+                    "WHERE result IS NULL AND ended_at IS NOT NULL"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_gale_windows_result "
+                    "ON gale_windows(result)"
+                )
+                conn.commit()
+            except sqlite3.OperationalError as _e:
+                logger.warning(f"Migration ISO-S6 (gale_windows.result) skipped: {_e}")
     
     def save_decision(self, decision: Decision) -> int:
         """Salva uma nova decisão."""

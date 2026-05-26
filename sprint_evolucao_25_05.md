@@ -656,11 +656,11 @@ cd 'C:\Users\Windows\Desktop\Roleta Cloud'
 git tag "pre-$SPRINT" -m "snapshot antes da sprint $SPRINT"
 git push origin "pre-$SPRINT"
 
-# Hit_rate baseline live
+# Hit_rate baseline live (path/colunas reais — L-05 fix 26/05)
 $bash = @"
-sqlite3 /root/roleta-cloud/data/roleta.db "
-SELECT printf('%.2f%% (n=%d)', 100.0*AVG(CASE WHEN hit=1 THEN 1.0 ELSE 0 END), COUNT(*))
-FROM decisions WHERE hit IS NOT NULL AND created_at > datetime('now','-24 hour');"
+docker exec roleta-cloud sqlite3 /app/data/decisions.db "
+SELECT printf('%.2f%% (n=%d)', 100.0*AVG(CASE WHEN result_hit=1 THEN 1.0 ELSE 0 END), COUNT(*))
+FROM decisions WHERE result_hit IS NOT NULL AND timestamp > datetime('now','-24 hour');"
 "@
 $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bash))
 ssh -i C:\Users\Windows\.ssh\id_rsa root@187.45.181.75 "echo $b64 | base64 -d | bash"
