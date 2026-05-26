@@ -752,3 +752,27 @@ SSH manual continua funcionando para hotfixes.
 ### Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2.
 
 ---
+
+---
+
+## §28 — SP-06 ENTREGUE ✅
+
+**Infraestrutura DNA estabelecida.** Open Onda 2.
+
+### Entregas
+- `migrations/versions/0008_decision_dna.py` — PG: `shared.decision_dna` (append-only, JSONB feature_value, 4 indexes) + MATVIEW `shared.dna_summary` agregando lift_pp por (feature_name, bucket).
+- `database/dna_logger.py` — write-side helper:
+  - `configure(db_path, enabled)` cria tabela SQLite local
+  - `dna_log_feature(decision_id, feature_name, feature_value, ...)` — INSERT best-effort
+  - `dna_update_realized(decision_id, realized_lift_pp, hit, wheel_dist)` — fill pos-resultado
+  - Thread-safe (lock interno), erros nunca propagam
+- `tests/test_sp06_dna.py` — 6 testes: tabela criada, insert basico, multiplas features/decision, update_realized, disabled, migration loads.
+
+### Suite: 296 -> **305 passing** (+9, schema parity tambem revalidou).
+
+### Decisao de design
+DNA local em SQLite por default; PG via outbox/CDC quando SP-07 cabear bet_advisor. `configure()` opt-in: main.py vai chamar no startup quando SP-07 for ao ar — ate la, tabela so existe em testes (e schema parity nao quebra).
+
+### Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — sem deps; alta prioridade do usuario.
+
+---
