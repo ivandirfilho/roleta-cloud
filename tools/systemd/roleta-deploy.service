@@ -1,0 +1,12 @@
+[Unit]
+Description=Roleta Cloud — pull-based deploy do main
+Wants=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+Environment=REPO_DIR=/root/roleta-cloud
+Environment=HEALTH_URL=http://127.0.0.1:8766/health
+ExecStart=/usr/local/bin/roleta-deploy-pull.sh
+TimeoutStartSec=600
+Nice=10

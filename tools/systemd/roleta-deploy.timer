@@ -1,0 +1,11 @@
+[Unit]
+Description=Roleta Cloud — timer de pull-deploy (a cada 2min)
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=120s
+AccuracySec=10s
+Unit=roleta-deploy.service
+
+[Install]
+WantedBy=timers.target
