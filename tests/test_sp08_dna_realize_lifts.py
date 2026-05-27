@@ -1,0 +1,69 @@
+"""SP-08 DNA-03: realized_lift_pp batch realizer."""
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from database import dna_logger
+
+
+class TestRealizeLifts(unittest.TestCase):
+    def setUp(self):
+        dna_logger.reset_for_tests()
+        self.db = tempfile.mktemp(suffix=".db")
+        dna_logger.configure(self.db)
+
+    def tearDown(self):
+        dna_logger.reset_for_tests()
+
+    def _emit(self, did, bucket, hit):
+        dna_logger.dna_log_feature(did, "test_f", {"raw": 1, "bucket": bucket})
+        dna_logger.dna_update_realized(did, hit=hit, wheel_dist=2 if hit else 7)
+
+    def test_lift_calc(self):
+        # bucket "hot": 8 hits / 10 (hr=0.8)
+        for i in range(8):
+            self._emit(100 + i, "hot", True)
+        for i in range(2):
+            self._emit(108 + i, "hot", False)
+        # bucket "cold": 2 hits / 10 (hr=0.2)
+        for i in range(2):
+            self._emit(200 + i, "cold", True)
+        for i in range(8):
+            self._emit(202 + i, "cold", False)
+        # baseline = 10/20 = 0.5
+        # hot lift = (0.8 - 0.5) * 100 = +30 pp
+        # cold lift = (0.2 - 0.5) * 100 = -30 pp
+        updated = dna_logger.dna_realize_lifts(min_n=5)
+        self.assertEqual(updated, 20)
+
+        import sqlite3
+        conn = sqlite3.connect(self.db)
+        row = conn.execute(
+            "SELECT AVG(realized_lift_pp) FROM decision_dna "
+            "WHERE json_extract(feature_value,'$.bucket')='hot'"
+        ).fetchone()
+        self.assertAlmostEqual(row[0], 30.0, places=2)
+        row = conn.execute(
+            "SELECT AVG(realized_lift_pp) FROM decision_dna "
+            "WHERE json_extract(feature_value,'$.bucket')='cold'"
+        ).fetchone()
+        self.assertAlmostEqual(row[0], -30.0, places=2)
+
+    def test_min_n_skips_small_buckets(self):
+        for i in range(3):
+            self._emit(i, "tiny", True)
+        updated = dna_logger.dna_realize_lifts(min_n=10)
+        self.assertEqual(updated, 0)
+
+    def test_no_op_if_no_realized(self):
+        dna_logger.dna_log_feature(1, "f", {"raw": 1, "bucket": "x"})
+        self.assertEqual(dna_logger.dna_realize_lifts(), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

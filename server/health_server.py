@@ -356,6 +356,24 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
+        if self.path == "/api/dna_summary":
+            # SP-09 DNA-04: agregado por (feature_name, bucket) com n, hit_rate,
+            # avg_lift_pp. Sem provider — le direto via dna_logger.
+            try:
+                from database import dna_logger as _dna
+                payload = _dna.dna_summary()
+                body = json.dumps(payload, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
+            return
         if self.path == "/api/batch_tune":
             # S-STRAT-7: snapshot do auto-tune em lote (4 spins por sentido).
             if _BATCH_TUNE_PROVIDER is None:

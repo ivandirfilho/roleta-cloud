@@ -859,3 +859,16 @@ DNA cabeado no fluxo real de decisao (production-grade).
 - Alerta `RoletaDnaRealizeLagHigh` (`lag>300s for 5m`)
 
 **Por quê:** Defesa contra regressão silenciosa do hook `dna_update_realized` (SP-07) — se o caminho `update_result -> realize` quebra, DNA acumula features sem ground truth e SP-08 `realized_lift_pp` fica vazio. Padrão NEW-12.
+
+## §35 — SP-08/SP-09/SP-10 ENTREGUES ✅ (DNA-03/04/05)
+
+**Commit:** SP-08 dna_realize_lifts + SP-09 dna_summary + SP-10 lint coverage
+**Tests:** 325 pass (7 novos)
+
+**SP-08 (DNA-03):** `dna_realize_lifts(feature_name=None, min_n=10)` — calcula `realized_lift_pp = (bucket_hit_rate - baseline_hit_rate) * 100` (pp) e UPDATE em lote. Idempotente (apenas onde realized_lift_pp IS NULL).
+
+**SP-09 (DNA-04):** Endpoint `GET /api/dna_summary` retorna list[{feature_name, bucket, n, hit_rate, avg_lift_pp, avg_wheel_dist}] agregado de `decision_dna` realized. Sem provider — le direto do dna_logger.
+
+**SP-10 (DNA-05):** `tools/lint_dna_coverage.py` AST-walk em `server/`, `state/`, `workers/` — falha se algum arquivo chama `save_decision()` sem `dna_log_feature()`. Exemption via comentario `# DNA-EXEMPT: <reason>`. Hookado em `tests/test_sp10_dna_coverage.py`.
+
+**Por quê (blueprint §1.2):** Fecha o ciclo completo DNA: write (SP-06/07) -> realize (SP-08) -> visualize (SP-09) -> regression-guard (SP-10). Painel /api/dna_summary destrava SP-19 (Grafana 3 regioes) e SP-18 (bandit ε-greedy).

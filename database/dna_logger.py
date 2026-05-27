@@ -178,6 +178,121 @@ def reset_for_tests() -> None:
     _ENABLED = True
 
 
+def dna_realize_lifts(feature_name: Optional[str] = None, min_n: int = 10) -> int:
+    """SP-08 DNA-03: calcula realized_lift_pp = (bucket_hit_rate - baseline_hit_rate) * 100
+    em pontos percentuais (pp) e UPDATE em todas as entradas decision_dna com
+    hit IS NOT NULL e realized_lift_pp IS NULL.
+
+    Baseline = hit_rate global das decisoes realizadas (todos buckets).
+    Bucket = feature_value extraido (JSON.bucket).
+
+    Args:
+        feature_name: se fornecido, restringe ao feature. None = todas.
+        min_n: minimo de amostras por bucket para calcular lift (evita ruido).
+
+    Retorna numero de linhas atualizadas. Best-effort.
+    """
+    if not _ENABLED or _DB_PATH is None:
+        return 0
+    try:
+        with _LOCK:
+            conn = sqlite3.connect(str(_DB_PATH))
+            try:
+                row = conn.execute(
+                    "SELECT AVG(hit*1.0) FROM decision_dna WHERE hit IS NOT NULL"
+                ).fetchone()
+                baseline = float(row[0]) if row and row[0] is not None else None
+                if baseline is None:
+                    return 0
+                # Itera buckets unicos
+                where_feat = ""
+                params: list[Any] = []
+                if feature_name:
+                    where_feat = " AND feature_name = ?"
+                    params.append(feature_name)
+                buckets = conn.execute(
+                    f"""
+                    SELECT feature_name,
+                           json_extract(feature_value, '$.bucket') AS bucket,
+                           AVG(hit*1.0) AS hr,
+                           COUNT(*) AS n
+                    FROM decision_dna
+                    WHERE hit IS NOT NULL{where_feat}
+                    GROUP BY feature_name, bucket
+                    HAVING n >= ?
+                    """,
+                    params + [min_n],
+                ).fetchall()
+                total = 0
+                for fn, bucket, hr, _n in buckets:
+                    if hr is None:
+                        continue
+                    lift_pp = (float(hr) - baseline) * 100.0
+                    cur = conn.execute(
+                        """
+                        UPDATE decision_dna
+                        SET realized_lift_pp = ?
+                        WHERE feature_name = ?
+                          AND json_extract(feature_value, '$.bucket') = ?
+                          AND hit IS NOT NULL
+                          AND realized_lift_pp IS NULL
+                        """,
+                        (lift_pp, fn, bucket),
+                    )
+                    total += cur.rowcount
+                conn.commit()
+                return total
+            finally:
+                conn.close()
+    except Exception:
+        logger.exception("DNA: falha dna_realize_lifts feature=%s", feature_name)
+        return 0
+
+
+def dna_summary() -> list[dict]:
+    """SP-09 DNA-04: agregado por (feature_name, bucket).
+
+    Returns:
+        list[dict] com keys: feature_name, bucket, n, hit_rate, avg_lift_pp,
+        avg_wheel_dist. Apenas linhas realized (hit IS NOT NULL).
+    """
+    if _DB_PATH is None:
+        return []
+    try:
+        conn = sqlite3.connect(str(_DB_PATH))
+        try:
+            rows = conn.execute(
+                """
+                SELECT feature_name,
+                       json_extract(feature_value, '$.bucket') AS bucket,
+                       COUNT(*) AS n,
+                       AVG(hit*1.0) AS hit_rate,
+                       AVG(realized_lift_pp) AS avg_lift_pp,
+                       AVG(wheel_dist*1.0) AS avg_wheel_dist
+                FROM decision_dna
+                WHERE hit IS NOT NULL
+                GROUP BY feature_name, bucket
+                ORDER BY feature_name, bucket
+                """
+            ).fetchall()
+            return [
+                {
+                    "feature_name": r[0],
+                    "bucket": r[1],
+                    "n": int(r[2] or 0),
+                    "hit_rate": float(r[3]) if r[3] is not None else None,
+                    "avg_lift_pp": float(r[4]) if r[4] is not None else None,
+                    "avg_wheel_dist": float(r[5]) if r[5] is not None else None,
+                }
+                for r in rows
+            ]
+        finally:
+            conn.close()
+    except Exception:
+        logger.exception("DNA: falha dna_summary")
+        return []
+
+
 def dna_realize_stats() -> dict:
     """SP-29 OBS-01: lag em segundos desde a ultima decision_id que ainda
     nao recebeu realized_lift_pp/hit. Indica regressao no caminho
