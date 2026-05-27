@@ -929,3 +929,25 @@ DNA cabeado no fluxo real de decisao (production-grade).
 **Para promover bayesian_plus3 ao default:** rodar `python tools/ml_loss_grid.py --db /app/data/decisions.db` e verificar se `best_offset >= 12` por 7 dias seguidos.
 
 **Cumulativo: 14 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35, 25, 26).
+
+## §39 — SP-18/SP-19 ENTREGUES ✅ (REGION-03 bandit + REGION-04 painel)
+
+**Commit:** SP-18 region bandit + SP-19 grafana dashboard
+**Tests:** 339 pass (5 novos)
+
+**SP-18 (REGION-03):** `strategies/region_bandit.py` — bandit epsilon-greedy stateless.
+- `choose_region(summary_rows, epsilon=0.1, min_n=20, rng=None)`
+- Agrega `avg_lift_pp` ponderado por `n` em cada feature region_C1/C2/C3
+- ε% explora uniforme, (1-ε)% exploit (maior weighted lift)
+- `None` se nenhuma regiao com `n >= min_n` (SDA17 segue default)
+- Stateless por design — caller faz cache
+
+**Como integrar (next-step nao incluido):** message_handler chama `choose_region(_dna.dna_summary())` antes do save_decision e usa o slot recomendado para ajustar offsets sigmoid.
+
+**SP-19 (REGION-04):** `obs/grafana/dashboards/roleta-dna-regions.json` — dashboard com 7 paineis:
+- wheel_dist p50/p95/p99 timeseries (SP-30)
+- calibration_fill_rate, dna_realize_lag, unrealized count (stats)
+- accuracy CW vs CCW + KILL pulls
+- Texto markdown com curl pronto para `/api/dna_summary` (SP-09)
+
+**Cumulativo: 16 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35, 25, 26, 18, 19).

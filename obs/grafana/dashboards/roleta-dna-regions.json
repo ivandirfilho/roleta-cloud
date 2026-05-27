@@ -1,0 +1,80 @@
+{
+  "title": "Roleta Cloud — DNA 3 Regioes (SP-19)",
+  "uid": "roleta-dna-regions",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "wheel_dist percentis (1h)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "roleta_wheel_dist_p50_1h", "legendFormat": "p50" },
+        { "expr": "roleta_wheel_dist_p95_1h", "legendFormat": "p95" },
+        { "expr": "roleta_wheel_dist_p99_1h", "legendFormat": "p99" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 2,
+      "title": "calibration_error fill rate (NEW-12)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "roleta_calibration_fill_rate_1h" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 0.8 }, { "color": "green", "value": 0.95 }] } } }
+    },
+    {
+      "id": 3,
+      "title": "DNA realize lag (s)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "roleta_dna_realize_lag_seconds" }],
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 120 }, { "color": "red", "value": 300 }] } } }
+    },
+    {
+      "id": 4,
+      "title": "DNA unrealized count",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
+      "targets": [{ "expr": "roleta_dna_unrealized_count" }]
+    },
+    {
+      "id": 5,
+      "title": "wheel_dist samples / 1h",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 4 },
+      "targets": [{ "expr": "roleta_wheel_dist_samples_1h" }]
+    },
+    {
+      "id": 10,
+      "title": "DNA summary por (feature, bucket) — consultar /api/dna_summary",
+      "type": "text",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 8 },
+      "options": {
+        "mode": "markdown",
+        "content": "**SP-09 endpoint:** `GET http://<host>:8766/api/dna_summary`\n\nRetorna agregado por (feature_name, bucket) com `n`, `hit_rate`, `avg_lift_pp`, `avg_wheel_dist`. Features esperadas:\n- `sda_score` (sweet_spot/high/low) — SP-07\n- `calibration_offset` — SP-07\n- `tr_c4_rate` (hot/warm/cold) — SP-07\n- `kill_v4` (on/off) — SP-07\n- `region_C1/C2/C3` (zero/near/far) — SP-17 REGION-02\n\n**SP-08:** `dna_realize_lifts()` calcula `realized_lift_pp` em lote — rodar via cron ou no boot."
+      }
+    },
+    {
+      "id": 11,
+      "title": "Accuracy rolling 100 (CW vs CCW)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "roleta_recent_acc_cw", "legendFormat": "CW" },
+        { "expr": "roleta_recent_acc_ccw", "legendFormat": "CCW" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+    {
+      "id": 12,
+      "title": "KILL v4 pulls (cumulativo)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [{ "expr": "roleta_kill_pulls_total" }]
+    }
+  ]
+}
