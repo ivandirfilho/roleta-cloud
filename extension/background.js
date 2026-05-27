@@ -5,6 +5,12 @@
 
 console.log('🎧 Escuta Beat v2.7 - Background iniciado (Persistente + WebSocket!)');
 
+try {
+  importScripts('extractor_meta.js');
+} catch (e) {
+  console.warn('⚠️ Falha ao carregar extractor_meta.js:', e?.message || e);
+}
+
 
 // ===== SISTEMA DE LOGS ESTRUTURADOS =====
 const LOG_HISTORY_MAX = 100; // Manter últimos 100 registros
@@ -85,6 +91,29 @@ const WS_CONFIG = {
 let wsConnection = null;
 let wsReconnectAttempts = 0;
 let wsConnected = false;
+
+async function seedDealMetaFromExtractorData(extractorData) {
+  if (typeof extractDealMetaFromExtractorData !== 'function') return null;
+  const extracted = extractDealMetaFromExtractorData(extractorData);
+  if (!extracted) return null;
+  let currentMeta = latestDealMeta;
+  if (!currentMeta) {
+    try {
+      const stored = await chrome.storage.local.get(['dealMeta']);
+      currentMeta = stored?.dealMeta || null;
+    } catch (_) { /* ignore storage read failures */ }
+  }
+  const merged = (typeof mergeDealMeta === 'function')
+    ? mergeDealMeta(currentMeta, extracted)
+    : extracted;
+  if (!merged) return null;
+  latestDealMeta = merged;
+  try {
+    await chrome.storage.local.set({ dealMeta: merged });
+  } catch (_) { /* ignore storage write failures */ }
+  console.log('🧩 DEAL meta hidratado do extrator:', merged);
+  return merged;
+}
 
 // 🔧 MEL-005: restaurar contador de reconexões (sobrevive restart do Service Worker)
 chrome.storage.session?.get('wsReconnectAttempts', (data) => {
@@ -207,6 +236,7 @@ function connectWebSocket() {
           state.currentMesa = data.mesa_id;
           state.mesaConfig = data.config;
           state.extractorData = data.config; // Retrocompatibilidade
+          await seedDealMetaFromExtractorData(data.config);
 
           if (data.config && data.config.data && data.config.data.results) {
             state.results = data.config.data.results.lastNumbers?.slice(0, 12) || [];
@@ -625,6 +655,7 @@ async function handleMessage(message, sender = null) {
     const state = await getState();
     state.extractorData = message.data;
     state.error = null;
+    await seedDealMetaFromExtractorData(message.data);
 
     if (message.data?.data?.results?.lastNumbers) {
       state.results = message.data.data.results.lastNumbers.slice(0, 12);
@@ -659,6 +690,8 @@ async function handleMessage(message, sender = null) {
 
       addLog('info', 'Template base Evolution carregado automaticamente');
     }
+
+    await seedDealMetaFromExtractorData(state.extractorData);
 
     state.isListening = true;
     // 🆕 v4.0: Usar sender.tab.id como fallback se tabId não for passado (ex: control_panel.js)
