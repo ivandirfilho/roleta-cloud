@@ -186,6 +186,13 @@ class MessageHandler:
             )
             numero = spin.numero
             direcao = spin.direcao
+            # DEAL audit 27/05: loga quando dealer/provider chegarem para
+            # facilitar troubleshooting pos-deploy. INFO so se algum campo set.
+            if spin.dealer or spin.provider or spin.table:
+                logger.info(
+                    f"[DEAL] dealer={spin.dealer!r} provider={spin.provider!r} "
+                    f"table={spin.table!r} round={spin.round_id!r}"
+                )
         except Exception as e:
             raise ValueError(f"Entrada inválida: {e}")
 

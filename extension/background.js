@@ -43,6 +43,10 @@ function addLog(type, message, data = null) {
 }
 
 // ===== ESTADO =====
+// SP-11 DEAL (27/05): cache in-memory do ultimo dealMeta para evitar race
+// com state polling. Persistido tambem em chrome.storage.local.dealMeta.
+let latestDealMeta = null;
+
 const DEFAULT_STATE = {
   isListening: false,
   tabId: null,
@@ -522,12 +526,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const action = request.action;
 
   // SP-11 DEAL-01 (27/05): captura DOM enviada pelo content script.
+  // FIX (27/05 audit): escreve direto via chrome.storage.local.set para
+  // evitar race com o polling de spins (que faz getState/saveState).
+  // Tambem mantemos em memoria global para o sendToWebSocket pegar fresh.
   if (action === 'dealMetaUpdate') {
     (async () => {
       try {
-        const state = await getState();
-        state.dealMeta = request.dealMeta || null;
-        await saveState(state);
+        latestDealMeta = request.dealMeta || null;
+        chrome.storage.local.set({ dealMeta: latestDealMeta });
         sendResponse({ success: true });
       } catch (e) {
         sendResponse({ success: false, error: String(e) });
@@ -1142,7 +1148,9 @@ async function readResults() {
 
         // 🆕 v2.7: Enviar para servidor Python via WebSocket
         // SP-11 DEAL-01 (27/05): incluir dealer/table/provider via deal_meta capturado por content.js
-        const _dm = state.dealMeta || {};
+        // FIX (27/05 audit): usa latestDealMeta (fresh, in-memory) em vez de state.dealMeta (stale do storage)
+        const _dm = (typeof latestDealMeta === 'object' && latestDealMeta) ? latestDealMeta
+                    : (state.dealMeta || {});
         const sent = sendToWebSocket({
           type: 'novo_resultado',
           numero: newNumber,

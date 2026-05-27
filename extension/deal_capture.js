@@ -16,6 +16,9 @@
   else if (HOST.includes('playtech') || HOST.includes('iconic21')) provider = 'playtech';
   else if (HOST.includes('imagine')) provider = 'imagine';
   else if (HOST.includes('pragmatic')) provider = 'pragmatic';
+  // Fallback: usa host como provider para permitir rastreio mesmo em
+  // dominios novos (operador pode adicionar regra depois). DEAL audit 27/05.
+  const PROVIDER_FALLBACK = provider || (HOST ? `host:${HOST}` : 'unknown');
 
   // Selectors por provider (atualizar conforme DOM real). Cada entrada:
   //  - dealer: CSS selector para nome do dealer
@@ -53,16 +56,15 @@
   }
 
   function snapshot() {
-    if (!provider) return null;
-    const cfg = PROVIDER_SELECTORS[provider] || {};
+    const cfg = (provider && PROVIDER_SELECTORS[provider]) || {};
     const meta = {
-      provider,
+      provider: PROVIDER_FALLBACK,
       dealer:   pick(cfg.dealer),
       table:    pick(cfg.table),
       round_id: pick(cfg.round),
       captured_at: Date.now(),
     };
-    if (!meta.dealer && !meta.table && !meta.round_id) return null;
+    // Sempre publica (mesmo so com provider) para o server saber a origem.
     return meta;
   }
 
@@ -77,7 +79,8 @@
       chrome.storage && chrome.storage.local && chrome.storage.local.set({ dealMeta: meta });
       chrome.runtime && chrome.runtime.sendMessage &&
         chrome.runtime.sendMessage({ action: 'dealMetaUpdate', dealMeta: meta });
-    } catch (_) { /* extension context invalido — ignora */ }
+      console.log('[deal_capture] published', meta);
+    } catch (_) { /* extension context invalido */ }
   }
 
   // Observa mudancas no body para capturar mudancas de dealer/mesa.
