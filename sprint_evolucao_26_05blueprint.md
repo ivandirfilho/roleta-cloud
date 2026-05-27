@@ -872,3 +872,18 @@ DNA cabeado no fluxo real de decisao (production-grade).
 **SP-10 (DNA-05):** `tools/lint_dna_coverage.py` AST-walk em `server/`, `state/`, `workers/` — falha se algum arquivo chama `save_decision()` sem `dna_log_feature()`. Exemption via comentario `# DNA-EXEMPT: <reason>`. Hookado em `tests/test_sp10_dna_coverage.py`.
 
 **Por quê (blueprint §1.2):** Fecha o ciclo completo DNA: write (SP-06/07) -> realize (SP-08) -> visualize (SP-09) -> regression-guard (SP-10). Painel /api/dna_summary destrava SP-19 (Grafana 3 regioes) e SP-18 (bandit ε-greedy).
+
+## §36 — SP-17 ENTREGUE ✅ (REGION-02 lift por regiao C1/C2/C3)
+
+**Commit:** SP-17 region features + lint baseline
+**Tests:** 326 pass (1 novo)
+
+**O que foi entregue:**
+- Hook DNA em `server/message_handler.py` (logo apos sda_score/calibration/tr_c4/kill_v4) emite 3 features adicionais: `region_C1`, `region_C2`, `region_C3`
+- Cada feature DNA tem `raw=offset`, `bucket={zero,near,far}` (|off|=0/<=3/>3) e `c=center_number`
+- Builder `_build_sda_regions` (SP-16) reutilizado — zero duplicacao
+- Try/except defensivo aninhado: hook DNA externo OR interno region nunca quebra fluxo
+
+**Por quê (blueprint §1.4):** Cada regiao do trifoco SDA17 tem hit_rate diferente; medir `realized_lift_pp` por regiao mostra qual slot e o real motor de acerto. Destrava SP-18 (bandit ε-greedy entre regioes) — sem essa instrumentacao o bandit nao tem reward signal.
+
+**Total cumulativo nesta sessao: 9 sprints (SP-02, 03, 04, 06, 07 do checkpoint anterior + SP-16, 27, 30, 31, 29, 08, 09, 10, 17).**

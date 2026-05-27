@@ -512,6 +512,25 @@ class MessageHandler:
                     {"raw": _kill, "bucket": "off" if _kill else "on"},
                     spin_number=numero, direction=direcao, final_action=_action,
                 )
+                # SP-17 REGION-02: emite uma feature DNA por regiao C1/C2/C3.
+                # Permite calcular realized_lift_pp por slot e cruzar com
+                # offset (sweet_spot do offset adaptativo SDA17).
+                try:
+                    _regions = _build_sda_regions(result) or []
+                    for _r in _regions:
+                        _slot = _r.get("slot", "C?")
+                        _off = int(_r.get("offset", 0) or 0)
+                        _off_bucket = (
+                            "zero" if _off == 0
+                            else ("near" if abs(_off) <= 3 else "far")
+                        )
+                        _dna.dna_log_feature(
+                            decision_id, f"region_{_slot}",
+                            {"raw": _off, "bucket": _off_bucket, "c": _r.get("c")},
+                            spin_number=numero, direction=direcao, final_action=_action,
+                        )
+                except Exception:  # noqa: BLE001
+                    pass
             except Exception:  # noqa: BLE001 — DNA nunca quebra fluxo
                 pass
             # ISO-S4 (O-03 — Analisabilidade): emite UM evento estruturado canonico

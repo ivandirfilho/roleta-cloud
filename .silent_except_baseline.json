@@ -3,7 +3,7 @@
   "server/connection_manager.py": 6,
   "server/extractor_service.py": 4,
   "server/health_server.py": 16,
-  "server/message_handler.py": 13,
+  "server/message_handler.py": 14,
   "server/websocket.py": 18,
   "state/bet_advisor.py": 3,
   "state/game.py": 11,
