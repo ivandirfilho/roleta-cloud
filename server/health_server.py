@@ -65,6 +65,13 @@ _SHADOW_PROVIDER = None  # type: ignore[var-annotated]
 # para uma query SQLite cacheada (~30s).
 _CALIBRATION_PROVIDER = None  # type: ignore[var-annotated]
 _WHEEL_DIST_PROVIDER = None  # type: ignore[var-annotated]
+_DNA_REALIZE_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_dna_realize_provider(provider) -> None:
+    """SP-29: registra callable() -> dict {unrealized, lag_seconds}."""
+    global _DNA_REALIZE_PROVIDER
+    _DNA_REALIZE_PROVIDER = provider
 
 
 def set_wheel_dist_provider(provider) -> None:
@@ -152,6 +159,9 @@ if _METRICS_AVAILABLE:
             "wd_p50_1h": Gauge("roleta_wheel_dist_p50_1h", "p50 de wheel_dist (calibration_error) janela 1h"),
             "wd_p95_1h": Gauge("roleta_wheel_dist_p95_1h", "p95 de wheel_dist (calibration_error) janela 1h"),
             "wd_p99_1h": Gauge("roleta_wheel_dist_p99_1h", "p99 de wheel_dist (calibration_error) janela 1h"),
+            # SP-29 OBS-01 (27/05): DNA realize lag (alerta se >300s sustentado).
+            "dna_unrealized": Gauge("roleta_dna_unrealized_count", "Features DNA sem realized_lift_pp/hit"),
+            "dna_realize_lag": Gauge("roleta_dna_realize_lag_seconds", "Segundos desde a mais antiga feature DNA sem realize"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -252,6 +262,11 @@ def _refresh_custom_metrics() -> None:
             _PROM_METRICS["wd_p50_1h"].set(float(wd.get("p50", 0.0) or 0.0))
             _PROM_METRICS["wd_p95_1h"].set(float(wd.get("p95", 0.0) or 0.0))
             _PROM_METRICS["wd_p99_1h"].set(float(wd.get("p99", 0.0) or 0.0))
+        # SP-29 OBS-01: DNA realize lag.
+        if _DNA_REALIZE_PROVIDER is not None:
+            dr = _DNA_REALIZE_PROVIDER() or {}
+            _PROM_METRICS["dna_unrealized"].set(float(dr.get("unrealized", 0) or 0))
+            _PROM_METRICS["dna_realize_lag"].set(float(dr.get("lag_seconds", 0) or 0))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()

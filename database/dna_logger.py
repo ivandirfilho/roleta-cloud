@@ -176,3 +176,32 @@ def reset_for_tests() -> None:
     global _DB_PATH, _ENABLED
     _DB_PATH = None
     _ENABLED = True
+
+
+def dna_realize_stats() -> dict:
+    """SP-29 OBS-01: lag em segundos desde a ultima decision_id que ainda
+    nao recebeu realized_lift_pp/hit. Indica regressao no caminho
+    update_result -> dna_update_realized (vide SP-07 hook).
+
+    Returns:
+        dict {"unrealized": int, "lag_seconds": int}. Se zero unrealized
+        (tudo realized), lag_seconds=0.
+    """
+    if not _DB_PATH:
+        return {"unrealized": 0, "lag_seconds": 0}
+    try:
+        conn = sqlite3.connect(str(_DB_PATH))
+        try:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS n,
+                       COALESCE(CAST((julianday('now') - julianday(MIN(ts))) * 86400 AS INTEGER), 0) AS lag_s
+                FROM decision_dna
+                WHERE realized_lift_pp IS NULL AND hit IS NULL
+                """
+            ).fetchone()
+            return {"unrealized": int(row[0] or 0), "lag_seconds": int(row[1] or 0)}
+        finally:
+            conn.close()
+    except Exception:
+        return {"unrealized": 0, "lag_seconds": 0}

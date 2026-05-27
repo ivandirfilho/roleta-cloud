@@ -836,3 +836,26 @@ DNA cabeado no fluxo real de decisao (production-grade).
 **Por quê (blueprint §1.3):** SP-30 destrava SP-31 (alerta `wheel_dist_p50 > 3.5 por 30min`) — sem essas métricas expostas, o alerta não tem datasource. Permite ver visualmente no Grafana se a SDA17 está derivando antes que `recent_acc` caia.
 
 **Próximo na DAG:** SP-31 (alerta Prometheus) — só YAML rules, sem deploy de código.
+
+## §33 — SP-31 ENTREGUE ✅ (OBS-03 alerta wheel_dist p50>3.5)
+
+**Commit:** SP-31 alert YAML rule
+**O que foi entregue:**
+- Alerta `RoletaWheelDistP50High` em `obs/alerts.yml` — dispara quando `wheel_dist_p50_1h > 3.5` por 30min com `n>=30` amostras
+- Severity warning, component strategy
+
+**Por quê:** SP-30 expôs as métricas; SP-31 fecha o loop de defesa. Alerta cedo se SDA17 derivou antes que `recent_acc` caia — typically lag 1-2h.
+
+## §34 — SP-29 ENTREGUE ✅ (OBS-01 alerta DNA realize lag)
+
+**Commit:** SP-29 dna_realize_stats + provider + alerta
+**Tests:** 319 pass (3 novos em `tests/test_sp29_dna_realize_stats.py`)
+
+**O que foi entregue:**
+- `database/dna_logger.dna_realize_stats()` — conta features DNA sem `realized_lift_pp/hit` e idade da mais antiga
+- 2 novos Gauges: `roleta_dna_unrealized_count`, `roleta_dna_realize_lag_seconds`
+- Provider registrado em `server/websocket.py` boot com cache 30s
+- `set_dna_realize_provider()` em `server/health_server.py`
+- Alerta `RoletaDnaRealizeLagHigh` (`lag>300s for 5m`)
+
+**Por quê:** Defesa contra regressão silenciosa do hook `dna_update_realized` (SP-07) — se o caminho `update_result -> realize` quebra, DNA acumula features sem ground truth e SP-08 `realized_lift_pp` fica vazio. Padrão NEW-12.

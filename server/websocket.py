@@ -206,6 +206,32 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"wheel_dist_provider_register_failed: {_e}")
 
 
+# SP-29 OBS-01 (27/05): DNA realize lag provider.
+try:
+    from server.health_server import set_dna_realize_provider as _set_dna_p
+    from database.dna_logger import dna_realize_stats as _dna_realize_stats
+    import time as _time_dna
+
+    _dna_cache = {"ts": 0.0, "val": {"unrealized": 0, "lag_seconds": 0}}
+
+    def _dna_realize_snapshot():
+        now = _time_dna.time()
+        if now - _dna_cache["ts"] < 30.0:
+            return _dna_cache["val"]
+        try:
+            val = _dna_realize_stats()
+            _dna_cache["val"] = val
+            _dna_cache["ts"] = now
+            return val
+        except Exception:
+            return _dna_cache["val"]
+
+    _set_dna_p(_dna_realize_snapshot)
+    logger.info("dna_realize_provider_registered for SP-29 OBS-01")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"dna_realize_provider_register_failed: {_e}")
+
+
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
 try:
     from server.health_server import set_state_provider as _set_state_p

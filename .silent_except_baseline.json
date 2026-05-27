@@ -4,7 +4,7 @@
   "server/extractor_service.py": 4,
   "server/health_server.py": 15,
   "server/message_handler.py": 13,
-  "server/websocket.py": 16,
+  "server/websocket.py": 18,
   "state/bet_advisor.py": 3,
   "state/game.py": 11,
   "strategies/sda17.py": 3

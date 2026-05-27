@@ -59,6 +59,29 @@ groups:
           summary: "calibration_error fill rate {{ $value | humanizePercentage }} < 80% (1h)"
           description: "Coluna calibration_error nao esta sendo populada. Investigar pending key mismatch (B-09-like) ou regressao no caminho W-01+W-02+B-08 do message_handler."
 
+      # SP-31 (OBS-03 27/05): drift fino da SDA17 — alerta quando p50
+      # da distancia da roleta passa de 3.5 slots por 30min com volume
+      # minimo (n>=30 amostras). Datasource: SP-30 OBS-02.
+      - alert: RoletaWheelDistP50High
+        expr: (roleta_wheel_dist_p50_1h > 3.5) and (roleta_wheel_dist_samples_1h >= 30)
+        for: 30m
+        labels: { severity: warning, component: strategy }
+        annotations:
+          summary: "wheel_dist p50 = {{ $value }} slots > 3.5 por 30min (n>=30)"
+          description: "SDA17 derivou. Conferir SDA17 offset adaptativo (sigmoid_off) e considerar batch_tune ou pull-back manual. Se p95>7, investigar mesa/dealer com regime atipico."
+
+      # SP-29 (OBS-01 27/05): DNA realize lag — alerta se features DNA
+      # mais antigas que 5min nao foram realizadas (hit/wheel_dist
+      # preenchidos via dna_update_realized). Indica regressao no
+      # caminho update_result do message_handler.
+      - alert: RoletaDnaRealizeLagHigh
+        expr: roleta_dna_realize_lag_seconds > 300
+        for: 5m
+        labels: { severity: warning, component: observability }
+        annotations:
+          summary: "DNA realize lag = {{ $value }}s > 300s"
+          description: "{{ $value }}s sem realized_lift_pp/hit na decision_dna mais antiga unrealized ({{ with query \"roleta_dna_unrealized_count\" }}{{ . | first | value }}{{ end }} features). Conferir hook dna_update_realized em server/message_handler.py."
+
   - name: roleta_strategy_alerts
     interval: 30s
     rules:
