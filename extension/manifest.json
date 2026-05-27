@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.1.0",
-  "description": "Monitor de resultados - v3.1 com captura dealer/provider via DOM (SP-11)",
+  "version": "3.1.1",
+  "description": "Monitor de resultados - v3.1.1 captura dealer/provider em iframes (SP-11)",
   "permissions": [
     "activeTab",
     "tabs",
@@ -27,7 +27,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["deal_capture.js", "content.js"],
+      "js": ["deal_capture.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
       "css": ["overlay.css"],
       "run_at": "document_end"
     }

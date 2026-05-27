@@ -1148,9 +1148,17 @@ async function readResults() {
 
         // 🆕 v2.7: Enviar para servidor Python via WebSocket
         // SP-11 DEAL-01 (27/05): incluir dealer/table/provider via deal_meta capturado por content.js
-        // FIX (27/05 audit): usa latestDealMeta (fresh, in-memory) em vez de state.dealMeta (stale do storage)
-        const _dm = (typeof latestDealMeta === 'object' && latestDealMeta) ? latestDealMeta
-                    : (state.dealMeta || {});
+        // FIX 2 (27/05 audit pos-reload): MV3 service worker dorme e perde
+        // latestDealMeta. Le do storage.local.dealMeta de forma SINCRONA via await.
+        let _dm = (typeof latestDealMeta === 'object' && latestDealMeta) ? latestDealMeta : null;
+        if (!_dm) {
+          try {
+            const stored = await new Promise((res) => chrome.storage.local.get(['dealMeta'], res));
+            _dm = stored.dealMeta || {};
+            if (stored.dealMeta) latestDealMeta = stored.dealMeta; // re-hidrata cache
+          } catch (_) { _dm = {}; }
+        }
+        console.log('🎯 DEAL meta no envio:', _dm);
         const sent = sendToWebSocket({
           type: 'novo_resultado',
           numero: newNumber,

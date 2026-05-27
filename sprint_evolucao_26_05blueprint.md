@@ -971,3 +971,54 @@ DNA cabeado no fluxo real de decisao (production-grade).
 
 **Cumulativo: 21 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10,17, 33, 34, 35, 25, 26, 18, 19, **11, 12, 13, 14, 15**).
 
+
+---
+
+## §41 — DEAL audit pós-deploy (27/05 00:05 BRT)
+
+**Sintoma reportado:** usuário começou a receber spins (~3 jogadas, ids 5231-5238)
+mas `SELECT dealer, provider FROM decisions` mostra todos `dealer='unknown'`
+e `provider/table/round_id` vazios. Pipeline server processa OK.
+
+**Auditoria do fluxo (5 pontos):**
+
+| # | Ponto | Status |
+|---|-------|--------|
+| 1 | `models/input.py` aceita campos opcionais | ✅ OK (test pass) |
+| 2 | `message_handler.handle_new_result` repassa para Decision | ✅ OK |
+| 3 | `sqlite_repo.save_decision` persiste colunas | ✅ OK (cols criadas live) |
+| 4 | `extension/background.js` lê `state.dealMeta` no payload | ⚠️ race condition |
+| 5 | `extension/manifest.json` carrega `deal_capture.js` como content_script | ❌ **NÃO LISTADO** |
+
+**Bug #1 (CRÍTICO):** `deal_capture.js` ausente em `manifest.json:content_scripts.js`.
+Por isso DOM nunca foi observado, `dealMetaUpdate` nunca disparou,
+`state.dealMeta` ficou null. **FIX:** adicionado em manifest + bump versão 3.0.0→3.1.0.
+
+**Bug #2 (race):** handler `dealMetaUpdate` fazia `getState/saveState` do
+state inteiro — podia ser sobrescrito pelo polling de spins (que também faz
+get/save). **FIX:** variável module-level `latestDealMeta` em background.js
++ `chrome.storage.local.set({dealMeta})` direto, sem ler/regravar state.
+
+**Bug #3 (cobertura):** `deal_capture.js` retornava `null` se provider não
+batesse com hosts conhecidos (evolution/playtech/imagine/pragmatic). **FIX:**
+fallback `provider = "host:<location.host>"` para sempre publicar pelo menos
+a origem; operador adiciona regra fina depois.
+
+**Bug #4 (observabilidade):** servidor não logava recepção dos campos novos
+— dificultava confirmar se chegavam. **FIX:** `message_handler` agora emite
+`[DEAL] dealer=... provider=... table=... round=...` em INFO quando qualquer
+campo vier preenchido.
+
+**Validação live pós-fix:**
+- `befa63f` (deploy original SP-11..15) → migration aplicada ✅, `/api/dealers`
+  responde `{"dealers":[{"dealer":"unknown","n":406,"hits":183,"hit_rate":0.4507}]}`
+  confirmando endpoint operacional.
+- Decisões 5237/5238/5239 chegaram nos últimos minutos sem dealer (esperado:
+  extensão antiga sem `deal_capture.js`).
+
+**Próxima ação manual exigida:** usuário precisa **recarregar a extensão no
+Chrome** (chrome://extensions → reload) após próximo deploy para o novo
+manifest entrar em vigor. Server-side as 3 correções backend já estão
+deployadas via timer.
+
+**Cumulativo: 21 sprints nesta sessao + 4 bugfixes pós-implantação** (DEAL audit 27/05).
