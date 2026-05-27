@@ -887,3 +887,24 @@ DNA cabeado no fluxo real de decisao (production-grade).
 **Por quê (blueprint §1.4):** Cada regiao do trifoco SDA17 tem hit_rate diferente; medir `realized_lift_pp` por regiao mostra qual slot e o real motor de acerto. Destrava SP-18 (bandit ε-greedy entre regioes) — sem essa instrumentacao o bandit nao tem reward signal.
 
 **Total cumulativo nesta sessao: 9 sprints (SP-02, 03, 04, 06, 07 do checkpoint anterior + SP-16, 27, 30, 31, 29, 08, 09, 10, 17).**
+
+## §37 — SP-33/SP-34/SP-35 ENTREGUES ✅ (CI-01/02/03)
+
+**Commit:** CI matrix + coverage threshold + pre-commit hooks
+
+**SP-33 (CI-01):** `.github/workflows/ci.yml` matrix expandido para `[3.11, 3.12, 3.13]`. PG service ja roda em pgvector/pgvector:pg15 (cobre SQLite+PG conforme blueprint).
+
+**SP-34 (CI-02):** `pytest-cov` adicionado ao step Run tests com:
+- `--cov=core --cov=state --cov=database`
+- `--cov-fail-under=50` (threshold inicial; ramp gradual ate 75% — Sprint backlog SP-34.1)
+- `--cov-report=term-missing` para identificar pontos descobertos
+
+**SP-35 (CI-03):** `.pre-commit-config.yaml` novo com 4 hooks:
+- `ruff` (--fix) + `ruff-format` em todo o repo
+- `mypy --strict` restrito a `core/` e `state/` (superficies estaveis)
+- `lint-silent-except` (SP-05) local
+- `lint-dna-coverage` (SP-10) local
+
+**Por quê:** Cinto de seguranca contra regressao silenciosa. Coverage 50%→75% impede que novas features sem teste passem; pre-commit pega rebases/cherry-picks; matrix antecipa quebras de compatibilidade.
+
+**Cumulativo: 12 sprints entregues nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35).

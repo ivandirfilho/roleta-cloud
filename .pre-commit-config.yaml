@@ -1,0 +1,34 @@
+repos:
+  # SP-35 CI-03: pre-commit ruff + mypy strict apenas em core/ e state/
+  # (modulos com superficie limitada e contratos estaveis). Demais paths
+  # toleram tipos parciais ate cobertura amadurecer.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        args:
+          - --strict
+          - --ignore-missing-imports
+          - --no-warn-unused-ignores
+        files: ^(core|state)/
+        additional_dependencies: []
+
+  - repo: local
+    hooks:
+      - id: lint-silent-except
+        name: lint-silent-except (SP-05)
+        entry: python tools/lint_silent_except.py
+        language: system
+        pass_filenames: false
+      - id: lint-dna-coverage
+        name: lint-dna-coverage (SP-10)
+        entry: python tools/lint_dna_coverage.py
+        language: system
+        pass_filenames: false
