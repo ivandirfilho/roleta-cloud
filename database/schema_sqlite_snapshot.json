@@ -73,6 +73,10 @@
       "type": "INTEGER"
     },
     {
+      "name": "sda_regions",
+      "type": "TEXT"
+    },
+    {
       "name": "sda_score",
       "type": "INTEGER"
     },

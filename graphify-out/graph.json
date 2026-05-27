@@ -390,6 +390,60 @@
       "norm_label": "pause_app.sh script"
     },
     {
+      "label": "schema_symmetry.py",
+      "file_type": "code",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L1",
+      "id": "scripts_schema_symmetry_py",
+      "community": 200,
+      "norm_label": "schema_symmetry.py"
+    },
+    {
+      "label": "check_file_symmetry()",
+      "file_type": "code",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L32",
+      "id": "scripts_schema_symmetry_check_file_symmetry",
+      "community": 200,
+      "norm_label": "check_file_symmetry()"
+    },
+    {
+      "label": "check_pg_symmetry()",
+      "file_type": "code",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L61",
+      "id": "scripts_schema_symmetry_check_pg_symmetry",
+      "community": 200,
+      "norm_label": "check_pg_symmetry()"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L100",
+      "id": "scripts_schema_symmetry_main",
+      "community": 200,
+      "norm_label": "main()"
+    },
+    {
+      "label": "Verifica simetria de arquivos SQL entre cw/ccw.",
+      "file_type": "rationale",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L33",
+      "id": "scripts_schema_symmetry_rationale_33",
+      "community": 200,
+      "norm_label": "verifica simetria de arquivos sql entre cw/ccw."
+    },
+    {
+      "label": "Verifica simetria de schemas reais em PG.",
+      "file_type": "rationale",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L62",
+      "id": "scripts_schema_symmetry_rationale_62",
+      "community": 200,
+      "norm_label": "verifica simetria de schemas reais em pg."
+    },
+    {
       "label": "setup_server.sh",
       "file_type": "code",
       "source_file": "scripts/setup_server.sh",
@@ -1595,7 +1649,7 @@
       "label": ".handle_new_result()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L133",
+      "source_location": "L139",
       "id": "server_message_handler_messagehandler_handle_new_result",
       "community": 7,
       "norm_label": ".handle_new_result()"
@@ -1604,7 +1658,7 @@
       "label": ".handle_initial_history()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L513",
+      "source_location": "L550",
       "id": "server_message_handler_messagehandler_handle_initial_history",
       "community": 7,
       "norm_label": ".handle_initial_history()"
@@ -1613,7 +1667,7 @@
       "label": ".handle_history_correction()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L538",
+      "source_location": "L575",
       "id": "server_message_handler_messagehandler_handle_history_correction",
       "community": 7,
       "norm_label": ".handle_history_correction()"
@@ -1622,7 +1676,7 @@
       "label": ".handle_new_session()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L568",
+      "source_location": "L605",
       "id": "server_message_handler_messagehandler_handle_new_session",
       "community": 7,
       "norm_label": ".handle_new_session()"
@@ -1631,7 +1685,7 @@
       "label": ".handle_get_state()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L598",
+      "source_location": "L635",
       "id": "server_message_handler_messagehandler_handle_get_state",
       "community": 7,
       "norm_label": ".handle_get_state()"
@@ -1640,7 +1694,7 @@
       "label": ".handle_legacy_spin()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L610",
+      "source_location": "L647",
       "id": "server_message_handler_messagehandler_handle_legacy_spin",
       "community": 7,
       "norm_label": ".handle_legacy_spin()"
@@ -1649,7 +1703,7 @@
       "label": ".handle_extrair_mesa()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L634",
+      "source_location": "L671",
       "id": "server_message_handler_messagehandler_handle_extrair_mesa",
       "community": 7,
       "norm_label": ".handle_extrair_mesa()"
@@ -1658,7 +1712,7 @@
       "label": ".handle_listar_mesas()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L648",
+      "source_location": "L685",
       "id": "server_message_handler_messagehandler_handle_listar_mesas",
       "community": 7,
       "norm_label": ".handle_listar_mesas()"
@@ -1667,7 +1721,7 @@
       "label": ".handle_get_mesa_config()",
       "file_type": "code",
       "source_file": "server/message_handler.py",
-      "source_location": "L656",
+      "source_location": "L693",
       "id": "server_message_handler_messagehandler_handle_get_mesa_config",
       "community": 7,
       "norm_label": ".handle_get_mesa_config()"
@@ -1703,8 +1757,8 @@
       "label": "DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L611",
-      "id": "server_message_handler_rationale_611",
+      "source_location": "L648",
+      "id": "server_message_handler_rationale_648",
       "community": 7,
       "norm_label": "deprecated (s-clean-1): caminho legacy sem kill-switch nem gale.          mast"
     },
@@ -1712,8 +1766,8 @@
       "label": "Processa extra\u00e7\u00e3o de mesa e salva config.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L635",
-      "id": "server_message_handler_rationale_635",
+      "source_location": "L672",
+      "id": "server_message_handler_rationale_672",
       "community": 7,
       "norm_label": "processa extracao de mesa e salva config."
     },
@@ -1721,8 +1775,8 @@
       "label": "Retorna lista de mesas configuradas.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L649",
-      "id": "server_message_handler_rationale_649",
+      "source_location": "L686",
+      "id": "server_message_handler_rationale_686",
       "community": 7,
       "norm_label": "retorna lista de mesas configuradas."
     },
@@ -1730,8 +1784,8 @@
       "label": "Retorna config de uma mesa espec\u00edfica.",
       "file_type": "rationale",
       "source_file": "server/message_handler.py",
-      "source_location": "L657",
-      "id": "server_message_handler_rationale_657",
+      "source_location": "L694",
+      "id": "server_message_handler_rationale_694",
       "community": 7,
       "norm_label": "retorna config de uma mesa especifica."
     },
@@ -1772,10 +1826,19 @@
       "norm_label": "_shadow_snapshot()"
     },
     {
+      "label": "_calibration_snapshot()",
+      "file_type": "code",
+      "source_file": "server/websocket.py",
+      "source_location": "L157",
+      "id": "server_websocket_calibration_snapshot",
+      "community": 156,
+      "norm_label": "_calibration_snapshot()"
+    },
+    {
       "label": "_state_snapshot()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L154",
+      "source_location": "L186",
       "id": "server_websocket_state_snapshot",
       "community": 156,
       "norm_label": "_state_snapshot()"
@@ -1784,7 +1847,7 @@
       "label": "broadcast_heartbeat()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L194",
+      "source_location": "L226",
       "id": "server_websocket_broadcast_heartbeat",
       "community": 156,
       "norm_label": "broadcast_heartbeat()"
@@ -1793,7 +1856,7 @@
       "label": "handler()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L245",
+      "source_location": "L277",
       "id": "server_websocket_handler",
       "community": 156,
       "norm_label": "handler()"
@@ -1802,7 +1865,7 @@
       "label": "get_ssl_context()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L277",
+      "source_location": "L309",
       "id": "server_websocket_get_ssl_context",
       "community": 156,
       "norm_label": "get_ssl_context()"
@@ -1811,17 +1874,26 @@
       "label": "start_server()",
       "file_type": "code",
       "source_file": "server/websocket.py",
-      "source_location": "L295",
+      "source_location": "L327",
       "id": "server_websocket_start_server",
       "community": 156,
       "norm_label": "start_server()"
     },
     {
+      "label": "Cache de 30s \u2014 evita query a cada scrape /metrics (~5s).",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L158",
+      "id": "server_websocket_rationale_158",
+      "community": 156,
+      "norm_label": "cache de 30s \u2014 evita query a cada scrape /metrics (~5s)."
+    },
+    {
       "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L195",
-      "id": "server_websocket_rationale_195",
+      "source_location": "L227",
+      "id": "server_websocket_rationale_227",
       "community": 156,
       "norm_label": "envia estado atual para todos os clientes a cada 1 segundo."
     },
@@ -1829,8 +1901,8 @@
       "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L246",
-      "id": "server_websocket_rationale_246",
+      "source_location": "L278",
+      "id": "server_websocket_rationale_278",
       "community": 156,
       "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -"
     },
@@ -1838,8 +1910,8 @@
       "label": "Cria contexto SSL se habilitado.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L278",
-      "id": "server_websocket_rationale_278",
+      "source_location": "L310",
+      "id": "server_websocket_rationale_310",
       "community": 156,
       "norm_label": "cria contexto ssl se habilitado."
     },
@@ -1847,8 +1919,8 @@
       "label": "Inicia o servidor WebSocket.",
       "file_type": "rationale",
       "source_file": "server/websocket.py",
-      "source_location": "L296",
-      "id": "server_websocket_rationale_296",
+      "source_location": "L328",
+      "id": "server_websocket_rationale_328",
       "community": 156,
       "norm_label": "inicia o servidor websocket."
     },
@@ -3928,7 +4000,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1",
       "id": "plano_implentacao_pos_sessao_24_05_md",
-      "community": 63,
+      "community": 189,
       "norm_label": "plano_implentacao_pos_sessao_24_05.md"
     },
     {
@@ -3937,7 +4009,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_plano_de_implanta\u00e7\u00e3o_p\u00f3s_sess\u00e3o_24_05",
-      "community": 63,
+      "community": 189,
       "norm_label": "\ud83d\ude80 plano de implantacao pos-sessao 24-05"
     },
     {
@@ -3946,7 +4018,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L15",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vers\u00e3o_1_draft_inicial",
-      "community": 63,
+      "community": 189,
       "norm_label": "\ud83d\udccb versao 1 \u2014 draft inicial"
     },
     {
@@ -3955,7 +4027,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L17",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_v1_0_premissas_operacionais",
-      "community": 63,
+      "community": 189,
       "norm_label": "v1.0 premissas operacionais"
     },
     {
@@ -4117,7 +4189,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L192",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_1_bugs_gaps_conflitos_detectados_em_v1",
-      "community": 63,
+      "community": 189,
       "norm_label": "\ud83d\udd0d auditoria 1 \u2014 bugs, gaps, conflitos detectados em v1"
     },
     {
@@ -4126,7 +4198,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L196",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_1_bugs_e_erros_l\u00f3gicos",
-      "community": 63,
+      "community": 189,
       "norm_label": "a1.1 \u2014 bugs e erros logicos"
     },
     {
@@ -4135,7 +4207,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L221",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_2_gaps_de_cobertura",
-      "community": 63,
+      "community": 189,
       "norm_label": "a1.2 \u2014 gaps de cobertura"
     },
     {
@@ -4144,7 +4216,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L232",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a1_3_conflitos_com_decis\u00f5es_pr\u00e9vias",
-      "community": 63,
+      "community": 189,
       "norm_label": "a1.3 \u2014 conflitos com decisoes previas"
     },
     {
@@ -4153,7 +4225,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L242",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_vers\u00e3o_2_reescrita_incorporando_auditoria_1",
-      "community": 61,
+      "community": 205,
       "norm_label": "\u270d\ufe0f versao 2 \u2014 reescrita incorporando auditoria 1"
     },
     {
@@ -4162,7 +4234,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L244",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_v2_0_premissas_atualizadas",
-      "community": 61,
+      "community": 205,
       "norm_label": "v2.0 premissas atualizadas"
     },
     {
@@ -4378,7 +4450,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L412",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_v2_2_cronograma_ordenado_v2",
-      "community": 61,
+      "community": 205,
       "norm_label": "v2.2 cronograma ordenado v2"
     },
     {
@@ -4387,7 +4459,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L414",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_3",
-      "community": 61,
+      "community": 205,
       "norm_label": "code:block3 (s0  (0.5d))"
     },
     {
@@ -4396,7 +4468,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L442",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_2_segunda_passada_cr\u00edtica_em_v2",
-      "community": 63,
+      "community": 189,
       "norm_label": "\ud83d\udd0e auditoria 2 \u2014 segunda passada critica em v2"
     },
     {
@@ -4405,7 +4477,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L444",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_1_bugs_gaps_remanescentes",
-      "community": 63,
+      "community": 189,
       "norm_label": "a2.1 \u2014 bugs/gaps remanescentes"
     },
     {
@@ -4414,7 +4486,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L460",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_2_conflitos_detectados_em_v2",
-      "community": 63,
+      "community": 189,
       "norm_label": "a2.2 \u2014 conflitos detectados em v2"
     },
     {
@@ -4423,7 +4495,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L468",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a2_3_riscos_identificados_em_v2",
-      "community": 63,
+      "community": 189,
       "norm_label": "a2.3 \u2014 riscos identificados em v2"
     },
     {
@@ -4819,7 +4891,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L931",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_auditoria_a3_toda_infra_local_first_e_depois_subir_como_docker_pra_azure",
-      "community": 63,
+      "community": 192,
       "norm_label": "\ud83e\uddea auditoria a3 \u2014 \"toda infra local-first e depois subir como docker pra azure\""
     },
     {
@@ -4828,7 +4900,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L938",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_0_tl_dr_3_bullets_1_decis\u00e3o",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.0 tl;dr (3 bullets + 1 decisao)"
     },
     {
@@ -4837,7 +4909,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L947",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_1_an\u00e1lise_comparativa_azure_first_vf_atual_vs_local_first_proposto",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.1 analise comparativa (azure-first vf atual vs local-first proposto)"
     },
     {
@@ -4846,7 +4918,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L970",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_2_achado_cr\u00edtico_b32_age_n\u00e3o_est\u00e1_na_allowlist_azure_pg_flexible",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.2 achado critico **b32** \u2014 age nao esta na allowlist azure pg flexible"
     },
     {
@@ -4855,7 +4927,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L984",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_3_outros_achados_a3",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.3 outros achados a3"
     },
     {
@@ -4864,7 +4936,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1002",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_4_sprints_novas_reescritas",
-      "community": 63,
+      "community": 190,
       "norm_label": "a3.4 sprints novas / reescritas"
     },
     {
@@ -4873,7 +4945,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1004",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s0_5_stack_local_docker_compose_completa_nova_vem_antes_de_s4",
-      "community": 63,
+      "community": 190,
       "norm_label": "s0.5 \u2014 stack local docker-compose completa **(nova, vem antes de s4)**"
     },
     {
@@ -4882,7 +4954,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1012",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_codeblock_15",
-      "community": 63,
+      "community": 190,
       "norm_label": "code:block15 (from pgvector/pgvector:pg15)"
     },
     {
@@ -4891,7 +4963,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1035",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s_age_check_confirma\u00e7\u00e3o_t\u00e9cnica_age_em_azure_nova_paralela_a_s0_5",
-      "community": 63,
+      "community": 190,
       "norm_label": "s-age-check \u2014 confirmacao tecnica age em azure **(nova, paralela a s0.5)**"
     },
     {
@@ -4900,7 +4972,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1056",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s4_reescrita_azure_vm_docker_compose_substitui_flexible_server",
-      "community": 63,
+      "community": 190,
       "norm_label": "s4 \u2014 **reescrita**: azure vm + docker compose (substitui \"flexible server\")"
     },
     {
@@ -4909,7 +4981,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1079",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s_cutover_promo\u00e7\u00e3o_dev_prod_nova_substitui_sx_latency",
-      "community": 63,
+      "community": 190,
       "norm_label": "s-cutover \u2014 promocao dev\u2192prod **(nova, substitui sx-latency)**"
     },
     {
@@ -4918,7 +4990,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1101",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_sx_latency_deprecated_fundida_em_s_cutover",
-      "community": 63,
+      "community": 190,
       "norm_label": "sx-latency \u2014 **deprecated**, fundida em s-cutover"
     },
     {
@@ -4927,7 +4999,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1105",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_s4_bak_revisado_wal_g_blob_no_lugar_de_pitr_nativo",
-      "community": 63,
+      "community": 190,
       "norm_label": "s4-bak \u2014 **revisado**: wal-g + blob no lugar de pitr nativo"
     },
     {
@@ -4936,7 +5008,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1119",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_sx_sec_revisado_managed_identity_da_vm",
-      "community": 63,
+      "community": 190,
       "norm_label": "sx-sec \u2014 **revisado**: managed identity da vm"
     },
     {
@@ -4945,7 +5017,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1127",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_5_lista_mestre_atualizada_delta_vs_vf",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.5 lista mestre atualizada (delta vs vf)"
     },
     {
@@ -4954,7 +5026,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1144",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_6_self_audit_da_auditoria_sanity_check",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.6 self-audit da auditoria (sanity check)"
     },
     {
@@ -4963,7 +5035,7 @@
       "source_file": "plano_implentacao_pos_sessao_24_05.md",
       "source_location": "L1159",
       "id": "roleta_cloud_plano_implentacao_pos_sessao_24_05_a3_7_recomenda\u00e7\u00e3o_final",
-      "community": 63,
+      "community": 192,
       "norm_label": "a3.7 recomendacao final"
     },
     {
@@ -6520,7 +6592,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L1",
       "id": "sprint_26_05_estrategia_md",
-      "community": 178,
+      "community": 188,
       "norm_label": "sprint_26_05_estrategia.md"
     },
     {
@@ -6529,7 +6601,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L1",
       "id": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "community": 178,
+      "community": 188,
       "norm_label": "\ud83d\udd0e sprint 26/05 \u2014 estrategia: auditoria profunda das 41 sprints do `sprint_evolucao_25_05.md`"
     },
     {
@@ -6538,7 +6610,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L15",
       "id": "roleta_cloud_sprint_26_05_estrategia_0_resumo_executivo_tl_dr_para_aprova\u00e7\u00e3o",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a70. resumo executivo (tl;dr para aprovacao)"
     },
     {
@@ -6547,7 +6619,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L32",
       "id": "roleta_cloud_sprint_26_05_estrategia_1_metodologia_da_auditoria",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a71. metodologia da auditoria"
     },
     {
@@ -6745,7 +6817,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L198",
       "id": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "community": 185,
+      "community": 187,
       "norm_label": "\u00a73. auditoria sprint-por-sprint (achados especificos)"
     },
     {
@@ -7195,7 +7267,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L430",
       "id": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "community": 178,
+      "community": 199,
       "norm_label": "\u00a74. sprints novas propostas (resultado da auditoria)"
     },
     {
@@ -7204,7 +7276,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L432",
       "id": "roleta_cloud_sprint_26_05_estrategia_new_01_schema_shared_model_registry_helper_register_model",
-      "community": 178,
+      "community": 199,
       "norm_label": "new-01 \u2014 schema `shared.model_registry` + helper `register_model`"
     },
     {
@@ -7213,7 +7285,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L441",
       "id": "roleta_cloud_sprint_26_05_estrategia_new_02_golden_set_testes_de_regress\u00e3o",
-      "community": 178,
+      "community": 199,
       "norm_label": "new-02 \u2014 golden-set + testes de regressao"
     },
     {
@@ -7222,7 +7294,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L451",
       "id": "roleta_cloud_sprint_26_05_estrategia_new_03_ci_check_schema_symmetry_py_cw_vs_ccw",
-      "community": 178,
+      "community": 199,
       "norm_label": "new-03 \u2014 ci check `schema_symmetry.py` cw vs ccw"
     },
     {
@@ -7231,7 +7303,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L461",
       "id": "roleta_cloud_sprint_26_05_estrategia_new_04_m\u00e9tricas_prometheus_de_outbox_lag",
-      "community": 178,
+      "community": 199,
       "norm_label": "new-04 \u2014 metricas prometheus de outbox lag"
     },
     {
@@ -7240,7 +7312,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L471",
       "id": "roleta_cloud_sprint_26_05_estrategia_new_05_telemetria_de_errdriven_disabled_count_outras_flags",
-      "community": 178,
+      "community": 199,
       "norm_label": "new-05 \u2014 telemetria de `errdriven_disabled_count` + outras flags"
     },
     {
@@ -7249,7 +7321,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L481",
       "id": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "community": 178,
+      "community": 204,
       "norm_label": "\u00a75. reclassificacao de sprints (resumo)"
     },
     {
@@ -7258,7 +7330,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L483",
       "id": "roleta_cloud_sprint_26_05_estrategia_5_1_esfor\u00e7o_risco_ajustados",
-      "community": 178,
+      "community": 204,
       "norm_label": "5.1 esforco/risco ajustados"
     },
     {
@@ -7267,7 +7339,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L496",
       "id": "roleta_cloud_sprint_26_05_estrategia_5_2_sprints_divididas_em_variantes_a_b",
-      "community": 178,
+      "community": 204,
       "norm_label": "5.2 sprints divididas em variantes a/b"
     },
     {
@@ -7276,7 +7348,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L507",
       "id": "roleta_cloud_sprint_26_05_estrategia_5_3_sprints_deferidas_aguardam_extractorbeat_v19",
-      "community": 178,
+      "community": 204,
       "norm_label": "5.3 sprints deferidas (aguardam extractorbeat v19)"
     },
     {
@@ -7285,7 +7357,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L512",
       "id": "roleta_cloud_sprint_26_05_estrategia_5_4_sprints_deferidas_aguardam_azure",
-      "community": 178,
+      "community": 204,
       "norm_label": "5.4 sprints deferidas (aguardam azure)"
     },
     {
@@ -7294,7 +7366,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L518",
       "id": "roleta_cloud_sprint_26_05_estrategia_6_mapa_de_depend\u00eancias_revisto_sem_extractor",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a76. mapa de dependencias revisto (sem extractor)"
     },
     {
@@ -7303,7 +7375,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L520",
       "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_1",
-      "community": 178,
+      "community": 188,
       "norm_label": "code:mermaid (graph lr)"
     },
     {
@@ -7312,7 +7384,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L592",
       "id": "roleta_cloud_sprint_26_05_estrategia_7_novo_plano_de_waves_sem_extractor_22_dias_\u00fateis",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a77. novo plano de waves (sem extractor) \u2014 `~22 dias uteis`"
     },
     {
@@ -7321,7 +7393,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L609",
       "id": "roleta_cloud_sprint_26_05_estrategia_8_princ\u00edpios_anti_regress\u00e3o_atualizados_adendo_ao_6_do_doc_origem",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a78. principios anti-regressao atualizados (adendo ao \u00a76 do doc origem)"
     },
     {
@@ -7330,7 +7402,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L625",
       "id": "roleta_cloud_sprint_26_05_estrategia_9_riscos_residuais_itens_n\u00e3o_endere\u00e7ados_nesta_auditoria",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a79. riscos residuais / itens nao enderecados nesta auditoria"
     },
     {
@@ -7339,7 +7411,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L637",
       "id": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "community": 178,
+      "community": 201,
       "norm_label": "\u00a710. matriz de aprovacao (preencher antes de execucao)"
     },
     {
@@ -7348,7 +7420,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L642",
       "id": "roleta_cloud_sprint_26_05_estrategia_10_1_bugs",
-      "community": 178,
+      "community": 201,
       "norm_label": "10.1 bugs"
     },
     {
@@ -7357,7 +7429,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L655",
       "id": "roleta_cloud_sprint_26_05_estrategia_10_2_dna_w_v_bs_bt_o_execut\u00e1veis",
-      "community": 178,
+      "community": 201,
       "norm_label": "10.2 dna + w + v + bs + bt + o (executaveis)"
     },
     {
@@ -7366,7 +7438,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L686",
       "id": "roleta_cloud_sprint_26_05_estrategia_10_3_new_5_sprints",
-      "community": 178,
+      "community": 201,
       "norm_label": "10.3 new (5 sprints)"
     },
     {
@@ -7375,7 +7447,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L696",
       "id": "roleta_cloud_sprint_26_05_estrategia_10_4_bloco_deferido_aguardando_extractorbeat_v19_ou_azure",
-      "community": 178,
+      "community": 201,
       "norm_label": "10.4 bloco deferido (aguardando extractorbeat v19 ou azure)"
     },
     {
@@ -7384,7 +7456,7 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L716",
       "id": "roleta_cloud_sprint_26_05_estrategia_11_pr\u00f3ximos_passos_sugeridos_ap\u00f3s_aprova\u00e7\u00e3o",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a711. proximos passos sugeridos (apos aprovacao)"
     },
     {
@@ -7393,8 +7465,593 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L726",
       "id": "roleta_cloud_sprint_26_05_estrategia_12_memory_mcp_entidades_a_registrar_no_in\u00edcio",
-      "community": 178,
+      "community": 188,
       "norm_label": "\u00a712. memory mcp \u2014 entidades a registrar no inicio"
+    },
+    {
+      "label": "\u00a713. Auditoria LIVE 26/05 \u2014 descobertas p\u00f3s-audit servidor + SQLite",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L742",
+      "id": "roleta_cloud_sprint_26_05_estrategia_13_auditoria_live_26_05_descobertas_p\u00f3s_audit_servidor_sqlite",
+      "community": 202,
+      "norm_label": "\u00a713. auditoria live 26/05 \u2014 descobertas pos-audit servidor + sqlite"
+    },
+    {
+      "label": "\u00a713.1 \u2014 Achados que **invalidam ou reescopam** sprints aprovadas",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L746",
+      "id": "roleta_cloud_sprint_26_05_estrategia_13_1_achados_que_invalidam_ou_reescopam_sprints_aprovadas",
+      "community": 202,
+      "norm_label": "\u00a713.1 \u2014 achados que **invalidam ou reescopam** sprints aprovadas"
+    },
+    {
+      "label": "\u00a713.2 \u2014 Reclassifica\u00e7\u00e3o consolidada",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L760",
+      "id": "roleta_cloud_sprint_26_05_estrategia_13_2_reclassifica\u00e7\u00e3o_consolidada",
+      "community": 202,
+      "norm_label": "\u00a713.2 \u2014 reclassificacao consolidada"
+    },
+    {
+      "label": "\u00a713.3 \u2014 Snapshot 24h (evid\u00eancia audit)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L772",
+      "id": "roleta_cloud_sprint_26_05_estrategia_13_3_snapshot_24h_evid\u00eancia_audit",
+      "community": 202,
+      "norm_label": "\u00a713.3 \u2014 snapshot 24h (evidencia audit)"
+    },
+    {
+      "label": "code:block2 (spins_total=1232  APOSTAR=1085 (88%)  PULAR=147 (12%))",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L774",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_2",
+      "community": 202,
+      "norm_label": "code:block2 (spins_total=1232  apostar=1085 (88%)  pular=147 (12%))"
+    },
+    {
+      "label": "\u00a714. EXECU\u00c7\u00c3O 26/05 \u2014 sprints completadas nesta sess\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L786",
+      "id": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "community": 193,
+      "norm_label": "\u00a714. execucao 26/05 \u2014 sprints completadas nesta sessao"
+    },
+    {
+      "label": "W-01 \u2705 DONE \u2014 `compute_wheel_dist` helper can\u00f4nico",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L790",
+      "id": "roleta_cloud_sprint_26_05_estrategia_w_01_done_compute_wheel_dist_helper_can\u00f4nico",
+      "community": 193,
+      "norm_label": "w-01 \u2705 done \u2014 `compute_wheel_dist` helper canonico"
+    },
+    {
+      "label": "W-02 \u2705 DONE \u2014 `update_result(..., calibration_error=)`",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L800",
+      "id": "roleta_cloud_sprint_26_05_estrategia_w_02_done_update_result_calibration_error",
+      "community": 193,
+      "norm_label": "w-02 \u2705 done \u2014 `update_result(..., calibration_error=)`"
+    },
+    {
+      "label": "B-08 \u2705 DONE \u2014 `calibration_error` populado em produ\u00e7\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L805",
+      "id": "roleta_cloud_sprint_26_05_estrategia_b_08_done_calibration_error_populado_em_produ\u00e7\u00e3o",
+      "community": 193,
+      "norm_label": "b-08 \u2705 done \u2014 `calibration_error` populado em producao"
+    },
+    {
+      "label": "Testes (`tests/test_wheel_dist.py` \u2014 NOVO)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L812",
+      "id": "roleta_cloud_sprint_26_05_estrategia_testes_tests_test_wheel_dist_py_novo",
+      "community": 193,
+      "norm_label": "testes (`tests/test_wheel_dist.py` \u2014 novo)"
+    },
+    {
+      "label": "Valida\u00e7\u00e3o p\u00f3s-deploy (executar quando subir no Debian)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L818",
+      "id": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_p\u00f3s_deploy_executar_quando_subir_no_debian",
+      "community": 193,
+      "norm_label": "validacao pos-deploy (executar quando subir no debian)"
+    },
+    {
+      "label": "code:bash (# ap\u00f3s 1h de produ\u00e7\u00e3o com fix:)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L820",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_3",
+      "community": 193,
+      "norm_label": "code:bash (# apos 1h de producao com fix:)"
+    },
+    {
+      "label": "Pr\u00f3xima wave (aguardando aprova\u00e7\u00e3o)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L829",
+      "id": "roleta_cloud_sprint_26_05_estrategia_pr\u00f3xima_wave_aguardando_aprova\u00e7\u00e3o",
+      "community": 193,
+      "norm_label": "proxima wave (aguardando aprovacao)"
+    },
+    {
+      "label": "\u00a715. EXECU\u00c7\u00c3O 26/05 \u2014 Wave 2 (priorizada por ISO/IEC 25010)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L840",
+      "id": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "community": 191,
+      "norm_label": "\u00a715. execucao 26/05 \u2014 wave 2 (priorizada por iso/iec 25010)"
+    },
+    {
+      "label": "ISO-S1 \u2705 DONE \u2014 Schema symmetry CI (NEW-03 + MEL-ISO-002 ext.)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L844",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s1_done_schema_symmetry_ci_new_03_mel_iso_002_ext",
+      "community": 191,
+      "norm_label": "iso-s1 \u2705 done \u2014 schema symmetry ci (new-03 + mel-iso-002 ext.)"
+    },
+    {
+      "label": "ISO-S2 \u2705 DONE \u2014 Sanitize ErrorOutput (BUG-POST-004 + MEL-ISO-001)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L852",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s2_done_sanitize_erroroutput_bug_post_004_mel_iso_001",
+      "community": 191,
+      "norm_label": "iso-s2 \u2705 done \u2014 sanitize erroroutput (bug-post-004 + mel-iso-001)"
+    },
+    {
+      "label": "ISO-S3 \u23ed\ufe0f SKIPPED \u2014 BUG-POST-007 j\u00e1 resolvido",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L860",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s3_skipped_bug_post_007_j\u00e1_resolvido",
+      "community": 191,
+      "norm_label": "iso-s3 \u23ed\ufe0f skipped \u2014 bug-post-007 ja resolvido"
+    },
+    {
+      "label": "ISO-S4 \u2705 DONE \u2014 structlog `decision_created` event (O-03)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L865",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s4_done_structlog_decision_created_event_o_03",
+      "community": 191,
+      "norm_label": "iso-s4 \u2705 done \u2014 structlog `decision_created` event (o-03)"
+    },
+    {
+      "label": "ISO-S5 \u2705 DONE \u2014 Fix colunas em prompts mestres (L-05)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L872",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s5_done_fix_colunas_em_prompts_mestres_l_05",
+      "community": 191,
+      "norm_label": "iso-s5 \u2705 done \u2014 fix colunas em prompts mestres (l-05)"
+    },
+    {
+      "label": "ISO-S6 \u2705 DONE \u2014 gale_windows.result enum backfill (B-03 reescopado)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L884",
+      "id": "roleta_cloud_sprint_26_05_estrategia_iso_s6_done_gale_windows_result_enum_backfill_b_03_reescopado",
+      "community": 191,
+      "norm_label": "iso-s6 \u2705 done \u2014 gale_windows.result enum backfill (b-03 reescopado)"
+    },
+    {
+      "label": "Resumo de impacto ISO (ap\u00f3s Wave 2)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L891",
+      "id": "roleta_cloud_sprint_26_05_estrategia_resumo_de_impacto_iso_ap\u00f3s_wave_2",
+      "community": 191,
+      "norm_label": "resumo de impacto iso (apos wave 2)"
+    },
+    {
+      "label": "Pr\u00f3xima wave (sugerida \u2014 aguarda aprova\u00e7\u00e3o)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L902",
+      "id": "roleta_cloud_sprint_26_05_estrategia_pr\u00f3xima_wave_sugerida_aguarda_aprova\u00e7\u00e3o",
+      "community": 191,
+      "norm_label": "proxima wave (sugerida \u2014 aguarda aprovacao)"
+    },
+    {
+      "label": "\u00a716. NEW-06 \u2014 Investiga\u00e7\u00e3o regress\u00e3o hit_rate 26/05 (Wave 3)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L914",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "community": 194,
+      "norm_label": "\u00a716. new-06 \u2014 investigacao regressao hit_rate 26/05 (wave 3)"
+    },
+    {
+      "label": "\u00a716.1 \u2014 Confirma\u00e7\u00e3o da regress\u00e3o (multi-janela)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L918",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_1_confirma\u00e7\u00e3o_da_regress\u00e3o_multi_janela",
+      "community": 194,
+      "norm_label": "\u00a716.1 \u2014 confirmacao da regressao (multi-janela)"
+    },
+    {
+      "label": "code:block4 (HIT_RATE POR DIA (final_action=APOSTAR, n=APOSTAR validos):)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L920",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_4",
+      "community": 194,
+      "norm_label": "code:block4 (hit_rate por dia (final_action=apostar, n=apostar validos):)"
+    },
+    {
+      "label": "\u00a716.2 \u2014 Smoking gun: `\u26a1 AGRESSIVO` mode",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L930",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_2_smoking_gun_agressivo_mode",
+      "community": 194,
+      "norm_label": "\u00a716.2 \u2014 smoking gun: `\u26a1 agressivo` mode"
+    },
+    {
+      "label": "code:block5 (\u26a1 AGRESSIVO (25% < 33%, mas apostando)        n=111  hr=36.9)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L934",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_5",
+      "community": 194,
+      "norm_label": "code:block5 (\u26a1 agressivo (25% < 33%, mas apostando)        n=111  hr=36.9)"
+    },
+    {
+      "label": "\u00a716.3 \u2014 Correla\u00e7\u00e3o com commits",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L947",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_3_correla\u00e7\u00e3o_com_commits",
+      "community": 194,
+      "norm_label": "\u00a716.3 \u2014 correlacao com commits"
+    },
+    {
+      "label": "\u00a716.4 \u2014 Outros achados",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L958",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_4_outros_achados",
+      "community": 194,
+      "norm_label": "\u00a716.4 \u2014 outros achados"
+    },
+    {
+      "label": "\u00a716.5 \u2014 Recomenda\u00e7\u00f5es (sprints derivadas)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L966",
+      "id": "roleta_cloud_sprint_26_05_estrategia_16_5_recomenda\u00e7\u00f5es_sprints_derivadas",
+      "community": 194,
+      "norm_label": "\u00a716.5 \u2014 recomendacoes (sprints derivadas)"
+    },
+    {
+      "label": "\u00a717. MEL-ISO-004 \u2705 DONE \u2014 Circuit Breaker SQLite (Wave 3)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L980",
+      "id": "roleta_cloud_sprint_26_05_estrategia_17_mel_iso_004_done_circuit_breaker_sqlite_wave_3",
+      "community": 188,
+      "norm_label": "\u00a717. mel-iso-004 \u2705 done \u2014 circuit breaker sqlite (wave 3)"
+    },
+    {
+      "label": "Resumo Wave 3",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L996",
+      "id": "roleta_cloud_sprint_26_05_estrategia_resumo_wave_3",
+      "community": 188,
+      "norm_label": "resumo wave 3"
+    },
+    {
+      "label": "\u00a718. B-09 \u2705 DONE \u2014 Pending key mismatch (Hotfix pos-deploy a41210c)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1007",
+      "id": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "community": 195,
+      "norm_label": "\u00a718. b-09 \u2705 done \u2014 pending key mismatch (hotfix pos-deploy a41210c)"
+    },
+    {
+      "label": "Causa raiz",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1011",
+      "id": "roleta_cloud_sprint_26_05_estrategia_causa_raiz",
+      "community": 195,
+      "norm_label": "causa raiz"
+    },
+    {
+      "label": "Fix (commit d6935b5)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1014",
+      "id": "roleta_cloud_sprint_26_05_estrategia_fix_commit_d6935b5",
+      "community": 195,
+      "norm_label": "fix (commit d6935b5)"
+    },
+    {
+      "label": "code:python (# Antes)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1015",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_6",
+      "community": 195,
+      "norm_label": "code:python (# antes)"
+    },
+    {
+      "label": "Blindagem",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1023",
+      "id": "roleta_cloud_sprint_26_05_estrategia_blindagem",
+      "community": 195,
+      "norm_label": "blindagem"
+    },
+    {
+      "label": "Deploy",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1031",
+      "id": "roleta_cloud_sprint_26_05_estrategia_deploy",
+      "community": 195,
+      "norm_label": "deploy"
+    },
+    {
+      "label": "Li\u00e7\u00e3o aprendida (ISO 5.2 Disponibilidade)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1034",
+      "id": "roleta_cloud_sprint_26_05_estrategia_li\u00e7\u00e3o_aprendida_iso_5_2_disponibilidade",
+      "community": 195,
+      "norm_label": "licao aprendida (iso 5.2 disponibilidade)"
+    },
+    {
+      "label": "\u00a719. NEW-12 \u2705 DONE \u2014 Alerta Prometheus calibration_error fill-rate (ISO 5.2 Disponibilidade)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1041",
+      "id": "roleta_cloud_sprint_26_05_estrategia_19_new_12_done_alerta_prometheus_calibration_error_fill_rate_iso_5_2_disponibilidade",
+      "community": 198,
+      "norm_label": "\u00a719. new-12 \u2705 done \u2014 alerta prometheus calibration_error fill-rate (iso 5.2 disponibilidade)"
+    },
+    {
+      "label": "Implementa\u00e7\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1045",
+      "id": "roleta_cloud_sprint_26_05_estrategia_implementa\u00e7\u00e3o",
+      "community": 198,
+      "norm_label": "implementacao"
+    },
+    {
+      "label": "code:sql (SELECT COUNT(*), COUNT(calibration_error))",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1058",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_7",
+      "community": 198,
+      "norm_label": "code:sql (select count(*), count(calibration_error))"
+    },
+    {
+      "label": "code:yaml (- alert: RoletaCalibrationFillRateLow)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1067",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_8",
+      "community": 198,
+      "norm_label": "code:yaml (- alert: roletacalibrationfillratelow)"
+    },
+    {
+      "label": "Valida\u00e7\u00e3o live (deploy fb94675)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1075",
+      "id": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_live_deploy_fb94675",
+      "community": 198,
+      "norm_label": "validacao live (deploy fb94675)"
+    },
+    {
+      "label": "Testes (tests/test_calibration_fill_stats.py)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1081",
+      "id": "roleta_cloud_sprint_26_05_estrategia_testes_tests_test_calibration_fill_stats_py",
+      "community": 198,
+      "norm_label": "testes (tests/test_calibration_fill_stats.py)"
+    },
+    {
+      "label": "\u00a720. Resumo final desta sequ\u00eancia (Wave 3 + Hotfix + NEW-12)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1086",
+      "id": "roleta_cloud_sprint_26_05_estrategia_20_resumo_final_desta_sequ\u00eancia_wave_3_hotfix_new_12",
+      "community": 188,
+      "norm_label": "\u00a720. resumo final desta sequencia (wave 3 + hotfix + new-12)"
+    },
+    {
+      "label": "\u00a721. NEW-07 + NEW-08 \u2705 DONE \u2014 Blacklist defensiva + piso sda_thr (opt-in)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1102",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "community": 196,
+      "norm_label": "\u00a721. new-07 + new-08 \u2705 done \u2014 blacklist defensiva + piso sda_thr (opt-in)"
+    },
+    {
+      "label": "\u00a721.1 \u2014 Backtest counterfactual (48h prod, n=1282 APOSTAR)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1106",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_1_backtest_counterfactual_48h_prod_n_1282_apostar",
+      "community": 196,
+      "norm_label": "\u00a721.1 \u2014 backtest counterfactual (48h prod, n=1282 apostar)"
+    },
+    {
+      "label": "code:block9 (TR_REASON                              n     hr)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1108",
+      "id": "roleta_cloud_sprint_26_05_estrategia_codeblock_9",
+      "community": 196,
+      "norm_label": "code:block9 (tr_reason                              n     hr)"
+    },
+    {
+      "label": "\u00a721.2 \u2014 NEW-07: blacklist defensiva (commit f65801d)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1122",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_2_new_07_blacklist_defensiva_commit_f65801d",
+      "community": 196,
+      "norm_label": "\u00a721.2 \u2014 new-07: blacklist defensiva (commit f65801d)"
+    },
+    {
+      "label": "\u00a721.3 \u2014 NEW-08: piso configur\u00e1vel sda_thr (commit aplicado junto)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1132",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_3_new_08_piso_configur\u00e1vel_sda_thr_commit_aplicado_junto",
+      "community": 196,
+      "norm_label": "\u00a721.3 \u2014 new-08: piso configuravel sda_thr (commit aplicado junto)"
+    },
+    {
+      "label": "\u00a721.4 \u2014 Deploy & ativa\u00e7\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1140",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_4_deploy_ativa\u00e7\u00e3o",
+      "community": 196,
+      "norm_label": "\u00a721.4 \u2014 deploy & ativacao"
+    },
+    {
+      "label": "\u00a721.5 \u2014 Resumo final desta sequ\u00eancia completa",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1146",
+      "id": "roleta_cloud_sprint_26_05_estrategia_21_5_resumo_final_desta_sequ\u00eancia_completa",
+      "community": 196,
+      "norm_label": "\u00a721.5 \u2014 resumo final desta sequencia completa"
+    },
+    {
+      "label": "\u00a722 \u2014 B-10 hotfix: DatabaseService.update_result kwarg engolido (26/05, ~21h28)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1161",
+      "id": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "community": 197,
+      "norm_label": "\u00a722 \u2014 b-10 hotfix: databaseservice.update_result kwarg engolido (26/05, ~21h28)"
+    },
+    {
+      "label": "Sintoma",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1163",
+      "id": "roleta_cloud_sprint_26_05_estrategia_sintoma",
+      "community": 197,
+      "norm_label": "sintoma"
+    },
+    {
+      "label": "Causa raiz",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1169",
+      "id": "roleta_cloud_sprint_26_05_estrategia_causa_raiz_1169",
+      "community": 197,
+      "norm_label": "causa raiz"
+    },
+    {
+      "label": "Fix (commit `cf3570d`)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1186",
+      "id": "roleta_cloud_sprint_26_05_estrategia_fix_commit_cf3570d",
+      "community": 197,
+      "norm_label": "fix (commit `cf3570d`)"
+    },
+    {
+      "label": "Valida\u00e7\u00e3o live",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1194",
+      "id": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_live",
+      "community": 197,
+      "norm_label": "validacao live"
+    },
+    {
+      "label": "Suite",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1203",
+      "id": "roleta_cloud_sprint_26_05_estrategia_suite",
+      "community": 197,
+      "norm_label": "suite"
+    },
+    {
+      "label": "Li\u00e7\u00e3o",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1206",
+      "id": "roleta_cloud_sprint_26_05_estrategia_li\u00e7\u00e3o",
+      "community": 197,
+      "norm_label": "licao"
+    },
+    {
+      "label": "\u00a723 \u2014 Valida\u00e7\u00e3o p\u00f3s B-10 + refuta\u00e7\u00e3o NEW-11 (26/05, ~22h00 UTC)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1213",
+      "id": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
+      "community": 203,
+      "norm_label": "\u00a723 \u2014 validacao pos b-10 + refutacao new-11 (26/05, ~22h00 utc)"
+    },
+    {
+      "label": "Fill-rate calibration_error p\u00f3s-deploy `cf3570d`",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1215",
+      "id": "roleta_cloud_sprint_26_05_estrategia_fill_rate_calibration_error_p\u00f3s_deploy_cf3570d",
+      "community": 203,
+      "norm_label": "fill-rate calibration_error pos-deploy `cf3570d`"
+    },
+    {
+      "label": "Distribui\u00e7\u00e3o hits \u00d7 dist\u00e2ncia (n=31, p\u00f3s-B-10)",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1219",
+      "id": "roleta_cloud_sprint_26_05_estrategia_distribui\u00e7\u00e3o_hits_dist\u00e2ncia_n_31_p\u00f3s_b_10",
+      "community": 203,
+      "norm_label": "distribuicao hits \u00d7 distancia (n=31, pos-b-10)"
+    },
+    {
+      "label": "NEW-11 (skew dire\u00e7\u00e3o) \u2014 **REFUTADO**",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1236",
+      "id": "roleta_cloud_sprint_26_05_estrategia_new_11_skew_dire\u00e7\u00e3o_refutado",
+      "community": 203,
+      "norm_label": "new-11 (skew direcao) \u2014 **refutado**"
+    },
+    {
+      "label": "Estado da sprint 26/05",
+      "file_type": "document",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1257",
+      "id": "roleta_cloud_sprint_26_05_estrategia_estado_da_sprint_26_05",
+      "community": 203,
+      "norm_label": "estado da sprint 26/05"
     },
     {
       "label": "sprint_bugs.md",
@@ -8846,6 +9503,69 @@
       "norm_label": "code:block11 (- visualizacaoevolucao25 (documento))"
     },
     {
+      "label": "DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L611",
+      "community": 7,
+      "norm_label": "deprecated (s-clean-1): caminho legacy sem kill-switch nem gale.          mast",
+      "id": "server_message_handler_rationale_611"
+    },
+    {
+      "label": "Processa extra\u00e7\u00e3o de mesa e salva config.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L635",
+      "community": 7,
+      "norm_label": "processa extracao de mesa e salva config.",
+      "id": "server_message_handler_rationale_635"
+    },
+    {
+      "label": "Retorna lista de mesas configuradas.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L649",
+      "community": 7,
+      "norm_label": "retorna lista de mesas configuradas.",
+      "id": "server_message_handler_rationale_649"
+    },
+    {
+      "label": "Retorna config de uma mesa espec\u00edfica.",
+      "file_type": "rationale",
+      "source_file": "server/message_handler.py",
+      "source_location": "L657",
+      "community": 7,
+      "norm_label": "retorna config de uma mesa especifica.",
+      "id": "server_message_handler_rationale_657"
+    },
+    {
+      "label": "Envia estado atual para todos os clientes a cada 1 segundo.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L195",
+      "community": 156,
+      "norm_label": "envia estado atual para todos os clientes a cada 1 segundo.",
+      "id": "server_websocket_rationale_195"
+    },
+    {
+      "label": "Handler principal de conex\u00f5es WebSocket.          Sistema MASTER/SLAVE:     -",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L246",
+      "community": 156,
+      "norm_label": "handler principal de conexoes websocket.          sistema master/slave:     -",
+      "id": "server_websocket_rationale_246"
+    },
+    {
+      "label": "Inicia o servidor WebSocket.",
+      "file_type": "rationale",
+      "source_file": "server/websocket.py",
+      "source_location": "L296",
+      "community": 156,
+      "norm_label": "inicia o servidor websocket.",
+      "id": "server_websocket_rationale_296"
+    },
+    {
       "label": "Sprints conclu\u00eddos (24/11 noite)",
       "file_type": "document",
       "source_file": "fine_tuning_25.md",
@@ -9348,15 +10068,6 @@
       "community": 7,
       "norm_label": "processa extracao de mesa e salva config.",
       "id": "server_message_handler_rationale_634"
-    },
-    {
-      "label": "Retorna lista de mesas configuradas.",
-      "file_type": "rationale",
-      "source_file": "server/message_handler.py",
-      "source_location": "L648",
-      "community": 7,
-      "norm_label": "retorna lista de mesas configuradas.",
-      "id": "server_message_handler_rationale_648"
     },
     {
       "label": "Retorna config de uma mesa espec\u00edfica.",
@@ -10974,7 +11685,7 @@
       "file_type": "document",
       "source_file": "melhor_simples_Estrategia_23_05.md",
       "source_location": "L1",
-      "community": 109,
+      "community": 102,
       "norm_label": "melhor_simples_estrategia_23_05.md",
       "id": "melhor_simples_estrategia_23_05_md"
     },
@@ -19109,6 +19820,78 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_py",
+      "target": "scripts_schema_symmetry_check_file_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_py",
+      "target": "scripts_schema_symmetry_check_pg_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_py",
+      "target": "scripts_schema_symmetry_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L101",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_main",
+      "target": "scripts_schema_symmetry_check_file_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_rationale_33",
+      "target": "scripts_schema_symmetry_check_file_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L106",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_main",
+      "target": "scripts_schema_symmetry_check_pg_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/schema_symmetry.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "scripts_schema_symmetry_rationale_62",
+      "target": "scripts_schema_symmetry_check_pg_symmetry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/setup_server.sh",
       "source_location": "L1",
       "weight": 1.0,
@@ -21665,6 +22448,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/message_handler.py",
+      "source_location": "L648",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_648",
+      "target": "server_message_handler_messagehandler_handle_legacy_spin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
       "source_location": "L611",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -21680,6 +22473,16 @@
       "confidence_score": 1.0,
       "source": "server_message_handler_rationale_600",
       "target": "server_message_handler_messagehandler_handle_legacy_spin"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
+      "source_location": "L672",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_672",
+      "target": "server_message_handler_messagehandler_handle_extrair_mesa",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -21745,6 +22548,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/message_handler.py",
+      "source_location": "L686",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_686",
+      "target": "server_message_handler_messagehandler_handle_listar_mesas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
       "source_location": "L649",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -21800,6 +22613,16 @@
       "confidence_score": 1.0,
       "source": "server_message_handler_rationale_588",
       "target": "server_message_handler_messagehandler_handle_listar_mesas"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/message_handler.py",
+      "source_location": "L694",
+      "weight": 1.0,
+      "source": "server_message_handler_rationale_694",
+      "target": "server_message_handler_messagehandler_handle_get_mesa_config",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -21895,6 +22718,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
+      "source_location": "L157",
+      "weight": 1.0,
+      "source": "server_websocket_py",
+      "target": "server_websocket_calibration_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
       "source_location": "L109",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -21964,6 +22797,16 @@
       "target": "strategies_sda17_sda17strategy"
     },
     {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L158",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_158",
+      "target": "server_websocket_calibration_snapshot",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -21973,6 +22816,16 @@
       "confidence_score": 1.0,
       "source": "server_websocket_start_server",
       "target": "server_websocket_broadcast_heartbeat"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L227",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_227",
+      "target": "server_websocket_broadcast_heartbeat",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -22043,6 +22896,16 @@
       "confidence_score": 1.0,
       "source": "server_websocket_rationale_44",
       "target": "server_websocket_broadcast_heartbeat"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L278",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_278",
+      "target": "server_websocket_handler",
+      "confidence_score": 1.0
     },
     {
       "relation": "rationale_for",
@@ -22129,6 +22992,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
+      "source_location": "L310",
+      "weight": 1.0,
+      "source": "server_websocket_rationale_310",
+      "target": "server_websocket_get_ssl_context",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
       "source_location": "L278",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -22199,11 +23072,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "server/websocket.py",
-      "source_location": "L296",
+      "source_location": "L328",
       "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "server_websocket_rationale_296",
-      "target": "server_websocket_start_server"
+      "source": "server_websocket_rationale_328",
+      "target": "server_websocket_start_server",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -22214,6 +23087,16 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "server_init_py",
+      "target": "server_websocket_start_server"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "server/websocket.py",
+      "source_location": "L296",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "server_websocket_rationale_296",
       "target": "server_websocket_start_server"
     },
     {
@@ -28177,9 +29060,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "sprint_26_05_estrategia_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md"
     },
     {
       "relation": "contains",
@@ -28187,9 +29070,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_0_resumo_executivo_tl_dr_para_aprova\u00e7\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_0_resumo_executivo_tl_dr_para_aprova\u00e7\u00e3o"
     },
     {
       "relation": "contains",
@@ -28197,9 +29080,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L32",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_1_metodologia_da_auditoria",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_1_metodologia_da_auditoria"
     },
     {
       "relation": "contains",
@@ -28207,9 +29090,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L48",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints"
     },
     {
       "relation": "contains",
@@ -28217,9 +29100,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L198",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos"
     },
     {
       "relation": "contains",
@@ -28227,9 +29110,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L430",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria"
     },
     {
       "relation": "contains",
@@ -28237,9 +29120,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L481",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo"
     },
     {
       "relation": "contains",
@@ -28247,9 +29130,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L518",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_6_mapa_de_depend\u00eancias_revisto_sem_extractor",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_6_mapa_de_depend\u00eancias_revisto_sem_extractor"
     },
     {
       "relation": "contains",
@@ -28257,9 +29140,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L592",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_7_novo_plano_de_waves_sem_extractor_22_dias_\u00fateis",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_7_novo_plano_de_waves_sem_extractor_22_dias_\u00fateis"
     },
     {
       "relation": "contains",
@@ -28267,9 +29150,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L609",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_8_princ\u00edpios_anti_regress\u00e3o_atualizados_adendo_ao_6_do_doc_origem",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_8_princ\u00edpios_anti_regress\u00e3o_atualizados_adendo_ao_6_do_doc_origem"
     },
     {
       "relation": "contains",
@@ -28277,9 +29160,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L625",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_9_riscos_residuais_itens_n\u00e3o_endere\u00e7ados_nesta_auditoria",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_9_riscos_residuais_itens_n\u00e3o_endere\u00e7ados_nesta_auditoria"
     },
     {
       "relation": "contains",
@@ -28287,9 +29170,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L637",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o"
     },
     {
       "relation": "contains",
@@ -28297,9 +29180,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L716",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_11_pr\u00f3ximos_passos_sugeridos_ap\u00f3s_aprova\u00e7\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_11_pr\u00f3ximos_passos_sugeridos_ap\u00f3s_aprova\u00e7\u00e3o"
     },
     {
       "relation": "contains",
@@ -28307,8 +29190,118 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L726",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
-      "target": "roleta_cloud_sprint_26_05_estrategia_12_memory_mcp_entidades_a_registrar_no_in\u00edcio",
+      "target": "roleta_cloud_sprint_26_05_estrategia_12_memory_mcp_entidades_a_registrar_no_in\u00edcio"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L742",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_13_auditoria_live_26_05_descobertas_p\u00f3s_audit_servidor_sqlite",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L786",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L840",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L914",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L980",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_17_mel_iso_004_done_circuit_breaker_sqlite_wave_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1007",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1041",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_19_new_12_done_alerta_prometheus_calibration_error_fill_rate_iso_5_2_disponibilidade",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1086",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_20_resumo_final_desta_sequ\u00eancia_wave_3_hotfix_new_12",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1102",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1161",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1213",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_sprint_26_05_estrat\u00e9gia_auditoria_profunda_das_41_sprints_do_sprint_evolucao_25_05_md",
+      "target": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
       "confidence_score": 1.0
     },
     {
@@ -28317,9 +29310,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L50",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_01_cr\u00edtico_dna_01_n\u00e3o_\u00e9_declarada_pr\u00e9_requisito_para_todas_as_sprints_que_escrevem_em_decision_attribution",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_01_cr\u00edtico_dna_01_n\u00e3o_\u00e9_declarada_pr\u00e9_requisito_para_todas_as_sprints_que_escrevem_em_decision_attribution"
     },
     {
       "relation": "contains",
@@ -28327,9 +29320,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_02_alto_numera\u00e7\u00e3o_e_total_de_sprints_inconsistentes",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_02_alto_numera\u00e7\u00e3o_e_total_de_sprints_inconsistentes"
     },
     {
       "relation": "contains",
@@ -28337,9 +29330,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L70",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_03_cr\u00edtico_dp_01_dp_06_inteiramente_dependentes_do_extractorbeat_escopo_de_outro_agente",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_03_cr\u00edtico_dp_01_dp_06_inteiramente_dependentes_do_extractorbeat_escopo_de_outro_agente"
     },
     {
       "relation": "contains",
@@ -28347,9 +29340,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L81",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_04_alto_v_01_vector_14_d_e_v_04_centroids_por_dealer_dependem_implicitamente_do_bloco_dealer",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_04_alto_v_01_vector_14_d_e_v_04_centroids_por_dealer_dependem_implicitamente_do_bloco_dealer"
     },
     {
       "relation": "contains",
@@ -28357,9 +29350,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L93",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_05_melhoria_falta_sprint_de_versionamento_expl\u00edcito_de_modelo_model_version_referenciada_em_dna_01_mas_n\u00e3o_criada",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_05_melhoria_falta_sprint_de_versionamento_expl\u00edcito_de_modelo_model_version_referenciada_em_dna_01_mas_n\u00e3o_criada"
     },
     {
       "relation": "contains",
@@ -28367,9 +29360,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L99",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_06_melhoria_falta_sprint_de_golden_set_de_spins_para_testes_de_regress\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_06_melhoria_falta_sprint_de_golden_set_de_spins_para_testes_de_regress\u00e3o"
     },
     {
       "relation": "contains",
@@ -28377,9 +29370,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L105",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_07_depend\u00eancia_oculta_dna_02_shap_lightgbm_exige_dataset_est\u00e1vel_depende_de_b_02_force_0_bug_e_b_08_calibration_error",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_07_depend\u00eancia_oculta_dna_02_shap_lightgbm_exige_dataset_est\u00e1vel_depende_de_b_02_force_0_bug_e_b_08_calibration_error"
     },
     {
       "relation": "contains",
@@ -28387,9 +29380,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L111",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_08_alto_bt_02_shadow_v3_assume_coluna_shadow_predictions_jsonb_dna_04_mas_escreve_em_shadow_variants_jsonb",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_08_alto_bt_02_shadow_v3_assume_coluna_shadow_predictions_jsonb_dna_04_mas_escreve_em_shadow_variants_jsonb"
     },
     {
       "relation": "contains",
@@ -28397,9 +29390,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L117",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_09_ambiguidade_shadow_500_decis\u00f5es_6_8_vs_b_07_shadow_500_vs_w_03_shadow_500_vs_bs_02_shadow_1000",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_09_ambiguidade_shadow_500_decis\u00f5es_6_8_vs_b_07_shadow_500_vs_w_03_shadow_500_vs_bs_02_shadow_1000"
     },
     {
       "relation": "contains",
@@ -28407,9 +29400,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L126",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_10_alto_falta_plano_de_migra\u00e7\u00e3o_de_sqlite_para_pg_dos_novos_campos",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_10_alto_falta_plano_de_migra\u00e7\u00e3o_de_sqlite_para_pg_dos_novos_campos"
     },
     {
       "relation": "contains",
@@ -28417,9 +29410,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L132",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_11_cr\u00edtico_dna_04_prop\u00f5e_n_1_predi\u00e7\u00f5es_paralelas_sem_an\u00e1lise_de_custo_de_cpu",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_11_cr\u00edtico_dna_04_prop\u00f5e_n_1_predi\u00e7\u00f5es_paralelas_sem_an\u00e1lise_de_custo_de_cpu"
     },
     {
       "relation": "contains",
@@ -28427,9 +29420,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L142",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_12_alto_w_03_sigmoid_v2_por_hora_do_dia_24_buckets_tem_amostragem_insuficiente",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_12_alto_w_03_sigmoid_v2_por_hora_do_dia_24_buckets_tem_amostragem_insuficiente"
     },
     {
       "relation": "contains",
@@ -28437,9 +29430,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L148",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_13_melhoria_aus\u00eancia_de_sprint_para_observabilidade_de_outbox_lag",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_13_melhoria_aus\u00eancia_de_sprint_para_observabilidade_de_outbox_lag"
     },
     {
       "relation": "contains",
@@ -28447,9 +29440,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L154",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_14_cr\u00edtico_v_03_hnsw_index_com_m_16_ef_construction_64_pode_degradar_recall_com_50k_vetores_e_atualiza\u00e7\u00f5es_frequentes",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_14_cr\u00edtico_v_03_hnsw_index_com_m_16_ef_construction_64_pode_degradar_recall_com_50k_vetores_e_atualiza\u00e7\u00f5es_frequentes"
     },
     {
       "relation": "contains",
@@ -28457,9 +29450,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L160",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_15_ambiguidade_v_05_reten\u00e7\u00e3o_tiered_n\u00e3o_define_qual_estrat\u00e9gia_de_compress\u00e3o_para_warm",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_15_ambiguidade_v_05_reten\u00e7\u00e3o_tiered_n\u00e3o_define_qual_estrat\u00e9gia_de_compress\u00e3o_para_warm"
     },
     {
       "relation": "contains",
@@ -28467,9 +29460,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L166",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_16_alto_v_06_wal_g_azure_lista_d_mas_pr\u00e9_sup\u00f5e_azure_provisionado_maquina_azure_agora_25_md",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_16_alto_v_06_wal_g_azure_lista_d_mas_pr\u00e9_sup\u00f5e_azure_provisionado_maquina_azure_agora_25_md"
     },
     {
       "relation": "contains",
@@ -28477,9 +29470,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L172",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_17_melhoria_falta_gate_de_kill_switch_v4_health_ap\u00f3s_cada_sprint",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_17_melhoria_falta_gate_de_kill_switch_v4_health_ap\u00f3s_cada_sprint"
     },
     {
       "relation": "contains",
@@ -28487,9 +29480,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L178",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_18_alto_bt_03_canary_rollback_tem_janela_de_200_decis\u00f5es_mas_usa_decision_id_100_canary_pct",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_18_alto_bt_03_canary_rollback_tem_janela_de_200_decis\u00f5es_mas_usa_decision_id_100_canary_pct"
     },
     {
       "relation": "contains",
@@ -28497,9 +29490,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L184",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_19_ambiguidade_o_02_alert_hit_rate_dealer_0_44_for_30m_mas_dealer_id_n\u00e3o_existir\u00e1_at\u00e9_dp_rodar",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_19_ambiguidade_o_02_alert_hit_rate_dealer_0_44_for_30m_mas_dealer_id_n\u00e3o_existir\u00e1_at\u00e9_dp_rodar"
     },
     {
       "relation": "contains",
@@ -28507,9 +29500,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L190",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_2_achados_gerais_transversais_a_m\u00faltiplas_sprints",
-      "target": "roleta_cloud_sprint_26_05_estrategia_g_20_melhoria_falta_sprint_para_rate_limit_do_bandit_descobrir_bra\u00e7o_novo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_g_20_melhoria_falta_sprint_para_rate_limit_do_bandit_descobrir_bra\u00e7o_novo"
     },
     {
       "relation": "contains",
@@ -28517,9 +29510,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L202",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs"
     },
     {
       "relation": "contains",
@@ -28527,9 +29520,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L249",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_dna"
     },
     {
       "relation": "contains",
@@ -28537,9 +29530,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L283",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel"
     },
     {
       "relation": "contains",
@@ -28547,9 +29540,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L305",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos"
     },
     {
       "relation": "contains",
@@ -28557,9 +29550,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L337",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector"
     },
     {
       "relation": "contains",
@@ -28567,9 +29560,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L369",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit"
     },
     {
       "relation": "contains",
@@ -28577,9 +29570,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L395",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_backtest",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_backtest"
     },
     {
       "relation": "contains",
@@ -28587,9 +29580,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L412",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_3_auditoria_sprint_por_sprint_achados_espec\u00edficos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_observability",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bloco_observability"
     },
     {
       "relation": "contains",
@@ -28597,9 +29590,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L204",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_01_desligar_errdriven",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_01_desligar_errdriven"
     },
     {
       "relation": "contains",
@@ -28607,9 +29600,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L209",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_02_calculate_force_com_from_to",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_02_calculate_force_com_from_to"
     },
     {
       "relation": "contains",
@@ -28617,9 +29610,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L215",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_03_gale_windows_result_null",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_03_gale_windows_result_null"
     },
     {
       "relation": "contains",
@@ -28627,9 +29620,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L220",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_04_autoencoder_bind_mount",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_04_autoencoder_bind_mount"
     },
     {
       "relation": "contains",
@@ -28637,9 +29630,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L225",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_05_bandit_persist",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_05_bandit_persist"
     },
     {
       "relation": "contains",
@@ -28647,9 +29640,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L231",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_06_api_regime_distance_0",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_06_api_regime_distance_0"
     },
     {
       "relation": "contains",
@@ -28657,9 +29650,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L237",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_07_errdriven_v2_refatorado",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_07_errdriven_v2_refatorado"
     },
     {
       "relation": "contains",
@@ -28667,9 +29660,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L243",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bugs",
-      "target": "roleta_cloud_sprint_26_05_estrategia_b_08_calibration_error_null",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_08_calibration_error_null"
     },
     {
       "relation": "contains",
@@ -28677,9 +29670,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L251",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_01_schema_decision_attribution",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_01_schema_decision_attribution"
     },
     {
       "relation": "contains",
@@ -28687,9 +29680,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L257",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_02_shap_pipeline",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_02_shap_pipeline"
     },
     {
       "relation": "contains",
@@ -28697,9 +29690,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L263",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_03_mv_mv_decision_contribution_rolling",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_03_mv_mv_decision_contribution_rolling"
     },
     {
       "relation": "contains",
@@ -28707,9 +29700,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L268",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_04_shadow_ablation",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_04_shadow_ablation"
     },
     {
       "relation": "contains",
@@ -28717,9 +29710,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L273",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_05_grafana_dashboard",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_05_grafana_dashboard"
     },
     {
       "relation": "contains",
@@ -28727,9 +29720,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L278",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dna",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dna_06_contrato_feature_registry",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dna_06_contrato_feature_registry"
     },
     {
       "relation": "contains",
@@ -28737,9 +29730,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L285",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel",
-      "target": "roleta_cloud_sprint_26_05_estrategia_w_01_compute_wheel_dist",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_01_compute_wheel_dist"
     },
     {
       "relation": "contains",
@@ -28747,9 +29740,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L290",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel",
-      "target": "roleta_cloud_sprint_26_05_estrategia_w_02_popular_calibration_error",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_02_popular_calibration_error"
     },
     {
       "relation": "contains",
@@ -28757,9 +29750,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L295",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel",
-      "target": "roleta_cloud_sprint_26_05_estrategia_w_03_retrain_sigmoid_v2",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_03_retrain_sigmoid_v2"
     },
     {
       "relation": "contains",
@@ -28767,9 +29760,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L300",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_wheel",
-      "target": "roleta_cloud_sprint_26_05_estrategia_w_04_backtest_sigmoid",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_04_backtest_sigmoid"
     },
     {
       "relation": "contains",
@@ -28777,9 +29770,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L309",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_01_anexar_mesa_id_no_payload",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_01_anexar_mesa_id_no_payload"
     },
     {
       "relation": "contains",
@@ -28787,9 +29780,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L314",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_02_mutationobserver_dealer",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_02_mutationobserver_dealer"
     },
     {
       "relation": "contains",
@@ -28797,9 +29790,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L319",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_03_detect_provider_via_url",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_03_detect_provider_via_url"
     },
     {
       "relation": "contains",
@@ -28807,9 +29800,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L323",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_04_round_id",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_04_round_id"
     },
     {
       "relation": "contains",
@@ -28817,9 +29810,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L327",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_05_schema_shared_dealers_tables_dealer_shifts",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_05_schema_shared_dealers_tables_dealer_shifts"
     },
     {
       "relation": "contains",
@@ -28827,9 +29820,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L333",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_dealer_provider_todos_deferidos",
-      "target": "roleta_cloud_sprint_26_05_estrategia_dp_06_worker_dealer_stats",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_dp_06_worker_dealer_stats"
     },
     {
       "relation": "contains",
@@ -28837,9 +29830,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L339",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_01_vector_6_d_14_d",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_01_vector_6_d_14_d"
     },
     {
       "relation": "contains",
@@ -28847,9 +29840,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L345",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_02_age_grafo",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_02_age_grafo"
     },
     {
       "relation": "contains",
@@ -28857,9 +29850,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L351",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_03_hnsw",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_03_hnsw"
     },
     {
       "relation": "contains",
@@ -28867,9 +29860,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L356",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_04_centroids",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_04_centroids"
     },
     {
       "relation": "contains",
@@ -28877,9 +29870,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L360",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_05_reten\u00e7\u00e3o_tiered",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_05_reten\u00e7\u00e3o_tiered"
     },
     {
       "relation": "contains",
@@ -28887,9 +29880,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L365",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_pg_age_vector",
-      "target": "roleta_cloud_sprint_26_05_estrategia_v_06_wal_g_azure",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_v_06_wal_g_azure"
     },
     {
       "relation": "contains",
@@ -28897,9 +29890,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L371",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bs_01_bandit_obs",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bs_01_bandit_obs"
     },
     {
       "relation": "contains",
@@ -28907,9 +29900,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L376",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bs_02_linucb",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bs_02_linucb"
     },
     {
       "relation": "contains",
@@ -28917,9 +29910,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L381",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bs_03_thompson",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bs_03_thompson"
     },
     {
       "relation": "contains",
@@ -28927,9 +29920,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L386",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bs_04_feature_store_sinal",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bs_04_feature_store_sinal"
     },
     {
       "relation": "contains",
@@ -28937,9 +29930,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L391",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_bandit",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bs_05_regime_sinal",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bs_05_regime_sinal"
     },
     {
       "relation": "contains",
@@ -28947,9 +29940,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L397",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_backtest",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bt_01_harness",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bt_01_harness"
     },
     {
       "relation": "contains",
@@ -28957,9 +29950,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L403",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_backtest",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bt_02_shadow_v3",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bt_02_shadow_v3"
     },
     {
       "relation": "contains",
@@ -28967,9 +29960,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L407",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_backtest",
-      "target": "roleta_cloud_sprint_26_05_estrategia_bt_03_canary_rollout",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_bt_03_canary_rollout"
     },
     {
       "relation": "contains",
@@ -28977,9 +29970,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L414",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_observability",
-      "target": "roleta_cloud_sprint_26_05_estrategia_o_01_strategy_360",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_o_01_strategy_360"
     },
     {
       "relation": "contains",
@@ -28987,9 +29980,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L418",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_observability",
-      "target": "roleta_cloud_sprint_26_05_estrategia_o_02_alert_hit_rate_por_dealer",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_o_02_alert_hit_rate_por_dealer"
     },
     {
       "relation": "contains",
@@ -28997,9 +29990,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L423",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_bloco_observability",
-      "target": "roleta_cloud_sprint_26_05_estrategia_o_03_log_estruturado_decision_id",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_o_03_log_estruturado_decision_id"
     },
     {
       "relation": "contains",
@@ -29007,9 +30000,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L432",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "target": "roleta_cloud_sprint_26_05_estrategia_new_01_schema_shared_model_registry_helper_register_model",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_01_schema_shared_model_registry_helper_register_model"
     },
     {
       "relation": "contains",
@@ -29017,9 +30010,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L441",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "target": "roleta_cloud_sprint_26_05_estrategia_new_02_golden_set_testes_de_regress\u00e3o",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_02_golden_set_testes_de_regress\u00e3o"
     },
     {
       "relation": "contains",
@@ -29027,9 +30020,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L451",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "target": "roleta_cloud_sprint_26_05_estrategia_new_03_ci_check_schema_symmetry_py_cw_vs_ccw",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_03_ci_check_schema_symmetry_py_cw_vs_ccw"
     },
     {
       "relation": "contains",
@@ -29037,9 +30030,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L461",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "target": "roleta_cloud_sprint_26_05_estrategia_new_04_m\u00e9tricas_prometheus_de_outbox_lag",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_04_m\u00e9tricas_prometheus_de_outbox_lag"
     },
     {
       "relation": "contains",
@@ -29047,9 +30040,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L471",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_4_sprints_novas_propostas_resultado_da_auditoria",
-      "target": "roleta_cloud_sprint_26_05_estrategia_new_05_telemetria_de_errdriven_disabled_count_outras_flags",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_05_telemetria_de_errdriven_disabled_count_outras_flags"
     },
     {
       "relation": "contains",
@@ -29057,9 +30050,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L483",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "target": "roleta_cloud_sprint_26_05_estrategia_5_1_esfor\u00e7o_risco_ajustados",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_5_1_esfor\u00e7o_risco_ajustados"
     },
     {
       "relation": "contains",
@@ -29067,9 +30060,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L496",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "target": "roleta_cloud_sprint_26_05_estrategia_5_2_sprints_divididas_em_variantes_a_b",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_5_2_sprints_divididas_em_variantes_a_b"
     },
     {
       "relation": "contains",
@@ -29077,9 +30070,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L507",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "target": "roleta_cloud_sprint_26_05_estrategia_5_3_sprints_deferidas_aguardam_extractorbeat_v19",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_5_3_sprints_deferidas_aguardam_extractorbeat_v19"
     },
     {
       "relation": "contains",
@@ -29087,9 +30080,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L512",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_5_reclassifica\u00e7\u00e3o_de_sprints_resumo",
-      "target": "roleta_cloud_sprint_26_05_estrategia_5_4_sprints_deferidas_aguardam_azure",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_5_4_sprints_deferidas_aguardam_azure"
     },
     {
       "relation": "contains",
@@ -29097,9 +30090,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L520",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_6_mapa_de_depend\u00eancias_revisto_sem_extractor",
-      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_1",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_1"
     },
     {
       "relation": "contains",
@@ -29107,9 +30100,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L642",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "target": "roleta_cloud_sprint_26_05_estrategia_10_1_bugs",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_10_1_bugs"
     },
     {
       "relation": "contains",
@@ -29117,9 +30110,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L655",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "target": "roleta_cloud_sprint_26_05_estrategia_10_2_dna_w_v_bs_bt_o_execut\u00e1veis",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_10_2_dna_w_v_bs_bt_o_execut\u00e1veis"
     },
     {
       "relation": "contains",
@@ -29127,9 +30120,9 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L686",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "target": "roleta_cloud_sprint_26_05_estrategia_10_3_new_5_sprints",
-      "confidence_score": 1.0
+      "target": "roleta_cloud_sprint_26_05_estrategia_10_3_new_5_sprints"
     },
     {
       "relation": "contains",
@@ -29137,8 +30130,548 @@
       "source_file": "sprint_26_05_estrategia.md",
       "source_location": "L696",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "roleta_cloud_sprint_26_05_estrategia_10_matriz_de_aprova\u00e7\u00e3o_preencher_antes_de_execu\u00e7\u00e3o",
-      "target": "roleta_cloud_sprint_26_05_estrategia_10_4_bloco_deferido_aguardando_extractorbeat_v19_ou_azure",
+      "target": "roleta_cloud_sprint_26_05_estrategia_10_4_bloco_deferido_aguardando_extractorbeat_v19_ou_azure"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L746",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_13_auditoria_live_26_05_descobertas_p\u00f3s_audit_servidor_sqlite",
+      "target": "roleta_cloud_sprint_26_05_estrategia_13_1_achados_que_invalidam_ou_reescopam_sprints_aprovadas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L760",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_13_auditoria_live_26_05_descobertas_p\u00f3s_audit_servidor_sqlite",
+      "target": "roleta_cloud_sprint_26_05_estrategia_13_2_reclassifica\u00e7\u00e3o_consolidada",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L772",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_13_auditoria_live_26_05_descobertas_p\u00f3s_audit_servidor_sqlite",
+      "target": "roleta_cloud_sprint_26_05_estrategia_13_3_snapshot_24h_evid\u00eancia_audit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L774",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_13_3_snapshot_24h_evid\u00eancia_audit",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L790",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_01_done_compute_wheel_dist_helper_can\u00f4nico",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L800",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_w_02_done_update_result_calibration_error",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L805",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_b_08_done_calibration_error_populado_em_produ\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L812",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_testes_tests_test_wheel_dist_py_novo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L818",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_p\u00f3s_deploy_executar_quando_subir_no_debian",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L829",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_14_execu\u00e7\u00e3o_26_05_sprints_completadas_nesta_sess\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_pr\u00f3xima_wave_aguardando_aprova\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L820",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_p\u00f3s_deploy_executar_quando_subir_no_debian",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L844",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s1_done_schema_symmetry_ci_new_03_mel_iso_002_ext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L852",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s2_done_sanitize_erroroutput_bug_post_004_mel_iso_001",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L860",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s3_skipped_bug_post_007_j\u00e1_resolvido",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L865",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s4_done_structlog_decision_created_event_o_03",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L872",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s5_done_fix_colunas_em_prompts_mestres_l_05",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L884",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_iso_s6_done_gale_windows_result_enum_backfill_b_03_reescopado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L891",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_resumo_de_impacto_iso_ap\u00f3s_wave_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L902",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_15_execu\u00e7\u00e3o_26_05_wave_2_priorizada_por_iso_iec_25010",
+      "target": "roleta_cloud_sprint_26_05_estrategia_pr\u00f3xima_wave_sugerida_aguarda_aprova\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L918",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_1_confirma\u00e7\u00e3o_da_regress\u00e3o_multi_janela",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L930",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_2_smoking_gun_agressivo_mode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L947",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_3_correla\u00e7\u00e3o_com_commits",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L958",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_4_outros_achados",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L966",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_new_06_investiga\u00e7\u00e3o_regress\u00e3o_hit_rate_26_05_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_16_5_recomenda\u00e7\u00f5es_sprints_derivadas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L920",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_1_confirma\u00e7\u00e3o_da_regress\u00e3o_multi_janela",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L934",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_16_2_smoking_gun_agressivo_mode",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L996",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_17_mel_iso_004_done_circuit_breaker_sqlite_wave_3",
+      "target": "roleta_cloud_sprint_26_05_estrategia_resumo_wave_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1011",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "target": "roleta_cloud_sprint_26_05_estrategia_causa_raiz",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1014",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "target": "roleta_cloud_sprint_26_05_estrategia_fix_commit_d6935b5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1023",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "target": "roleta_cloud_sprint_26_05_estrategia_blindagem",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1031",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "target": "roleta_cloud_sprint_26_05_estrategia_deploy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1034",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_18_b_09_done_pending_key_mismatch_hotfix_pos_deploy_a41210c",
+      "target": "roleta_cloud_sprint_26_05_estrategia_li\u00e7\u00e3o_aprendida_iso_5_2_disponibilidade",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1015",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_fix_commit_d6935b5",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1045",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_19_new_12_done_alerta_prometheus_calibration_error_fill_rate_iso_5_2_disponibilidade",
+      "target": "roleta_cloud_sprint_26_05_estrategia_implementa\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1075",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_19_new_12_done_alerta_prometheus_calibration_error_fill_rate_iso_5_2_disponibilidade",
+      "target": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_live_deploy_fb94675",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1081",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_19_new_12_done_alerta_prometheus_calibration_error_fill_rate_iso_5_2_disponibilidade",
+      "target": "roleta_cloud_sprint_26_05_estrategia_testes_tests_test_calibration_fill_stats_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1058",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_implementa\u00e7\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_7",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1067",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_implementa\u00e7\u00e3o",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_8",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1106",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_1_backtest_counterfactual_48h_prod_n_1282_apostar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1122",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_2_new_07_blacklist_defensiva_commit_f65801d",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1132",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_3_new_08_piso_configur\u00e1vel_sda_thr_commit_aplicado_junto",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1140",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_4_deploy_ativa\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1146",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_new_07_new_08_done_blacklist_defensiva_piso_sda_thr_opt_in",
+      "target": "roleta_cloud_sprint_26_05_estrategia_21_5_resumo_final_desta_sequ\u00eancia_completa",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1108",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_21_1_backtest_counterfactual_48h_prod_n_1282_apostar",
+      "target": "roleta_cloud_sprint_26_05_estrategia_codeblock_9",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1163",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_sintoma",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1169",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_causa_raiz_1169",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1186",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_fix_commit_cf3570d",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1194",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_valida\u00e7\u00e3o_live",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1203",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_suite",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1206",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_22_b_10_hotfix_databaseservice_update_result_kwarg_engolido_26_05_21h28",
+      "target": "roleta_cloud_sprint_26_05_estrategia_li\u00e7\u00e3o",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1215",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
+      "target": "roleta_cloud_sprint_26_05_estrategia_fill_rate_calibration_error_p\u00f3s_deploy_cf3570d",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1219",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
+      "target": "roleta_cloud_sprint_26_05_estrategia_distribui\u00e7\u00e3o_hits_dist\u00e2ncia_n_31_p\u00f3s_b_10",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1236",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
+      "target": "roleta_cloud_sprint_26_05_estrategia_new_11_skew_dire\u00e7\u00e3o_refutado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "sprint_26_05_estrategia.md",
+      "source_location": "L1257",
+      "weight": 1.0,
+      "source": "roleta_cloud_sprint_26_05_estrategia_23_valida\u00e7\u00e3o_p\u00f3s_b_10_refuta\u00e7\u00e3o_new_11_26_05_22h00_utc",
+      "target": "roleta_cloud_sprint_26_05_estrategia_estado_da_sprint_26_05",
       "confidence_score": 1.0
     },
     {
@@ -40583,5 +42116,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "98c7d7f5e988a61b40b9be272b1bb59f7594f9a2"
+  "built_at_commit": "aadcb1b9e9d515191b48876519527a157a2dee32"
 }

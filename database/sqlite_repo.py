@@ -321,6 +321,16 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
                 logger.info("Migration: added sda_offset, sda_offset_type columns to decisions")
 
+            # SP-16 (REGION-01): coluna sda_regions JSON para guardar
+            # [{c, offset, score, ...}] por regiao C1/C2/C3. Permite SP-17
+            # calcular realized_lift_pp por regiao.
+            try:
+                conn.execute("SELECT sda_regions FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN sda_regions TEXT")
+                conn.commit()
+                logger.info("Migration SP-16: added sda_regions column to decisions")
+
             # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
             # Enum oficial observado em prod: 'streak', 'reset', 'info'.
             # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
@@ -353,13 +363,13 @@ class SQLiteDecisionRepository(DecisionRepository):
                     tr_c4_rate, tr_m6_rate, tr_l12_rate,
                     sda_should_bet, sda_score, sda_center, sda_centers,
                     sda_numbers, sda_predicted_force,
-                    sda_offset, sda_offset_type,
+                    sda_offset, sda_offset_type, sda_regions,
                     final_action, action_reason,
                     gale_level, gale_window_hits, gale_window_count, gale_bet_value,
                     result_hit, result_actual,
                     calibration_offset, calibration_error,
                     performance_snapshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -380,6 +390,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                 decision.sda_predicted_force,
                 decision.sda_offset,
                 decision.sda_offset_type,
+                json.dumps(decision.sda_regions) if getattr(decision, "sda_regions", None) else None,
                 decision.final_action,
                 decision.action_reason,
                 decision.gale_level,
@@ -573,6 +584,7 @@ class SQLiteDecisionRepository(DecisionRepository):
             sda_predicted_force=row["sda_predicted_force"] or 0,
             sda_offset=row["sda_offset"] if "sda_offset" in row.keys() else 0,
             sda_offset_type=row["sda_offset_type"] if "sda_offset_type" in row.keys() else "",
+            sda_regions=self._safe_json_loads(row["sda_regions"], []) if "sda_regions" in row.keys() else [],
             final_action=row["final_action"] or "",
             action_reason=row["action_reason"] or "",
             gale_level=row["gale_level"] or 1,

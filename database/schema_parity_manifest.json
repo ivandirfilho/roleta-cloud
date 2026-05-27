@@ -22,7 +22,8 @@
     "calibration_offset",
     "action_reason",
     "tr_reason",
-    "tr_confidence"
+    "tr_confidence",
+    "sda_regions"
   ],
   "pg_only_allowed": [
     "last_20_hits",

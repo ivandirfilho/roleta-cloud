@@ -40,6 +40,7 @@ class Decision:
     sda_predicted_force: int = 0
     sda_offset: int = 0                                        # Offset adaptativo usado
     sda_offset_type: str = ""                                  # "sigmoid" (v4.3+), "bayesian" (v4.1-4.2)
+    sda_regions: List[Dict[str, Any]] = field(default_factory=list)  # SP-16: [{c, offset, score, ...}]
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"
@@ -85,6 +86,7 @@ class Decision:
             "sda_predicted_force": self.sda_predicted_force,
             "sda_offset": self.sda_offset,
             "sda_offset_type": self.sda_offset_type,
+            "sda_regions": list(self.sda_regions or []),
             "final_action": self.final_action,
             "action_reason": self.action_reason,
             "gale_level": self.gale_level,

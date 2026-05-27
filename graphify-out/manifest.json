@@ -35,13 +35,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
-    "mtime": 1779683979.871435,
-    "ast_hash": "820316aa111ea3c2424099b8bbd43f89",
+    "mtime": 1779828655.9196608,
+    "ast_hash": "ba89f920c29c53539303e8739263ce59",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
-    "mtime": 1779685058.502125,
-    "ast_hash": "6fb5d76202d599128b220d547cc3d67f",
+    "mtime": 1779829945.199103,
+    "ast_hash": "3fc34ddc9091839f2ab56cd5e6bc9845",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\__init__.py": {
@@ -185,13 +185,18 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprint_evolucao_25_05.md": {
-    "mtime": 1779736209.3195307,
-    "ast_hash": "235efaac79afddee90f76461d6f1d39a",
+    "mtime": 1779827894.467171,
+    "ast_hash": "b74926e5a1aff32bdd8bfc12255fd9bd",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprint_26_05_estrategia.md": {
-    "mtime": 1779824605.344491,
-    "ast_hash": "ba287548ddee182191403ad184e95935",
+    "mtime": 1779836031.0980942,
+    "ast_hash": "bc8e646fc41ab32a33f2e2c232b6d68e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\schema_symmetry.py": {
+    "mtime": 1779827928.5845845,
+    "ast_hash": "c98c47d20db53a0922560c25ebfa730d",
     "semantic_hash": ""
   }
 }

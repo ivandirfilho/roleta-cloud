@@ -1,0 +1,736 @@
+{
+  "_meta": {
+    "service": "ExtractorBeat",
+    "version": "18.1.0",
+    "timestamp": "2025-12-11T01:44:41.503Z",
+    "timestampUnix": 1765417481503,
+    "source": {
+      "url": "https://betvip.bet.br/games/evolution/roleta-ao-vivo",
+      "title": "Betvip 🍀 Cassino e Apostas Online | Apostas Esportivas | Betvip 🍀 Cassino e Apostas Online | Apostas Esportivas"
+    },
+    "provider": {
+      "name": "Evolution Gaming",
+      "note": "Seletores podem mudar com atualizações do provider"
+    },
+    "improvements": [
+      "🆕 v18.1: Seção _detectedFrames lista TODOS os iFrames do DOM",
+      "🆕 v18.0: Documentação de problema Unicode em valores financeiros",
+      "🆕 v18.0: detectionConfig expandido para gameStatus",
+      "🆕 v18.0: Seção _compatibility para versões",
+      "🆕 v18.0: Seção _quickStart com código pronto",
+      "🆕 v18.0: workingSelectors/failedSelectors no _searchTrace",
+      "🆕 v17.0: Problema de iFrame resolvido com allFrames: true",
+      "🆕 v17.0: Protocolo de execução com PointerEvent detalhado",
+      "gameStatus com 3 métodos de detecção + fallback automático",
+      "Sistema de trace completo de TODAS as buscas DOM",
+      "100% retrocompatível com v15.0, v16.0, v16.1 e v17.x"
+    ]
+  },
+  "_compatibility": {
+    "minEscutaVersion": "2.5.0",
+    "minExecutorVersion": "1.0.0",
+    "requiredFeatures": [
+      "allFrames: true no executeScript",
+      "PointerEvent para cliques",
+      "Limpeza Unicode para valores financeiros"
+    ],
+    "breakingChanges": {
+      "v18": "Adicionado detectionConfig expandido, _quickStart",
+      "v17": "Estrutura de monitoring.gameStatus mudou",
+      "v16": "Adicionado _searchTrace"
+    },
+    "unicodeWarning": {
+      "problema": "Evolution Gaming usa caracteres Unicode bidirecionais invisíveis",
+      "charCodes": [
+        "U+2066",
+        "U+2067",
+        "U+2068",
+        "U+2069",
+        "U+202A-U+202E"
+      ],
+      "sintoma": "parseFloat() retorna NaN mesmo com valor aparentemente válido",
+      "exemplo": "'⁦⁦R$⁩ 770,65⁩' → deve virar 770.65",
+      "solucao": "Remover caracteres com regex antes de parsear"
+    }
+  },
+  "_quickStart": {
+    "purpose": "Código pronto para copiar/colar no Escuta Beat e Executor Beat",
+    "parseMoneyBRL": {
+      "description": "Função para converter valores financeiros (corrige Unicode)",
+      "code": "function parseMoneyBRL(text) {\n  if (!text) return 0;\n  // CRÍTICO: Remover caracteres Unicode bidirecionais\n  let cleaned = text\n    .replace(/[\\u2066\\u2067\\u2068\\u2069\\u202A-\\u202E]/g, '')\n    .replace(/R\\$/g, '')\n    .replace(/\\u00A0/g, '')\n    .replace(/\\s+/g, '')\n    .trim();\n  // Remover pontos de milhar, trocar vírgula por ponto\n  cleaned = cleaned.replace(/\\./g, '').replace(',', '.');\n  return parseFloat(cleaned) || 0;\n}"
+    },
+    "checkIsOpen": {
+      "description": "Verificar se apostas estão abertas (3 métodos)",
+      "code": "function checkIsOpen() {\n  // MÉTODO 1: Bloqueio de chips (MAIS CONFIÁVEL)\n  const chipWrapper = document.querySelector(\"[data-role='chip-stack-wrapper']\");\n  if (chipWrapper) {\n    const className = chipWrapper.className || '';\n    const isBlocked = className.includes('prevent') || className.includes('blocked');\n    if (isBlocked) return false;\n    if (!isBlocked) return true;\n  }\n  \n  // MÉTODO 2: Texto do semáforo\n  const textEl = document.querySelector('[class*=\"trafficLightText\"]');\n  if (textEl) {\n    const text = (textEl.innerText || '').toUpperCase();\n    if (text.includes('FAÇAM') || text.includes('PLACE')) return true;\n    if (text.includes('NÃO') || text.includes('NO MORE')) return false;\n  }\n  \n  // MÉTODO 3: Timer visível\n  const timer = document.querySelector(\"[data-role='circle-timer']\");\n  if (timer) {\n    const style = getComputedStyle(timer);\n    return style.display !== 'none' && parseFloat(style.opacity) > 0.3;\n  }\n  \n  return null; // Desconhecido\n}"
+    },
+    "executarAposta": {
+      "description": "Executar uma aposta (selecionar ficha + clicar no spot)",
+      "code": "async function executarAposta(chipValue, betSpotId) {\n  // 1. Verificar se aberto\n  if (!checkIsOpen()) return { error: 'APOSTAS_FECHADAS' };\n  \n  // 2. Selecionar ficha\n  const chip = document.querySelector(`[data-role='chip'][data-value='${chipValue}']`);\n  if (!chip) return { error: 'CHIP_NOT_FOUND' };\n  chip.click();\n  await new Promise(r => setTimeout(r, 100));\n  \n  // 3. Clicar no spot\n  const spot = document.querySelector(`[data-bet-spot-id='${betSpotId}']`);\n  if (!spot) return { error: 'SPOT_NOT_FOUND' };\n  \n  const event = new PointerEvent('click', {\n    bubbles: true, cancelable: true, view: window,\n    pressure: 0.5, pointerType: 'mouse'\n  });\n  spot.dispatchEvent(event);\n  \n  return { success: true, chip: chipValue, spot: betSpotId };\n}"
+    }
+  },
+  "_searchTrace": {
+    "timestamp": "2025-12-11T01:44:41.503Z",
+    "frames": [],
+    "summary": {
+      "totalFramesScanned": 0,
+      "totalSearches": 0,
+      "successfulSearches": 0,
+      "failedSearches": 0,
+      "extractionMethod": "executeScript"
+    }
+  },
+  "_detectedFrames": {
+    "purpose": "Lista de TODOS os iFrames encontrados na página para análise",
+    "note": "Use esta seção para identificar qual iFrame contém o jogo Evolution",
+    "totalFrames": 9,
+    "evolutionFrameDetected": true,
+    "gameFrameDetected": true,
+    "frames": [
+      {
+        "frameIndex": 0,
+        "frameId": 0,
+        "parentFrameId": -1,
+        "url": "https://betvip.bet.br/games/evolution/roleta-ao-vivo",
+        "urlShort": "https://betvip.bet.br/games/evolution/roleta-ao-vivo",
+        "domain": "betvip.bet.br",
+        "isMainFrame": true,
+        "isEvolution": true,
+        "isPotentialGame": true,
+        "note": "🎰 iFrame Evolution Gaming detectado!"
+      },
+      {
+        "frameIndex": 1,
+        "frameId": 5283,
+        "parentFrameId": 0,
+        "url": "https://tm.uol.com.br/mercurio.html",
+        "urlShort": "https://tm.uol.com.br/mercurio.html",
+        "domain": "tm.uol.com.br",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 2,
+        "frameId": 5284,
+        "parentFrameId": 0,
+        "url": "https://tm.uol.com.br/dynad-track-cookies.html?name=DEretargeting&expname=DEretargetingExp&client=UOLADS.1716&expires=30&expdomain=1",
+        "urlShort": "https://tm.uol.com.br/dynad-track-cookies.html?name=DEretargeting&expname=DEretargetingExp&client=UO",
+        "domain": "tm.uol.com.br",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 3,
+        "frameId": 5285,
+        "parentFrameId": 0,
+        "url": "https://tm.uol.com.br/dynad-track-cookies.html?name=dynad_rt&expname=dynad_rt_exp&client=UOLADS.1716&expires=30",
+        "urlShort": "https://tm.uol.com.br/dynad-track-cookies.html?name=dynad_rt&expname=dynad_rt_exp&client=UOLADS.1716",
+        "domain": "tm.uol.com.br",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 4,
+        "frameId": 5286,
+        "parentFrameId": 0,
+        "url": "about:blank",
+        "urlShort": "about:blank",
+        "domain": "",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 5,
+        "frameId": 5339,
+        "parentFrameId": 0,
+        "url": "https://s3.eu-central-1.amazonaws.com/ignition.button/round-2/index.html?options=eyJsYXVuY2hfb3B0aW9ucyI6eyJnYW1lX3VybCI6Imh0dHBzOi8vYTgtbGF0YW0uZXZvLWdhbWVzLmNvbS9lbnRyeT9KU0VTU0lPTklEPXN4dXc1YnJwY24yYmZudWN0bWZxZDUzZjN4cTVmMzYyNTE5YmVkYTJcdTAwMjZwYXJhbXM9WTJGemFXNXZYMmxrUFdFNGJHRjBZVzB3TURBd01EQXdNREVLWjJGdFpUMXliM1ZzWlhSMFpRcHphV2R1WVhSMWNtVTlXamxUYkZsUk0ybDVhbFJRVW5Gb1VqSkJYM2g2YkZsNVRYbGFXRGxzWlRGdmJ6VjZiMkpmTWkxcWVWQlVabFI1Y2xORlNEZFlaMGhpUVdWNlpHdFRUSFl5T0UxWmNYaGFVMUJCUTJSNlZqWmxkWGh3WTNjS2RXRmZiR0YxYm1Ob1gybGtQVEU0T0RBd05HSTJZekJqTlRKbU5UUXhabUZoTnpkaE5BcDJkRjlwWkQxemNEUjRlR1IwZDJJM2VXVTNORFl5Q25SaFlteGxYMmxrUFZCdmNsSlBWVEF3TURBd01EQXdNREVLWjJGdFpVbHVkR1Z5Wm1GalpUMTJhV1YzTWdwemFYUmxQVEV4TmdwcWQzTm9QV1Y1U25KaFYxRnBUMmxKZUU1NlRUVk9SRkUwVGtSQmVFNTZhekZKYVhkcFdWZDRia2xxYjJsU1ZrMTVUbFJaYVdaUkNuQnNZWGxmYlc5a1pUMXlaWGRoY21SZloyRnRaWE1LIiwic3RyYXRlZ3kiOiJpZnJhbWUifSwibGF1bmNoZXJfdmVyc2lvbiI6Im1hc3RlciJ9",
+        "urlShort": "https://s3.eu-central-1.amazonaws.com/ignition.button/round-2/index.html?options=eyJsYXVuY2hfb3B0aW9",
+        "domain": "s3.eu-central-1.amazonaws.com",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 6,
+        "frameId": 5287,
+        "parentFrameId": 5286,
+        "url": "https://sst.betvip.bet.br/_/service_worker/5c20/sw_iframe.html?origin=https%3A%2F%2Fbetvip.bet.br&1p=1",
+        "urlShort": "https://sst.betvip.bet.br/_/service_worker/5c20/sw_iframe.html?origin=https%3A%2F%2Fbetvip.bet.br&1p",
+        "domain": "sst.betvip.bet.br",
+        "isMainFrame": false,
+        "isEvolution": false,
+        "isPotentialGame": false,
+        "note": "📋 iFrame"
+      },
+      {
+        "frameIndex": 7,
+        "frameId": 5340,
+        "parentFrameId": 5339,
+        "url": "https://a8-latam.evo-games.com/frontend/evo/r2/#provider=evolution&EVOSESSIONID=sxuw5brpcn2bfnuctmfqd53f3xq5f362519beda209a6fe3416acf5b671afd37a10d00d74c1a5e5cf&vt_id=sp4xxdtwb7ye7462&locale=pt-BR&ua_launch_id=188004b6c0c52f541faa77a4&cdn=https%3A%2F%2Fstatic.egcdn.com&lang=bp&table_id=PorROU0000000001&game=roulette",
+        "urlShort": "https://a8-latam.evo-games.com/frontend/evo/r2/#provider=evolution&EVOSESSIONID=sxuw5brpcn2bfnuctmfq",
+        "domain": "a8-latam.evo-games.com",
+        "isMainFrame": false,
+        "isEvolution": true,
+        "isPotentialGame": true,
+        "note": "🎰 iFrame Evolution Gaming detectado!"
+      },
+      {
+        "frameIndex": 8,
+        "frameId": 5342,
+        "parentFrameId": 5340,
+        "url": "https://a8-latam.evo-games.com/frontend/evo/r2/#provider=evolution&EVOSESSIONID=sxuw5brpcn2bfnuctmfqd53f3xq5f362519beda209a6fe3416acf5b671afd37a10d00d74c1a5e5cf&vt_id=sp4xxdtwb7ye7462&locale=pt-BR&ua_launch_id=188004b6c0c52f541faa77a4&cdn=https%3A%2F%2Fstatic.egcdn.com&lang=bp&table_id=PorROU0000000001&game=roulette",
+        "urlShort": "https://a8-latam.evo-games.com/frontend/evo/r2/#provider=evolution&EVOSESSIONID=sxuw5brpcn2bfnuctmfq",
+        "domain": "a8-latam.evo-games.com",
+        "isMainFrame": false,
+        "isEvolution": true,
+        "isPotentialGame": true,
+        "note": "🎰 iFrame Evolution Gaming detectado!"
+      }
+    ],
+    "tip": "O iFrame do jogo geralmente tem URL contendo 'evo-games.com', 'evolution', ou 'game'"
+  },
+  "_diagnostics": {
+    "extractionSuccess": false,
+    "timestamp": "2025-12-11T01:44:41.503Z",
+    "iframeStatus": {
+      "evolutionFrameFound": false,
+      "totalFrames": 0,
+      "framesWithData": 0,
+      "evolutionFrameUrl": null,
+      "note": "iFrame Evolution Gaming NÃO encontrado - verifique se o jogo carregou completamente"
+    },
+    "searchSummary": {
+      "totalSearches": 0,
+      "successful": 0,
+      "failed": 0,
+      "successRate": "0%"
+    },
+    "criticalIssues": [
+      {
+        "severity": "warning",
+        "category": "betSpots",
+        "message": "Nenhum campo de aposta encontrado",
+        "suggestion": "Verifique se está na página correta do jogo ou se os seletores [data-bet-spot-id] existem",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "results",
+        "message": "Nenhum resultado histórico encontrado",
+        "suggestion": "Aguarde alguns resultados aparecerem ou verifique o seletor [data-role=\"recent-number\"]",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "chips",
+        "message": "Nenhuma ficha disponível encontrada",
+        "suggestion": "Verifique se o seletor [data-role=\"chip\"] existe na página",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "regions",
+        "message": "Nenhuma região (apostas externas) encontrada",
+        "suggestion": "Verifique se os seletores de regiões existem (red, black, etc)",
+        "relatedSearches": []
+      }
+    ],
+    "informationalIssues": [
+      {
+        "severity": "info",
+        "category": "gameStatus",
+        "message": "Nenhum método de detecção de status do jogo encontrado",
+        "suggestion": "O Listener não conseguirá detectar se apostas estão abertas/fechadas",
+        "relatedSearches": []
+      },
+      {
+        "severity": "info",
+        "category": "gameControls",
+        "message": "Nenhum botão de controle encontrado",
+        "suggestion": "Botões de undo/double podem não existir neste site",
+        "relatedSearches": []
+      },
+      {
+        "severity": "info",
+        "category": "betLimits",
+        "message": "Nenhum limite de aposta encontrado",
+        "suggestion": "Abra a tabela de limites no site antes de extrair",
+        "relatedSearches": []
+      }
+    ],
+    "allWarnings": [
+      {
+        "severity": "warning",
+        "category": "betSpots",
+        "message": "Nenhum campo de aposta encontrado",
+        "suggestion": "Verifique se está na página correta do jogo ou se os seletores [data-bet-spot-id] existem",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "results",
+        "message": "Nenhum resultado histórico encontrado",
+        "suggestion": "Aguarde alguns resultados aparecerem ou verifique o seletor [data-role=\"recent-number\"]",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "chips",
+        "message": "Nenhuma ficha disponível encontrada",
+        "suggestion": "Verifique se o seletor [data-role=\"chip\"] existe na página",
+        "relatedSearches": []
+      },
+      {
+        "severity": "warning",
+        "category": "regions",
+        "message": "Nenhuma região (apostas externas) encontrada",
+        "suggestion": "Verifique se os seletores de regiões existem (red, black, etc)",
+        "relatedSearches": []
+      },
+      {
+        "severity": "info",
+        "category": "gameStatus",
+        "message": "Nenhum método de detecção de status do jogo encontrado",
+        "suggestion": "O Listener não conseguirá detectar se apostas estão abertas/fechadas",
+        "relatedSearches": []
+      },
+      {
+        "severity": "info",
+        "category": "gameControls",
+        "message": "Nenhum botão de controle encontrado",
+        "suggestion": "Botões de undo/double podem não existir neste site",
+        "relatedSearches": []
+      },
+      {
+        "severity": "info",
+        "category": "betLimits",
+        "message": "Nenhum limite de aposta encontrado",
+        "suggestion": "Abra a tabela de limites no site antes de extrair",
+        "relatedSearches": []
+      }
+    ],
+    "allErrors": [],
+    "recommendation": "Verifique os avisos para melhorar a extração de dados"
+  },
+  "_instructions": {
+    "purpose": "Mapa Mestre v18.0 - Instruções completas para Escuta Beat e Executor Beat",
+    "version": "18.0.0",
+    "architecture": "Microsserviços (Extrator → Escuta → Executor)",
+    "generatedAt": "2025-12-11T01:44:41.503Z",
+    "iframeAvailability": {
+      "description": "O iFrame do Evolution Gaming SÓ está disponível quando o jogo está ABERTO para apostas",
+      "problema": "Se tentar capturar quando a roleta NÃO está aberta, o iFrame retorna erro ou dados vazios",
+      "motivo": "O Evolution Gaming só carrega o iFrame completo durante a fase de apostas abertas",
+      "solucao": "Aguardar até que o status seja 'FAÇAM SUAS APOSTAS' antes de tentar capturar/executar",
+      "cicloDoJogo": [
+        "1. SPIN - Bola girando (iFrame pode estar em transição)",
+        "2. RESULTADO - Número sorteado (iFrame mostra resultado)",
+        "3. FAÇAM SUAS APOSTAS - Apostas abertas (✅ iFrame 100% disponível)",
+        "4. NÃO ACEITAMOS MAIS APOSTAS - Fechado (⚠️ iFrame pode ficar parcial)"
+      ],
+      "melhorMomentoParaCaptura": "Durante a fase 'FAÇAM SUAS APOSTAS'",
+      "tratamentoDeErro": {
+        "seIframeIndisponivel": "Aguardar 2-3 segundos e tentar novamente",
+        "maxRetries": 5,
+        "delayEntreRetries": 2000
+      }
+    },
+    "forEscutaBeat": {
+      "description": "O Escuta Beat monitora o estado do jogo em tempo real",
+      "prerequisitos": [
+        "iFrame do jogo deve estar carregado (aguardar 'FAÇAM SUAS APOSTAS')",
+        "Página deve estar completamente carregada",
+        "Content Script deve estar injetado"
+      ],
+      "whatToMonitor": [
+        "data.monitoring.gameStatus - Status das apostas (abertas/fechadas)",
+        "data.results.lastNumbers - Últimos números sorteados",
+        "data.monitoring.finance - Saldo e aposta atual",
+        "data.monitoring.chipControl - Ficha selecionada"
+      ],
+      "pollingInterval": "1000ms (1 segundo) recomendado",
+      "implementation": "Usar chrome.scripting.executeScript com allFrames: true para acessar iFrame",
+      "tratamentoErroIframe": {
+        "seErro": "Logar erro e aguardar próximo ciclo de polling",
+        "naoInterromper": "Não parar o monitoramento, apenas registrar a falha"
+      }
+    },
+    "forExecutorBeat": {
+      "description": "O Executor Beat realiza as apostas automaticamente",
+      "prerequisitos": [
+        "⚠️ CRÍTICO: Só executar quando gameStatus = 'FAÇAM SUAS APOSTAS'",
+        "iFrame deve estar 100% carregado",
+        "Dados do Extrator Beat devem estar carregados no storage"
+      ],
+      "whatToUse": [
+        "config.executionProtocol - Como simular cliques",
+        "data.betSpots.numbers - Onde clicar para apostar em números",
+        "data.betSpots.regions - Onde clicar para apostas externas",
+        "data.monitoring.chipControl.availableChips - Fichas para selecionar"
+      ],
+      "executionFlow": [
+        "1. Verificar se apostas estão abertas (gameStatus)",
+        "2. Se NÃO estiver aberto, ABORTAR e aguardar",
+        "3. Selecionar ficha desejada (click no chip)",
+        "4. Clicar no campo de aposta (PointerEvent)",
+        "5. Verificar se aposta foi registrada (total-bet-label-value)"
+      ],
+      "tratamentoErroIframe": {
+        "seIframeIndisponivel": "ABORTAR execução imediatamente",
+        "naoForcar": "Nunca tentar forçar aposta se iFrame não responder"
+      }
+    },
+    "iframeAccess": {
+      "problem": "Conteúdo do jogo Evolution Gaming está dentro de iFrame externo",
+      "solution": "Usar allFrames: true no chrome.scripting.executeScript",
+      "gameIframeHost": "a8-latam.evo-games.com"
+    },
+    "debugging": "Use '_searchTrace' para ver TODAS as buscas DOM realizadas e '_diagnostics' para entender problemas",
+    "dataFlow": "Extrator (gera JSON) → Escuta (monitora estado) → Executor (executa apostas)"
+  },
+  "config": {
+    "executionProtocol": {
+      "_instructions": {
+        "purpose": "Define COMO o Executor Beat deve simular cliques",
+        "important": "Usar PointerEvent ao invés de MouseEvent para melhor compatibilidade",
+        "example": "const event = new PointerEvent('click', eventOptions); element.dispatchEvent(event);"
+      },
+      "method": "PointerEvent",
+      "eventType": "click",
+      "eventOptions": {
+        "bubbles": true,
+        "cancelable": true,
+        "view": "window",
+        "pressure": 0.5,
+        "pointerType": "mouse"
+      },
+      "chipSelectionMethod": "click_simple",
+      "delayBetweenBets": 100,
+      "codeExample": {
+        "description": "Código JavaScript para executar uma aposta",
+        "code": "// 1. Verificar se apostas estão abertas\nconst status = document.querySelector('.trafficLightText--14759')?.innerText;\nif (!status?.includes('FAÇAM') && !status?.includes('PLACE')) {\n  console.log('Apostas fechadas!');\n  return;\n}\n\n// 2. Selecionar a ficha\nconst chip = document.querySelector(\"[data-role='chip'][data-value='5']\");\nchip.click();\n\n// 3. Clicar no campo de aposta\nconst betSpot = document.querySelector(\"[data-bet-spot-id='17']\");\nconst event = new PointerEvent('click', {\n  bubbles: true,\n  cancelable: true,\n  view: window,\n  pressure: 0.5,\n  pointerType: 'mouse'\n});\nbetSpot.dispatchEvent(event);"
+      }
+    },
+    "iframeAccess": {
+      "_instructions": {
+        "purpose": "Define como acessar o conteúdo dentro do iFrame do jogo",
+        "problem": "O conteúdo do jogo Evolution Gaming está dentro de um iFrame externo",
+        "solution": "Usar allFrames: true no chrome.scripting.executeScript"
+      },
+      "gameIframeHost": "a8-latam.evo-games.com",
+      "extractionMethod": "allFrames",
+      "codeExample": "chrome.scripting.executeScript({\n  target: { tabId: tab.id, allFrames: true },\n  func: extractAllData\n});"
+    },
+    "numberColors": {
+      "_instructions": {
+        "purpose": "Mapa oficial de cores dos números da roleta europeia",
+        "usage": "Use para determinar a cor de qualquer número"
+      },
+      "map": {
+        "0": "green",
+        "1": "red",
+        "2": "black",
+        "3": "red",
+        "4": "black",
+        "5": "red",
+        "6": "black",
+        "7": "red",
+        "8": "black",
+        "9": "red",
+        "10": "black",
+        "11": "black",
+        "12": "red",
+        "13": "black",
+        "14": "red",
+        "15": "black",
+        "16": "red",
+        "17": "black",
+        "18": "red",
+        "19": "red",
+        "20": "black",
+        "21": "red",
+        "22": "black",
+        "23": "red",
+        "24": "black",
+        "25": "red",
+        "26": "black",
+        "27": "red",
+        "28": "black",
+        "29": "black",
+        "30": "red",
+        "31": "black",
+        "32": "red",
+        "33": "black",
+        "34": "red",
+        "35": "black",
+        "36": "red"
+      }
+    }
+  },
+  "stats": {
+    "totalBetSpots": 0,
+    "numbersCount": 0,
+    "specialsCount": 0,
+    "regionsCount": 0,
+    "resultsCount": 0,
+    "chipsCount": 0,
+    "framesScanned": 0,
+    "gameStatusMethodsDetected": 0,
+    "gameControlsFound": 0,
+    "betLimitsExtracted": 0
+  },
+  "data": {
+    "monitoring": {
+      "_instructions": {
+        "purpose": "Seletores para o Escuta Beat monitorar estado do jogo em tempo real",
+        "pollingInterval": "1000ms (1 segundo) recomendado",
+        "FORMATO_OBRIGATORIO": "ATENÇÃO: O Escuta Beat espera exatamente esta estrutura aninhada!",
+        "criticalSelectors": [
+          "gameStatus.selector",
+          "finance.balance.selector",
+          "finance.totalBet.selector",
+          "chipControl.activeChip.selector"
+        ],
+        "implementation": "Usar querySelector() para cada seletor e ler o atributo especificado"
+      },
+      "gameStatus": {
+        "selector": ".trafficLightText--14759",
+        "_instructions": {
+          "purpose": "Detectar se janela de apostas está aberta ou fechada",
+          "logic": "Ler innerText e comparar com openSignal",
+          "example": "Se innerText contém 'FAÇAM SUAS APOSTAS', janela está aberta"
+        },
+        "primaryMethod": {
+          "id": "trafficLightText",
+          "name": "Texto de Status (Semáforo)",
+          "selector": ".trafficLightText--14759",
+          "attribute": "innerText",
+          "openSignals": [
+            "FAÇAM SUAS APOSTAS",
+            "PLACE YOUR BETS"
+          ],
+          "closedSignals": [
+            "NÃO ACEITAMOS MAIS APOSTAS",
+            "NO MORE BETS"
+          ],
+          "codeExample": "const status = document.querySelector('.trafficLightText--14759')?.innerText?.toUpperCase();\nconst isOpen = status?.includes('FAÇAM') || status?.includes('PLACE');"
+        },
+        "methods": [
+          {
+            "id": "method1_trafficLight",
+            "name": "Texto de Status (Semáforo)",
+            "selector": ".trafficLightText--14759",
+            "attribute": "innerText",
+            "openSignals": [
+              "FAÇAM SUAS APOSTAS",
+              "PLACE YOUR BETS"
+            ],
+            "closedSignals": [
+              "NÃO ACEITAMOS MAIS APOSTAS",
+              "NO MORE BETS"
+            ],
+            "reliability": "high"
+          },
+          {
+            "id": "method2_chipBlocked",
+            "name": "Bloqueio de Apostas (Chips)",
+            "selector": "[data-role='chip-stack-wrapper']",
+            "attribute": "className",
+            "logic": "!preventPointerEvents = OPEN",
+            "reliability": "highest",
+            "recommended": true
+          },
+          {
+            "id": "method3_timer",
+            "name": "Timer Visual",
+            "selector": "[data-role='circle-timer']",
+            "attribute": "className, style.display",
+            "logic": "visible && !fadeOut = OPEN",
+            "reliability": "medium"
+          }
+        ],
+        "recommended": "method2_chipBlocked",
+        "fallback": {
+          "defaultState": "UNKNOWN",
+          "retryInterval": 100,
+          "maxRetries": 3
+        }
+      },
+      "finance": {
+        "_instructions": {
+          "purpose": "Monitorar saldo atual e total apostado",
+          "⚠️ UNICODE_CRITICO": {
+            "problema": "Evolution Gaming retorna valores com caracteres Unicode INVISÍVEIS",
+            "exemplo": "'⁦⁦R$⁩ 770,65⁩' - os ⁦ e ⁩ são U+2066/U+2069 e QUEBRAM parseFloat",
+            "sintoma": "parseFloat() retorna NaN mesmo com valor visualmente correto",
+            "charCodes": [
+              "U+2066 (LRI)",
+              "U+2067 (RLI)",
+              "U+2068 (FSI)",
+              "U+2069 (PDI)",
+              "U+202A-U+202E"
+            ],
+            "solucao": "Usar regex para remover ANTES de parsear"
+          },
+          "parseCorrigido": "function parseMoneyBRL(text) {\n  if (!text) return 0;\n  // CRÍTICO: Remover caracteres Unicode bidirecionais PRIMEIRO\n  let cleaned = text\n    .replace(/[\\u2066\\u2067\\u2068\\u2069\\u202A-\\u202E]/g, '')\n    .replace(/R\\$/g, '')\n    .replace(/\\u00A0/g, '')  // Non-breaking space\n    .replace(/\\s+/g, '')\n    .trim();\n  // Remover pontos de milhar, trocar vírgula por ponto\n  cleaned = cleaned.replace(/\\./g, '').replace(',', '.');\n  return parseFloat(cleaned) || 0;\n}"
+        },
+        "balance": {
+          "selector": "[data-role='balance-label-value']",
+          "fallbackSelectors": [
+            "[class*='balance-value']",
+            "[class*='balanceValue']"
+          ],
+          "attribute": "innerText",
+          "parse": "parseMoneyBRL"
+        },
+        "totalBet": {
+          "selector": "[data-role='total-bet-label-value']",
+          "fallbackSelectors": [
+            "[class*='total-bet']",
+            "[class*='totalBet']"
+          ],
+          "attribute": "innerText",
+          "parse": "parseMoneyBRL"
+        },
+        "codeExample": "// ⚠️ v18.0: Código CORRIGIDO com limpeza Unicode\nfunction parseMoneyBRL(text) {\n  if (!text) return 0;\n  let cleaned = text\n    .replace(/[\\u2066\\u2067\\u2068\\u2069\\u202A-\\u202E]/g, '')\n    .replace(/R\\$/g, '').replace(/\\u00A0/g, '').replace(/\\s+/g, '').trim();\n  cleaned = cleaned.replace(/\\./g, '').replace(',', '.');\n  return parseFloat(cleaned) || 0;\n}\nconst balance = parseMoneyBRL(document.querySelector(\"[data-role='balance-label-value']\")?.innerText);"
+      },
+      "chipControl": {
+        "_instructions": {
+          "logic": "Ler atributo data-value do chip selecionado",
+          "selection": "Para trocar chip, Executor deve clicar no seletor correspondente em availableChips",
+          "validation": "Usar availableChips para validar valores permitidos"
+        },
+        "activeChip": {
+          "selector": "[data-role='selected-chip'] [data-role='chip']",
+          "attribute": "data-value"
+        },
+        "availableChips": []
+      },
+      "gameControls": {
+        "_instructions": {
+          "purpose": "Botões de controle do jogo",
+          "note": "Não detectado nesta extração"
+        },
+        "undoButton": {
+          "found": false
+        },
+        "doubleButton": {
+          "found": false
+        },
+        "repeatButton": {
+          "found": false
+        }
+      }
+    },
+    "betSpots": {
+      "_instructions": {
+        "summary": "Três categorias de apostas com lógicas de busca diferentes",
+        "categories": {
+          "numbers": "Busca geral filtrada por IDs numéricos (0-36)",
+          "specials": "Busca geral filtrada por IDs não-numéricos (pista de corrida)",
+          "regions": "Busca direta individual por lista de 12 IDs fixos (apostas externas)"
+        },
+        "usage": "Use actionSelector de cada item para executar cliques"
+      },
+      "numbers": {
+        "_instructions": {
+          "searchLogic": "querySelectorAll('[data-bet-spot-id]') dentro de '.dddRacetrack-wrapper' ou document",
+          "filter": "IDs numéricos (0-36) usando regex /^\\d+$/",
+          "container": ".dddRacetrack-wrapper (container da pista)",
+          "sorting": "Ordenado numericamente crescente (0, 1, 2...36)",
+          "count": 0,
+          "usage": "Apostas diretas em números individuais (payout 35:1)"
+        },
+        "items": []
+      },
+      "specials": {
+        "_instructions": {
+          "searchLogic": "querySelectorAll('[data-bet-spot-id]') dentro de '.dddRacetrack-wrapper' ou document",
+          "filter": "IDs não-numéricos (vizinhos, setores, ruas, etc.)",
+          "container": ".dddRacetrack-wrapper (container da pista)",
+          "count": 0,
+          "usage": "Apostas na pista de corrida (vizinhos, setores, trios, ruas)"
+        },
+        "items": []
+      },
+      "regions": {
+        "_instructions": {
+          "searchLogic": "querySelector('[data-bet-spot-id=\"{id}\"]') individual para cada ID na lista fixa",
+          "strategy": "Busca direta por ID específico (não filtro genérico)",
+          "knownIds": [
+            "red",
+            "black",
+            "even",
+            "odd",
+            "from1to18",
+            "from19to36",
+            "1st12",
+            "2nd12",
+            "3rd12",
+            "top2to1",
+            "middle2to1",
+            "bottom2to1"
+          ],
+          "container": "document inteiro (busca global, não limitada ao container da pista)",
+          "reason": "Apostas externas geralmente estão fora do container '.dddRacetrack-wrapper'",
+          "count": 0,
+          "expectedCount": 12,
+          "subtypes": {
+            "color": "Vermelho/Preto (payout 1:1)",
+            "parity": "Par/Ímpar (payout 1:1)",
+            "half": "Baixo(1-18)/Alto(19-36) (payout 1:1)",
+            "dozen": "1ª/2ª/3ª Dúzia (payout 2:1)",
+            "column": "Coluna 1/2/3 (payout 2:1)"
+          },
+          "usage": "Apostas externas (maiores chances, menores payouts)"
+        },
+        "items": []
+      }
+    },
+    "betLimits": {
+      "_instructions": {
+        "purpose": "Limites de aposta min/max por tipo",
+        "note": "Tabela de limites não encontrada nesta extração"
+      },
+      "found": false
+    },
+    "results": {
+      "_instructions": {
+        "searchLogic": "Método 1: querySelectorAll('[data-role=\"recent-number\"]'). Método 2 (fallback): classes alternativas",
+        "extraction": "Busca data-role='number-{N}' ou lê innerText do elemento value",
+        "container": "document inteiro",
+        "count": 0,
+        "usage": "Histórico dos últimos números sorteados. Use para análise de padrões, frequência e estratégias"
+      },
+      "selector": "[data-role=\"recent-number\"]",
+      "valueSelector": ".value--dd5c7, [class*=\"value\"]",
+      "lastNumbers": [],
+      "elements": []
+    },
+    "statistics": {
+      "_instructions": {
+        "purpose": "Análise estatística dos últimos resultados",
+        "usage": "Executor usa para estratégias baseadas em padrões",
+        "updateFrequency": "Atualiza automaticamente quando Listener detecta novo número",
+        "reliability": "Baseado em amostra de N resultados (quanto maior, mais confiável)"
+      },
+      "sample": 0,
+      "note": "Nenhum resultado disponível para análise"
+    }
+  },
+  "_raw": {
+    "frames": [],
+    "allBetSpots": [],
+    "allResults": [],
+    "allChips": [],
+    "allRegions": []
+  }
+}

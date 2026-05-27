@@ -23,6 +23,40 @@ from server.analytics_handler import analytics_handler
 
 logger = logging.getLogger(__name__)
 
+
+def _build_sda_regions(result) -> list:
+    """SP-16 REGION-01: monta lista enriquecida de regioes [C1, C2, C3].
+
+    Hoje SDA17 expoe details['centers'] = [c1,c2,c3] e details['offset']/'offset_c3'
+    (c1 sempre tem offset 0 por convencao SDA17). Empacotamos cada regiao com
+    metadata estavel para SP-17 (calculo de realized_lift_pp por regiao).
+
+    Retorna lista de dicts; vazia se result/details indisponivel.
+    """
+    try:
+        d = getattr(result, "details", {}) or {}
+        centers = d.get("centers") or []
+        if not centers:
+            return []
+        off_c2 = int(d.get("offset", 0) or 0)
+        off_c3 = int(d.get("offset_c3", 0) or 0)
+        offsets = [0, off_c2, off_c3]
+        score = int(getattr(result, "score", 0) or 0)
+        offset_type = d.get("offset_type", "")
+        regions = []
+        for idx, c in enumerate(centers[:3]):
+            regions.append({
+                "slot": f"C{idx + 1}",
+                "c": int(c),
+                "offset": offsets[idx] if idx < len(offsets) else 0,
+                "score": score,
+                "offset_type": offset_type,
+            })
+        return regions
+    except Exception:  # noqa: BLE001 — telemetria nunca quebra fluxo
+        return []
+
+
 class MessageHandler:
     """Manipulador de mensagens WebSocket."""
 
@@ -429,6 +463,7 @@ class MessageHandler:
                 sda_predicted_force=result.details.get("predicted_force", 0),
                 sda_offset=result.details.get("offset", 0),
                 sda_offset_type=result.details.get("offset_type", ""),
+                sda_regions=_build_sda_regions(result),
                 final_action=acao,
                 action_reason=action_reason,
                 gale_level=mg.level,
