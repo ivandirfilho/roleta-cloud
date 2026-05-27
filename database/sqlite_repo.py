@@ -453,6 +453,45 @@ class SQLiteDecisionRepository(DecisionRepository):
         finally:
             conn.close()
 
+    def wheel_dist_stats(self, window_minutes: int = 60) -> dict:
+        """SP-30 OBS-02: percentis p50/p95/p99 de calibration_error na janela.
+
+        calibration_error = wheel_dist (W-01/B-08). Mede saúde fina da
+        previsão SDA17 — alvo p50 <= 3 slots; alerta em SP-31.
+
+        Returns:
+            dict {"n": int, "p50": float, "p95": float, "p99": float}.
+            n=0 -> percentis 0.0 (alertas devem skipar quando n<30).
+        """
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                f"""
+                SELECT calibration_error FROM decisions
+                WHERE timestamp >= datetime('now', '-{int(window_minutes)} minutes')
+                  AND calibration_error IS NOT NULL
+                ORDER BY calibration_error ASC
+                """
+            ).fetchall()
+            vals = [float(r[0]) for r in rows if r[0] is not None]
+            n = len(vals)
+            if n == 0:
+                return {"n": 0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+            def _pct(p: float) -> float:
+                # nearest-rank, conservador
+                k = max(0, min(n - 1, int(round(p * (n - 1)))))
+                return vals[k]
+            return {
+                "n": n,
+                "p50": _pct(0.50),
+                "p95": _pct(0.95),
+                "p99": _pct(0.99),
+            }
+        except Exception:
+            return {"n": 0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+        finally:
+            conn.close()
+
     def calibration_fill_stats(self, window_minutes: int = 60) -> dict:
         """NEW-12 (26/05): conta decisoes APOSTAR com result_actual e
         quantas dessas tem calibration_error NOT NULL na janela. Usado

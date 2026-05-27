@@ -177,6 +177,35 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"calibration_provider_register_failed: {_e}")
 
 
+# SP-30 OBS-02 (27/05): wheel_dist percentis provider para Prometheus.
+try:
+    from server.health_server import set_wheel_dist_provider as _set_wd_p
+    import time as _time_wd
+
+    _wd_cache = {"ts": 0.0, "val": {"n": 0, "p50": 0.0, "p95": 0.0, "p99": 0.0}}
+
+    def _wheel_dist_snapshot():
+        now = _time_wd.time()
+        if now - _wd_cache["ts"] < 30.0:
+            return _wd_cache["val"]
+        try:
+            repo = db_service.repository
+            if hasattr(repo, "wheel_dist_stats"):
+                val = repo.wheel_dist_stats(window_minutes=60)
+            else:
+                val = {"n": 0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+            _wd_cache["val"] = val
+            _wd_cache["ts"] = now
+            return val
+        except Exception:
+            return _wd_cache["val"]
+
+    _set_wd_p(_wheel_dist_snapshot)
+    logger.info("wheel_dist_provider_registered for SP-30 OBS-02")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"wheel_dist_provider_register_failed: {_e}")
+
+
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
 try:
     from server.health_server import set_state_provider as _set_state_p

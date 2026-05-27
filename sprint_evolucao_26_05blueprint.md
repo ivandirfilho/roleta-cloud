@@ -798,3 +798,41 @@ DNA cabeado no fluxo real de decisao (production-grade).
 ### Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — alta prioridade.
 
 ---
+
+## §30 — SP-16 ENTREGUE ✅ (REGION-01 sda_regions JSON)
+
+**Commit:** `f50246d` — feat(SP-16): REGION-01 sda_regions JSON column + builder + parity + tests
+**Validação:** 313 tests pass (6 novos em `tests/test_sp16_sda_regions.py`)
+
+**O que foi entregue:**
+- Coluna `sda_regions TEXT` em `decisions` (SQLite) via auto-migration em `SQLiteDecisionRepository._setup_tables()`
+- Campo `sda_regions: List[Dict]` em `database/models.py:Decision` (default `[]`), incluído em `to_dict()`
+- Persist round-trip JSON: `save_decision()` faz `json.dumps(... or None)`; `_row_to_decision()` faz `json.loads` com fallback `[]`
+- Builder `server.message_handler._build_sda_regions(result)` empacota `[{slot, c, offset, score, offset_type}]` a partir de `pred_info[centers/offset/offset_c3]` da SDA17
+- Schema parity: snapshot regenerado + `sda_regions` em `sqlite_only_allowed` (PG ainda nao consome — SP-17 vai promover para must_propagate)
+- Lint baseline atualizado (1 except defensivo no builder)
+
+**Por quê (alinhamento blueprint):** §1.4 — destrava SP-17 (realized_lift_pp por região C1/C2/C3) sem perder a estrutura semântica dos 3 centros que a SDA17 já calcula mas hoje colapsa em escalares (`sda_center`, `sda_offset`).
+
+**Próximo na DAG:** SP-11 (DEAL-01 captura dealer/provedor) e SP-17 (REGION-02 lift por região, depende deste).
+
+## §31 — SP-27 ENTREGUE ✅ (ML-03 errdriven desligado)
+
+**Status:** Já entregue por B-01 (sprint 26_05_estrategia). Verificação `grep -i errdriven` em `strategies/`, `server/`, `state/` retorna zero matches no código atual. A flag `SDA17_ERRDRIVEN_ENABLED` nunca foi reintroduzida. Sprint marcada done apenas para fechar contrato.
+
+**Validação:** `rg -l errdriven strategies/ server/ state/ core/` → vazio.
+
+## §32 — SP-30 ENTREGUE ✅ (OBS-02 wheel_dist p50/p95/p99 1h)
+
+**Commits:** SP-30 OBS-02 wheel_dist metrics
+**Validação:** 316 tests pass (3 novos em `tests/test_sp30_wheel_dist_stats.py`)
+
+**O que foi entregue:**
+- `SQLiteDecisionRepository.wheel_dist_stats(window_minutes)` — calcula percentis nearest-rank de `calibration_error` (=wheel_dist) na janela
+- 4 novos Gauges Prometheus: `roleta_wheel_dist_samples_1h`, `roleta_wheel_dist_p{50,95,99}_1h`
+- Provider registrado em `server/websocket.py` boot com cache 30s (mesmo padrão NEW-12)
+- `set_wheel_dist_provider()` helper em `server/health_server.py`
+
+**Por quê (blueprint §1.3):** SP-30 destrava SP-31 (alerta `wheel_dist_p50 > 3.5 por 30min`) — sem essas métricas expostas, o alerta não tem datasource. Permite ver visualmente no Grafana se a SDA17 está derivando antes que `recent_acc` caia.
+
+**Próximo na DAG:** SP-31 (alerta Prometheus) — só YAML rules, sem deploy de código.

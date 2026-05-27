@@ -64,6 +64,13 @@ _SHADOW_PROVIDER = None  # type: ignore[var-annotated]
 # para fill-rate de calibration_error. Boot registra em websocket apontando
 # para uma query SQLite cacheada (~30s).
 _CALIBRATION_PROVIDER = None  # type: ignore[var-annotated]
+_WHEEL_DIST_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_wheel_dist_provider(provider) -> None:
+    """SP-30: registra callable() -> dict {n, p50, p95, p99}."""
+    global _WHEEL_DIST_PROVIDER
+    _WHEEL_DIST_PROVIDER = provider
 
 
 def set_calibration_provider(provider) -> None:
@@ -140,6 +147,11 @@ if _METRICS_AVAILABLE:
             "cal_total_1h": Gauge("roleta_decisions_with_result_1h", "Decisoes APOSTAR com result_actual NOT NULL na ultima 1h"),
             "cal_filled_1h": Gauge("roleta_decisions_calibration_filled_1h", "Decisoes APOSTAR com calibration_error NOT NULL na ultima 1h"),
             "cal_fill_rate": Gauge("roleta_calibration_fill_rate_1h", "Ratio calibration_error_filled / total_with_result (0..1) janela 1h"),
+            # SP-30 (OBS-02 27/05): wheel_dist percentis 1h para alerta SP-31.
+            "wd_n_1h": Gauge("roleta_wheel_dist_samples_1h", "Decisoes com calibration_error NOT NULL na ultima 1h"),
+            "wd_p50_1h": Gauge("roleta_wheel_dist_p50_1h", "p50 de wheel_dist (calibration_error) janela 1h"),
+            "wd_p95_1h": Gauge("roleta_wheel_dist_p95_1h", "p95 de wheel_dist (calibration_error) janela 1h"),
+            "wd_p99_1h": Gauge("roleta_wheel_dist_p99_1h", "p99 de wheel_dist (calibration_error) janela 1h"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -233,6 +245,13 @@ def _refresh_custom_metrics() -> None:
             _PROM_METRICS["cal_total_1h"].set(total)
             _PROM_METRICS["cal_filled_1h"].set(filled)
             _PROM_METRICS["cal_fill_rate"].set(filled / total if total > 0 else 1.0)
+        # SP-30 OBS-02: wheel_dist percentis 1h.
+        if _WHEEL_DIST_PROVIDER is not None:
+            wd = _WHEEL_DIST_PROVIDER() or {}
+            _PROM_METRICS["wd_n_1h"].set(float(wd.get("n", 0) or 0))
+            _PROM_METRICS["wd_p50_1h"].set(float(wd.get("p50", 0.0) or 0.0))
+            _PROM_METRICS["wd_p95_1h"].set(float(wd.get("p95", 0.0) or 0.0))
+            _PROM_METRICS["wd_p99_1h"].set(float(wd.get("p99", 0.0) or 0.0))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()
