@@ -13,6 +13,14 @@
       "type": "INTEGER"
     },
     {
+      "name": "dealer",
+      "type": "TEXT"
+    },
+    {
+      "name": "dealer_table",
+      "type": "TEXT"
+    },
+    {
       "name": "final_action",
       "type": "TEXT"
     },
@@ -41,12 +49,20 @@
       "type": "TEXT"
     },
     {
+      "name": "provider",
+      "type": "TEXT"
+    },
+    {
       "name": "result_actual",
       "type": "INTEGER"
     },
     {
       "name": "result_hit",
       "type": "BOOLEAN"
+    },
+    {
+      "name": "round_id",
+      "type": "TEXT"
     },
     {
       "name": "sda_center",

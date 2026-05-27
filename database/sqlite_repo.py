@@ -331,6 +331,18 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
                 logger.info("Migration SP-16: added sda_regions column to decisions")
 
+            # SP-13 DEAL-03 (27/05): colunas dealer/table/provider/round_id.
+            try:
+                conn.execute("SELECT dealer FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN dealer TEXT DEFAULT 'unknown'")
+                conn.execute("ALTER TABLE decisions ADD COLUMN dealer_table TEXT")
+                conn.execute("ALTER TABLE decisions ADD COLUMN provider TEXT")
+                conn.execute("ALTER TABLE decisions ADD COLUMN round_id TEXT")
+                conn.execute("CREATE INDEX IF NOT EXISTS ix_decisions_dealer ON decisions(dealer)")
+                conn.commit()
+                logger.info("Migration SP-13: added dealer/dealer_table/provider/round_id to decisions")
+
             # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
             # Enum oficial observado em prod: 'streak', 'reset', 'info'.
             # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
@@ -368,8 +380,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                     gale_level, gale_window_hits, gale_window_count, gale_bet_value,
                     result_hit, result_actual,
                     calibration_offset, calibration_error,
-                    performance_snapshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    performance_snapshot,
+                    dealer, dealer_table, provider, round_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -401,7 +414,11 @@ class SQLiteDecisionRepository(DecisionRepository):
                 decision.result_actual,
                 decision.calibration_offset,
                 decision.calibration_error,
-                json.dumps(decision.performance_snapshot)
+                json.dumps(decision.performance_snapshot),
+                getattr(decision, "dealer", "unknown") or "unknown",
+                getattr(decision, "dealer_table", "") or "",
+                getattr(decision, "provider", "") or "",
+                getattr(decision, "round_id", "") or "",
             ))
             conn.commit()
             decision_id = cursor.lastrowid
@@ -489,6 +506,56 @@ class SQLiteDecisionRepository(DecisionRepository):
             }
         except Exception:
             return {"n": 0, "p50": 0.0, "p95": 0.0, "p99": 0.0}
+        finally:
+            conn.close()
+
+    def dealer_stats(self, limit: int = 50, window_minutes: int = 1440) -> list:
+        """SP-14 DEAL-04 (27/05): ranking de dealers por hit_rate em janela.
+
+        Retorna lista [{dealer, provider, n, hits, hit_rate}], ordenado
+        por hit_rate desc, filtrando dealers com n >= 10 (estatistica fraca).
+        Tolera ausencia da coluna dealer (deploy antes do SP-13).
+        """
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            try:
+                cur.execute(
+                    f"""
+                    SELECT
+                      COALESCE(dealer, 'unknown') AS d,
+                      COALESCE(provider, '')      AS p,
+                      COUNT(*)                    AS n,
+                      SUM(CASE WHEN result_hit = 1 THEN 1 ELSE 0 END) AS hits
+                    FROM decisions
+                    WHERE final_action = 'APOSTAR'
+                      AND result_actual IS NOT NULL
+                      AND timestamp >= datetime('now', '-{int(window_minutes)} minutes')
+                    GROUP BY d, p
+                    HAVING n >= 10
+                    ORDER BY (CAST(hits AS REAL)/n) DESC
+                    LIMIT ?
+                    """,
+                    (int(limit),),
+                )
+            except sqlite3.OperationalError:
+                return []
+            out = []
+            for r in cur.fetchall():
+                n = int(r["n"]) or 1
+                hits = int(r["hits"] or 0)
+                out.append(
+                    {
+                        "dealer": r["d"],
+                        "provider": r["p"],
+                        "n": n,
+                        "hits": hits,
+                        "hit_rate": round(hits / n, 4),
+                    }
+                )
+            return out
+        except Exception:
+            return []
         finally:
             conn.close()
 
@@ -634,7 +701,12 @@ class SQLiteDecisionRepository(DecisionRepository):
             result_actual=row["result_actual"],
             calibration_offset=row["calibration_offset"] or 0,
             calibration_error=row["calibration_error"],
-            performance_snapshot=self._safe_json_loads(row["performance_snapshot"], [])
+            performance_snapshot=self._safe_json_loads(row["performance_snapshot"], []),
+            # SP-13 DEAL-03 (defensivo: colunas podem nao existir em snapshots antigos)
+            dealer=(row["dealer"] if "dealer" in row.keys() else "unknown") or "unknown",
+            dealer_table=(row["dealer_table"] if "dealer_table" in row.keys() else "") or "",
+            provider=(row["provider"] if "provider" in row.keys() else "") or "",
+            round_id=(row["round_id"] if "round_id" in row.keys() else "") or "",
         )
     
     # =========================================================================

@@ -89,7 +89,7 @@ class TestDnaLogger(unittest.TestCase):
         src = path.read_text(encoding="utf-8")
         self.assertIn("shared.decision_dna", src)
         self.assertIn("dna_summary", src)
-        self.assertIn('down_revision = "0006_spin_features"', src)
+        self.assertIn('down_revision = "0007_deal_dealer_table"', src)
 
 
 if __name__ == "__main__":

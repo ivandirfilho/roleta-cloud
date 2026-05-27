@@ -41,6 +41,11 @@ class Decision:
     sda_offset: int = 0                                        # Offset adaptativo usado
     sda_offset_type: str = ""                                  # "sigmoid" (v4.3+), "bayesian" (v4.1-4.2)
     sda_regions: List[Dict[str, Any]] = field(default_factory=list)  # SP-16: [{c, offset, score, ...}]
+    # SP-13 DEAL-03 (27/05): metadata DOM capturado pelo extension.
+    dealer: str = "unknown"
+    dealer_table: str = ""
+    provider: str = ""
+    round_id: str = ""
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"

@@ -521,6 +521,21 @@ chrome.storage.local.get(['escutaState'], (data) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const action = request.action;
 
+  // SP-11 DEAL-01 (27/05): captura DOM enviada pelo content script.
+  if (action === 'dealMetaUpdate') {
+    (async () => {
+      try {
+        const state = await getState();
+        state.dealMeta = request.dealMeta || null;
+        await saveState(state);
+        sendResponse({ success: true });
+      } catch (e) {
+        sendResponse({ success: false, error: String(e) });
+      }
+    })();
+    return true;
+  }
+
   // Ações síncronas rápidas (microserviço WS)
   if (action === 'listarMesas') {
     if (!wsConnected) connectWebSocket();
@@ -1126,6 +1141,8 @@ async function readResults() {
         console.log(`🎯 NOVO RESULTADO: ${newNumber} (Total: ${state.totalRead})`);
 
         // 🆕 v2.7: Enviar para servidor Python via WebSocket
+        // SP-11 DEAL-01 (27/05): incluir dealer/table/provider via deal_meta capturado por content.js
+        const _dm = state.dealMeta || {};
         const sent = sendToWebSocket({
           type: 'novo_resultado',
           numero: newNumber,
@@ -1134,7 +1151,11 @@ async function readResults() {
           t_client: Date.now(),  // 🆕 v3.1: Timestamp cliente
           timestamp: Date.now(),
           allNumbers: newNumbers.slice(0, 12),
-          monitoringData: state.monitoringData
+          monitoringData: state.monitoringData,
+          dealer: _dm.dealer || null,         // SP-11
+          table: _dm.table || null,           // SP-11
+          provider: _dm.provider || null,     // SP-11
+          round_id: _dm.round_id || null      // SP-11
         });
 
         if (sent) {

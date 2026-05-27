@@ -24,7 +24,7 @@ from __future__ import annotations
 from alembic import op
 
 revision = "0008_decision_dna"
-down_revision = "0006_spin_features"
+down_revision = "0007_deal_dealer_table"
 branch_labels = None
 depends_on = None
 

@@ -23,7 +23,11 @@
     "action_reason",
     "tr_reason",
     "tr_confidence",
-    "sda_regions"
+    "sda_regions",
+    "dealer",
+    "dealer_table",
+    "provider",
+    "round_id"
   ],
   "pg_only_allowed": [
     "last_20_hits",

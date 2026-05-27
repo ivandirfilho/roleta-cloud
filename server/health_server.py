@@ -374,6 +374,27 @@ class _Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(exc)}).encode())
             return
+        if self.path.startswith("/api/dealers"):
+            # SP-14 DEAL-04 (27/05): ranking de dealers por hit_rate na janela.
+            try:
+                from urllib.parse import urlparse, parse_qs
+                qs = parse_qs(urlparse(self.path).query)
+                limit = int(qs.get("limit", ["50"])[0])
+                window = int(qs.get("window_minutes", ["1440"])[0])
+                from database.service import db_service
+                rows = db_service.repository.dealer_stats(limit=limit, window_minutes=window)
+                body = json.dumps({"dealers": rows, "window_minutes": window}, default=str).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:  # noqa: BLE001
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(exc)}).encode())
+            return
         if self.path == "/api/batch_tune":
             # S-STRAT-7: snapshot do auto-tune em lote (4 spins por sentido).
             if _BATCH_TUNE_PROVIDER is None:

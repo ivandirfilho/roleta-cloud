@@ -177,7 +177,12 @@ class MessageHandler:
                 numero=data.get("numero", -1),
                 direcao=data.get("direcao", "horario"),
                 trace_id=trace.trace_id if trace else "auto",
-                t_client=data.get("t_client", 0)
+                t_client=data.get("t_client", 0),
+                # SP-12 DEAL-02 (27/05): metadata opcional do DOM via extension.
+                dealer=(data.get("dealer") or None),
+                table=(data.get("table") or None),
+                provider=(data.get("provider") or None),
+                round_id=(data.get("round_id") or None),
             )
             numero = spin.numero
             direcao = spin.direcao
@@ -471,7 +476,12 @@ class MessageHandler:
                 gale_window_count=mg.total_bets,
             gale_bet_value=mg.current_bet,
                 calibration_offset=0,
-                performance_snapshot=self.game_state.target_performance[:12]
+                performance_snapshot=self.game_state.target_performance[:12],
+                # SP-13 DEAL-03 (27/05): propaga metadata DOM se presente.
+                dealer=(getattr(spin, "dealer", None) or "unknown"),
+                dealer_table=(getattr(spin, "table", None) or ""),
+                provider=(getattr(spin, "provider", None) or ""),
+                round_id=(getattr(spin, "round_id", None) or ""),
             )
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)

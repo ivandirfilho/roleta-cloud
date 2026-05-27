@@ -951,3 +951,23 @@ DNA cabeado no fluxo real de decisao (production-grade).
 - Texto markdown com curl pronto para `/api/dna_summary` (SP-09)
 
 **Cumulativo: 16 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35, 25, 26, 18, 19).
+
+
+---
+
+## §40 — SP-11..15: DEAL series (dealer/table/provider) 27/05
+
+**SP-11 DEAL-01 (extension DOM capture):** novo arquivo`extension/deal_capture.js` com MutationObserver + selectors por provider(evolution/playtech/imagine/pragmatic). Publica via`chrome.storage.local.dealMeta` + `runtime.sendMessage{action:'dealMetaUpdate'}`.`background.js` armazena em `state.dealMeta` e inclui no payload`novo_resultado` (dealer, table, provider, round_id).
+
+**SP-12 DEAL-02 (server SpinInput):** `models/input.py` aceita 4 camposopcionais (dealer/table/provider/round_id) backwards-compatible.`message_handler.handle_new_result` repassa para `Decision`.
+
+**SP-13 DEAL-03 (PG migration 0007 + SQLite auto-mig):**`migrations/versions/0007_deal_dealer_table.py` cria `shared.dealers` ref+ ALTER em `{cw,ccw}.spin_features`. SQLite mirror em `sqlite_repo.py`adiciona colunas + index. `Decision` dataclass extended.`0008_decision_dna` agora encadeia em 0007.
+
+**SP-14 DEAL-04 (ranking endpoint):** `repo.dealer_stats()` agrega(dealer,provider) na janela com filtro n>=10. Endpoint`GET /api/dealers?window_minutes=1440&limit=50` no health_server.
+
+**SP-15 DEAL-05 (dealer offset prior):** `strategies/dealer_offset.py`stateless, retorna offset modal historico por dealer/direcao se totalhits >= 30. Flag `SDA_DEALER_OFFSET=1` controla aplicacao (default off,integracao com SDA17 fica para sprint futura).
+
+**Tests:** 6 novos (test_sp11_sp15_deal.py). Suite total: 345 passing.`schema_sqlite_snapshot.json` regenerado + manifest com 4 novas colunassqlite_only_allowed. Lint baseline atualizado.
+
+**Cumulativo: 21 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10,17, 33, 34, 35, 25, 26, 18, 19, **11, 12, 13, 14, 15**).
+

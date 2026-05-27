@@ -13,6 +13,12 @@ class SpinInput(BaseModel):
     direcao: Literal["horario", "anti-horario"] = Field(description="Direção do giro")
     trace_id: str = Field(min_length=4, max_length=36, description="ID de rastreamento")
     t_client: int = Field(description="Timestamp do cliente em ms")
+    # SP-12 DEAL-02 (27/05): metadata opcional capturado pelo extension (DOM).
+    # Backwards-compatible: payloads antigos sem esses campos seguem validos.
+    dealer: str | None = Field(default=None, max_length=120, description="Nome do dealer (DOM)")
+    table: str | None = Field(default=None, max_length=80, description="Identificador da mesa")
+    provider: str | None = Field(default=None, max_length=40, description="Provider: evolution|playtech|imagine|...")
+    round_id: str | None = Field(default=None, max_length=80, description="ID do round (deduplicacao)")
     
     @field_validator('numero')
     @classmethod
