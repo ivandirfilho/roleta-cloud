@@ -908,3 +908,24 @@ DNA cabeado no fluxo real de decisao (production-grade).
 **Por quê:** Cinto de seguranca contra regressao silenciosa. Coverage 50%→75% impede que novas features sem teste passem; pre-commit pega rebases/cherry-picks; matrix antecipa quebras de compatibilidade.
 
 **Cumulativo: 12 sprints entregues nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35).
+
+## §38 — SP-25/SP-26 ENTREGUES ✅ (ML-01 loss 2D + ML-02 bayesian prior)
+
+**Commit:** SP-25 grid search + SP-26 offset prior flag
+**Tests:** 334 pass (8 novos)
+
+**SP-25 (ML-01):** `tools/ml_loss_grid.py` — grid search offline em sqlite `decisions`.
+- Calcula `loss(offset) = (1 - hit_rate) + lambda*median(wheel_dist)`
+- Simula HIT como vizinhanca +/-2 slots (radio SDA17)
+- Output: tabela offset->loss + sugestao `best_offset`
+- Independente de produto: pode rodar em dataset de qualquer mesa
+
+**SP-26 (ML-02):** Flag `SDA_OFFSET_PRIOR=bayesian_plus3` em `strategies/sda17.py` `__init__`.
+- Default (vazio): mantem `BAYESIAN_DEFAULT=10` e `PRIOR_CENTER=10`
+- `bayesian_plus3`: shift +3 (=> 13/13) para mesas onde oracle indica dealer handra-shifted
+- Outras strings ignoradas silenciosamente (fail-soft)
+- Backtest: usar `ml_loss_grid.py` com 7 dias de dados, comparar `best_offset` vs default
+
+**Para promover bayesian_plus3 ao default:** rodar `python tools/ml_loss_grid.py --db /app/data/decisions.db` e verificar se `best_offset >= 12` por 7 dias seguidos.
+
+**Cumulativo: 14 sprints nesta sessao** (SP-16, 27, 30, 31, 29, 08, 09, 10, 17, 33, 34, 35, 25, 26).

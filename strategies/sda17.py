@@ -76,6 +76,17 @@ class SDA17Strategy(StrategyBase):
         self.default_window = 7
         self.decay = 0.8
         self.description = "M02-PctSigmoid v4.4 (QW INV-3), Triple Focus 17 números"
+
+        # SP-26 ML-02: prior bayesiano configurável via env SDA_OFFSET_PRIOR.
+        # Default mantém comportamento atual (BAYESIAN_DEFAULT=10, PRIOR_CENTER=10).
+        # "bayesian_plus3" shifta para 13 (descoberta: dealers handra-shifted).
+        # Validar com backtest antes de promover (criterio: lift >=+1pp HR).
+        import os as _os
+        _prior_mode = (_os.environ.get("SDA_OFFSET_PRIOR", "") or "").strip().lower()
+        self._offset_prior_mode = _prior_mode
+        if _prior_mode == "bayesian_plus3":
+            self.BAYESIAN_DEFAULT = self.BAYESIAN_DEFAULT + 3  # 10->13
+            self.PRIOR_CENTER = self.PRIOR_CENTER + 3
         # Estado adaptativo — históricos INDEPENDENTES por direção
         self.cw_history: List[Tuple[int, int]] = []
         self.ccw_history: List[Tuple[int, int]] = []
