@@ -35,13 +35,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
-    "mtime": 1779828655.9196608,
-    "ast_hash": "ba89f920c29c53539303e8739263ce59",
+    "mtime": 1779850946.8939543,
+    "ast_hash": "2f2a71013c41f2ae128a8ee17d392c45",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
-    "mtime": 1779829945.199103,
-    "ast_hash": "3fc34ddc9091839f2ab56cd5e6bc9845",
+    "mtime": 1779841133.326509,
+    "ast_hash": "48918e18cb1a675879ea4419f3883001",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\__init__.py": {
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\sda17.py": {
-    "mtime": 1779679102.6731071,
-    "ast_hash": "ddc3ee630922e1748f7c85b8de7e68e5",
+    "mtime": 1779841454.5435283,
+    "ast_hash": "f171afbadcd0294fa2357cb47c6f9947",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\__init__.py": {
@@ -197,6 +197,31 @@
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\schema_symmetry.py": {
     "mtime": 1779827928.5845845,
     "ast_hash": "c98c47d20db53a0922560c25ebfa730d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\.silent_except_baseline.json": {
+    "mtime": 1779842001.2251842,
+    "ast_hash": "5d81ce36602f9d30ca79637c6ce346f2",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0007_deal_dealer_table.py": {
+    "mtime": 1779841693.0445588,
+    "ast_hash": "1100c4169b9802a9d867da9d2c3c3088",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0008_decision_dna.py": {
+    "mtime": 1779841702.1511717,
+    "ast_hash": "3f85f2f821c55c3842605988e75dcbd7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\.pre-commit-config.yaml": {
+    "mtime": 1779841357.3355534,
+    "ast_hash": "d657648ea4a820053b8abf89b01ffd01",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprint_evolucao_26_05blueprint.md": {
+    "mtime": 1779850974.916083,
+    "ast_hash": "9f6f15a27f76a3b53f4f035280b93648",
     "semantic_hash": ""
   }
 }
