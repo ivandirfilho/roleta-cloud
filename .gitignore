@@ -55,6 +55,10 @@ grafana-agent/config.yml
 *.db
 *.db-shm
 *.db-wal
+
+# P4.4 (12/06): artefatos de modelo são runtime (volume), não código.
+# Hazard documentado: git clean no deploy destruiria o joblib do servidor.
+models/*.joblib
 *.sqlite
 *.sqlite3
 log_de_apostas*.txt
