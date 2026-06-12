@@ -9,10 +9,20 @@
 > temos.** A versão anterior deste arquivo (estrutura P0/P1/P2) está preservada no git;
 > os itens que sobreviveram foram absorvidos nas Trilhas A/B/C abaixo.
 >
-> **STATUS DA IMPLANTAÇÃO (12/06 tarde):** B1 ✅ · B2 ✅ · B5 ✅ · C2 ✅ · A1–A3 ✅
-> (relatório `analise_regioes_12_06.md`, rodado com snapshot de produção) · C1/C3 ✅
-> (alembic + deploy patch + backup no servidor) · B3/B4 ⏸ gated (ver §5).
-> Suite: 362 passed. Veredito A1–A3 no §2.1 abaixo.
+> **STATUS DA IMPLANTAÇÃO (12/06 tarde):** B1 ✅ · B2 ✅ · B5 ✅ · C2 ✅ (CI **verde**
+> pela 1ª vez desde 27/05, run 27427475837) · A1–A3 ✅ (relatório
+> `analise_regioes_12_06.md`, snapshot de produção n=4131) · C1 ✅ (prod 0006→**0008**;
+> deploy roda alembic) · C3 ✅ (backup diário decisions.db + **wal-g ressuscitado** —
+> causa-raiz: git index 100644 removia +x a cada deploy → Permission denied no cron desde
+> 25/05; corrigido no index e cron via /bin/bash) · Deploy: `86eda30`+`2a15074` em prod,
+> healthy. Suite: 362 passed.
+>
+> **Gates decididos pelos dados (12/06):**
+> - **B3 (modulação por volatilidade): NÃO se justifica agora** — A3 provou assimetria
+>   EPISÓDICA (44.3% alternância), não estrutural; o fix correto é o B1 (já em prod).
+>   Reavaliar só se a assimetria persistir nas janelas pós-B1.
+> - **B4 (region_bandit com dado real): aguardando amostra** — `hit_region` começou a
+>   acumular agora (B2 em prod); ligar quando ≥20 amostras/região/sentido pós-reset.
 
 ---
 
