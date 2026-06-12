@@ -13,9 +13,16 @@
 > em `shared.decision_dna`; cdc-worker rebuilt healthy; suite 386) · ✅ 4.6
 > DeprecationWarnings 139→4 (restam só `websockets.legacy` — upgrade de lib).
 >
-> **Restam:** 1.1 bisect EV · 1.3 backfill region (opcional) · 2.x gated (B4/controlador
-> por região/oracle contínuo — aguardando amostra) · 3.3 DEAL fix (agendar com operador)
-> · 4.1 DecisionPipeline · 4.2 coverage ramp · 4.3 remover AGE · 4.5 AsyncAPI.
+> **Restam:** 2.x gated (B4/controlador por região/oracle contínuo — aguardando amostra)
+> · 3.3 DEAL fix (agendar com operador) · 4.1 DecisionPipeline · 4.3 remover AGE (janela
+> de manutenção) · 4.5 AsyncAPI · `websockets.legacy` (upgrade lib).
+>
+> **EXECUÇÃO D2 (12/06 20:45 UTC):** ✅ 1.1 **SP-01 FECHADO por EV** — a "regressão"
+> 47.69→43.95 não existe em dinheiro (Δhit −1.72pp, ΔEV **+0.346u/aposta**: pós-24/05
+> perde MENOS; era artefato do proxy; `scripts/bisect_ev_sp01.py`) · ✅ 1.3 backfill
+> histórico em prod: 4240/4240 com `result_region`, P&L all-time −4393.8u no gauge
+> (filtrar `len(centers)==3` em análises por região — C1 inclui fallbacks) · ✅ 4.2
+> coverage ramp **50→70** (real medido: 72%; CI verde no novo gate).
 >
 > Consolidação de TUDO que está pendente após o ciclo de 12/06 (3 auditorias, 8 commits
 > `86eda30..50261d8`, suite 376, CI verde, prod healthy, validação E2E ao vivo 67/67).
