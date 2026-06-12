@@ -1,0 +1,101 @@
+{
+  "title": "Roleta Cloud — Profit & Regiões (B5/G 12-06)",
+  "uid": "roleta-profit",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "P&L da sessão corrente (u)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "roleta_session_pnl_units" }],
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": -30 }, { "color": "yellow", "value": -10 }, { "color": "green", "value": 0 }] } } }
+    },
+    {
+      "id": 2,
+      "title": "P&L acumulado (u)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "roleta_all_time_pnl_units" }],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 3,
+      "title": "P&L sessão — histórico",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "roleta_session_pnl_units", "legendFormat": "sessão" },
+        { "expr": "roleta_all_time_pnl_units - (roleta_all_time_pnl_units offset 6h)", "legendFormat": "Δ acumulado 6h" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 4,
+      "title": "Stop-loss (sessão <= -30u)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 6 },
+      "targets": [{ "expr": "roleta_session_pnl_units <= bool -30" }],
+      "fieldConfig": { "defaults": { "unit": "short", "mappings": [{ "type": "value", "options": { "0": { "text": "OK" }, "1": { "text": "ATIVO (stake 1u)" } } }], "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 5,
+      "title": "EMA erro assinado por região — CW (casas; +=adiante do centro)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 6 },
+      "targets": [
+        { "expr": "roleta_region_err_ema{direction=\"cw\",region=\"C1\"}", "legendFormat": "C1" },
+        { "expr": "roleta_region_err_ema{direction=\"cw\",region=\"C2\"}", "legendFormat": "C2" },
+        { "expr": "roleta_region_err_ema{direction=\"cw\",region=\"C3\"}", "legendFormat": "C3" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": -18, "max": 18 } }
+    },
+    {
+      "id": 6,
+      "title": "EMA erro assinado por região — CCW (casas)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 6 },
+      "targets": [
+        { "expr": "roleta_region_err_ema{direction=\"ccw\",region=\"C1\"}", "legendFormat": "C1" },
+        { "expr": "roleta_region_err_ema{direction=\"ccw\",region=\"C2\"}", "legendFormat": "C2" },
+        { "expr": "roleta_region_err_ema{direction=\"ccw\",region=\"C3\"}", "legendFormat": "C3" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": -18, "max": 18 } }
+    },
+    {
+      "id": 7,
+      "title": "Leitura",
+      "type": "text",
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 11 },
+      "options": {
+        "mode": "markdown",
+        "content": "**EMA por região (MELHORIA-G):** viés estável ≠ 0 com `n` alto (ver `/api/strategy → region_err_n`) = setor torto naquele sentido — insumo do controlador por região (gated walk-forward A4).\n\n**Política vigente:** INV-3 (indicação sempre; score<4/TR → stake ×0.10; stop-loss → 1u). Walk-forward 12/06: preserva 93/91% da economia do CUT."
+      }
+    },
+    {
+      "id": 8,
+      "title": "Accuracy rolling 100 (CW vs CCW)",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        { "expr": "roleta_recent_acc_cw", "legendFormat": "CW" },
+        { "expr": "roleta_recent_acc_ccw", "legendFormat": "CCW" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+    {
+      "id": 9,
+      "title": "wheel_dist p50/p95 (1h) — drift fino",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        { "expr": "roleta_wheel_dist_p50_1h", "legendFormat": "p50" },
+        { "expr": "roleta_wheel_dist_p95_1h", "legendFormat": "p95" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    }
+  ]
+}

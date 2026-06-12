@@ -82,6 +82,26 @@ groups:
           summary: "DNA realize lag = {{ $value }}s > 300s"
           description: "{{ $value }}s sem realized_lift_pp/hit na decision_dna mais antiga unrealized ({{ with query \"roleta_dna_unrealized_count\" }}{{ . | first | value }}{{ end }} features). Conferir hook dna_update_realized em server/message_handler.py."
 
+      # B5 PROFIT-LEDGER (12/06): stop-loss visível — P&L da sessão corrente.
+      # O gate INV-3 já reduz o stake a 1u automaticamente; o alerta torna o
+      # evento visível ao operador/dashboards (severidade warning, não page).
+      - alert: RoletaSessionPnlLow
+        expr: roleta_session_pnl_units <= -30
+        for: 1m
+        labels: { severity: warning, component: profit }
+        annotations:
+          summary: "P&L da sessão = {{ $value }}u <= -30u (stop-loss ativo)"
+          description: "INV-3 já modulou o stake para 1u. Considerar reset de sessão (botão) ou encerrar. Painel: Roleta Profit."
+
+      # Sangria acumulada anormal no dia (sem reset compensar).
+      - alert: RoletaAllTimePnlDropFast
+        expr: (roleta_all_time_pnl_units - (roleta_all_time_pnl_units offset 1h)) < -120
+        for: 5m
+        labels: { severity: warning, component: profit }
+        annotations:
+          summary: "P&L acumulado caiu {{ $value }}u na última hora"
+          description: "Queda > 120u/h mesmo com CUT v1+stop-loss. Investigar sessões/dealer; conferir painel Roleta Profit."
+
   - name: roleta_strategy_alerts
     interval: 30s
     rules:
