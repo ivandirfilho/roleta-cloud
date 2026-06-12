@@ -17,7 +17,18 @@ depends_on = None
 def upgrade() -> None:
     # Extensoes (sao criadas pelo init script no bootstrap, idempotentes).
     op.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-    op.execute("CREATE EXTENSION IF NOT EXISTS age;")
+    # AGE: best-effort (12/06). Decisao P1.3: schemas de grafo vazios, AGE
+    # caminha para remocao. Prod (imagem custom) tem a extensao; o CI
+    # (pgvector/pgvector:pg15 oficial) NAO tem — e nao deve quebrar por isso.
+    op.execute(
+        """
+        DO $$ BEGIN
+            CREATE EXTENSION IF NOT EXISTS age;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'extension age indisponivel — pulando (P1.3: AGE a remover)';
+        END $$;
+        """
+    )
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements;")
 
