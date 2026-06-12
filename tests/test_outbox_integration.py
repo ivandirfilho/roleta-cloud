@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -19,7 +19,7 @@ DSN = os.environ.get("ROLETA_PG_DSN", "")
 
 def _make_decision(direction: str = "horario", **kw) -> Decision:
     return Decision(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
         session_id="test-session",
         spin_number=12,
         spin_direction=direction,

@@ -6,7 +6,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -67,7 +67,7 @@ class TestSDARegionsPersistence(unittest.TestCase):
         conn = sqlite3.connect(self.db)
         conn.execute(
             "INSERT INTO sessions (id, start_time) VALUES (?, ?)",
-            ("sess1", datetime.utcnow().isoformat()),
+            ("sess1", datetime.now(timezone.utc).replace(tzinfo=None).isoformat()),
         )
         conn.commit()
         conn.close()

@@ -2,9 +2,19 @@
 # Modelos de dados para logging de decisões
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 import json
+
+
+def _utcnow_naive() -> datetime:
+    """UTC naive — mesmo formato de datetime.utcnow() (deprecado no 3.12+).
+
+    P4.6 (12/06): mantém o formato armazenado no SQLite IDÊNTICO ao legado
+    (isoformat sem offset) — mudar para aware quebraria comparações
+    lexicográficas e parsing downstream.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 @dataclass
@@ -15,7 +25,7 @@ class Decision:
     """
     # Identificação
     id: Optional[int] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utcnow_naive)
     session_id: str = ""
     
     # Contexto do Spin
@@ -120,7 +130,7 @@ class Session:
     Agrupa decisões e mantém estatísticas.
     """
     id: str = ""
-    start_time: datetime = field(default_factory=datetime.utcnow)
+    start_time: datetime = field(default_factory=_utcnow_naive)
     end_time: Optional[datetime] = None
     
     # Estatísticas
@@ -158,7 +168,7 @@ class GaleWindow:
     id: Optional[int] = None
     direction: str = ""  # "cw" ou "ccw"
     gale_level: int = 1  # 1, 2 ou 3
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=_utcnow_naive)
     ended_at: Optional[datetime] = None
     
     # Resultados da janela
@@ -198,7 +208,7 @@ class WindowPlay:
     id: Optional[int] = None
     window_id: int = 0  # FK para GaleWindow
     play_number: int = 0  # 1 a 5
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=_utcnow_naive)
     
     # Contexto do spin
     spin_number: int = 0

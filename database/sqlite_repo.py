@@ -5,7 +5,7 @@ import sqlite3
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone as _tz
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
@@ -884,7 +884,7 @@ class SQLiteDecisionRepository(DecisionRepository):
             conn.execute("""
                 UPDATE sessions SET end_time = ?
                 WHERE id = ?
-            """, (datetime.utcnow().isoformat(), session_id))
+            """, (datetime.now(_tz.utc).replace(tzinfo=None).isoformat(), session_id))
             conn.commit()
         finally:
             conn.close()
@@ -1093,7 +1093,7 @@ class SQLiteDecisionRepository(DecisionRepository):
                 UPDATE gale_windows 
                 SET ended_at = ?, result = ?, next_level = ?
                 WHERE id = ?
-            """, (datetime.utcnow().isoformat(), result, next_level, window_id))
+            """, (datetime.now(_tz.utc).replace(tzinfo=None).isoformat(), result, next_level, window_id))
             conn.commit()
         finally:
             conn.close()
