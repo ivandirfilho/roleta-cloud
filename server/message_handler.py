@@ -316,10 +316,35 @@ class MessageHandler:
         })
 
         # Decisão combinada: Triple Rate pode VETAR
+        # B5 (12/06): gates adicionais — CUT-POLICY v1 (apostar só score>=4,
+        # única política consistente no walk-forward) e STOP-LOSS por sessão.
+        # Registro (bet_placed=False) continua para warmup/aprendizado (P9).
+        _cut_v1_active = False
+        _stop_loss_active = False
+        try:
+            from app_config.settings import profit_cut_v1_enabled, profit_stop_loss_units
+            _cut_v1_active = profit_cut_v1_enabled()
+            _sl_units = profit_stop_loss_units()
+            if _sl_units > 0 and self.current_session_id:
+                _sess_pnl = db_service.get_session_pnl(self.current_session_id)
+                if _sess_pnl <= -_sl_units:
+                    _stop_loss_active = True
+                    logger.warning(
+                        "[B5 STOP-LOSS] sessão %s pnl=%.1f <= -%.1f — apostas suspensas",
+                        self.current_session_id, _sess_pnl, _sl_units,
+                    )
+        except Exception as _b5_e:  # noqa: BLE001 — gate nunca quebra fluxo
+            logger.warning(f"[B5] gates indisponíveis: {_b5_e}")
+
         action_reason = ""
         if result.should_bet:
+            _veto_b5 = None
+            if _stop_loss_active:
+                _veto_b5 = "STOP-LOSS sessão (B5): apostas suspensas"
+            elif _cut_v1_active and result.score < 4:
+                _veto_b5 = f"CUT-POLICY v1: score={result.score} < 4"
             # SDA recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
-            if advice.should_bet:
+            if advice.should_bet and _veto_b5 is None:
                 # SmartGale v5: calcular gale ANTES de registrar
                 mg = self.game_state.target_martingale
                 bet_c4_rate = self.game_state.get_bet_c4_rate()
@@ -341,8 +366,8 @@ class MessageHandler:
                 )
             else:
                 acao = "PULAR"
-                action_reason = f"Triple Rate vetou: {advice.reason}"
-                # SDA recomendou mas TR vetou - registrar para TR com bet_placed=False
+                action_reason = _veto_b5 or f"Triple Rate vetou: {advice.reason}"
+                # SDA recomendou mas TR/B5 vetou - registrar com bet_placed=False
                 self.game_state.store_prediction(
                     result.numbers,
                     self.game_state.target_direction,
@@ -359,17 +384,28 @@ class MessageHandler:
             action_reason = "SDA não recomendou (forças insuficientes)"
             # Fallback early-session: timeline com dados mas SDA insuficiente → G1 seguro
             if self.game_state.target_timeline.size > 0:
-                mg = self.game_state.target_martingale
-                mg.level = 1
                 center = self.game_state.last_number
                 fallback_nums = sorted(
                     self.strategy.get_neighbors(center, 10, roulette.WHEEL_SEQUENCE)
                 )
-                acao = "APOSTAR"
-                action_reason = f"SDA insuficiente ({self.game_state.target_timeline.size} forças) → G1 seguro"
+                # B5: fallback tem score=1 — não passa no gate score>=4 nem
+                # aposta sob stop-loss; registra mesmo assim (aprendizado).
+                _fb_bet = not (_cut_v1_active or _stop_loss_active)
+                if _fb_bet:
+                    mg = self.game_state.target_martingale
+                    mg.level = 1
+                    acao = "APOSTAR"
+                    action_reason = f"SDA insuficiente ({self.game_state.target_timeline.size} forças) → G1 seguro"
+                else:
+                    acao = "PULAR"
+                    action_reason = (
+                        "STOP-LOSS sessão (B5): apostas suspensas"
+                        if _stop_loss_active
+                        else "CUT-POLICY v1: fallback score=1 < 4"
+                    )
                 self.game_state.store_prediction(
                     fallback_nums, self.game_state.target_direction, center,
-                    predicted_force=0, bet_placed=True,
+                    predicted_force=0, bet_placed=_fb_bet,
                     tr_confidence="baixa", tr_reason="Fallback early-session",
                     sda_score=1, sda_centers=[center]
                 )
@@ -431,9 +467,13 @@ class MessageHandler:
                 # W-02/B-08: wheel_dist_val pode ter sido calculado acima;
                 # se nao (sda_centers vazio), passamos None e a coluna fica intacta.
                 _cal_err = wheel_dist_val if 'wheel_dist_val' in locals() else None
+                # B2 (12/06): atribuição por região calculada em check_prediction.
+                _hit_attr = getattr(self.game_state, "last_hit_attribution", None) or {}
+                _region_slot = _hit_attr.get("slot")
                 db_service.update_result(
                     self.last_decision_id, hit_result, numero,
-                    calibration_error=_cal_err
+                    calibration_error=_cal_err,
+                    result_region=_region_slot,
                 )
                 # SP-07: preenche realized_lift / hit / wheel_dist no DNA
                 try:
@@ -443,6 +483,21 @@ class MessageHandler:
                         hit=bool(hit_result),
                         wheel_dist=_cal_err,
                     )
+                    # B2 (12/06): feature hit_region — alimenta region_bandit
+                    # (B4) e responde P5 continuamente.
+                    if _region_slot:
+                        _dna.dna_log_feature(
+                            self.last_decision_id, "hit_region",
+                            {
+                                "raw": _region_slot,
+                                "bucket": _region_slot,
+                                "dist_c1": _hit_attr.get("dist_c1"),
+                                "dist_min": _hit_attr.get("dist_min"),
+                            },
+                            spin_number=numero,
+                            direction=(getattr(self, "last_decision_direction", None) or direcao),
+                            hit=bool(hit_result),
+                        )
                 except Exception:  # noqa: BLE001
                     pass
                 # OBS-25-01: publicar spin_result no outbox para backtest offline
@@ -753,6 +808,18 @@ class MessageHandler:
                 db_service.end_session(self.current_session_id)
 
             reset_info = self.game_state.reset_session(keep_last_number=keep_last)
+
+            # B1 (12/06): zera TAMBÉM o estado adaptativo do SDA17 (P10).
+            # Sem isto, o dealer novo herdava _sigmoid_off/históricos do
+            # anterior e o warmup de 2 jogadas (P9) nunca recomeçava.
+            try:
+                if hasattr(self.strategy, "reset_adaptive"):
+                    discarded = self.strategy.reset_adaptive()
+                    reset_info["strategy_reset"] = discarded
+                    self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+                    self.game_state.save()
+            except Exception as _rs_err:  # noqa: BLE001 — reset nunca quebra fluxo
+                logger.error(f"strategy_reset falhou: {_rs_err}")
 
             # Criar nova sessão no DB
             new_session_id = uuid.uuid4().hex[:8]  # S-MIG-2: UUID em vez de session_<epoch_ms>

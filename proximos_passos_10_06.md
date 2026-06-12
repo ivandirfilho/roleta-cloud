@@ -1,175 +1,266 @@
-# Próximos Passos — 10/06/2026
+# Próximos Passos — 10/06/2026 · REESTRUTURADO 12/06 · IMPLANTADO 12/06 ✅
 
-> Avaliação de dev senior da estrutura atual (repo local + servidor Debian de produção),
-> baseada em: grafo do código (`graphify-out/`, 2326 nodes @ `e7461a7`), **grafo novo do
-> servidor** (`server_snapshot/graphify-out/`, 66 nodes / 92 edges / 7 communities),
-> inspeção SSH profunda de `187.45.181.75` e CI do GitHub.
-
----
-
-## 1. Contexto operacional (o que mudou desde 27/05)
-
-| Fato | Evidência |
-|---|---|
-| Servidor ficou **desligado de 30/05 14:30 até 10/06 18:40** (11 dias) | `last -x reboot`, journal do boot anterior |
-| Produção == `origin/main` (`e7461a7`, merge PR #6) | `git log` no servidor; pull-deploy a cada 2 min funcionando |
-| Apenas **129 decisões novas desde 27/05** (total 5347 no SQLite) | `decisions.db` |
-| 8 containers healthy, RAM 1.4/6.9 GB, disco 10% | `docker ps`, `free`, `df` |
-| Alerta `RoletaDnaRealizeLagHigh` firing = consequência do downtime, não bug | Prometheus `/alerts` |
-
-O sistema **funciona**: spin chegou às 18:48, decisão 5340 criada em 375ms, dual-write
-SQLite→outbox→PG ok, outbox `processed=2706 / failed=0`.
+> Avaliação de dev senior. Base: grafo do código (`graphify-out/`, 2326 nodes), grafo do
+> servidor (`server_snapshot/graphify-out/`), SQLite de produção (5384 decisões, 4131 com
+> resultado+centros) e **auditoria do código da estratégia feita em 12/06**
+> (`strategies/sda17.py`, `state/game.py`, `server/message_handler.py`).
+>
+> **Regra deste plano: nenhuma decisão espera dado novo — tudo é decidível com o que já
+> temos.** A versão anterior deste arquivo (estrutura P0/P1/P2) está preservada no git;
+> os itens que sobreviveram foram absorvidos nas Trilhas A/B/C abaixo.
+>
+> **STATUS DA IMPLANTAÇÃO (12/06 tarde):** B1 ✅ · B2 ✅ · B5 ✅ · C2 ✅ · A1–A3 ✅
+> (relatório `analise_regioes_12_06.md`, rodado com snapshot de produção) · C1/C3 ✅
+> (alembic + deploy patch + backup no servidor) · B3/B4 ⏸ gated (ver §5).
+> Suite: 362 passed. Veredito A1–A3 no §2.1 abaixo.
 
 ---
 
-## 2. Snapshot da arquitetura de produção (grafo do servidor)
+## 0. Premissas do owner (12/06) — governam todo o resto
 
-```
-Chrome ext v3.1.1 ──wss──> nginx:443 (roleta.xma-ia.com, cert ok até 06/07)
-                              └─> roleta-cloud :8765/:8766 (v4.4.0)
-                                    ├─ state.json + SQLite decisions.db (3.3MB) ← FONTE PRIMÁRIA
-                                    └─ OutboxPublisher ─> PG shared.outbox ─> cdc-worker
-                                                            └─> cw/ccw spins_vectors + spin_features
-Observabilidade: Prometheus(14 rules) → Alertmanager → webhook; Grafana local + Grafana Cloud
-Deploy: systemd timer 2min (git pull + compose up)  |  Gap-check: cron 1min → textfile → node-exporter
-Backup: wal-g cron */30min → ⚠ MORTO desde 25/05
-```
-
-Artefatos novos para análises futuras:
-- `server_snapshot/01..08_*.md` — inventário versionável do servidor (sem secrets)
-- `server_snapshot/graphify-out/graph.{json,html}` + `GRAPH_REPORT.md` — grafo navegável
+| # | Premissa | Implicação no plano |
+|---|---|---|
+| P1 | Decidir com os dados atuais (5347 decisões); **não esperar resultados novos** | Toda a Trilha A é análise offline do histórico |
+| P2 | Segurança de host: ignorada e deixada de lado | Fora do escopo (achados preservados em `server_snapshot/08_seguranca.md`) |
+| P3 | Foco: **fluxo de dados + execução da estratégia** | Trilha C protege o fluxo; Trilhas A/B atacam a estratégia |
+| P4 | Jogada = 3 regiões: C1 = 1 central + 3 vizinhos (7 nºs); C2 e C3 = 1 central + 2 vizinhos (5 nºs cada) = **17 números** | Geometria já implementada em `sda17.py` — não mexer sem evidência |
+| P5 | Pergunta central: a indicação da estratégia está compondo **as 3 melhores regiões** da jogada? | Hoje NÃO é medido — desbloqueio em A1/A2 |
+| P6 | Sentidos isolados: dados cw → decisão cw; dados ccw → decisão ccw, **sempre** | Já é invariante do código (INV-1) — preservar em qualquer mudança |
+| P7 | Sintoma: muito assertivo num sentido, errático no outro; objetivo = máximo nos dois, cada um com seus próprios dados/previsões | Diagnóstico A3 + correções B1/B3 |
+| P8 | Estratégia única, **genérica e adaptativa por jogada** — nunca especializada por sentido | Proíbe parâmetro hard-coded por direção; adaptação é por estado, não por config |
+| P9 | Fine-tuning inicial: **2 jogadas em cada sentido** | Já implementado (`BAYESIAN_WARMUP=2`) — preservar |
+| P10 | Troca de dealer → **botão manual zera a estratégia** para começar de novo | **GAP descoberto 12/06: o botão NÃO zera a estratégia** (Achado 1, fix B1) |
 
 ---
 
-## 3. O que CORRIGIR (e porquê) — prioridade P0, esta semana
+## 1. Auditoria 12/06 — premissas × código real
 
-### P0.1 — Backup do PG morto + SQLite sem backup nenhum 🔴
-- **Evidência:** `/var/log/wal-g/backup.log` parado em **25/05 04:30**; cron `*/30` existe
-  mas não produz linha nova; `backups/pg/` vazio. E o **SQLite (`decisions.db`), que é a
-  fonte primária do produto, não tem backup algum** — só o PG (réplica) tinha.
-- **Porquê é o item nº 1:** todo o resto é recuperável (código está no git, infra é
-  reproduzível); os 5347 registros de decisões/sessões **não são**. Risco de perda total.
-- **Ação:** investigar por que o wal-g parou (provável env/credencial do storage pós-algo);
-  validar um `wal-g backup-push` manual + **um restore de teste**; adicionar dump diário do
-  `decisions.db` (`sqlite3 .backup` + rotação 7d) no mesmo cron; alerta Prometheus
-  `RoletaBackupStale` (textfile com timestamp do último backup — padrão já existente no gap-check).
+### O que o código JÁ cumpre (não mexer, só preservar)
 
-### P0.2 — Migrations não aplicadas em produção (alembic 0006 < repo 0008) 🔴
-- **Evidência:** `shared.alembic_version = 0006_spin_features`; repo tem
-  `0007_deal_dealer_table` e `0008_decision_dna`; `roleta-deploy-pull.sh` **não roda alembic**.
-- **Porquê:** o pull-deploy atualiza código mas não schema → todo código novo que depende de
-  0007/0008 roda contra schema velho. É drift silencioso — exatamente a classe de erro do
-  B-10 (falha engolida). As colunas DEAL no PG e a tabela `decision_dna` PG não existem em prod.
-- **Ação:** rodar `docker compose run --rm roleta-cloud alembic upgrade head` (procedimento
-  já validado em memória de deploy); adicionar step `alembic upgrade head` no
-  `roleta-deploy-pull.sh` **antes** do `compose up`, com healthcheck de rollback.
+| Premissa | Onde está | Estado |
+|---|---|---|
+| Geometria 7+5+5 = 17 | `sda17.py`: C1 raio 3 fixo (`num_neighbors=3`); C2/C3 raio 2 (`C2_RADIUS=C3_RADIUS=2`) posicionados por offsets adaptativos assimétricos | ✅ |
+| Isolamento por sentido (P6) | `cw_history`/`ccw_history`, `_sigmoid_off` por dir, `_recent_hits` por dir, batch tune com contadores independentes (INV-1) | ✅ |
+| Warmup 2 por sentido (P9) | `BAYESIAN_WARMUP=2`; 1ª jogada de cada sentido usa fallback SDA-19; QW-6 warmup adaptativo 2 (ganhando) / 5 (perdendo) | ✅ |
+| Genérica → evolutiva (P8) | Parte de `PRIOR_CENTER=10` (prior genérico) e evolui via sigmoid feedback por jogada + batch auto-tune a cada 4 spins/sentido | ✅ |
 
-### P0.3 — CI vermelho em `main` desde 27/05 🔴
-- **Evidência:** runs `26490411079` e `26488571806` failed; causa:
-  `psycopg2.errors.UndefinedTable: relation "cw.spins_vectors" does not exist` em
-  `tests/test_cdc_worker.py`. O bootstrap do `ci.yml` cria schemas/extensão mas **nunca roda
-  `alembic upgrade head`**. Local: 347 passed (testes cdc são skipped sem PG).
-- **Porquê:** CI vermelho permanente = cegueira; qualquer regressão nova fica invisível.
-  Mesma causa-raiz do P0.2 (migrations esquecidas), confirmando o padrão.
-- **Ação:** adicionar `alembic upgrade head` após o bootstrap de schemas no `ci.yml`
-  (1 linha; `ROLETA_PG_DSN` já está no env). Critério: matrix 3.11/12/13 verde.
+### 🔴 Achado 1 — O botão de reset NÃO zera a estratégia (viola P10)
 
-### P0.4 — Segurança do host: porta aberta + brute-force ativo 🔴
-- **Evidência:** `sshd -T`: `permitrootlogin yes` + `passwordauthentication yes`; **sem
-  fail2ban**; iptables `INPUT policy ACCEPT` (sem firewall); `node-exporter *:9100` exposto
-  ao mundo; journal de 30/05 mostra brute-force contínuo de IPs estrangeiros; 118 pacotes
-  atualizáveis; senha do PG **hardcoded em `/usr/local/bin/roleta-gap-check.sh`**.
-- **Porquê:** servidor fica dias sem supervisão (vide downtime de 11 dias sem ninguém notar).
-  Root+password+sem-rate-limit é a combinação que termina em mineração de cripto. A senha
-  hardcoded num script root-readable vira pivô se houver qualquer leitura de arquivo.
-- **Ação (≈40 min):** `PermitRootLogin prohibit-password` + `PasswordAuthentication no`
-  (chave já funciona — sessão atual usa BatchMode); instalar fail2ban; ufw allow 22/80/443 +
-  deny default; bind node-exporter em 127.0.0.1 (o grafana-agent scrape é local);
-  mover a senha para `/etc/roleta/gap-check.env` (chmod 600) + `EnvironmentFile`/source e
-  **rotacionar a senha do PG** depois; `apt upgrade` em janela controlada.
+`handle_new_session` → `game_state.reset_session()` zera timelines, martingale, shadow grid
+e bandit, **mas o objeto `SDA17Strategy` (vivo em `MessageHandler.strategy`) mantém
+intactos**: `_sigmoid_off` (offsets C2/C3 aprendidos), `cw_history`/`ccw_history`,
+`_recent_hits`, contadores do batch tune, cooldowns (QW-4) e drift freeze (QW-7). No spin
+seguinte, `get_adaptive_state()` regrava tudo em `_adaptive_state`.
+
+Consequências diretas nas premissas:
+- O dealer novo **herda os offsets do dealer anterior** — pode casar por acaso num sentido
+  e ficar tóxico no outro. **Causa mecânica plausível do sintoma P7** (assertivo num
+  sentido, errático no outro).
+- O warmup de 2 jogadas (P9) **nunca recomeça** — a estratégia não "começa de novo
+  genérica" como o owner espera ao apertar o botão (P8/P10).
+
+### 🔴 Achado 2 — "As 3 melhores regiões?" não é medido (viola P5)
+
+`check_prediction()` grava apenas o hit binário (`actual_number in numbers`). Não grava:
+**em qual região caiu** (C1/C2/C3), a que **distância circular** de cada centro, nem onde
+caiu quando errou. O DNA `region_C1/C2/C3` (SP-17) loga o *offset usado*, não a atribuição
+do resultado. Detalhe: `_pct_sigmoid_update()` já calcula os conjuntos `c1_nbrs/c2_nbrs/
+c3_nbrs` por spin para o feedback sigmoid — e **descarta** a informação em seguida.
+
+Sem isso é impossível dizer se C2/C3 pagam os 10 números que custam, nem se o erro vem do
+preditor de força (C1 mal posicionado) ou do posicionamento dos satélites (offsets).
 
 ---
 
-## 4. O que CORRIGIR — prioridade P1, próxima semana
+## 2. Trilha A — Responder à pergunta central com os dados ATUAIS (offline, começa hoje)
 
-### P1.1 — DEAL capture morto em produção (dealer = 'unknown' em 5352/5352) 🟠
-- **Evidência:** `SELECT dealer, count(*)` → `('unknown', 5352)`; log live:
-  `[DEAL] dealer=None provider='host:www.roleta.xma-ia.com' table=None round=None` —
-  **mesmo após** SP-11..15, audit 27/05 e PR #6 (hydrate from frames).
-- **Porquê importa:** toda a linha de valor "offset prior por dealer" (SP-15), ranking de
-  dealer e análises por mesa está produzindo **zero dado** há 2 semanas. Ou se conserta a
-  captura ou se admite que o funil ML avançado não tem matéria-prima.
-- **Diagnóstico provável (do grafo + memória):** `table_id`/`provider` vêm na URL do iframe
-  Evolution (`_detectedFrames`), mas o fallback atual reporta `host:` da página = frames da
-  Evolution não estão sendo detectados, **ou a extensão não foi recarregada no Chrome do
-  operador** (manifest 3.1.1 exige reload manual em `chrome://extensions`).
-- **Ação:** 1) confirmar versão carregada no Chrome do operador; 2) logar `_detectedFrames`
-  completo num spin real; 3) se iframe Evolution não aparece, revisar `all_frames`/permissões
-  de host no manifest; 4) só então retomar SP-15 (offset prior) com dado real.
+**Fonte:** `decisions.db` (5347 decisões: `sda_numbers`, `sda_centers`, `result_actual`,
+`result_hit`, direção, sessão) + `decision_dna` (791) + `gale_windows`/`window_plays`.
+Para decisões antigas sem `sda_centers`, os 3 centros são re-deriváveis dos 17 números
+(3 arcos contíguos na roda → centro de cada arco; o arco de 7 é C1).
 
-### P1.2 — `models/spin_autoencoder.joblib` untracked no servidor 🟠
-- **Evidência:** `git status` no servidor: `?? models/spin_autoencoder.joblib` (1.3KB, 25/05).
-- **Porquê:** mesmo padrão do hazard documentado de `server/configs/mesas/` — qualquer
-  `git clean`/stash no deploy destrói artefato de runtime. Modelo de 1.3KB treinado com
-  pouquíssimo dado também levanta a questão: está sendo usado? Vale a pena re-treinar?
-- **Ação:** mover para o volume `roleta-data` (ou versionar com hash no repo, é minúsculo);
-  adicionar `models/*.joblib` ao `.gitignore` + nota no runbook de deploy.
+**Entregável:** `scripts/analyze_regions_offline.py` + relatório `analise_regioes_12_06.md`
+com as 4 análises abaixo — **sempre segmentadas por sentido (P6)**.
 
-### P1.3 — Schemas AGE vazios (cw_graph/ccw_graph = 0 rows) 🟡
-- **Evidência:** `ag_label_vertex/edge = 0` em ambos; extensão AGE carregada na imagem
-  custom `roleta/postgres-stack:pg15-age15` (1GB).
-- **Porquê:** complexidade paga sem retorno — imagem custom maior, migrations mais frágeis
-  (AGE quebra CI se entrar nos testes), zero queries de grafo em produção.
-- **Ação (decisão de produto):** ou popular os grafos AGE com um caso de uso concreto
-  (ex.: transições dealer→número para o offset prior), ou **remover AGE** e simplificar
-  para `pgvector/pgvector:pg15` oficial — alinharia produção com o CI e reduziria 40% da imagem.
+### A1 — Atribuição de acerto por região (a métrica que falta)
+Para cada decisão com resultado: classificar em `hit_C1 / hit_C2 / hit_C3 / hit_overlap /
+miss` + distância circular assinada `Δ(result, C1)`. Saídas por sentido:
+- Hit-rate e **lift por slot** vs acaso (C1: 7/37 = 18.9%; C2/C3: 5/37 = 13.5% cada).
+- **EV por slot** (payout 36:1, N=17): cada região justifica os números que ocupa?
+- Critério de decisão: se C2 ou C3 tiver lift ≈ 0 num sentido, a "3ª melhor região" não
+  está onde apostamos — entrada direta para recalibrar o range de offsets (`OFFSET_MIN/MAX`).
 
----
+### A2 — Oracle das 3 melhores regiões (regret)
+Por janela entre resets e por sentido: histograma circular de `Δ(result, C1)` (37 posições).
+- As 17 posições apostadas (C1±3, C2±2, C3±2) estão entre as **17 de maior densidade
+  empírica** da janela? Métrica: `region_efficiency` = densidade capturada / densidade das
+  17 ótimas a posteriori. **Esta métrica responde P5 diretamente.**
+- Decompor o regret: erro de C1 (distribuição de Δ não centrada em 0 → problema no preditor
+  de forças) × erro de offset (massa em posições fora de C2/C3 → problema no sigmoid).
+  Diz exatamente **o que** corrigir, sem chute.
+- Comparar offsets ótimos a posteriori vs `_sigmoid_off` praticado (snapshotado no DNA).
 
-## 5. O que vale a pena IMPLEMENTAR (P2 — depois da fundação)
+### A3 — Diagnóstico da assimetria entre sentidos (P7)
+Por sessão e por janela entre resets: hit / EV / `region_efficiency` cw × ccw.
+- A erraticidade do sentido fraco é **estrutural** (sempre o mesmo sentido?) ou
+  **episódica** (alterna por sessão/dealer)? Episódica reforça o Achado 1 (estado herdado).
+- Correlacionar o sentido errático com: nº de spins da janela (warmup insuficiente?),
+  variância/IQR das forças daquele sentido, e idade do estado adaptativo no início da janela.
+- **Simular no histórico** (via `tools/backtest_harness.py`): replay com reset TOTAL da
+  estratégia nos inícios de janela (como P10 manda) e medir se o sentido fraco melhora.
+  Se melhorar, B1 sozinho ataca P7 — sem tocar no algoritmo.
 
-| # | Item | Porquê vale | Pré-requisito |
+### A4 — Validação walk-forward (regra para TODA mudança)
+Qualquer mudança candidata (B3/B4, recalibração de offsets, geometria) só entra se melhorar
+**EV/aposta** em treino (jan–abr) **e** teste (mai–jun), **por sentido**. Hit rate NÃO é
+critério (breakeven depende de N; março provou: melhor hit = pior P&L). Filtro por hora
+segue proibido (overfit comprovado: +1.81 treino → −2.09 teste).
+
+### §2.1 — VEREDITO A1–A3 (12/06, n=4131 de produção) — `analise_regioes_12_06.md`
+
+**A1 — As 3 regiões NÃO são as 3 melhores (resposta a P5): nenhum slot tem lift.**
+| Sentido | C1 lift | C2 lift | C3 lift |
 |---|---|---|---|
-| 1 | **NEW-09: bisect da regressão hit-rate 47.69→43.95** (FeatureStore/Regime opt-in) | Único item do blueprint 26/05 que mexe direto no KPI do produto; estava aguardando 24h de tráfego pós-B10 — agora que o servidor voltou, agendar | 24h de tráfego novo |
-| 2 | **Dealer offset prior com dado real** (retomada SP-15) | Era a aposta de maior alpha do blueprint; hoje é inerte por falta de dado | P1.1 resolvido |
-| 3 | **Backup-aware boot check** (systemd unit pós-boot: valida wal-g + alembic head + extensão conectada, publica métrica `roleta_boot_sanity`) | O downtime de 11 dias passou despercebido; um "boot sanity" tornaria visível qualquer item degradado ao religar | P0.1, P0.2 |
-| 4 | **`alembic upgrade` + smoke-test no deploy pull** (transformar P0.2 em pipeline permanente) | Elimina a classe inteira de drift código×schema | P0.2 |
-| 5 | **Ramp de cobertura CI 50%→60%** (SP-34.1) | Barato, já existe infra; só faz sentido com CI verde | P0.3 |
-| 6 | **unattended-upgrades (security-only)** | Servidor fica semanas sem login; patches críticos automáticos reduzem janela de exposição | P0.4 |
+| cw | **−1.3pp** | +0.0pp | −0.1pp |
+| ccw | −0.5pp | −1.0pp | +1.2pp |
 
-### O que explicitamente NÃO fazer agora
-- **Novas features de ML/estratégia** (REGION-05+, ML-03+): o funil de dados está entupido
-  (dealer=unknown, migrations faltando). Feature nova agora = mais código inerte.
-- **Upgrade de imagens Grafana 10.4/Prometheus 2.51** (2 anos): funcionais, sem CVE crítico
-  exposto (tudo em 127.0.0.1 atrás do nginx); custo/benefício ruim frente a P0.
-- **Refactors estruturais**: a suite (347 testes) e o grafo de código mostram módulos bem
-  separados (server/, state/, database/, core/); não há dívida estrutural urgente.
+Todos os slots capturam ≈ acaso (C1: 18.9%; C2/C3: 13.5%). O preditor de força não está
+agregando edge mensurável em nenhuma região, em nenhum sentido.
 
----
+**A2 — region_efficiency: cw 83.9% · ccw 89.7%; viés de C1 ≈ 0 (−0.03/+0.01 posições).**
+A geometria 7+5+5 captura 84–90% do teto a posteriori — o posicionamento relativo é
+razoável e **não há erro sistemático de força**. O problema não é "onde" apostamos: a
+distribuição de Δ(result, C1) é ≈ uniforme → **não há sinal explorável na relação
+força→resultado dos dados atuais**. Recalibrar offsets renderia no máximo ~10–16% de
+densidade extra (gap até o teto), que ainda é ≈ acaso.
 
-## 6. Ordem de execução sugerida
+**A3 — Assimetria é EPISÓDICA, não estrutural:** CW melhor em apenas 35/79 sessões
+(44.3% — alterna); gap médio 14.5pp; 28/79 sessões com gap ≥ 15pp. Consistente com o
+Achado 1 (estado adaptativo herdado entre dealers) → **B1 (reset de verdade) é o fix
+certo** e está implantado. B3 (modulação por volatilidade) fica em observação pós-B1.
 
-```
-Dia 1:  P0.4 (hardening SSH+fw, 40min) → P0.1 (wal-g + dump SQLite + restore-teste)
-Dia 2:  P0.2 (alembic prod + deploy script) → P0.3 (CI verde)
-Dia 3+: P1.1 (DEAL live debug com operador) → P1.2 (joblib) → decisão P1.3 (AGE: usar ou remover)
-Semana 2: P2.1 (bisect NEW-09 com tráfego acumulado) → P2.2..6
-```
+**Sanity do PROFIT-LEDGER:** EV reconstruído pelo script = −1.055u/aposta (≈ −1.107 do
+10/06 ✓) e CUT v1 simulada = −0.228u/aposta (≈ −0.19 do walk-forward ✓) — fórmula do
+ledger validada contra duas análises independentes. CUT v1 corta ~78% da perda → ON.
 
-Racional da ordem: **proteger o dado → destravar o schema → recuperar visibilidade (CI) →
-reabrir o funil de dados (DEAL) → só então otimizar o modelo.** Cada item de P2 fica
-estritamente atrás do seu pré-requisito de P0/P1 — implementar antes disso é construir
-sobre areia.
+**Conclusão executiva:** pipeline sólido, estratégia sem edge sobre RNG nos dados atuais.
+Ações corretas já tomadas: parar a sangria (B5 ON), eliminar contaminação entre dealers
+(B1), instrumentar a pergunta P5 continuamente (B2). A única hipótese de EV>0 que resta é
+**bias físico de dealer/mesa** (C4, rebaixado mas documentado) — ou o Plano B (§7).
 
 ---
 
-## 7. Riscos aceitos conscientemente
-- Imagens de observabilidade defasadas (2 anos) — mitigado por bind exclusivo em localhost.
-- `passwordauthentication` continuará até validar acesso por chave de TODOS os dispositivos
-  do operador (não trancar a porta com a chave dentro).
-- AGE permanece instalado até a decisão de produto do P1.3.
+## 3. Trilha B — Execução da estratégia (mudanças cirúrgicas, flag-guarded)
+
+### B1 — Reset de verdade no botão de dealer (P10) — **primeira mudança de código**
+- Criar `SDA17Strategy.reset_adaptive()`: zera `_sigmoid_off`, `cw_history`/`ccw_history`,
+  `_recent_hits`, contadores de batch tune, cooldowns e drift freeze → volta ao prior
+  genérico (P8) e re-arma o warmup de 2 jogadas por sentido (P9).
+- Chamar em `handle_new_session` logo após `reset_session()`; expurgar as chaves SDA de
+  `game_state._adaptive_state`.
+- Teste de aceitação: pós-reset, a 1ª jogada de cada sentido usa fallback SDA-19 e offsets
+  = default (10/10).
+- Logar evento `strategy_reset` no DNA para medir o efeito nas janelas futuras.
+- Flag desnecessária — é o comportamento que o owner já espera do botão.
+
+### B2 — Instrumentar atribuição por região no fluxo vivo (versão live do A1)
+- `check_prediction()`/`store_prediction()`: persistir `hit_slot` e `Δ(result, C1)` por
+  decisão (migração 0009 + DNA feature `hit_region`).
+- Aproveitar os conjuntos `c1_nbrs/c2_nbrs/c3_nbrs` que `_pct_sigmoid_update` já calcula
+  e hoje descarta (custo ~zero).
+- A partir daí o sistema responde P5 **continuamente**, sem análise manual.
+
+### B3 — Adaptação modulada pela volatilidade do sentido (P7 sem violar P8) — gate: A3
+- Manter UMA estratégia genérica; modular apenas a **velocidade** de adaptação pelo estado
+  do sentido (ex.: `SIGMOID_SCALE`/`lr_batch` efetivos em função da variância recente das
+  forças daquele sentido — o batch tune já moduliza lr por volatilidade, é estender).
+- Nada de parâmetro fixo por direção (P8). O sentido "difícil" se auto-regula mais devagar
+  ou mais rápido conforme os próprios dados (P6).
+- Gate duplo: A3 indicar assinatura de sub/over-adaptação no sentido errático **e** A4
+  (walk-forward por sentido) aprovar.
+
+### B4 — `region_bandit` ligado ao dado real — gate: B2 acumular
+- `choose_region` (SP-18) hoje decide com buckets de *offset*; religar com `hit_region`
+  real (atribuição B2). Gate: ≥20 amostras por região por sentido. Não bloqueia nada.
+
+### B5 — CUT-POLICY v1 + PROFIT-LEDGER — aplicar JÁ (decisão com dados atuais, P1)
+- `score ≥ 4 & gale ≤ 2 & nunca N=19`: única política consistente nos dois períodos do
+  walk-forward (−1.33→−0.19 treino; −0.78→−0.19 teste; corta ~80% da sangria). Flag
+  `PROFIT_CUT_V1`.
+- PROFIT-LEDGER: `pnl_units` por decisão no `check_prediction`/repo + `sessions.total_profit`
+  + gauge `roleta_session_pnl` — pré-requisito para auditar qualquer leitura de EV em prod.
+- Stop-loss automático −30u/sessão + investigar as 49 janelas `orphan` de `gale_windows`.
+- (Herdado do plano de 10/06 §6 — continua válido sob as novas premissas.)
+
+---
+
+## 4. Trilha C — Fluxo de dados mínimo para sustentar A e B (lente P3)
+
+| # | Item | Porquê | Esforço |
+|---|---|---|---|
+| C1 | `alembic upgrade head` em prod (0006→0008) + step de alembic no `roleta-deploy-pull.sh` | B2 precisa da migração 0009; sem alembic no deploy ela nunca chega a prod; `decision_dna` PG não existe lá hoje | 0.5d |
+| C2 | CI verde: 1 linha `alembic upgrade head` no `ci.yml` pós-bootstrap (causa: `UndefinedTable cw.spins_vectors`) | Trilha B muda código de estratégia — sem CI confiável é voo cego; main vermelho desde 27/05 | 0.5h |
+| C3 | Backup do `decisions.db` (dump diário `sqlite3 .backup` + rotação 7d) e religar wal-g (morto desde 25/05) | P1 manda decidir com os dados atuais — eles são **insubstituíveis** e hoje têm zero backup | 0.5d |
+| C4 | DEAL capture (dealer/table reais) | **REBAIXADO**: o botão manual de reset (P10) já segmenta as janelas por dealer no fluxo da estratégia; dealer automático vira oportunidade futura (offset prior por dealer), não bloqueador | — |
+
+---
+
+## 5. Sequência executiva
+
+```
+D0 (hoje):  C2 (CI verde, 1 linha) · C1 (alembic prod) · C3 (backup) · kickoff A1/A2/A3
+D1–D2:      A1+A2 prontos → 1º veredito sobre P5 (as 3 regiões são as melhores?)
+            B1 (reset fix) implementado + testado · B5 (CUT-POLICY v1 + ledger) em prod
+D3:         A3 pronto → diagnóstico do sentido errático (estrutural × episódico × herdado)
+D4–D5:      B2 (instrumentação live de hit_region, migração 0009)
+depois:     B3/B4 somente com aprovação de A3/A4 (walk-forward, por sentido)
+```
+
+Dependências: A1–A3 não dependem de nada (rodam offline hoje). B1 não depende de A.
+B2 depende de C1 (migração). B3/B4 dependem de A3/A4/B2. B5 não depende de nada.
+
+---
+
+## 6. O que explicitamente NÃO fazer
+
+- **Segurança/hardening** (P2 — descartado; achados preservados em `server_snapshot/08_seguranca.md`).
+- **Especializar parâmetros por sentido** — viola P8; adaptação é por estado, nunca por config.
+- **Esperar tráfego novo para decidir** — viola P1; análise é offline, prod só audita.
+- **Otimizar/decidir por hit rate** — KPI é EV/aposta (breakeven depende de N coberto).
+- **Filtro por hora do dia** — overfit comprovado no walk-forward.
+- **Mexer na geometria 7+5+5** sem A2 indicar — P4 é premissa, não hipótese.
+- AGE (schemas vazios → remover quando tocar no compose), VECTOR/autoencoder (adiar),
+  OTel/SP-32 (zero impacto), coverage ramp (oportunista), novas features de ML antes de
+  A1–A3 responderem P5/P7.
+
+---
+
+## 7. Evidência — números que sustentam este plano (SQLite 10/06, n=3996 com DNA)
+
+- **O sistema nunca mediu lucro:** `sessions.total_profit = 0.0` em 151/151 sessões →
+  PROFIT-LEDGER incluído no B5.
+- **EV real reconstruído:** −1.107u/aposta (−4.9% do stake de 91.003u) — pior que aleatório
+  (−2.7%), porque a martingale concentra stake nos piores momentos e a config N=19 é tóxica
+  (−3.10/aposta; breakeven 52.8% vs hit real 47.4%).
+- **Hit por profundidade de gale:** 87.9% → 73.9 → 69.2 → 57.0 → 50.6% (play 1→5) —
+  fundamenta `gale ≤ 2`. Gale 3 = −6.60/aposta; gale 2 em N=17 = +1.02.
+- **Offsets:** sem offset 47.78% (n=2028) vs sigmoid 46.17% (n=1878) — confounding temporal
+  possível; **A2 (oracle de offsets) decide com o histórico**, sem A/B novo (P1).
+- **Walk-forward:** `score≥4 & gale≤2 & N≠19` é a única política consistente (−0.19/−0.19
+  por aposta nos dois períodos); filtro por hora = overfit (+1.81 → −2.09).
+- **Por sentido:** atribuição de acerto por região **não existe ainda** → A1 é o desbloqueio
+  de toda a linha P5/P7.
+- score 4 = sweet spot (−0.32); score 6 = saturado/tóxico (−6.22, n=36); `tr_confidence`
+  inútil para EV ('alta' −1.23 vs 'baixa' +0.02).
+
+**Plano B estratégico** (inalterado): se nem com regiões otimizadas houver EV>0, o ativo —
+pipeline tempo-real, extensão, DNA, observabilidade — vira produto de análise/disciplina
+de banca para terceiros; PROFIT-LEDGER (B5) é pré-requisito desse pivô também.
+
+---
 
 ## Apêndice — evidências coletadas em 10/06
+
 - Grafo do servidor: `server_snapshot/graphify-out/graph.html` (66 nodes, 92 edges, 7 communities)
 - Inventário: `server_snapshot/0[1-8]_*.md`
 - CI failing: runs `26490411079` (main, 27/05) — `UndefinedTable cw.spins_vectors`
@@ -178,3 +269,6 @@ sobre areia.
   calibration fill pós-27/05 = 89/129 (69%)
 - PG: cw.spins_vectors=816, ccw=831, spin_features=531/533, outbox processed=2706/failed=0
 - wal-g: último `DONE` em 2026-05-25T04:30Z
+- Auditoria de código 12/06: `sda17.py` (geometria/warmup/isolamento ✅), `state/game.py`
+  `reset_session()` (não zera SDA17 — Achado 1), `check_prediction()` (hit binário apenas —
+  Achado 2), `server/message_handler.py` `handle_new_session` (não chama reset da estratégia)

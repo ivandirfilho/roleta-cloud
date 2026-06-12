@@ -183,20 +183,25 @@ class SDA17Strategy(StrategyBase):
         # BUG-E5: Fallback SDA-19 quando <2 forças válidas (v4.3: 5→2)
         # Ativado apenas na primeiríssima jogada de cada sentido.
         # Usa 1 centro (mediana) + 9 vizinhos = 19 números contíguos (~51% da roda).
+        # B5 CUT-POLICY v1 (12/06): N=19 é tóxico (breakeven 52.8% vs hit real
+        # 47.4% → −3.10u/aposta); sob a flag o fallback vira N=21 (raio 10,
+        # breakeven 58.3% vs hit real 57.6% — quase neutro).
         if len(valid_forces) < 2:
+            _fb_radius = self._fallback_radius()
+            _fb_label = f"SDA-{2 * _fb_radius + 1}"
             c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
-            numbers = sorted(self.get_neighbors(c1, 9, wheel_sequence))
+            numbers = sorted(self.get_neighbors(c1, _fb_radius, wheel_sequence))
             return StrategyResult(
                 should_bet=True,
                 numbers=numbers,
                 center=c1,
                 score=pred_info.get("score", 3),
-                visual=f"[{c1}] (SDA-19)",
+                visual=f"[{c1}] ({_fb_label})",
                 details={
                     "forces": forces,
                     "predicted_force": predicted_force,
                     "original_prediction": original_force,
-                    "method": "fallback_sda19",
+                    "method": f"fallback_{_fb_label.lower().replace('-', '')}",
                     "centers": [c1],
                     "forces_used": {"median": predicted_force},
                     "unique_count": len(numbers),
@@ -269,6 +274,18 @@ class SDA17Strategy(StrategyBase):
             }
         )
     
+    def _fallback_radius(self) -> int:
+        """B5 CUT-POLICY v1 (12/06): raio do fallback de 1 centro.
+
+        N=19 (raio 9) é tóxico — breakeven 52.8% vs hit real 47.4% =
+        −3.10u/aposta. Sob a flag, fallback usa raio 10 (N=21, quase neutro).
+        """
+        try:
+            from app_config.settings import profit_cut_v1_enabled
+            return 10 if profit_cut_v1_enabled() else 9
+        except Exception:
+            return 9
+
     def _predict_robust(self, forces: List[int]) -> Tuple[int, Dict[str, Any]]:
         """
         Pipeline robusto: IQR → Weighted Median → Drift.
@@ -1007,6 +1024,51 @@ class SDA17Strategy(StrategyBase):
                                 except (ValueError, TypeError):
                                     continue
                         self._batch_acc_history[dk] = validated
+
+    def reset_adaptive(self) -> Dict[str, Any]:
+        """B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).
+
+        Premissa P10 do owner: o botão de nova sessão deve fazer a estratégia
+        "começar de novo" genérica (P8) e re-armar o warmup de 2 jogadas por
+        sentido (P9). Antes deste fix, handle_new_session zerava GameState mas
+        o SDA17 mantinha offsets/históricos aprendidos — o dealer novo herdava
+        o tuning do anterior (causa mecânica plausível da assimetria cw×ccw).
+
+        Returns:
+            Snapshot do estado descartado (para log/auditoria).
+        """
+        discarded = {
+            "cw_history_len": len(self.cw_history),
+            "ccw_history_len": len(self.ccw_history),
+            "sigmoid_off": dict(self._sigmoid_off),
+            "recent_hits_cw": len(self._recent_hits.get("cw", [])),
+            "recent_hits_ccw": len(self._recent_hits.get("ccw", [])),
+            "batch_runs_total": dict(self._batch_runs_total),
+        }
+        self.cw_history = []
+        self.ccw_history = []
+        self._last_offset = {}
+        self._sigmoid_off = {}
+        self._recent_hits = {"cw": [], "ccw": []}
+        self._cooldown = {
+            "cw":  {"c2": 0, "c3": 0},
+            "ccw": {"c2": 0, "c3": 0},
+        }
+        self._drift_freeze = {"cw": 0, "ccw": 0}
+        self._mg_resets = {"cw": 0, "ccw": 0}
+        self._pending_spins = {"cw": 0, "ccw": 0}
+        self._last_tune_ts = {"cw": 0.0, "ccw": 0.0}
+        self._batch_acc_history = {"cw": [], "ccw": []}
+        self._batch_pullback_total = {"cw": 0, "ccw": 0}
+        self._batch_runs_total = {"cw": 0, "ccw": 0}
+        self._batch_last_action = {"cw": "init", "ccw": "init"}
+        self._batch_last_delta = {"cw": 0.0, "ccw": 0.0}
+        logger.info(
+            "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",
+            discarded["cw_history_len"], discarded["ccw_history_len"],
+            len(discarded["sigmoid_off"]),
+        )
+        return discarded
 
     def get_batch_tune_snapshot(self) -> Dict[str, Any]:
         """S-STRAT-7 — snapshot leve para /api/batch_tune."""

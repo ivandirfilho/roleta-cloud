@@ -66,6 +66,14 @@ _SHADOW_PROVIDER = None  # type: ignore[var-annotated]
 _CALIBRATION_PROVIDER = None  # type: ignore[var-annotated]
 _WHEEL_DIST_PROVIDER = None  # type: ignore[var-annotated]
 _DNA_REALIZE_PROVIDER = None  # type: ignore[var-annotated]
+# B5 PROFIT-LEDGER (12/06): provider de P&L por sessão.
+_PNL_PROVIDER = None  # type: ignore[var-annotated]
+
+
+def set_pnl_provider(provider) -> None:
+    """B5 (12/06): registra provider de P&L (session_pnl_stats do repo)."""
+    global _PNL_PROVIDER
+    _PNL_PROVIDER = provider
 
 
 def set_dna_realize_provider(provider) -> None:
@@ -162,6 +170,9 @@ if _METRICS_AVAILABLE:
             # SP-29 OBS-01 (27/05): DNA realize lag (alerta se >300s sustentado).
             "dna_unrealized": Gauge("roleta_dna_unrealized_count", "Features DNA sem realized_lift_pp/hit"),
             "dna_realize_lag": Gauge("roleta_dna_realize_lag_seconds", "Segundos desde a mais antiga feature DNA sem realize"),
+            # B5 PROFIT-LEDGER (12/06): P&L real — KPI de decisão é EV, não hit rate.
+            "session_pnl": Gauge("roleta_session_pnl_units", "P&L da sessão corrente (unidades; payout 36:1, stake distribuído por N)"),
+            "all_time_pnl": Gauge("roleta_all_time_pnl_units", "P&L acumulado (soma de decisions.pnl_units)"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -267,6 +278,11 @@ def _refresh_custom_metrics() -> None:
             dr = _DNA_REALIZE_PROVIDER() or {}
             _PROM_METRICS["dna_unrealized"].set(float(dr.get("unrealized", 0) or 0))
             _PROM_METRICS["dna_realize_lag"].set(float(dr.get("lag_seconds", 0) or 0))
+        # B5 PROFIT-LEDGER (12/06): P&L da sessão + acumulado.
+        if _PNL_PROVIDER is not None:
+            pnl = _PNL_PROVIDER() or {}
+            _PROM_METRICS["session_pnl"].set(float(pnl.get("current_session_pnl", 0.0) or 0.0))
+            _PROM_METRICS["all_time_pnl"].set(float(pnl.get("all_time_pnl", 0.0) or 0.0))
     except Exception:  # noqa: BLE001
         try:
             _PROM_METRICS["scrape_errors"].inc()

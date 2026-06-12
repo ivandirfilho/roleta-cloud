@@ -53,6 +53,8 @@ grafana-agent/config.yml
 
 # ----------------- Dados de Produção (Danger Zone) -
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 log_de_apostas*.txt

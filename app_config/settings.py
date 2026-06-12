@@ -36,3 +36,23 @@ class Settings(BaseSettings):
     shadow_auto_promote_enabled: bool = Field(default=False, validation_alias="SHADOW_AUTO_PROMOTE_ENABLED")
 
 settings = Settings()
+
+
+def profit_cut_v1_enabled() -> bool:
+    """B5 CUT-POLICY v1 (12/06) — única política consistente no walk-forward
+    (treino −1.33→−0.19, teste −0.78→−0.19 por aposta): score>=4, gale<=2,
+    nunca N=19 (fallback vira N=21). Default ON; desligar com PROFIT_CUT_V1=0.
+
+    Lido por chamada (não cacheado) para permitir toggle em testes.
+    """
+    import os
+    return os.environ.get("PROFIT_CUT_V1", "1").strip().lower() not in ("0", "false", "off")
+
+
+def profit_stop_loss_units() -> float:
+    """B5 — stop-loss automático por sessão (unidades). 0 desliga. Default 30."""
+    import os
+    try:
+        return float(os.environ.get("PROFIT_STOP_LOSS_UNITS", "30"))
+    except ValueError:
+        return 30.0

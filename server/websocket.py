@@ -232,6 +232,36 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"dna_realize_provider_register_failed: {_e}")
 
 
+# B5 PROFIT-LEDGER (12/06): provider de P&L por sessão para Prometheus.
+try:
+    from server.health_server import set_pnl_provider as _set_pnl_p
+    import time as _time_pnl
+
+    _pnl_cache = {"ts": 0.0, "val": {"current_session_pnl": 0.0, "all_time_pnl": 0.0}}
+
+    def _pnl_snapshot():
+        """Cache de 30s — evita query a cada scrape /metrics."""
+        now = _time_pnl.time()
+        if now - _pnl_cache["ts"] < 30.0:
+            return _pnl_cache["val"]
+        try:
+            repo = db_service.repository
+            if hasattr(repo, "session_pnl_stats"):
+                val = repo.session_pnl_stats()
+            else:
+                val = {"current_session_pnl": 0.0, "all_time_pnl": 0.0}
+            _pnl_cache["val"] = val
+            _pnl_cache["ts"] = now
+            return val
+        except Exception:
+            return _pnl_cache["val"]
+
+    _set_pnl_p(_pnl_snapshot)
+    logger.info("pnl_provider_registered for B5 PROFIT-LEDGER")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"pnl_provider_register_failed: {_e}")
+
+
 # S-OBS-8: provider de saúde do estado adaptativo persistido em /api/state
 try:
     from server.health_server import set_state_provider as _set_state_p

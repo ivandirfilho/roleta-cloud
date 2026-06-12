@@ -64,6 +64,12 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
 
+      # C2 (12/06): main vermelho desde 27/05 — bootstrap criava schemas mas
+      # nunca aplicava migrations → UndefinedTable cw.spins_vectors em
+      # tests/test_cdc_worker.py. Mesma causa-raiz do drift em prod (P0.2).
+      - name: Apply alembic migrations
+        run: alembic upgrade head
+
       - name: Run tests with coverage (SP-34 CI-02)
         # Threshold 50% inicial — eleva-se gradualmente até 75% via SP-34 ramp.
         # core/ + state/ + database/ devem ter >=75%; outros caminhos toleram menos.

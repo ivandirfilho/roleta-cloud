@@ -27,7 +27,9 @@
     "dealer",
     "dealer_table",
     "provider",
-    "round_id"
+    "round_id",
+    "result_region",
+    "pnl_units"
   ],
   "pg_only_allowed": [
     "last_20_hits",

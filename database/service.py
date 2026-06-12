@@ -140,18 +140,29 @@ class DatabaseService:
         return self.repository.save_decision(decision)
 
     def update_result(self, decision_id: int, hit: bool, actual_number: int,
-                       calibration_error: Optional[int] = None):
+                       calibration_error: Optional[int] = None,
+                       result_region: Optional[str] = None):
         """Atualiza resultado de uma decisão.
 
         B-10 (26/05): kwarg calibration_error agora é propagado para o
         repository. Antes era engolido por TypeError silencioso, deixando
         decisions.calibration_error 0/N filled mesmo após B-09 corrigir
         o pending['centers'].
+        B2 (12/06): result_region propagado pela mesma razão (lição B-10).
         """
         self.repository.update_result(
             decision_id, hit, actual_number,
             calibration_error=calibration_error,
+            result_region=result_region,
         )
+
+    def get_session_pnl(self, session_id: str) -> float:
+        """B5: P&L da sessão (stop-loss). Nunca quebra o fluxo de decisão."""
+        try:
+            return self.repository.get_session_pnl(session_id)
+        except Exception as e:
+            logger.warning(f"get_session_pnl falhou: {e}")
+            return 0.0
 
     def update_session_stats(self, session_id: str):
         """Recalcula stats da sessão a partir das decisions."""

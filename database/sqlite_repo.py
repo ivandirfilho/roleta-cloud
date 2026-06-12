@@ -343,6 +343,17 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
                 logger.info("Migration SP-13: added dealer/dealer_table/provider/round_id to decisions")
 
+            # B2+B5 (12/06): result_region = slot onde o resultado caiu
+            # (C1/C2/C3/miss — pergunta P5 do owner); pnl_units = P&L real
+            # da decisão (PROFIT-LEDGER — sistema nunca tinha medido lucro).
+            try:
+                conn.execute("SELECT result_region FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN result_region TEXT")
+                conn.execute("ALTER TABLE decisions ADD COLUMN pnl_units REAL")
+                conn.commit()
+                logger.info("Migration B2/B5 12/06: added result_region, pnl_units to decisions")
+
             # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
             # Enum oficial observado em prod: 'streak', 'reset', 'info'.
             # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
@@ -440,7 +451,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             conn.close()
     
     def update_result(self, decision_id: int, hit: bool, actual_number: int,
-                       calibration_error: Optional[int] = None) -> None:
+                       calibration_error: Optional[int] = None,
+                       result_region: Optional[str] = None) -> None:
         """Atualiza o resultado de uma decisão.
 
         Args:
@@ -451,22 +463,105 @@ class SQLiteDecisionRepository(DecisionRepository):
                 previsto e o número real (sprint W-02 + B-08 — 26/05/2026).
                 Quando None, a coluna não é atualizada para preservar valor
                 histórico (ex.: backfill).
+            result_region: B2 (12/06) — slot onde o resultado caiu
+                ('C1'/'C2'/'C3'/'miss'). None preserva valor existente.
+
+        B5 PROFIT-LEDGER (12/06): calcula pnl_units da decisão (stake total
+        gale_bet_value distribuído pelos N números, payout 36:1) e agrega em
+        sessions.total_profit — coluna que existia desde janeiro e NUNCA
+        tinha sido escrita (0.0 em 151/151 sessões).
         """
         conn = self._get_connection()
         try:
-            if calibration_error is None:
-                conn.execute("""
-                    UPDATE decisions
-                    SET result_hit = ?, result_actual = ?
-                    WHERE id = ?
-                """, (hit, actual_number, decision_id))
-            else:
-                conn.execute("""
-                    UPDATE decisions
-                    SET result_hit = ?, result_actual = ?, calibration_error = ?
-                    WHERE id = ?
-                """, (hit, actual_number, int(calibration_error), decision_id))
+            sets = ["result_hit = ?", "result_actual = ?"]
+            params: list = [hit, actual_number]
+            if calibration_error is not None:
+                sets.append("calibration_error = ?")
+                params.append(int(calibration_error))
+            if result_region is not None:
+                sets.append("result_region = ?")
+                params.append(str(result_region))
+
+            # B5: P&L exato — aposta de gale_bet_value distribuída por N
+            # números; hit paga 36× a fração do número; miss perde tudo.
+            pnl: Optional[float] = None
+            session_id: Optional[str] = None
+            try:
+                row = conn.execute(
+                    "SELECT final_action, sda_numbers, gale_bet_value, session_id "
+                    "FROM decisions WHERE id = ?",
+                    (decision_id,),
+                ).fetchone()
+                if row:
+                    final_action, sda_numbers_json, bet_value, session_id = row
+                    if (final_action or "") == "APOSTAR" and bet_value:
+                        try:
+                            n_numbers = len(json.loads(sda_numbers_json or "[]"))
+                        except (ValueError, TypeError):
+                            n_numbers = 0
+                        if n_numbers > 0:
+                            stake = float(bet_value)
+                            pnl = round(
+                                stake * (36.0 / n_numbers - 1.0) if hit else -stake,
+                                4,
+                            )
+            except sqlite3.OperationalError as _pnl_e:
+                logger.warning(f"pnl_units skipped (schema?): {_pnl_e}")
+
+            if pnl is not None:
+                sets.append("pnl_units = ?")
+                params.append(pnl)
+
+            params.append(decision_id)
+            conn.execute(
+                f"UPDATE decisions SET {', '.join(sets)} WHERE id = ?", params
+            )
+            if pnl is not None and session_id:
+                conn.execute(
+                    "UPDATE sessions SET total_profit = COALESCE(total_profit, 0) + ? "
+                    "WHERE id = ?",
+                    (pnl, session_id),
+                )
             conn.commit()
+        finally:
+            conn.close()
+
+    def get_session_pnl(self, session_id: str) -> float:
+        """B5: P&L acumulado de uma sessão (para stop-loss)."""
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT COALESCE(total_profit, 0) FROM sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+            return float(row[0]) if row else 0.0
+        finally:
+            conn.close()
+
+    def session_pnl_stats(self) -> dict:
+        """B5: snapshot de P&L para o gauge Prometheus roleta_session_pnl.
+
+        Returns:
+            dict: current_session_id, current_session_pnl, all_time_pnl.
+        """
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT id, COALESCE(total_profit, 0) FROM sessions "
+                "ORDER BY start_time DESC LIMIT 1"
+            ).fetchone()
+            try:
+                total = conn.execute(
+                    "SELECT COALESCE(SUM(pnl_units), 0) FROM decisions"
+                ).fetchone()
+                all_time = float(total[0]) if total else 0.0
+            except sqlite3.OperationalError:
+                all_time = 0.0
+            return {
+                "current_session_id": row[0] if row else None,
+                "current_session_pnl": float(row[1]) if row else 0.0,
+                "all_time_pnl": all_time,
+            }
         finally:
             conn.close()
 

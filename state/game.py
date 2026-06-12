@@ -73,6 +73,15 @@ class MartingaleState:
             max_gale = 1
         if score < 3:
             max_gale = 1
+
+        # B5 CUT-POLICY v1 (12/06): gale máx 2 — gale 3 custa −6.60u/aposta
+        # (hit 44.9% no dobro do stake); walk-forward valida gale<=2.
+        try:
+            from app_config.settings import profit_cut_v1_enabled
+            if profit_cut_v1_enabled():
+                max_gale = min(max_gale, 2)
+        except Exception:
+            pass
         
         # Regra 2 — Anti-Martingale: streak global decide escalação
         streak = self.global_consecutive_hits
@@ -213,6 +222,12 @@ class GameState:
     # Pendente: última sugestão para verificar no próximo spin
     # Inclui bet_placed=True/False para saber se realmente apostou
     pending_prediction: Dict[str, Any] = field(default_factory=dict)
+
+    # B2 (12/06): atribuição do último resultado por região (C1/C2/C3/miss)
+    # + distância circular assinada até C1. Preenchido por check_prediction;
+    # consumido pelo message_handler para persistir em decisions.result_region
+    # e na DNA feature hit_region. Não persiste no state.json (efêmero).
+    last_hit_attribution: Optional[Dict[str, Any]] = field(default=None)
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -365,6 +380,17 @@ class GameState:
         
         # Verificar se acertou
         hit = actual_number in numbers
+
+        # B2 (12/06): classificar EM QUAL região o resultado caiu (P5).
+        # Antes só existia o hit binário — impossível saber se C2/C3 pagam
+        # os 10 números que custam. Prioridade C1 > C2 > C3 (mesma regra do
+        # feedback sigmoid em sda17._pct_sigmoid_update).
+        try:
+            self.last_hit_attribution = self._attribute_hit_region(
+                pred.get("centers") or [], numbers, actual_number, hit
+            )
+        except Exception:  # noqa: BLE001 — atribuição nunca quebra o fluxo
+            self.last_hit_attribution = None
         
         # Calibração removida (momentum desabilitado)
         
@@ -421,6 +447,64 @@ class GameState:
         self.pending_prediction = {}
         
         return hit
+
+    @staticmethod
+    def _attribute_hit_region(centers: List[int], numbers: List[int],
+                              actual_number: int, hit: bool) -> Dict[str, Any]:
+        """B2 (12/06) — Atribui o resultado a uma região da jogada (P5).
+
+        Geometria SDA17: centers = [C1, C2, C3]; raios fixos (3, 2, 2) =
+        7+5+5 = 17 números. Fallbacks (SDA-19/21, early-session) têm centers
+        = [c1] e a região inteira conta como C1.
+
+        Returns:
+            dict com:
+              slot: 'C1' | 'C2' | 'C3' | 'miss'
+              dist_c1: distância circular ASSINADA result→C1 (−18..+18,
+                       positivo no sentido da sequência da roda)
+              dist_min: menor distância circular até qualquer centro
+        """
+        wheel = list(roulette.WHEEL_SEQUENCE)
+        size = len(wheel)
+        pos = {n: i for i, n in enumerate(wheel)}
+
+        def _signed(frm: int, to: int) -> Optional[int]:
+            if frm not in pos or to not in pos:
+                return None
+            d = (pos[to] - pos[frm]) % size
+            return d - size if d > size // 2 else d
+
+        out: Dict[str, Any] = {"slot": "miss", "dist_c1": None, "dist_min": None}
+        if not centers:
+            return out
+
+        c1 = centers[0]
+        out["dist_c1"] = _signed(c1, actual_number)
+
+        dists = []
+        for c in centers:
+            sd = _signed(c, actual_number)
+            if sd is not None:
+                dists.append(abs(sd))
+        if dists:
+            out["dist_min"] = min(dists)
+
+        if not hit:
+            return out
+
+        # Raios por slot (C1=3, C2=2, C3=2). Com 1 centro só (fallback),
+        # qualquer hit nos numbers é C1.
+        radii = [3, 2, 2]
+        for idx, c in enumerate(centers[:3]):
+            sd = _signed(c, actual_number)
+            radius = radii[idx] if idx < len(radii) else 2
+            if sd is not None and abs(sd) <= radius:
+                out["slot"] = f"C{idx + 1}"
+                return out
+        # Hit fora dos raios padrão: fallback N=19/21 (centers=[c1]) conta
+        # como C1; com 3 centros não deveria ocorrer → 'unattributed'.
+        out["slot"] = "C1" if len(centers) == 1 else "unattributed"
+        return out
     
     # _circular_diff e _update_calibration removidos (momentum desabilitado)
     
