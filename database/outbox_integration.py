@@ -307,10 +307,24 @@ def maybe_publish_dna_feature(
 ) -> bool:
     """P3.1 (12/06) — espelha 1 feature DNA para shared.decision_dna via outbox.
 
-    Gap confirmado na validação E2E: a tabela PG nasceu na migração 0008 mas
-    o dna_logger só gravava SQLite. Mesmo guard-rail dos demais hooks:
-    flag dual_write_pg + NUNCA levanta.
+    INCIDENT 12/06 21:16: publicação agora é ASSÍNCRONA (fila + worker
+    daemon) — 4-8 features por decisão não podem custar round-trips PG no
+    caminho crítico do spin (stall de 9.6s observado com conexão idle).
+    Fila cheia → descarta (telemetria é best-effort; SQLite é a fonte).
     """
+    return _dna_enqueue("feature", {
+        "decision_id": decision_id,
+        "feature_name": feature_name,
+        "feature_value": feature_value,
+        "spin_number": spin_number,
+        "direction": direction,
+        "final_action": final_action,
+        "hit": hit,
+        "wheel_dist": wheel_dist,
+    })
+
+
+def _publish_dna_feature_sync(item: dict) -> bool:
     _m_hook_called.inc()
     try:
         if not _is_flag_enabled("dual_write_pg"):
@@ -322,18 +336,18 @@ def maybe_publish_dna_feature(
             return False
         payload = {
             "event_type": "dna_feature",
-            "decision_id": int(decision_id),
-            "feature_name": str(feature_name),
-            "feature_value": feature_value,
-            "spin_number": spin_number,
-            "direction": _normalize_direction(direction or "") or direction,
-            "final_action": final_action,
-            "hit": hit,
-            "wheel_dist": wheel_dist,
+            "decision_id": int(item["decision_id"]),
+            "feature_name": str(item["feature_name"]),
+            "feature_value": item["feature_value"],
+            "spin_number": item.get("spin_number"),
+            "direction": _normalize_direction(item.get("direction") or "") or item.get("direction"),
+            "final_action": item.get("final_action"),
+            "hit": item.get("hit"),
+            "wheel_dist": item.get("wheel_dist"),
         }
         pub.publish(
             aggregate="dna",
-            aggregate_id=f"{decision_id}:{feature_name}",
+            aggregate_id=f"{item['decision_id']}:{item['feature_name']}",
             payload=payload,
         )
         _m_hook_published.inc()
@@ -341,7 +355,7 @@ def maybe_publish_dna_feature(
     except Exception as exc:  # noqa: BLE001
         _m_hook_skipped.labels(reason="exception").inc()
         logger.error("dna_feature_publish_failed decision_id=%s feature=%s exc=%s",
-                     decision_id, feature_name, type(exc).__name__)
+                     item.get("decision_id"), item.get("feature_name"), type(exc).__name__)
         return False
 
 
@@ -352,7 +366,16 @@ def maybe_publish_dna_realized(
     wheel_dist: int | None = None,
     realized_lift_pp: float | None = None,
 ) -> bool:
-    """P3.1 (12/06) — espelha o realize (hit/wheel_dist) do DNA para o PG."""
+    """P3.1 (12/06) — espelha o realize do DNA para o PG (assíncrono)."""
+    return _dna_enqueue("realized", {
+        "decision_id": decision_id,
+        "hit": hit,
+        "wheel_dist": wheel_dist,
+        "realized_lift_pp": realized_lift_pp,
+    })
+
+
+def _publish_dna_realized_sync(item: dict) -> bool:
     _m_hook_called.inc()
     try:
         if not _is_flag_enabled("dual_write_pg"):
@@ -364,14 +387,14 @@ def maybe_publish_dna_realized(
             return False
         payload = {
             "event_type": "dna_realized",
-            "decision_id": int(decision_id),
-            "hit": hit,
-            "wheel_dist": wheel_dist,
-            "realized_lift_pp": realized_lift_pp,
+            "decision_id": int(item["decision_id"]),
+            "hit": item.get("hit"),
+            "wheel_dist": item.get("wheel_dist"),
+            "realized_lift_pp": item.get("realized_lift_pp"),
         }
         pub.publish(
             aggregate="dna",
-            aggregate_id=f"{decision_id}:realized",
+            aggregate_id=f"{item['decision_id']}:realized",
             payload=payload,
         )
         _m_hook_published.inc()
@@ -379,5 +402,44 @@ def maybe_publish_dna_realized(
     except Exception as exc:  # noqa: BLE001
         _m_hook_skipped.labels(reason="exception").inc()
         logger.error("dna_realized_publish_failed decision_id=%s exc=%s",
-                     decision_id, type(exc).__name__)
+                     item.get("decision_id"), type(exc).__name__)
+        return False
+
+
+# ---- Fila assíncrona do DNA (INCIDENT 12/06: fora do caminho crítico) ----
+import queue as _queue
+
+_DNA_QUEUE: "_queue.Queue[tuple[str, dict]]" = _queue.Queue(maxsize=500)
+_dna_worker_started = False
+_dna_worker_lock = threading.Lock()
+
+
+def _dna_worker() -> None:
+    while True:
+        kind, item = _DNA_QUEUE.get()
+        try:
+            if kind == "feature":
+                _publish_dna_feature_sync(item)
+            else:
+                _publish_dna_realized_sync(item)
+        except Exception:  # noqa: BLE001 — worker nunca morre
+            pass
+        finally:
+            _DNA_QUEUE.task_done()
+
+
+def _dna_enqueue(kind: str, item: dict) -> bool:
+    global _dna_worker_started
+    if not _dna_worker_started:
+        with _dna_worker_lock:
+            if not _dna_worker_started:
+                threading.Thread(
+                    target=_dna_worker, daemon=True, name="dna-outbox-worker"
+                ).start()
+                _dna_worker_started = True
+    try:
+        _DNA_QUEUE.put_nowait((kind, item))
+        return True
+    except _queue.Full:
+        _m_hook_skipped.labels(reason="queue_full").inc()
         return False

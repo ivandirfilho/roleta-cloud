@@ -29,18 +29,28 @@ class TestDnaHooks(unittest.TestCase):
 
     def test_flag_off_returns_false(self):
         with patch.object(oi, "_is_flag_enabled", return_value=False):
-            self.assertFalse(oi.maybe_publish_dna_feature(1, "hit_region", {"raw": "C1"}))
-            self.assertFalse(oi.maybe_publish_dna_realized(1, hit=True))
+            self.assertFalse(oi._publish_dna_feature_sync(
+                {"decision_id": 1, "feature_name": "hit_region", "feature_value": {"raw": "C1"}}))
+            self.assertFalse(oi._publish_dna_realized_sync({"decision_id": 1, "hit": True}))
+
+    def test_enqueue_is_nonblocking_and_returns_true(self):
+        """INCIDENT 12/06: hooks públicos só enfileiram (nunca tocam PG no caller)."""
+        with patch.object(oi, "_publish_dna_feature_sync") as sync_mock:
+            ok = oi.maybe_publish_dna_feature(1, "hit_region", {"raw": "C1"})
+            self.assertTrue(ok)
+            oi._DNA_QUEUE.join()  # worker consome
+        sync_mock.assert_called_once()
 
     def test_feature_payload_shape(self):
         pub = MagicMock()
         with patch.object(oi, "_is_flag_enabled", return_value=True), \
              patch.object(oi, "_get_publisher", return_value=pub):
-            ok = oi.maybe_publish_dna_feature(
-                42, "hit_region", {"raw": "C2", "dist_c1": 3},
-                spin_number=17, direction="horario", final_action="APOSTAR",
-                hit=True, wheel_dist=2,
-            )
+            ok = oi._publish_dna_feature_sync({
+                "decision_id": 42, "feature_name": "hit_region",
+                "feature_value": {"raw": "C2", "dist_c1": 3},
+                "spin_number": 17, "direction": "horario",
+                "final_action": "APOSTAR", "hit": True, "wheel_dist": 2,
+            })
         self.assertTrue(ok)
         kw = pub.publish.call_args.kwargs
         self.assertEqual(kw["aggregate"], "dna")
@@ -55,7 +65,8 @@ class TestDnaHooks(unittest.TestCase):
         pub = MagicMock()
         with patch.object(oi, "_is_flag_enabled", return_value=True), \
              patch.object(oi, "_get_publisher", return_value=pub):
-            ok = oi.maybe_publish_dna_realized(42, hit=False, wheel_dist=7)
+            ok = oi._publish_dna_realized_sync(
+                {"decision_id": 42, "hit": False, "wheel_dist": 7})
         self.assertTrue(ok)
         kw = pub.publish.call_args.kwargs
         self.assertEqual(kw["aggregate_id"], "42:realized")
@@ -64,8 +75,9 @@ class TestDnaHooks(unittest.TestCase):
 
     def test_hooks_never_raise(self):
         with patch.object(oi, "_is_flag_enabled", side_effect=RuntimeError("boom")):
-            self.assertFalse(oi.maybe_publish_dna_feature(1, "x", {}))
-            self.assertFalse(oi.maybe_publish_dna_realized(1, hit=True))
+            self.assertFalse(oi._publish_dna_feature_sync(
+                {"decision_id": 1, "feature_name": "x", "feature_value": {}}))
+            self.assertFalse(oi._publish_dna_realized_sync({"decision_id": 1, "hit": True}))
 
 
 class TestCdcDnaHandlers(unittest.TestCase):

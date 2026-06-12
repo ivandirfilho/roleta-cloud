@@ -45,9 +45,28 @@ class OutboxPublisher:
 
     def _ensure_conn(self) -> Any:
         if self._conn is None or self._conn.closed:
-            self._conn = psycopg2.connect(self.dsn)
+            # INCIDENT 12/06 21:16: conexão TCP half-open após idle longo
+            # travou o caminho crítico por 9.6s. connect_timeout limita o
+            # handshake; keepalives matam conexões mortas em ~30s de idle
+            # (em vez de stall no primeiro execute).
+            self._conn = psycopg2.connect(
+                self.dsn,
+                connect_timeout=3,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=10,
+                keepalives_count=3,
+            )
             self._conn.autocommit = True
         return self._conn
+
+    def _reset_conn(self) -> None:
+        try:
+            if self._conn is not None and not self._conn.closed:
+                self._conn.close()
+        except Exception:  # noqa: BLE001
+            pass
+        self._conn = None
 
     def publish(
         self,
@@ -62,16 +81,25 @@ class OutboxPublisher:
         ON CONFLICT (event_uuid) DO NOTHING garante idempotencia.
         """
         evt_uuid = event_uuid or str(uuid.uuid4())
-        conn = self._ensure_conn()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO shared.outbox (event_uuid, aggregate, aggregate_id, payload)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (event_uuid) DO NOTHING;
-                """,
-                (evt_uuid, aggregate, aggregate_id, Json(payload)),
-            )
+        # Retry-once com reset: OperationalError em conexão idle/morta não
+        # pode custar mais que 1 reconnect (INCIDENT 12/06).
+        for attempt in (1, 2):
+            try:
+                conn = self._ensure_conn()
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO shared.outbox (event_uuid, aggregate, aggregate_id, payload)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (event_uuid) DO NOTHING;
+                        """,
+                        (evt_uuid, aggregate, aggregate_id, Json(payload)),
+                    )
+                return evt_uuid
+            except psycopg2.OperationalError:
+                self._reset_conn()
+                if attempt == 2:
+                    raise
         return evt_uuid
 
     def publish_spin_features(
