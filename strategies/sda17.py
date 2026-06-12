@@ -127,6 +127,11 @@ class SDA17Strategy(StrategyBase):
             "cw": {"c1": None, "c2": None, "c3": None},
             "ccw": {"c1": None, "c2": None, "c3": None},
         }
+        # Auditoria r3: nº de amostras por slot — evita ler EMA jovem como sinal.
+        self._region_err_n: Dict[str, Dict[str, int]] = {
+            "cw": {"c1": 0, "c2": 0, "c3": 0},
+            "ccw": {"c1": 0, "c2": 0, "c3": 0},
+        }
         # Config TOML — carregada uma vez (singleton).
         self._cfg = get_strategy_config()
     
@@ -622,16 +627,24 @@ class SDA17Strategy(StrategyBase):
         return d - ws if d > ws // 2 else d
 
     def _update_region_err_ema(self, dk: str, c1: int, c2: int, c3: int,
-                               actual_result: int) -> None:
+                               actual_result: int,
+                               include_satellites: bool = True) -> None:
         """MELHORIA-G (12/06): EMA do erro assinado até CADA centro proposto.
 
         Sinal positivo = resultado caiu adiante do centro (sentido da
         sequência da roda); negativo = atrás. EMA estável ≠ 0 numa região
         indica viés sistemático daquele setor naquele sentido — insumo do
         futuro controlador por região (só entra com aprovação walk-forward).
+
+        Args:
+            include_satellites: False quando C2/C3 não foram realmente
+                propostos (fallback de calibração) — só C1 alimenta a série.
         """
         a = self.REGION_ERR_EMA_ALPHA
-        for slot, center in (("c1", c1), ("c2", c2), ("c3", c3)):
+        slots = [("c1", c1)]
+        if include_satellites:
+            slots += [("c2", c2), ("c3", c3)]
+        for slot, center in slots:
             sd = self._circ_signed(center, actual_result)
             if sd is None:
                 continue
@@ -639,12 +652,20 @@ class SDA17Strategy(StrategyBase):
             self._region_err_ema[dk][slot] = (
                 float(sd) if cur is None else (1.0 - a) * cur + a * float(sd)
             )
+            self._region_err_n[dk][slot] = self._region_err_n[dk].get(slot, 0) + 1
 
-    def get_region_err_snapshot(self) -> Dict[str, Dict[str, Optional[float]]]:
-        """Snapshot da EMA de erro por região (telemetria /api/strategy)."""
+    def get_region_err_snapshot(self) -> Dict[str, Dict[str, Any]]:
+        """Snapshot da EMA de erro por região + nº de amostras (telemetria).
+
+        Auditoria r3: o ``n`` evita leituras enganosas — EMA com 2-3 amostras
+        é praticamente o valor cru do último spin.
+        """
         return {
-            dk: {k: (round(v, 3) if v is not None else None)
-                 for k, v in self._region_err_ema.get(dk, {}).items()}
+            dk: {
+                **{k: (round(v, 3) if v is not None else None)
+                   for k, v in self._region_err_ema.get(dk, {}).items()},
+                "n": dict(self._region_err_n.get(dk, {})),
+            }
             for dk in ("cw", "ccw")
         }
 
@@ -690,6 +711,7 @@ class SDA17Strategy(StrategyBase):
         if centers and len(centers) >= 3:
             # Centros REAIS da aposta avaliada (BUG-B fix).
             c2, c3 = int(centers[1]), int(centers[2])
+            _centers_are_real = True
         else:
             # Legado: deriva dos offsets efetivos atuais.
             o2_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2)))
@@ -700,6 +722,7 @@ class SDA17Strategy(StrategyBase):
             ws = len(self._wheel)
             c2 = self._wheel[(c1_idx + o2) % ws]
             c3 = self._wheel[(c1_idx - o3) % ws]
+            _centers_are_real = False
         c1_nbrs = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
         c2_nbrs = set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
         c3_nbrs = set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
@@ -714,8 +737,14 @@ class SDA17Strategy(StrategyBase):
         # ---- MELHORIA-G (12/06): EMA do erro circular ASSINADO por região ----
         # Telemetria pura (não atua nos offsets — controlador é gated por A4).
         # Responde continuamente: "cada região está torta para que lado?"
+        # Auditoria r3: C2/C3 só entram quando foram PROPOSTOS de verdade
+        # (centers reais) — no fallback de calibração os derivados não foram
+        # apostados e contaminariam a série. C1 é sempre real.
         try:
-            self._update_region_err_ema(dk, c1, c2, c3, actual_result)
+            self._update_region_err_ema(
+                dk, c1, c2, c3, actual_result,
+                include_satellites=_centers_are_real,
+            )
         except Exception:  # noqa: BLE001 — telemetria nunca quebra feedback
             pass
 
@@ -968,6 +997,7 @@ class SDA17Strategy(StrategyBase):
             "mg_resets": self._mg_resets,
             # MELHORIA-G (12/06): EMA de erro por região (telemetria).
             "region_err_ema": self._region_err_ema,
+            "region_err_n": self._region_err_n,
             # S-STRAT-7 — batch tune state (versão dict para forward-compat).
             "batch_tune_state": {
                 "version": 1,
@@ -1057,6 +1087,16 @@ class SDA17Strategy(StrategyBase):
                             continue
                         try:
                             self._region_err_ema[dk][slot] = float(v)
+                        except (ValueError, TypeError):
+                            pass
+        raw_rn = state.get("region_err_n", {})
+        if isinstance(raw_rn, dict):
+            for dk in ("cw", "ccw"):
+                sub = raw_rn.get(dk, {})
+                if isinstance(sub, dict):
+                    for slot in ("c1", "c2", "c3"):
+                        try:
+                            self._region_err_n[dk][slot] = max(0, int(sub.get(slot, 0)))
                         except (ValueError, TypeError):
                             pass
         # S-STRAT-7: restaurar batch tune state (backward-compat: ausente → defaults).
@@ -1160,6 +1200,10 @@ class SDA17Strategy(StrategyBase):
         self._region_err_ema = {
             "cw": {"c1": None, "c2": None, "c3": None},
             "ccw": {"c1": None, "c2": None, "c3": None},
+        }
+        self._region_err_n = {
+            "cw": {"c1": 0, "c2": 0, "c3": 0},
+            "ccw": {"c1": 0, "c2": 0, "c3": 0},
         }
         logger.info(
             "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",

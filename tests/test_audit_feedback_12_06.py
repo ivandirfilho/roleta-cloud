@@ -212,5 +212,40 @@ class TestBugLStopLossNoLag(unittest.TestCase):
         self.assertEqual(last["aposta"], 1)
 
 
+class TestAuditR3Fixes(unittest.TestCase):
+    """Auditoria r3 (12/06): coerência das mudanças do dia entre si."""
+
+    def test_fallback_does_not_pollute_satellite_ema(self):
+        """Fallback (centers=[c1]): C2/C3 NÃO foram propostos → EMA só de C1."""
+        s = SDA17Strategy()
+        c1 = 0
+        coverage = sorted(roulette.get_neighbors(c1, 10))  # N=21 calibração
+        s.update_adaptive("cw", c1, _at(c1, 5), WHEEL,
+                          coverage=coverage, centers=[c1])
+        snap = s.get_region_err_snapshot()
+        self.assertEqual(snap["cw"]["c1"], 5.0)
+        self.assertIsNone(snap["cw"]["c2"], "C2 derivado não foi apostado")
+        self.assertIsNone(snap["cw"]["c3"], "C3 derivado não foi apostado")
+        self.assertEqual(snap["cw"]["n"], {"c1": 1, "c2": 0, "c3": 0})
+
+    def test_sample_counter_tracks_and_resets(self):
+        s = SDA17Strategy()
+        c1 = 0
+        centers = [c1, _at(c1, 10), _at(c1, -10)]
+        cov = sorted(roulette.get_neighbors(c1, 3))
+        for _ in range(3):
+            s.update_adaptive("ccw", c1, _at(c1, 2), WHEEL,
+                              coverage=cov, centers=centers)
+        snap = s.get_region_err_snapshot()
+        self.assertEqual(snap["ccw"]["n"], {"c1": 3, "c2": 3, "c3": 3})
+        # roundtrip persistência
+        s2 = SDA17Strategy()
+        s2.load_adaptive_state(s.get_adaptive_state())
+        self.assertEqual(s2._region_err_n["ccw"]["c1"], 3)
+        # reset B1 zera contadores junto
+        s.reset_adaptive()
+        self.assertEqual(s._region_err_n["ccw"], {"c1": 0, "c2": 0, "c3": 0})
+
+
 if __name__ == "__main__":
     unittest.main()

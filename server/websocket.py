@@ -81,6 +81,7 @@ try:
             "sigmoid_off": adp.get("sigmoid_off", {}),
             # MELHORIA-G (12/06): EMA do erro assinado por região/sentido.
             "region_err_ema": adp.get("region_err_ema", {}),
+            "region_err_n": adp.get("region_err_n", {}),
             "recent_acc": {
                 "cw_last_100": _acc(recent_hits.get("cw", [])),
                 "ccw_last_100": _acc(recent_hits.get("ccw", [])),

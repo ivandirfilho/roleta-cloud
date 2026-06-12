@@ -198,6 +198,9 @@ class MessageHandler:
 
         # Log da predição pendente antes de verificar
         # BUG-AUDIT-002 FIX: Ler pending DENTRO do lock para evitar race condition
+        # Auditoria r3 (12/06): flag LOCAL por mensagem — atributo de instância
+        # podia vazar True entre spins se exceção ocorresse entre uso e reset.
+        result_updated_this_spin = False
         async with self.state_lock:
             pending = self.game_state.pending_prediction
             if pending:
@@ -332,7 +335,7 @@ class MessageHandler:
                     except Exception as exc:  # noqa: BLE001
                         logger.error("spin_result_hook_raise exc=%s", exc)
                     # Evita dupla atualização no bloco de logging adiante.
-                    self._result_already_updated = True
+                    result_updated_this_spin = True
                 except Exception as _ur_e:  # noqa: BLE001
                     logger.error(f"update_result (pre-gate) falhou: {_ur_e}")
 
@@ -554,7 +557,7 @@ class MessageHandler:
             # Atualizar resultado da decisão anterior — já feito no pre-gate
             # (BUG-L 12/06); mantém fallback se aquele caminho falhou.
             if (self.last_decision_id and hit_result is not None
-                    and not getattr(self, "_result_already_updated", False)):
+                    and not result_updated_this_spin):
                 _cal_err = wheel_dist_val if 'wheel_dist_val' in locals() else None
                 _hit_attr = getattr(self.game_state, "last_hit_attribution", None) or {}
                 _region_slot = _hit_attr.get("slot")
@@ -563,7 +566,6 @@ class MessageHandler:
                     calibration_error=_cal_err,
                     result_region=_region_slot,
                 )
-            self._result_already_updated = False
 
             # Salvar nova decisão
             decision = Decision(
