@@ -1,10 +1,84 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.3.2  
-> **Data da Análise:** 02/04/2026  
-> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid v4.3.2)  
+> **Versão do Software:** 4.4.0  
+> **Data da Análise:** 02/04/2026 · **Atualizado:** 12/06/2026 (ver ADENDO)  
+> **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid) + ciclo 24/05→12/06  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
-> **Total de Linhas de Código:** ~5.900 (39 arquivos Python)
+> **Total de Linhas de Código:** ~119 arquivos Python ativos · 48 arquivos de teste (374 testes)
+
+---
+
+## ADENDO 12/06/2026 — Estado de conformidade após o ciclo 24/05→12/06
+
+> As PARTES I–VI abaixo retratam a v4.3.2 (02/04) e permanecem como baseline
+> histórica. Este adendo registra o delta real verificado em 12/06 — muito do
+> que constava como gap foi resolvido nos ciclos 24/05–27/05 (PG stack, CI,
+> observabilidade) e 10/06–12/06 (lucro/regiões/INV-3).
+
+### A. Gaps de 02/04 RESOLVIDOS (verificados no código em 12/06)
+
+| Item (02/04) | Resolução | Evidência |
+|---|---|---|
+| CI vazio (MEL-ISO-002, 7.5) | ✅ `ci.yml` matrix 3.11/3.12/3.13 + PG service + alembic + coverage gate 50% + 3 linters; **verde em main desde 12/06** | `.github/workflows/ci.yml`; run 27434340714 |
+| Sem migrations (MEL-ISO-003, 7.4) | ✅ Alembic 0001..0008 (PG) + auto-migrations SQLite; deploy roda `alembic upgrade head` com rollback | `migrations/versions/`; `scripts/roleta-deploy-pull.sh` |
+| Sem circuit breaker (MEL-ISO-004) | ✅ `_SQLiteCircuitBreaker` (CLOSED/OPEN/HALF_OPEN) | `database/sqlite_repo.py:22-90` |
+| `str(e)` vazava ao cliente (BUG-POST-004 / MEL-ISO-001) | ✅ ISO-S2: cliente recebe mensagem opaca + trace_id; detalhe só server-side | `server/message_handler.py:159-171`; `tests/test_error_output_sanitize.py` |
+| `GameState.load()` silencioso (BUG-POST-007 / MEL-ISO-010) | ✅ Loga erro + salva `state.json.corrupted` antes do fallback | `state/game.py:1220-1229` |
+| Colunas "mortas" calibration_* (BUG-POST-006) | ✅ Reclassificado: `calibration_error` agora É o wheel_dist por decisão (W-02/B-08, fill-rate monitorado NEW-12) | `server/message_handler.py`; gauge `roleta_calibration_fill_rate_1h` |
+| Cobertura/testes "5 arquivos, ~105 testes" (7.3/7.5) | ✅ 48 arquivos, **374 passed** (integração real do handler incluída) | `pytest -q` 12/06 |
+| Schema DDL manual (7.4) | ✅ + guarda de drift: snapshot vivo × manifest SQLite↔PG falha o CI se divergir (SP-04) | `tests/test_schema_parity.py`; `database/schema_parity_manifest.json` |
+| Observabilidade só logs/trace | ✅ Prometheus (40+ métricas custom), Alertmanager (12+ regras), Grafana local+Cloud, gap-check textfile | `server/health_server.py`; `obs/alerts.yml` |
+
+### B. Capacidades NOVAS com impacto ISO (não existiam em 02/04)
+
+| Capacidade | Característica ISO | Evidência |
+|---|---|---|
+| PG stack espelho (cw/ccw/shared) via outbox→CDC, dual-write defensivo | Confiabilidade / Compatibilidade | `database/outbox_*`, `workers/cdc_worker.py` |
+| PROFIT-LEDGER: `pnl_units`/decisão + `sessions.total_profit` + gauges P&L | Adequação Funcional (KPI=EV) | `database/sqlite_repo.py::update_result`; `roleta_session_pnl_units` |
+| INV-3 global: indicação sempre; vetos modulam stake (CUT v1, stop-loss) | Adequação Funcional / Usabilidade | `server/message_handler.py` (gates 12/06); P11 |
+| Reset TOTAL da estratégia no botão de dealer (`reset_adaptive`) | Adequação Funcional (P10) | `strategies/sda17.py::reset_adaptive` |
+| Medição por região: `result_region` + `dist_c1/c2/c3` + `region_err_ema` (gauge) | Analisabilidade | `state/game.py::_attribute_hit_region`; `roleta_region_err_ema` |
+| Feedback adaptativo consome a APOSTA REAL (coverage/centers do pending) | Confiabilidade (anti classe BUG-B) | `strategies/sda17.py::update_adaptive` |
+| Lints de regressão: silent-except baseline, DNA coverage, schema symmetry | Manutenibilidade | `tools/lint_*.py`; `scripts/schema_symmetry.py` |
+| Pipeline deploy pull-based c/ alembic+healthcheck+rollback; backup diário SQLite + wal-g 30min (ressuscitado 12/06) | Confiabilidade / Portabilidade | `scripts/roleta-deploy-pull.sh`, `scripts/backup-decisions.sh` |
+| DNA por decisão (features+realized lift) p/ análise contrafactual | Analisabilidade | `database/dna_logger.py`; `decision_dna` |
+
+### C. Scorecard revisado (12/06)
+
+| # | Característica | 02/04 | 12/06 | Justificativa |
+|:-:|---|:---:|:---:|---|
+| 1 | Adequação Funcional | 9.0 | **9.2** | INV-3/P11, reset P10, ledger de P&L real |
+| 2 | Eficiência | 8.7 | **8.7** | inalterado (375ms/spin medido em prod) |
+| 3 | Compatibilidade | 7.0 | **7.5** | PG espelho + APIs HTTP de introspecção (`/api/strategy`, `/metrics`); falta REST de comando/AsyncAPI |
+| 4 | Usabilidade | 8.2 | **8.2** | inalterado |
+| 5 | Confiabilidade | 8.5 | **8.8** | circuit breaker, outbox, backups testados, deploy c/ rollback |
+| 6 | Segurança | 6.5 | **6.5*** | *fora de escopo por diretriz do owner (10/06); achados preservados em `server_snapshot/08_seguranca.md` |
+| 7 | Manutenibilidade | 8.0 | **8.6** | CI verde, migrations, parity guard, 374 testes, lints de regressão |
+| 8 | Portabilidade | 8.2 | **8.4** | deploy automatizado + restore path documentado |
+
+**Nota geral: 8.0 → 8.5/10.** (Segurança congelada por decisão de produto, não por incapacidade.)
+
+### D. Gaps REAIS remanescentes (manutenibilidade — ordenados por impacto)
+
+1. **`server/message_handler.py` ~1000 LOC** — `handle_new_result` concentra
+   pipeline inteiro (decisão+gates+stake+persistência+overlay). Mitigado por
+   testes de integração (12/06), mas a extração de um `DecisionPipeline` puro
+   continua sendo a maior dívida de modificabilidade. *(herda o 7.1/7.4)*
+2. **Coverage gate em 50%** — ramp planejado 50→75 (SP-34.1) ainda não executado;
+   `server/` segue como área de menor cobertura unitária.
+3. **AGE instalado sem uso** — schemas de grafo vazios; decisão tomada (remover e
+   voltar a `pgvector/pgvector:pg15` oficial) pendente de execução. Imagem 1GB.
+4. **`models/spin_autoencoder.joblib` untracked no servidor** — hazard de `git clean`
+   (mover a volume + `.gitignore`).
+5. **Restore drill não executado** — backups existem (SQLite diário + wal-g 30min)
+   mas o restore nunca foi ensaiado ponta-a-ponta (`walg-restore-drill.sh` pronto).
+6. **AsyncAPI/REST de comando** — protocolo WS segue sem spec formal (7.0→7.5 só
+   pela introspecção HTTP).
+7. **DeprecationWarnings** — `datetime.utcnow()` (139 avisos na suite) e
+   `websockets.legacy`; baratos de sanar, zero risco funcional.
+
+> Rastreabilidade completa do ciclo: `proximos_passos_10_06.md` (premissas P1–P12,
+> trilhas A/B/C, auditorias 12/06 r1/r2) e `analise_regioes_12_06.md` (A1–A3).
 
 ---
 
@@ -1031,10 +1105,10 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 | BUG-POST-001 | `main.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | Banner agora lê `VERSION` dinamicamente | 44 |
 | BUG-POST-002 | `server/websocket.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | `logging.basicConfig()` removido — usa `core/logging_config.py` | 24-31 |
 | BUG-POST-003 | `server/extractor_service.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | Typo `"Carragados"` → `"Carregados"` corrigido | 27 |
-| BUG-POST-004 | `server/message_handler.py` | 🟡 Média | `str(e)` em `ErrorOutput` pode vazar info interna (paths, stack) para o cliente | 128 |
+| BUG-POST-004 | `server/message_handler.py` | ~~🟡 Média~~ ✅ CORRIGIDO | `str(e)` em `ErrorOutput` vazava info interna — ISO-S2: mensagem opaca + trace_id (`test_error_output_sanitize.py`) | 159-171 |
 | BUG-POST-005 | `server/connection_manager.py` | ~~🟡 Média~~ ✅ CORRIGIDO | Grace period task agora é criada DENTRO do `async with master_lock` | 154 |
-| BUG-POST-006 | `database/sqlite_repo.py` | 🔵 Baixa | Colunas mortas `calibration_offset` e `calibration_error` no schema — consumem espaço sem uso | 110-111 |
-| BUG-POST-007 | `state/game.py` | 🔵 Baixa | `GameState.load()` captura `Exception` genérica e retorna estado vazio silenciosamente — pode mascarar erros de parsing | 501 |
+| BUG-POST-006 | `database/sqlite_repo.py` | ~~🔵 Baixa~~ ✅ RECLASSIFICADO | `calibration_error` deixou de ser morta: é o wheel_dist por decisão (W-02/B-08 26/05), com fill-rate monitorado (NEW-12) | — |
+| BUG-POST-007 | `state/game.py` | ~~🔵 Baixa~~ ✅ CORRIGIDO | `GameState.load()` agora loga o erro e preserva `state.json.corrupted` antes do fallback | 1220-1229 |
 | BUG-POST-008 | `server/connection_manager.py` | ~~🔴 Crítico~~ ✅ CORRIGIDO | Grace period não cancelado no CASO 2 — race condition podia causar duplo master (28/03 TASK-01) | 85-90 |
 | BUG-MG-001 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | SmartGale v4 ignorava streaks reais — separação por direção impedia detecção de sequências cross-direction (28/03 SmartGale v5) | 52-72 |
 | BUG-MG-002 | `state/game.py` | ~~🟡 Médio~~ ✅ CORRIGIDO | c4_rate threshold 0.25 excessivamente agressivo — bloqueava 40% das escalações sem justificativa (ajustado para 0.15) | 61 |
@@ -1072,16 +1146,16 @@ Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias recomendadas) 
 
 | ID | Característica ISO | Melhoria | Impacto |
 |----|-------------------|----------|---------|
-| MEL-ISO-001 | Segurança | Sanitizar mensagens de erro antes de enviar ao cliente (remover paths e stack traces) | 🟡 Médio |
-| MEL-ISO-002 | Manutenibilidade | Implementar CI/CD com pytest automatizado (`.github/workflows/ci.yml` vazio) | 🟡 Médio |
-| MEL-ISO-003 | Manutenibilidade | Adicionar Alembic migrations para versionamento do schema SQLite | 🟢 Baixo |
-| MEL-ISO-004 | Confiabilidade | Circuit breaker no acesso ao SQLite — evitar falha silenciosa | 🟡 Médio |
+| MEL-ISO-001 | Segurança | ~~Sanitizar mensagens de erro~~ ✅ CORRIGIDO — ISO-S2 (mensagem opaca + trace_id) | ✅ Feito |
+| MEL-ISO-002 | Manutenibilidade | ~~Implementar CI/CD com pytest automatizado~~ ✅ CORRIGIDO — `ci.yml` matrix 3.11-13 + PG + alembic + lints; verde 12/06 | ✅ Feito |
+| MEL-ISO-003 | Manutenibilidade | ~~Adicionar Alembic migrations~~ ✅ CORRIGIDO — 0001..0008 (PG) + auto-migrations SQLite + alembic no deploy | ✅ Feito |
+| MEL-ISO-004 | Confiabilidade | ~~Circuit breaker no acesso ao SQLite~~ ✅ CORRIGIDO — `_SQLiteCircuitBreaker` | ✅ Feito |
 | MEL-ISO-005 | Compatibilidade | Expor REST API HTTP (além de WebSocket) para integração com ferramentas externas | 🟢 Baixo |
 | MEL-ISO-006 | Usabilidade | Documentação AsyncAPI para protocolo WebSocket | 🟢 Baixo |
 | MEL-ISO-007 | Eficiência | ~~Connection pooling para SQLite~~ ✅ CORRIGIDO — Conexões agora com `try/finally: conn.close()` | ✅ Feito |
 | MEL-ISO-008 | Segurança | Assinatura criptográfica de `device_id` para prevenir spoofing | 🟡 Médio |
 | MEL-ISO-009 | Manutenibilidade | ~~Ler versão de `VERSION` file em vez de hardcoded no banner~~ ✅ CORRIGIDO | ✅ Feito |
-| MEL-ISO-010 | Confiabilidade | Logging do motivo quando `GameState.load()` falha (atualmente silencioso) | 🟢 Baixo |
+| MEL-ISO-010 | Confiabilidade | ~~Logging do motivo quando `GameState.load()` falha~~ ✅ CORRIGIDO — log + backup `.corrupted` | ✅ Feito |
 | MEL-ISO-011 | Eficiência | ~~N+1 query em `get_gale_window_history()`~~ ✅ CORRIGIDO — Batch IN() query (28/03 TASK-02) | ✅ Feito |
 | MEL-ISO-012 | Eficiência | ~~I/O síncrono no event loop async~~ ✅ CORRIGIDO — `asyncio.to_thread()` em ExtractorService + heartbeat (28/03 TASK-03) | ✅ Feito |
 | MEL-ISO-013 | Manutenibilidade | ~~`_VALID_DIRECTIONS` local em `process_spin()`~~ ✅ CORRIGIDO — Movido para `ClassVar` (28/03 TASK-04) | ✅ Feito |
@@ -1154,11 +1228,11 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 
 ---
 
-> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 02/04/2026 (v4.3.2: fix encoding frontend + dead code cleanup + Martingale instant trace)  
+> **Documento gerado em:** 19/03/2026 | **Atualizado em:** 12/06/2026 (ADENDO no topo: ciclo 24/05→12/06, scorecard revisado 8.5/10, gaps remanescentes)  
 > **Analista:** Auditoria automatizada pós-implantação  
 > **Norma:** ISO/IEC 25010:2011 — Systems and Software Quality Requirements and Evaluation (SQuaRE)  
-> **Software:** Roleta Cloud v4.3.2 | ~5.900 LOC | 39 arquivos Python  
-> **Correções aplicadas:** 22 bugs em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + BUG-FE 3 bugs em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03 + 6 bug fixes audit v4.3.1 em 31/03 + **10 bugs frontend v4.3.2 em 02/04**
+> **Software:** Roleta Cloud v4.4.0 | 119 arquivos Python ativos | 48 arquivos de teste (374 testes)  
+> **Correções aplicadas:** 22 bugs em 20/03 + 12 bugs em 27/03 + 4 tasks Jules em 28/03 + SmartGale v5 em 28/03 + Pipeline fix 7 bugs em 28/03 + SmartGale v6 5 bugs em 28/03 + M15-ADA 4 bugs + C1 bold em 29/03 + BUG-FE 3 bugs em 29/03 v4.0.2 + M04 Error-Vector v4.2 em 30/03 + M02-PctSigmoid v4.3.0 em 30/03 + 6 bug fixes audit v4.3.1 em 31/03 + 10 bugs frontend v4.3.2 em 02/04 + **ciclo v4.4.0 24/05→12/06 (B-01..B-10, SP-02..35 parciais, QW-1..7, S-STRAT-1..14, auditorias 12/06 r1: 3 bugs INV-3/ledger/fallback + r2: 3 bugs feedback/center-0/stop-loss-lag)**
 
 ### Changelog de Versões
 
@@ -1170,3 +1244,4 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.3.0 | 30/03/2026 | M02-PctSigmoid (vencedor simulação 15 modelos), warmup 5→2, DEFAULT 12→10 |
 | v4.3.1 | 31/03/2026 | 6 bug fixes defensivos: race condition, json safe, wheel guard, direction validation, min_dist clamp, empty forces guard |
 | v4.3.2 | 02/04/2026 | **Auditoria frontend:** fix encoding UTF-8 (22 emojis + 7 acentos), dead code cleanup (4 refs DOM null), Martingale instant trace, cache busting, CSS responsive, Dockerfile label, null guards |
+| v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
