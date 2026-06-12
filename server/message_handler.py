@@ -266,13 +266,75 @@ class MessageHandler:
             # ★ M15-ADA: Atualizar estado adaptativo com resultado real
             if pending and hit_result is not None:
                 bet_direction = pending.get("direction", "")
-                c1_predicted = pending.get("center", 0)
-                if c1_predicted > 0:
+                # BUG-A (12/06): era `if c1_predicted > 0` — ZERO é número
+                # válido da roleta; predições com C1=0 (~2.7% dos spins)
+                # nunca alimentavam o feedback adaptativo.
+                c1_predicted = pending.get("center", None)
+                if c1_predicted is not None and bet_direction:
+                    # BUG-B (12/06): feedback aprende com a APOSTA REAL
+                    # (números/centros emitidos), não com cobertura recalculada.
                     self.strategy.update_adaptive(
-                        bet_direction, c1_predicted, numero, roulette.WHEEL_SEQUENCE
+                        bet_direction, c1_predicted, numero, roulette.WHEEL_SEQUENCE,
+                        coverage=pending.get("numbers") or None,
+                        centers=pending.get("centers") or None,
                     )
                     # Persistir estado adaptativo no GameState
                     self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+
+            # BUG-L (12/06): atualizar o resultado da decisão ANTERIOR (pnl,
+            # region, DNA) AQUI — antes dos gates B5 — para o stop-loss ler o
+            # P&L já incluindo a jogada recém-resolvida (antes havia 1 spin
+            # de atraso; visto ao vivo: gate leu -53 quando o real era -54).
+            if self.last_decision_id and hit_result is not None:
+                try:
+                    _cal_err = wheel_dist_val if 'wheel_dist_val' in locals() else None
+                    _hit_attr = getattr(self.game_state, "last_hit_attribution", None) or {}
+                    _region_slot = _hit_attr.get("slot")
+                    db_service.update_result(
+                        self.last_decision_id, hit_result, numero,
+                        calibration_error=_cal_err,
+                        result_region=_region_slot,
+                    )
+                    # SP-07: preenche realized_lift / hit / wheel_dist no DNA
+                    try:
+                        from database import dna_logger as _dna
+                        _dna.dna_update_realized(
+                            self.last_decision_id,
+                            hit=bool(hit_result),
+                            wheel_dist=_cal_err,
+                        )
+                        # B2 (12/06): feature hit_region — alimenta region_bandit
+                        # (B4) e responde P5 continuamente.
+                        if _region_slot:
+                            _dna.dna_log_feature(
+                                self.last_decision_id, "hit_region",
+                                {
+                                    "raw": _region_slot,
+                                    "bucket": _region_slot,
+                                    "dist_c1": _hit_attr.get("dist_c1"),
+                                    "dist_c2": _hit_attr.get("dist_c2"),
+                                    "dist_c3": _hit_attr.get("dist_c3"),
+                                    "dist_min": _hit_attr.get("dist_min"),
+                                },
+                                spin_number=numero,
+                                direction=(getattr(self, "last_decision_direction", None) or direcao),
+                                hit=bool(hit_result),
+                            )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    # OBS-25-01: publicar spin_result no outbox para backtest offline
+                    try:
+                        from database.outbox_integration import maybe_publish_spin_result
+                        last_dir = getattr(self, "last_decision_direction", None) or direcao
+                        maybe_publish_spin_result(
+                            self.last_decision_id, last_dir, hit_result, numero
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.error("spin_result_hook_raise exc=%s", exc)
+                    # Evita dupla atualização no bloco de logging adiante.
+                    self._result_already_updated = True
+                except Exception as _ur_e:  # noqa: BLE001
+                    logger.error(f"update_result (pre-gate) falhou: {_ur_e}")
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
@@ -489,12 +551,11 @@ class MessageHandler:
                 except Exception as init_err:
                     logger.error(f"❌ Falha criando sessão {self.current_session_id}: {init_err}")
 
-            # Atualizar resultado da decisão anterior (se existia)
-            if self.last_decision_id and hit_result is not None:
-                # W-02/B-08: wheel_dist_val pode ter sido calculado acima;
-                # se nao (sda_centers vazio), passamos None e a coluna fica intacta.
+            # Atualizar resultado da decisão anterior — já feito no pre-gate
+            # (BUG-L 12/06); mantém fallback se aquele caminho falhou.
+            if (self.last_decision_id and hit_result is not None
+                    and not getattr(self, "_result_already_updated", False)):
                 _cal_err = wheel_dist_val if 'wheel_dist_val' in locals() else None
-                # B2 (12/06): atribuição por região calculada em check_prediction.
                 _hit_attr = getattr(self.game_state, "last_hit_attribution", None) or {}
                 _region_slot = _hit_attr.get("slot")
                 db_service.update_result(
@@ -502,42 +563,7 @@ class MessageHandler:
                     calibration_error=_cal_err,
                     result_region=_region_slot,
                 )
-                # SP-07: preenche realized_lift / hit / wheel_dist no DNA
-                try:
-                    from database import dna_logger as _dna
-                    _dna.dna_update_realized(
-                        self.last_decision_id,
-                        hit=bool(hit_result),
-                        wheel_dist=_cal_err,
-                    )
-                    # B2 (12/06): feature hit_region — alimenta region_bandit
-                    # (B4) e responde P5 continuamente.
-                    if _region_slot:
-                        _dna.dna_log_feature(
-                            self.last_decision_id, "hit_region",
-                            {
-                                "raw": _region_slot,
-                                "bucket": _region_slot,
-                                "dist_c1": _hit_attr.get("dist_c1"),
-                                "dist_c2": _hit_attr.get("dist_c2"),
-                                "dist_c3": _hit_attr.get("dist_c3"),
-                                "dist_min": _hit_attr.get("dist_min"),
-                            },
-                            spin_number=numero,
-                            direction=(getattr(self, "last_decision_direction", None) or direcao),
-                            hit=bool(hit_result),
-                        )
-                except Exception:  # noqa: BLE001
-                    pass
-                # OBS-25-01: publicar spin_result no outbox para backtest offline
-                try:
-                    from database.outbox_integration import maybe_publish_spin_result
-                    last_dir = getattr(self, "last_decision_direction", None) or direcao
-                    maybe_publish_spin_result(
-                        self.last_decision_id, last_dir, hit_result, numero
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    logger.error("spin_result_hook_raise exc=%s", exc)
+            self._result_already_updated = False
 
             # Salvar nova decisão
             decision = Decision(

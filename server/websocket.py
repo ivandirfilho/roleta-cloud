@@ -79,6 +79,8 @@ try:
                 "ccw_size": game_state.timeline_ccw.size,
             },
             "sigmoid_off": adp.get("sigmoid_off", {}),
+            # MELHORIA-G (12/06): EMA do erro assinado por região/sentido.
+            "region_err_ema": adp.get("region_err_ema", {}),
             "recent_acc": {
                 "cw_last_100": _acc(recent_hits.get("cw", [])),
                 "ccw_last_100": _acc(recent_hits.get("ccw", [])),

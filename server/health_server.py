@@ -173,6 +173,8 @@ if _METRICS_AVAILABLE:
             # B5 PROFIT-LEDGER (12/06): P&L real — KPI de decisão é EV, não hit rate.
             "session_pnl": Gauge("roleta_session_pnl_units", "P&L da sessão corrente (unidades; payout 36:1, stake distribuído por N)"),
             "all_time_pnl": Gauge("roleta_all_time_pnl_units", "P&L acumulado (soma de decisions.pnl_units)"),
+            # MELHORIA-G (12/06): EMA do erro circular assinado por região.
+            "region_err_ema": Gauge("roleta_region_err_ema", "EMA do erro assinado (casas) do resultado até o centro da região", ["direction", "region"]),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -207,6 +209,15 @@ def _refresh_custom_metrics() -> None:
             sec = sg.get("seconds_since_last_spin")
             if sec is not None:
                 _PROM_METRICS["seconds_since_spin"].set(float(sec))
+            # MELHORIA-G (12/06): EMA de erro por região/sentido.
+            ree = sg.get("region_err_ema") or {}
+            for dk in ("cw", "ccw"):
+                for slot in ("c1", "c2", "c3"):
+                    v = (ree.get(dk) or {}).get(slot)
+                    if v is not None:
+                        _PROM_METRICS["region_err_ema"].labels(
+                            direction=dk, region=slot.upper()
+                        ).set(float(v))
             # S-STRAT-11: KILL v4 dynamic thresholds via strategy provider
             ks = sg.get("kill_stats") or {}
             kv4 = ks.get("kill_v4") or {}

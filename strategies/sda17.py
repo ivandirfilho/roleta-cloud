@@ -121,6 +121,12 @@ class SDA17Strategy(StrategyBase):
         self._batch_runs_total: Dict[str, int] = {"cw": 0, "ccw": 0}
         self._batch_last_action: Dict[str, str] = {"cw": "init", "ccw": "init"}
         self._batch_last_delta: Dict[str, float] = {"cw": 0.0, "ccw": 0.0}
+        # MELHORIA-G (12/06): EMA do erro circular assinado por região/sentido.
+        # Telemetria para decidir o controlador por região (gated walk-forward).
+        self._region_err_ema: Dict[str, Dict[str, Optional[float]]] = {
+            "cw": {"c1": None, "c2": None, "c3": None},
+            "ccw": {"c1": None, "c2": None, "c3": None},
+        }
         # Config TOML — carregada uma vez (singleton).
         self._cfg = get_strategy_config()
     
@@ -602,9 +608,52 @@ class SDA17Strategy(StrategyBase):
         """QW-3 — métrica de reset martingale. Chamado externamente."""
         self._mg_resets[self._dk(direction)] += 1
 
+    REGION_ERR_EMA_ALPHA = 0.2  # MELHORIA-G: suavização do erro por região
+
+    def _circ_signed(self, frm: int, to: int) -> Optional[int]:
+        """Distância circular ASSINADA frm→to (−18..+18) na roda atual."""
+        try:
+            a = self._wheel.index(frm)
+            b = self._wheel.index(to)
+        except ValueError:
+            return None
+        ws = len(self._wheel)
+        d = (b - a) % ws
+        return d - ws if d > ws // 2 else d
+
+    def _update_region_err_ema(self, dk: str, c1: int, c2: int, c3: int,
+                               actual_result: int) -> None:
+        """MELHORIA-G (12/06): EMA do erro assinado até CADA centro proposto.
+
+        Sinal positivo = resultado caiu adiante do centro (sentido da
+        sequência da roda); negativo = atrás. EMA estável ≠ 0 numa região
+        indica viés sistemático daquele setor naquele sentido — insumo do
+        futuro controlador por região (só entra com aprovação walk-forward).
+        """
+        a = self.REGION_ERR_EMA_ALPHA
+        for slot, center in (("c1", c1), ("c2", c2), ("c3", c3)):
+            sd = self._circ_signed(center, actual_result)
+            if sd is None:
+                continue
+            cur = self._region_err_ema[dk].get(slot)
+            self._region_err_ema[dk][slot] = (
+                float(sd) if cur is None else (1.0 - a) * cur + a * float(sd)
+            )
+
+    def get_region_err_snapshot(self) -> Dict[str, Dict[str, Optional[float]]]:
+        """Snapshot da EMA de erro por região (telemetria /api/strategy)."""
+        return {
+            dk: {k: (round(v, 3) if v is not None else None)
+                 for k, v in self._region_err_ema.get(dk, {}).items()}
+            for dk in ("cw", "ccw")
+        }
+
+
     # ================================================================== #
 
-    def _pct_sigmoid_update(self, direction: str, c1: int, actual_result: int) -> None:
+    def _pct_sigmoid_update(self, direction: str, c1: int, actual_result: int,
+                            coverage: Optional[List[int]] = None,
+                            centers: Optional[List[int]] = None) -> None:
         """
         M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened.
 
@@ -619,6 +668,11 @@ class SDA17Strategy(StrategyBase):
           6. Adaptação sigmoid normal (legacy)
 
         INV-1 isolado por direção (dk).
+
+        Auditoria 12/06 (BUG-B): quando ``coverage``/``centers`` da aposta
+        REAL são fornecidos, is_hit/min_dist/cooldown usam a aposta emitida
+        (não a cobertura recalculada). Fallback sem kwargs preserva o
+        comportamento legado (testes/simuladores antigos).
         """
         if not self._wheel:
             return
@@ -633,21 +687,37 @@ class SDA17Strategy(StrategyBase):
         off2 = self._sigmoid_off.get(f"{dk}_off2", float(self.BAYESIAN_DEFAULT))
         off3 = self._sigmoid_off.get(f"{dk}_off3", float(self.BAYESIAN_DEFAULT))
 
-        # Calcular cobertura atual (usa offsets EFETIVOS — mesmos vistos no analyze)
-        o2_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2)))
-        o3_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3)))
-        o2 = self._get_effective_offset(dk, "c2", o2_raw)
-        o3 = self._get_effective_offset(dk, "c3", o3_raw)
-        c1_idx = self._wheel_index(c1, self._wheel)
-        ws = len(self._wheel)
-        c2 = self._wheel[(c1_idx + o2) % ws]
-        c3 = self._wheel[(c1_idx - o3) % ws]
+        if centers and len(centers) >= 3:
+            # Centros REAIS da aposta avaliada (BUG-B fix).
+            c2, c3 = int(centers[1]), int(centers[2])
+        else:
+            # Legado: deriva dos offsets efetivos atuais.
+            o2_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2)))
+            o3_raw = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off3)))
+            o2 = self._get_effective_offset(dk, "c2", o2_raw)
+            o3 = self._get_effective_offset(dk, "c3", o3_raw)
+            c1_idx = self._wheel_index(c1, self._wheel)
+            ws = len(self._wheel)
+            c2 = self._wheel[(c1_idx + o2) % ws]
+            c3 = self._wheel[(c1_idx - o3) % ws]
         c1_nbrs = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
         c2_nbrs = set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
         c3_nbrs = set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
-        cov = c1_nbrs | c2_nbrs | c3_nbrs
+        if coverage:
+            # Cobertura REAL da aposta (inclui fallback N=19/21).
+            cov = set(coverage)
+        else:
+            cov = c1_nbrs | c2_nbrs | c3_nbrs
 
         is_hit = actual_result in cov
+
+        # ---- MELHORIA-G (12/06): EMA do erro circular ASSINADO por região ----
+        # Telemetria pura (não atua nos offsets — controlador é gated por A4).
+        # Responde continuamente: "cada região está torta para que lado?"
+        try:
+            self._update_region_err_ema(dk, c1, c2, c3, actual_result)
+        except Exception:  # noqa: BLE001 — telemetria nunca quebra feedback
+            pass
 
         # ---- (3) Alimenta buffer rolling de hits ----
         self._recent_hits[dk].append(1 if is_hit else 0)
@@ -837,11 +907,18 @@ class SDA17Strategy(StrategyBase):
             self._batch_acc_history[dk] = self._batch_acc_history[dk][-50:]
 
     def update_adaptive(self, direction: str, c1: int, actual_result: int,
-                        wheel_sequence: List[int]) -> None:
+                        wheel_sequence: List[int],
+                        coverage: Optional[List[int]] = None,
+                        centers: Optional[List[int]] = None) -> None:
         """
         Atualiza estado adaptativo após resultado conhecido.
         v4.3: Atualiza histórico + chama M02-PctSigmoid para ajustar offsets.
         Deve ser chamado APÓS check_prediction() e ANTES de analyze() do próximo spin.
+
+        Auditoria 12/06 (BUG-B): ``coverage``/``centers`` da APOSTA REAL
+        (pending_prediction). Sem eles o feedback recalculava a cobertura com
+        offsets efetivos do momento — divergia da aposta emitida no fallback
+        N=19/21 e na borda do cooldown QW-4 (aprendia com aposta inexistente).
         """
         self._wheel = wheel_sequence
         if direction in ("cw", "horario"):
@@ -854,7 +931,8 @@ class SDA17Strategy(StrategyBase):
                 self.ccw_history = self.ccw_history[-self.MAX_HISTORY:]
         
         # v4.3: M02-PctSigmoid feedback
-        self._pct_sigmoid_update(direction, c1, actual_result)
+        self._pct_sigmoid_update(direction, c1, actual_result,
+                                 coverage=coverage, centers=centers)
 
         # ============================================================
         # S-STRAT-7 — Auto-tune batch a cada 4 spins (POR SENTIDO)
@@ -888,6 +966,8 @@ class SDA17Strategy(StrategyBase):
             "cooldown": self._cooldown,
             "drift_freeze": self._drift_freeze,
             "mg_resets": self._mg_resets,
+            # MELHORIA-G (12/06): EMA de erro por região (telemetria).
+            "region_err_ema": self._region_err_ema,
             # S-STRAT-7 — batch tune state (versão dict para forward-compat).
             "batch_tune_state": {
                 "version": 1,
@@ -965,6 +1045,20 @@ class SDA17Strategy(StrategyBase):
                     self._mg_resets[dk] = max(0, int(raw_mg.get(dk, 0)))
                 except (ValueError, TypeError):
                     pass
+        # MELHORIA-G: restaurar EMA de erro por região (ausente → None).
+        raw_re = state.get("region_err_ema", {})
+        if isinstance(raw_re, dict):
+            for dk in ("cw", "ccw"):
+                sub = raw_re.get(dk, {})
+                if isinstance(sub, dict):
+                    for slot in ("c1", "c2", "c3"):
+                        v = sub.get(slot)
+                        if v is None:
+                            continue
+                        try:
+                            self._region_err_ema[dk][slot] = float(v)
+                        except (ValueError, TypeError):
+                            pass
         # S-STRAT-7: restaurar batch tune state (backward-compat: ausente → defaults).
         raw_bt = state.get("batch_tune_state", {})
         if isinstance(raw_bt, dict):
@@ -1063,6 +1157,10 @@ class SDA17Strategy(StrategyBase):
         self._batch_runs_total = {"cw": 0, "ccw": 0}
         self._batch_last_action = {"cw": "init", "ccw": "init"}
         self._batch_last_delta = {"cw": 0.0, "ccw": 0.0}
+        self._region_err_ema = {
+            "cw": {"c1": None, "c2": None, "c3": None},
+            "ccw": {"c1": None, "c2": None, "c3": None},
+        }
         logger.info(
             "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",
             discarded["cw_history_len"], discarded["ccw_history_len"],
