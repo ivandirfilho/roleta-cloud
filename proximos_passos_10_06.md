@@ -38,6 +38,16 @@
 > FINAL. Testes: `tests/test_audit_cadence_12_06.py` (cadência integração + INV-3 +
 > ledger). Suite: 367 passed.
 
+> **AUDITORIA 12/06 r2 (feedback adaptativo × medição por região, commit `bf479e3`):**
+> BUG-A `c1_predicted > 0` pulava o feedback quando C1=0 (~2.7% dos spins); BUG-B o
+> sigmoid aprendia com cobertura RECALCULADA (≠ aposta real no fallback N=21 e na borda
+> do cooldown) — agora `update_adaptive` recebe `coverage`/`centers` do pending; BUG-L
+> stop-loss lia o P&L com 1 spin de atraso — `update_result` movido para antes dos gates.
+> MELHORIA-G: EMA do erro assinado por região/sentido (`region_err_ema`) persistida,
+> zerada no reset, exposta em `/api/strategy` + gauge `roleta_region_err_ema` — telemetria
+> que decidirá o controlador por região (gated A4). Suite 374. Primeira leitura ao vivo:
+> ccw `{c1:+13.6, c2:+1.6, c3:−12.4}`.
+
 ---
 
 ## 0. Premissas do owner (12/06) — governam todo o resto
