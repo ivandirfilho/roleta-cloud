@@ -1,6 +1,6 @@
 # Próximos Passos — 12/06/2026 (noite)
 
-> **EXECUÇÃO D0/D1 (12/06 20:10 UTC):** ✅ 0.1 walk-forward INV-3 **APROVADO** (93.2%
+> **EXECUÇÃO D0/D1 (12/06 20:25 UTC):** ✅ 0.1 walk-forward INV-3 **APROVADO** (93.2%
 > treino / 90.8% teste da economia do CUT — gate ≥90% batido; EV −0.161/−0.173 por
 > aposta; bônus: ccw teste **EV+ +0.571**) · ✅ 1.2 orphans (resolvido sem ação: 1 única
 > janela in-flight; os 49 antigos já tinham sido saneados pelo ISO-S6 no boot) · ✅ 3.2
@@ -8,7 +8,14 @@
 > alertas `RoletaSessionPnlLow`+`RoletaAllTimePnlDropFast` ativos (16 rules) + dashboard
 > `roleta-profit` provisionado · ✅ 3.5 restore drill **PASS** (SQLite: integrity ok,
 > 5384 decisões; wal-g: cadeia WAL íntegra, backups 30/30min) · ✅ 4.4 joblib
-> (`.gitignore` + cópia em `/root/backups/artifacts/`).
+> (`.gitignore` + cópia em `/root/backups/artifacts/`) · ✅ **3.1 DNA→PG LIGADO**
+> (hooks outbox `dna_feature`/`dna_realized` + handlers CDC + backfill: **2051 rows**
+> em `shared.decision_dna`; cdc-worker rebuilt healthy; suite 386) · ✅ 4.6
+> DeprecationWarnings 139→4 (restam só `websockets.legacy` — upgrade de lib).
+>
+> **Restam:** 1.1 bisect EV · 1.3 backfill region (opcional) · 2.x gated (B4/controlador
+> por região/oracle contínuo — aguardando amostra) · 3.3 DEAL fix (agendar com operador)
+> · 4.1 DecisionPipeline · 4.2 coverage ramp · 4.3 remover AGE · 4.5 AsyncAPI.
 >
 > Consolidação de TUDO que está pendente após o ciclo de 12/06 (3 auditorias, 8 commits
 > `86eda30..50261d8`, suite 376, CI verde, prod healthy, validação E2E ao vivo 67/67).
