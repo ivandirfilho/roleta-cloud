@@ -71,9 +71,9 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests with coverage (SP-34 CI-02)
-        # Threshold 50% inicial — eleva-se gradualmente até 75% via SP-34 ramp.
-        # core/ + state/ + database/ devem ter >=75%; outros caminhos toleram menos.
-        run: python -m pytest tests/ -v --tb=short --cov=core --cov=state --cov=database --cov-report=term-missing --cov-fail-under=50
+        # Ramp SP-34.1: 50 → 70 (12/06; cobertura real medida: 72%).
+        # Próximo degrau: 75 quando server/ ganhar testes unitários (P4.1).
+        run: python -m pytest tests/ -v --tb=short --cov=core --cov=state --cov=database --cov-report=term-missing --cov-fail-under=70
 
       - name: DNA coverage lint (SP-10)
         run: python tools/lint_dna_coverage.py
