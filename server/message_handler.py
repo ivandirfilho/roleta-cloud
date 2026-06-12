@@ -315,10 +315,12 @@ class MessageHandler:
             "rates": {"c4": advice.c4_rate, "m6": advice.m6_rate, "l12": advice.l12_rate}
         })
 
-        # Decisão combinada: Triple Rate pode VETAR
-        # B5 (12/06): gates adicionais — CUT-POLICY v1 (apostar só score>=4,
-        # única política consistente no walk-forward) e STOP-LOSS por sessão.
-        # Registro (bet_placed=False) continua para warmup/aprendizado (P9).
+        # Decisão combinada — INV-3 GLOBAL (auditoria 12/06):
+        # Premissa do owner: a estratégia principal SEMPRE indica a melhor
+        # aposta da jogada; só não há indicação nas 2 primeiras oportunidades
+        # de cada sentido (calibração: 1ª sem dados, 2ª fallback N=21).
+        # Vetos (Triple Rate, CUT-POLICY v1 score<4, stop-loss) NÃO suprimem
+        # a indicação — modulam o STAKE (mesmo padrão do QW-1 minimizer).
         _cut_v1_active = False
         _stop_loss_active = False
         try:
@@ -330,86 +332,93 @@ class MessageHandler:
                 if _sess_pnl <= -_sl_units:
                     _stop_loss_active = True
                     logger.warning(
-                        "[B5 STOP-LOSS] sessão %s pnl=%.1f <= -%.1f — apostas suspensas",
+                        "[B5 STOP-LOSS] sessão %s pnl=%.1f <= -%.1f — stake mínimo (INV-3)",
                         self.current_session_id, _sess_pnl, _sl_units,
                     )
         except Exception as _b5_e:  # noqa: BLE001 — gate nunca quebra fluxo
             logger.warning(f"[B5] gates indisponíveis: {_b5_e}")
 
+        try:
+            _cut_frac = float(self.strategy._cfg.get("sda17.minimizer", "stake_fraction", 0.10))
+        except Exception:  # noqa: BLE001
+            _cut_frac = 0.10
+
         action_reason = ""
+        _stake_override: Optional[float] = None  # fração do base_bet (INV-3)
+        # Indicação FINAL da jogada (auditoria 12/06): o overlay e a Decision
+        # devem SEMPRE refletir o que foi indicado — inclusive no fallback de
+        # calibração. Bug pré-existente confirmado em prod: 121/121 decisões
+        # de fallback salvas com sda_numbers=[] (result.numbers vazio).
+        final_numbers = list(result.numbers or [])
+        final_center = result.center
+        final_centers = result.details.get("centers", [result.center])
+        final_score = result.score
         if result.should_bet:
-            _veto_b5 = None
+            # SmartGale v5: calcular gale ANTES de registrar (sempre — a
+            # indicação existe em toda jogada com predição).
+            mg = self.game_state.target_martingale
+            bet_c4_rate = self.game_state.get_bet_c4_rate()
+            mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
+
+            acao = "APOSTAR"
+            action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
             if _stop_loss_active:
-                _veto_b5 = "STOP-LOSS sessão (B5): apostas suspensas"
+                mg.level = 1
+                _stake_override = 0.0  # floor de 1u aplicado adiante
+                action_reason = "STOP-LOSS sessão (B5): stake mínimo 1u — indicação mantida (INV-3)"
             elif _cut_v1_active and result.score < 4:
-                _veto_b5 = f"CUT-POLICY v1: score={result.score} < 4"
-            # SDA recomenda: SEMPRE registrar para Triple Rate (bet_placed depende do veto)
-            if advice.should_bet and _veto_b5 is None:
-                # SmartGale v5: calcular gale ANTES de registrar
-                mg = self.game_state.target_martingale
-                bet_c4_rate = self.game_state.get_bet_c4_rate()
-                mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
-                
-                acao = "APOSTAR"
-                action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
-                # Registrar com bet_placed=True (realmente apostou)
-                self.game_state.store_prediction(
-                    result.numbers,
-                    self.game_state.target_direction,
-                    result.center,
-                    predicted_force=result.details.get("predicted_force", 0),
-                    bet_placed=True,
-                    tr_confidence=advice.confidence,
-                    tr_reason=advice.reason,
-                    sda_score=result.score,
-                    sda_centers=result.details.get("centers", [result.center])
-                )
-            else:
-                acao = "PULAR"
-                action_reason = _veto_b5 or f"Triple Rate vetou: {advice.reason}"
-                # SDA recomendou mas TR/B5 vetou - registrar com bet_placed=False
-                self.game_state.store_prediction(
-                    result.numbers,
-                    self.game_state.target_direction,
-                    result.center,
-                    predicted_force=result.details.get("predicted_force", 0),
-                    bet_placed=False,  # Não apostou, mas registra para análise TR
-                    tr_confidence=advice.confidence,
-                    tr_reason=advice.reason,
-                    sda_score=result.score,
-                    sda_centers=result.details.get("centers", [result.center])
-                )
+                mg.level = 1
+                _stake_override = _cut_frac
+                action_reason = f"CUT-POLICY v1: score={result.score} < 4 → stake ×{_cut_frac:.2f} (INV-3)"
+            elif not advice.should_bet:
+                mg.level = 1
+                _stake_override = _cut_frac
+                action_reason = f"Triple Rate cauteloso: {advice.reason} → stake ×{_cut_frac:.2f} (INV-3)"
+            # Registrar com bet_placed=True (a aposta É emitida; valor modulado)
+            self.game_state.store_prediction(
+                result.numbers,
+                self.game_state.target_direction,
+                result.center,
+                predicted_force=result.details.get("predicted_force", 0),
+                bet_placed=True,
+                tr_confidence=advice.confidence,
+                tr_reason=advice.reason,
+                sda_score=result.score,
+                sda_centers=result.details.get("centers", [result.center])
+            )
         else:
             acao = "PULAR"
-            action_reason = "SDA não recomendou (forças insuficientes)"
-            # Fallback early-session: timeline com dados mas SDA insuficiente → G1 seguro
+            action_reason = "Calibração: 1ª jogada do sentido (sem forças)"
+            # Fallback early-session (calibração 2): timeline com 1 força →
+            # indica N=21 G1. Nunca fica sem indicação tendo dados (INV-3).
             if self.game_state.target_timeline.size > 0:
+                mg = self.game_state.target_martingale
+                mg.level = 1
                 center = self.game_state.last_number
                 fallback_nums = sorted(
                     self.strategy.get_neighbors(center, 10, roulette.WHEEL_SEQUENCE)
                 )
-                # B5: fallback tem score=1 — não passa no gate score>=4 nem
-                # aposta sob stop-loss; registra mesmo assim (aprendizado).
-                _fb_bet = not (_cut_v1_active or _stop_loss_active)
-                if _fb_bet:
-                    mg = self.game_state.target_martingale
-                    mg.level = 1
-                    acao = "APOSTAR"
-                    action_reason = f"SDA insuficiente ({self.game_state.target_timeline.size} forças) → G1 seguro"
-                else:
-                    acao = "PULAR"
-                    action_reason = (
-                        "STOP-LOSS sessão (B5): apostas suspensas"
-                        if _stop_loss_active
-                        else "CUT-POLICY v1: fallback score=1 < 4"
-                    )
+                acao = "APOSTAR"
+                action_reason = (
+                    f"Calibração ({self.game_state.target_timeline.size} força no sentido) → N=21 G1"
+                )
+                final_numbers = list(fallback_nums)
+                final_center = center
+                final_centers = [center]
+                final_score = 1
+                if _stop_loss_active:
+                    _stake_override = 0.0
+                    action_reason += " | STOP-LOSS: stake mínimo (INV-3)"
+                elif _cut_v1_active:
+                    _stake_override = _cut_frac
+                    action_reason += f" | CUT v1: stake ×{_cut_frac:.2f} (INV-3)"
                 self.game_state.store_prediction(
                     fallback_nums, self.game_state.target_direction, center,
-                    predicted_force=0, bet_placed=_fb_bet,
+                    predicted_force=0, bet_placed=True,
                     tr_confidence="baixa", tr_reason="Fallback early-session",
                     sda_score=1, sda_centers=[center]
                 )
-            # SDA não recomendou - não há predição para verificar
+            # SDA não recomendou e timeline vazia - não há predição para verificar
 
         # Obter info do martingale da direção ALVO (para overlay)
         mg = self.game_state.target_martingale
@@ -446,6 +455,24 @@ class MessageHandler:
                 stake_info["base_bet"],
                 stake_info["effective_bet"],
                 stake_info["multiplier"],
+            )
+
+        # INV-3 (12/06): override de stake dos vetos (TR/CUT v1/stop-loss),
+        # aplicado APÓS QW-1/QW-2 — vale o MENOR stake entre os moduladores.
+        # A indicação (números/regiões) permanece intacta.
+        if acao == "APOSTAR" and _stake_override is not None:
+            _ovr = max(1, int(round(stake_info["base_bet"] * _stake_override)))
+            if _ovr < stake_info["effective_bet"]:
+                stake_info["effective_bet"] = _ovr
+                stake_info["multiplier"] = _ovr / max(1, stake_info["base_bet"])
+                stake_info["mode"] = "veto_min"
+            logger.info(
+                "[INV-3 OVERRIDE] dir=%s base=%d → effective=%d (×%.2f) — %s",
+                self.game_state.target_direction,
+                stake_info["base_bet"],
+                stake_info["effective_bet"],
+                stake_info["multiplier"],
+                action_reason,
             )
 
         # ====================================================
@@ -523,10 +550,10 @@ class MessageHandler:
                 tr_m6_rate=advice.m6_rate,
                 tr_l12_rate=advice.l12_rate,
                 sda_should_bet=result.should_bet,
-                sda_score=result.score,
-                sda_center=result.center,
-                sda_centers=result.details.get("centers", [result.center]),
-                sda_numbers=result.numbers,
+                sda_score=final_score,
+                sda_center=final_center,
+                sda_centers=final_centers,
+                sda_numbers=final_numbers,
                 sda_predicted_force=result.details.get("predicted_force", 0),
                 sda_offset=result.details.get("offset", 0),
                 sda_offset_type=result.details.get("offset_type", ""),
@@ -536,7 +563,12 @@ class MessageHandler:
                 gale_level=mg.level,
                 gale_window_hits=mg.consecutive_hits,
                 gale_window_count=mg.total_bets,
-            gale_bet_value=mg.current_bet,
+                # LEDGER FIX (auditoria 12/06): registrar o stake REAL apostado
+                # (pós QW-1/QW-2/INV-3) — antes gravava mg.current_bet (base) e
+                # o pnl_units superestimava perdas/ganhos sob modulação.
+                gale_bet_value=(
+                    stake_info["effective_bet"] if acao == "APOSTAR" else mg.current_bet
+                ),
                 calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12],
                 # SP-13 DEAL-03 (27/05): propaga metadata DOM se presente.
@@ -553,7 +585,7 @@ class MessageHandler:
             try:
                 from database import dna_logger as _dna
                 _action = "APOSTAR" if result.should_bet else "PULAR"
-                _sda_score = int(getattr(result, "score", 0) or 0)
+                _sda_score = int(final_score or 0)
                 _score_bucket = (
                     "sweet_spot" if _sda_score == 4
                     else ("high" if _sda_score >= 5 else "low")
@@ -675,9 +707,9 @@ class MessageHandler:
             "type": "sugestao",
             "data": {
                 "acao": acao,
-                "numeros": result.numbers,
-                "centro": result.center,
-                "centros": result.details.get("centers", [result.center]),
+                "numeros": final_numbers,
+                "centro": final_center,
+                "centros": final_centers,
                 "regiao": result.visual,
                 "ultimo_numero": self.game_state.last_number,
                 "confianca": {"alta": 80, "media": 50, "baixa": 20}.get(advice.confidence, 50),
@@ -715,11 +747,11 @@ class MessageHandler:
             },
             "result": {
                 "acao": acao,
-                "centro": result.center,
-                "centros": result.details.get("centers", [result.center]),
-                "score": result.score,
-                "numeros": result.numbers,
-                "unique_count": result.details.get("unique_count", len(result.numbers)),
+                "centro": final_center,
+                "centros": final_centers,
+                "score": final_score,
+                "numeros": final_numbers,
+                "unique_count": result.details.get("unique_count", len(final_numbers)),
                 "trend": result.details.get("trend", ""),
                 "offset": result.details.get("offset", 12),
                 "offset_type": result.details.get("offset_type", "fixed"),

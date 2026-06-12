@@ -24,6 +24,20 @@
 > - **B4 (region_bandit com dado real): aguardando amostra** — `hit_region` começou a
 >   acumular agora (B2 em prod); ligar quando ≥20 amostras/região/sentido pós-reset.
 
+> **AUDITORIA 12/06 (tarde) — premissas de indicação:** owner definiu que a estratégia
+> principal **nunca fica sem indicação de aposta** (exceto nas 2 primeiras oportunidades
+> de cada sentido = calibração) e que pós-reset a indicação plena começa após **2
+> resultados do sentido**. Verificado: a cadência base JÁ cumpria (1ª oportunidade sem
+> dados → PULAR; 2ª → fallback N=21 indica; 3ª+ → SDA pleno 17). **3 bugs corrigidos:**
+> (1) gates B5 de 12/06-manhã faziam PULAR (score<4/stop-loss/TR) — violava a premissa;
+> agora seguem **INV-3**: indicação sempre, stake modulado (score<4/TR → ×0.10;
+> stop-loss → 1u mínimo); (2) **ledger**: `gale_bet_value` gravava o stake BASE e não o
+> efetivo pós QW-1/QW-2/INV-3 — P&L ficava distorcido sob modulação; (3) **fallback
+> salvo/exibido com números VAZIOS** (121/121 em prod: `sda_numbers=[]`, hit nunca
+> avaliado, overlay sem indicação) — Decision/overlay/trace/DNA agora usam a indicação
+> FINAL. Testes: `tests/test_audit_cadence_12_06.py` (cadência integração + INV-3 +
+> ledger). Suite: 367 passed.
+
 ---
 
 ## 0. Premissas do owner (12/06) — governam todo o resto
@@ -40,6 +54,8 @@
 | P8 | Estratégia única, **genérica e adaptativa por jogada** — nunca especializada por sentido | Proíbe parâmetro hard-coded por direção; adaptação é por estado, não por config |
 | P9 | Fine-tuning inicial: **2 jogadas em cada sentido** | Já implementado (`BAYESIAN_WARMUP=2`) — preservar |
 | P10 | Troca de dealer → **botão manual zera a estratégia** para começar de novo | **GAP descoberto 12/06: o botão NÃO zera a estratégia** (Achado 1, fix B1) |
+| P11 | A estratégia principal **sempre indica a melhor aposta da jogada**; sem indicação SÓ nas 2 primeiras oportunidades de cada sentido (calibração) | Auditoria 12/06-tarde: gates viram modulação de stake (INV-3 global) |
+| P12 | Pós-reset: indicação **plena** (17 números) a partir de **2 resultados/forças do sentido** | Já cumprido por `min_forces=2`; coberto por teste de integração |
 
 ---
 
