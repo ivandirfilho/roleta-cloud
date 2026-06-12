@@ -123,6 +123,17 @@ def dna_log_feature(
                 conn.commit()
             finally:
                 conn.close()
+        # P3.1 (12/06): espelha para shared.decision_dna (PG) via outbox.
+        # Best-effort — nunca quebra o caminho SQLite (fonte primária).
+        try:
+            from database.outbox_integration import maybe_publish_dna_feature
+            maybe_publish_dna_feature(
+                decision_id, feature_name, feature_value,
+                spin_number=spin_number, direction=direction,
+                final_action=final_action, hit=hit, wheel_dist=wheel_dist,
+            )
+        except Exception:  # noqa: BLE001
+            pass
         return True
     except Exception:
         logger.exception("DNA: falha inserindo feature_name=%s", feature_name)
@@ -163,9 +174,20 @@ def dna_update_realized(
             try:
                 cur = conn.execute(sql, args)
                 conn.commit()
-                return cur.rowcount
+                rowcount = cur.rowcount
             finally:
                 conn.close()
+        # P3.1 (12/06): espelha realize para o PG via outbox (best-effort).
+        if rowcount:
+            try:
+                from database.outbox_integration import maybe_publish_dna_realized
+                maybe_publish_dna_realized(
+                    decision_id, hit=hit, wheel_dist=wheel_dist,
+                    realized_lift_pp=realized_lift_pp,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return rowcount
     except Exception:
         logger.exception("DNA: falha update_realized decision_id=%s", decision_id)
         return 0

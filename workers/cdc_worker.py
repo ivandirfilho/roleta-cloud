@@ -225,9 +225,73 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
     )
 
 
+def _apply_dna_feature(cur: Any, payload: dict[str, Any]) -> None:
+    """P3.1 (12/06): insere feature DNA em shared.decision_dna.
+
+    Idempotência: o outbox já deduplica por event_uuid; aqui usamos um
+    anti-duplo defensivo (decision_id+feature_name+feature_value já igual
+    não re-insere) para tolerar replays manuais.
+    """
+    decision_id = payload.get("decision_id")
+    feature_name = payload.get("feature_name")
+    if not isinstance(decision_id, int) or not feature_name:
+        raise ValueError(f"dna_feature invalido: id={decision_id!r} name={feature_name!r}")
+    feature_value = payload.get("feature_value") or {}
+    cur.execute(
+        """
+        INSERT INTO shared.decision_dna
+            (decision_id, spin_number, direction, feature_name, feature_value,
+             final_action, hit, wheel_dist)
+        SELECT %s, %s, %s, %s, %s, %s, %s, %s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM shared.decision_dna
+            WHERE decision_id = %s AND feature_name = %s
+        );
+        """,
+        (
+            decision_id,
+            payload.get("spin_number"),
+            payload.get("direction"),
+            feature_name,
+            Json(feature_value),
+            payload.get("final_action"),
+            payload.get("hit"),
+            payload.get("wheel_dist"),
+            decision_id,
+            feature_name,
+        ),
+    )
+
+
+def _apply_dna_realized(cur: Any, payload: dict[str, Any]) -> None:
+    """P3.1 (12/06): realize (hit/wheel_dist/lift) nas features da decisão."""
+    decision_id = payload.get("decision_id")
+    if not isinstance(decision_id, int):
+        raise ValueError(f"dna_realized invalido: id={decision_id!r}")
+    sets, args = [], []
+    if payload.get("hit") is not None:
+        sets.append("hit = %s")
+        args.append(bool(payload["hit"]))
+    if payload.get("wheel_dist") is not None:
+        sets.append("wheel_dist = %s")
+        args.append(int(payload["wheel_dist"]))
+    if payload.get("realized_lift_pp") is not None:
+        sets.append("realized_lift_pp = %s")
+        args.append(float(payload["realized_lift_pp"]))
+    if not sets:
+        return
+    args.append(decision_id)
+    cur.execute(
+        f"UPDATE shared.decision_dna SET {', '.join(sets)} WHERE decision_id = %s;",
+        args,
+    )
+
+
 HANDLERS = {
     "spin_features": _apply_spin_features,
     "spin_result": _apply_spin_result,
+    "dna_feature": _apply_dna_feature,
+    "dna_realized": _apply_dna_realized,
 }
 
 

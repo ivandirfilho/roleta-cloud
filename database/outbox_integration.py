@@ -292,3 +292,92 @@ def maybe_publish_spin_result(decision_id: int, direction: str, hit: bool, actua
         logger.error("spin_result_failed decision_id=%s direction=%s exc=%s error=%s",
                      decision_id, direction, type(exc).__name__, exc)
         return False
+
+
+def maybe_publish_dna_feature(
+    decision_id: int,
+    feature_name: str,
+    feature_value: dict,
+    *,
+    spin_number: int | None = None,
+    direction: str | None = None,
+    final_action: str | None = None,
+    hit: bool | None = None,
+    wheel_dist: int | None = None,
+) -> bool:
+    """P3.1 (12/06) — espelha 1 feature DNA para shared.decision_dna via outbox.
+
+    Gap confirmado na validação E2E: a tabela PG nasceu na migração 0008 mas
+    o dna_logger só gravava SQLite. Mesmo guard-rail dos demais hooks:
+    flag dual_write_pg + NUNCA levanta.
+    """
+    _m_hook_called.inc()
+    try:
+        if not _is_flag_enabled("dual_write_pg"):
+            _m_hook_skipped.labels(reason="flag_off").inc()
+            return False
+        pub = _get_publisher()
+        if pub is None:
+            _m_hook_skipped.labels(reason="publisher_none").inc()
+            return False
+        payload = {
+            "event_type": "dna_feature",
+            "decision_id": int(decision_id),
+            "feature_name": str(feature_name),
+            "feature_value": feature_value,
+            "spin_number": spin_number,
+            "direction": _normalize_direction(direction or "") or direction,
+            "final_action": final_action,
+            "hit": hit,
+            "wheel_dist": wheel_dist,
+        }
+        pub.publish(
+            aggregate="dna",
+            aggregate_id=f"{decision_id}:{feature_name}",
+            payload=payload,
+        )
+        _m_hook_published.inc()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _m_hook_skipped.labels(reason="exception").inc()
+        logger.error("dna_feature_publish_failed decision_id=%s feature=%s exc=%s",
+                     decision_id, feature_name, type(exc).__name__)
+        return False
+
+
+def maybe_publish_dna_realized(
+    decision_id: int,
+    *,
+    hit: bool | None = None,
+    wheel_dist: int | None = None,
+    realized_lift_pp: float | None = None,
+) -> bool:
+    """P3.1 (12/06) — espelha o realize (hit/wheel_dist) do DNA para o PG."""
+    _m_hook_called.inc()
+    try:
+        if not _is_flag_enabled("dual_write_pg"):
+            _m_hook_skipped.labels(reason="flag_off").inc()
+            return False
+        pub = _get_publisher()
+        if pub is None:
+            _m_hook_skipped.labels(reason="publisher_none").inc()
+            return False
+        payload = {
+            "event_type": "dna_realized",
+            "decision_id": int(decision_id),
+            "hit": hit,
+            "wheel_dist": wheel_dist,
+            "realized_lift_pp": realized_lift_pp,
+        }
+        pub.publish(
+            aggregate="dna",
+            aggregate_id=f"{decision_id}:realized",
+            payload=payload,
+        )
+        _m_hook_published.inc()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _m_hook_skipped.labels(reason="exception").inc()
+        logger.error("dna_realized_publish_failed decision_id=%s exc=%s",
+                     decision_id, type(exc).__name__)
+        return False
