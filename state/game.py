@@ -474,12 +474,20 @@ class GameState:
             d = (pos[to] - pos[frm]) % size
             return d - size if d > size // 2 else d
 
-        out: Dict[str, Any] = {"slot": "miss", "dist_c1": None, "dist_min": None}
+        out: Dict[str, Any] = {"slot": "miss", "dist_c1": None, "dist_min": None,
+                               "dist_c2": None, "dist_c3": None}
         if not centers:
             return out
 
         c1 = centers[0]
         out["dist_c1"] = _signed(c1, actual_number)
+        # Distâncias assinadas até C2/C3 individualmente (auditoria 12/06):
+        # base para adaptação por região (EMA de erro por setor) e para
+        # medir se cada região está bem posicionada em relação às forças.
+        if len(centers) > 1:
+            out["dist_c2"] = _signed(centers[1], actual_number)
+        if len(centers) > 2:
+            out["dist_c3"] = _signed(centers[2], actual_number)
 
         dists = []
         for c in centers:

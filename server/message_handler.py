@@ -519,6 +519,8 @@ class MessageHandler:
                                 "raw": _region_slot,
                                 "bucket": _region_slot,
                                 "dist_c1": _hit_attr.get("dist_c1"),
+                                "dist_c2": _hit_attr.get("dist_c2"),
+                                "dist_c3": _hit_attr.get("dist_c3"),
                                 "dist_min": _hit_attr.get("dist_min"),
                             },
                             spin_number=numero,
