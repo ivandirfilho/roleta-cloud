@@ -5,7 +5,7 @@ import json
 import time
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Set, List
+from typing import Dict, Optional, Set
 from websockets.server import WebSocketServerProtocol
 import uuid
 
@@ -229,7 +229,6 @@ class ConnectionManager:
                 return
 
             info = self.connections[conn_id]
-            old_device_id = info.device_id
             info.device_id = device_id
             logger.info(f"📝 Device ID atualizado para {conn_id}: {device_id}")
 

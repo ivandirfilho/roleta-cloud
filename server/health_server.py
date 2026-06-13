@@ -199,15 +199,12 @@ def _refresh_custom_metrics() -> None:
     """S-OBS-9: chamado a cada GET /metrics; tolerante a providers ausentes."""
     if not _PROM_METRICS:
         return
-    # INCIDENT 13/06: eleição de MASTER (bloco isolado — não depende dos demais providers).
-    if _CONNMGR_PROVIDER is not None:
-        try:
+    try:
+        # INCIDENT 13/06: eleição de MASTER (sob o try comum; erros contam em scrape_errors).
+        if _CONNMGR_PROVIDER is not None:
             _cm = _CONNMGR_PROVIDER() or {}
             _PROM_METRICS["master_present"].set(1.0 if _cm.get("master_present") else 0.0)
             _PROM_METRICS["ws_connections"].set(float(_cm.get("connections", 0)))
-        except Exception:
-            pass
-    try:
         if _STATE_PROVIDER is not None:
             st = _STATE_PROVIDER() or {}
             bs = st.get("bet_advisor_state") or {}
