@@ -831,6 +831,54 @@ def rank_general_rule(label, res, baseline, models):
     return rows
 
 
+def run_decision(seq):
+    """BACKTEST DE DECISÃO — qual geometria vira REGRA de produção.
+    Compara, por sentido isolado e causal, contra a aposta REAL de hoje (P0-LIVE):
+      P0 prod          = 7+5+5 @10 + M5 C1-shift  (o que está no ar)
+      P1 fatSAT @10    = 3+7+7 @10 + M5 C1-shift
+      P2 fatSAT + KDE  = 3+7+7 + offsets-densidade-do-sentido + M5 C1-shift
+      P3 fatSAT + KDE  = 3+7+7 + offsets-densidade, SEM M5
+    miss->hit / hit->miss medidos vs P0-LIVE (mantém acertos? melhora erros?)."""
+    cfgs = {
+        "P0_prod_755":        dict(r=(3, 2, 2), kde=False, m5=True),
+        "P1_fatSAT_10":       dict(r=(1, 3, 3), kde=False, m5=True),
+        "P2_fatSAT_kde":      dict(r=(1, 3, 3), kde=True,  m5=True),
+        "P3_fatSAT_kde_noM5": dict(r=(1, 3, 3), kde=True,  m5=False),
+    }
+    res = defaultdict(lambda: defaultdict(fresh_stats))
+    for target in ("cw", "ccw"):
+        rows = seq[target]; cut = len(rows) - LAST50
+        sess_state = {}
+        for i, r in enumerate(rows):
+            e = circ(r["real_f"] - r["pred_f"])
+            s = sess_state.get(r["sess"])
+            if s is None:
+                s = sess_state[r["sess"]] = {"ema": None, "n": 0, "hist": deque(maxlen=60)}
+            sh = 0
+            if s["n"] >= 3 and s["ema"] is not None:
+                sh = max(-4, min(4, round(-s["ema"] * 0.5)))
+            o2k, o3k = _emp_offsets_kde(s["hist"])
+            base_hit = covered_777_c1shift(e, sh, 10, 10, r1=3, r2=2, r3=2)  # P0-LIVE
+            for c, cf in cfgs.items():
+                r1, r2, r3 = cf["r"]
+                o2, o3 = (o2k, o3k) if cf["kde"] else (10, 10)
+                use_sh = sh if cf["m5"] else 0
+                h = covered_777_c1shift(e, use_sh, o2, o3, r1=r1, r2=r2, r3=r3)
+                nN = _footprint_777(o2, o3, r1=r1, r2=r2, r3=r3)
+                pnl = (36.0 / nN - 1.0) if h else -1.0
+                scopes = [("ALL", target), (r["period"], target)]
+                if i >= cut: scopes.append(("L50", target))
+                for sc in scopes:
+                    b = res[c][sc]
+                    b["n"] += 1; b["hit"] += 1 if h else 0; b["pnl"] += pnl
+                    if h and not base_hit: b["m2h"] += 1
+                    if base_hit and not h: b["h2m"] += 1
+            s["hist"].append(e)
+            s["ema"] = e if s["ema"] is None else 0.8 * s["ema"] + 0.2 * e
+            s["n"] += 1
+    return res
+
+
 def main():
     seq = load()
     print(f"dataset: cw={len(seq['cw'])} ccw={len(seq['ccw'])} decisões resolvidas (3 centros)")
@@ -855,6 +903,16 @@ def main():
                 rd, list(POINT_D), "D0_none")
     print_walkforward("PONTO D", rd, "D0_none", list(POINT_D))
     rank_general_rule("PONTO D", rd, "D0_none", list(POINT_D))
+
+    print("\n\n" + "#" * 78)
+    print("# BACKTEST DE DECISÃO — qual geometria vira REGRA de produção (vs P0-LIVE)")
+    print("#" * 78)
+    dec_models = ["P0_prod_755", "P1_fatSAT_10", "P2_fatSAT_kde", "P3_fatSAT_kde_noM5"]
+    rdec = run_decision(seq)
+    print_block("DECISÃO — geometria de produção", rdec, dec_models,
+                "P0_prod_755", show_pnl=True)
+    print_walkforward("DECISÃO", rdec, "P0_prod_755", dec_models)
+    rank_general_rule("DECISÃO", rdec, "P0_prod_755", dec_models)
 
 
 if __name__ == "__main__":

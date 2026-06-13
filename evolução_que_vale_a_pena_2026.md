@@ -187,7 +187,7 @@ controlador mais agressivo** — está na **geometria**:
 >    é bimodal nas caudas, não no centro previsto. *(B13, validado WF nos 2 sentidos.)*
 > 2. **Satélites posicionados no pico de densidade causal do sentido** (offsets
 >    empíricos suavizados por KDE, recomputados por sessão). *(B9/B15, validado WF.)*
-> 3. **C1 segue o viés via M5 já em produção**, com EMA um pouco mais rápida (α=0.3).
+> 3. **C1 segue o viés via M5 já em produção** (α=0.2 mantido na regra; α=0.3 = EV-2).
 
 Por que isto satisfaz literalmente o pedido:
 - **"acerta onde a predição teria errado"** → os números antes desperdiçados no centro
@@ -226,71 +226,89 @@ Quatro leis que governam QUALQUER evolução futura:
 
 ---
 
-## PROPOSTA DE EVOLUÇÃO (revisada pela rodada 2)
+## ★★ REGRA IMPLANTADA (13/06) — backtest de decisão → produção direta
 
-### EV-1 ⬆ — Geometria V2: **fat-SAT (3+7+7) + offsets empíricos KDE por sentido** — *única alavanca validada WF nos 2 sentidos*
-- **O quê:** trocar a geometria fixa 7+5+5 @10/10 por **raios 1/3/3 (3+7+7, N=17)** com
-  **offsets dos satélites = picos de densidade do histograma de erro do sentido
-  (suavizado por KDE triangular, janela causal por sessão, fallback @10/10 com n<12).**
-- **Por quê:** B13 é o único N=17 com EVcov cw positivo em treino E teste; B9/B15
-  passam WF nos 2 sentidos. Captura a estrutura bimodal real da chegada por sentido.
-- **Como (1 ponto de código):** em `strategies/sda17.py`, quando geometria-V2 ativa,
-  derivar `(r1,r2,r3)=(1,3,3)` e `off2/off3` via `_emp_offsets_kde` do estado
-  `region_err_*` por sentido. Flag `REGION_GEOMETRY_V2` default **OFF**. C1-shift do M5
-  permanece (`covered_777_c1shift`).
-- **Gate de promoção:** shadow paralelo (geometria-V2 calculada e logada **sem apostar**)
-  ≥300 spins/sentido + reconfirmar walk-forward com o dado novo. **Ganho esperado:
-  modesto (~+0.3–0.6u EVcov no cw, neutro no ccw)** — é o teto honesto da geometria.
+O owner decidiu: **sem shadow, sem mais teste** — o backtest sobre os dados que temos
+define a regra e ela entra **direto em produção**. Adicionei `run_decision` ao motor
+(`scripts/evolution_sim_2026.py`): comparação **causal, por sentido, contra a aposta
+REAL de hoje (P0-LIVE)** de 4 geometrias de produção.
 
-### EV-2 — Micro-ajustes (anotados, shadow, baixa prioridade)
-- **Controlador:** M5 **α 0.2 → 0.3** (D8) — acelera a EMA, melhora os 2 sentidos;
-  nunca mexer em K/clamp. Flag própria, shadow.
-- **Preditor:** mediana-7 → **A16 ensemble (med⊕moda)** — único preditor que passa WF
-  nos 2 sentidos; ganho ≈ breakeven (cosmético). Só se já estiver mexendo no pipeline.
+### Backtest de decisão (agregado vs P0-LIVE + walk-forward 2 sentidos)
+| Geometria de produção | N | cw EVcov | ccw EVcov | saldo cw/ccw | WF 2 sent. |
+|---|---|---|---|---|---|
+| P0 — 7+5+5 @10 + M5 (no ar) | 17 | −0.08 | −1.42 | 0 / 0 | — |
+| P1 — fat-SAT 3+7+7 @10 + M5 | 17 | +0.23 | −0.92 | +12/+19 | só cw |
+| **P2 — fat-SAT + offsets-KDE + M5** ✅ | 17 | **+0.34** | **−0.92** | **+16/+19** | **✅ os 2** |
+| P3 — fat-SAT + offsets-KDE (sem M5) | 17 | +0.39 | −0.82 | +18/+23 | ✅ os 2 |
 
-### EV-0 — O que NÃO fazer (decidido pelos dados — economiza semanas)
-- ❌ **Aumentar a cobertura** (wide-C1/N=19, B4) — imposto do N, EVcov negativo.
-- ❌ **Engordar o centro** (fat-C1/11+3+3, B12) — pior N=17, reprova WF nos 2 sentidos.
-- ❌ **Offsets fixos largos** (B3 @13) — lidera agregado, **overfit**, reprova WF.
-- ❌ **Suavizar o preditor** (EWMA/Kalman/trimmed/Huber/midhinge) — −59 a −124.
-- ❌ **Explorar a autocorr negativa** (anti-persistência A12) — ruído, −72 a −95.
-- ❌ **Controlador mais agressivo no GANHO** (D2_hot k1 / D6_gated) — destrói o cw.
-- ❌ **Gating por perda/confiança** (D17/D12) — não passam WS nos 2 sentidos.
+**Decisão = P2.** P3 tem saldo levemente maior mas **derrapa no cw recente** (last-50 cw
+36% vs P2 40% vs P0 44%) — o M5 dá estabilidade ao cw. **P2 vira EV-positiva no cw**
+(−0.08→+0.34), **melhora materialmente o ccw** (−1.42→−0.92, saldo +16/+19) e **passa
+walk-forward nos DOIS sentidos** — *mantém os acertos e converte erros* (m2h>h2m em cw e ccw).
+
+### A REGRA (no ar agora — `SDA_GEOMETRY_V2=1`, default ON)
+> **A estrutura de dados das últimas jogadas de cada sentido É a regra.** A cada jogada,
+> em cada sentido isolado:
+> 1. **fat-SAT 3+7+7** — C1 raio 1 (3 números, os mais prováveis), C2/C3 raio 3 (7 cada).
+>    Redistribui os MESMOS 17 tirando massa do centro (raro modal) p/ os satélites.
+> 2. **Offsets-KDE** — satélites plantados nos **picos de densidade do histograma causal
+>    de erro C1 do próprio sentido** (`_region_err_hist[dir]`, janela 60, KDE triangular).
+>    Fallback ao prior (10/10) enquanto n<12 (as 2 primeiras jogadas de calibração).
+> 3. **M5 C1-shift mantido** — o centro segue o viés EMA (já em produção).
+> Genérica (uma regra, 2 sentidos; só o dado muda), adaptativa por jogada, **N=17 sempre**
+> (INV-3, nunca fica sem aposta), e **zera no reset de dealer** (P10).
+
+### Implementação (commitada, suíte verde 407)
+- `app_config/settings.py`: `geometry_v2_enabled()` (default ON, rollback `SDA_GEOMETRY_V2=0`).
+- `strategies/sda17.py`: `_geometry_radii()` (1/3/3), `_kde_offsets(dir)` (picos KDE do
+  `_region_err_hist`), feed do histograma no feedback C1 (causal, **antes** do early-return
+  do sigmoid — auditado linha-a-linha), reset/persistência do histograma; `analyze()` ramifica.
+- `tests/conftest.py`: suite legada com `SDA_GEOMETRY_V2=0` (mantém 7+5+5 dos testes antigos).
+- `tests/test_geometry_v2_12_06.py`: 9 testes (footprint 17, KDE rastreia densidade,
+  fallback frio, isolamento por sentido, reset, persistência, INV-3, rollback legado).
+
+### EV-2 — Micro-ajustes (anotados, NÃO implantados — exigiriam nova decisão)
+- **Controlador:** M5 **α 0.2 → 0.3** (D8) — acelera a EMA, melhora os 2 sentidos; nunca K/clamp.
+- **Preditor:** mediana-7 → **A16 ensemble** — único preditor que passa WF nos 2 sentidos; ≈breakeven.
+
+### EV-0 — O que NÃO fazer (decidido pelos dados)
+- ❌ Aumentar cobertura (N=19, B4) — imposto do N. ❌ Engordar o centro (fat-C1, B12) — pior N=17.
+- ❌ Offsets fixos largos (B3 @13) — overfit. ❌ Suavizar o preditor (−59 a −124).
+- ❌ Explorar autocorr negativa (A12). ❌ Controlador agressivo no GANHO (D2_hot/D6).
+- ❌ Gating por perda/confiança (D17/D12) — não passam WF nos 2 sentidos.
 
 ---
 
-## PRÓXIMOS PASSOS DA EVOLUÇÃO (ordem de execução)
+## PRÓXIMOS PASSOS DA EVOLUÇÃO (pós-implantação)
 
-1. **Implementar `REGION_GEOMETRY_V2` (flag OFF)** em `strategies/sda17.py`: split
-   1/3/3 + offsets-KDE por sentido, reaproveitando o estado `region_err_*` e o
-   `covered_777_c1shift`. Testes unitários espelhando o footprint=17 e o fallback.
-2. **Shadow ao vivo ≥300 spins/sentido:** logar a geometria-V2 (centros/offsets/cobertura)
-   em paralelo à de produção **sem apostar**, e medir miss→hit/hit→miss/EVcov por sentido.
-3. **Reconfirmar walk-forward** com os dados de shadow + histórico; **promover só por
-   sentido** se cw e ccw baterem o baseline (cw é o caso mais provável de ganho real).
-4. **EV-2 em paralelo (flags independentes):** α=0.3 no M5 e A16 no preditor, cada um
-   com seu shadow; promover isoladamente.
-5. **Telemetria:** dois Gauges Prometheus — `roleta_geometry_v2_evcov{dir}` e
-   `roleta_geometry_v2_m2h_minus_h2m{dir}` — com alerta se V2 < baseline por 200 spins
-   (mata o experimento sozinho). Segue o padrão de observabilidade já estabelecido.
-6. **O único caminho para EV>0 real continua sendo o viés físico de dealer (DEAL
-   capture)** — ortogonal a tudo deste documento; exige sessão com operador.
+1. **Deploy:** `git push` → pull-deploy auto (2 min) **com rebuild da imagem** roleta-cloud
+   (mudança em `strategies/`); confirmar `SDA_GEOMETRY_V2` ON no container e o reset de
+   dealer zerando `region_err_hist`. *(Push é escrita no GitHub → requer aprovação.)*
+2. **Telemetria de confirmação (só observar a regra no ar):** Gauges `roleta_geometry{dir}`
+   (3+7+7) e `roleta_sat_offset{dir,slot}` (offset-KDE corrente), p/ ver a densidade real
+   moldando os satélites por sentido no Grafana.
+3. **Acompanhar cw×ccw isolados ao vivo:** a regra deve **manter o cw (agora EV+)** e
+   recuperar o ccw; se o ccw seguir difícil, é o candidato natural ao **bias físico de dealer**.
+4. **EV-2 só com nova decisão do owner:** α=0.3 (D8) e A16 — cada um pelo mesmo backtest
+   de decisão antes de ligar.
+5. **O único caminho para EV>0 real sustentado continua sendo o viés físico de dealer
+   (DEAL capture)** — ortogonal a esta geometria; exige sessão com operador.
 
 ---
 
 ## Limitações honestas
-- EVflat/EVcov isolam a GEOMETRIA; o stack de stake (INV-3/CUT/stop-loss) fica por
-  cima e não foi revalidado aqui (já validado no walk-forward de 10/06).
-- Os 18 modelos de cada ponto são desenhados in-sample; a **execução é causal** e as
-  recomendações (fat-SAT, offsets-KDE) passaram treino→teste — mas merecem o **shadow
-  ao vivo** antes de apostar. ccw permanece o sentido difícil (ganho ~neutro).
-- Ganhos são **modestos por natureza**: o sistema opera sobre processo ~RNG; o teto da
-  geometria é "perder menos / breakeven", não EV>0 sustentado. **A única alavanca para
-  EV>0 real continua sendo o bias físico de dealer (DEAL capture).**
+- EVcov isola a GEOMETRIA; o stack de stake (INV-3/CUT/stop-loss) fica por cima e não foi
+  revalidado aqui (já validado no walk-forward de 10/06).
+- A regra foi decidida por backtest **causal + walk-forward nos 2 sentidos** (não in-sample),
+  mas **ccw permanece o sentido difícil** (vira ~neutro, não EV+). O cw é o ganho honesto.
+- Ganhos são **modestos por natureza**: processo ~RNG; o teto da geometria é "perder menos /
+  breakeven no cw", não EV>0 sustentado. **A única alavanca para EV>0 real continua sendo o
+  bias físico de dealer (DEAL capture).**
 
 ## Artefatos
-- `scripts/evolution_sim_2026.py` — harness reexecutável: **54 configs (18A+18B+18D)**,
-  causal, por sentido, last-50 + agregado + **walk-forward nos 3 pontos** + **ranking de
-  regra geral adaptativa** + EV coverage-aware.
-- Base: `analise_12_junho.md` (engenharia reversa 100/sentido + §6 modelo universal),
-  `analise_regioes_12_06.md` (A1–A3), grafos `graphify-out/` + `server_snapshot/`.
+- `scripts/evolution_sim_2026.py` — harness reexecutável: **54 configs (18A+18B+18D)** +
+  **`run_decision`** (P0..P3 vs P0-LIVE), causal, por sentido, last-50 + agregado +
+  **walk-forward nos 3 pontos + decisão** + ranking de regra geral + EV coverage-aware.
+- `strategies/sda17.py` + `app_config/settings.py` + `tests/test_geometry_v2_12_06.py` —
+  a REGRA implantada (geometria V2 fat-SAT + offsets-KDE).
+- Base: `analise_12_junho.md`, `analise_regioes_12_06.md`, grafos `graphify-out/` + `server_snapshot/`.

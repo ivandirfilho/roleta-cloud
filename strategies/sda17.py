@@ -9,6 +9,7 @@
 import math
 import logging
 from typing import List, Tuple, Dict, Any, Optional
+from collections import deque
 from statistics import median, quantiles
 from state.timeline import Timeline
 from .base import StrategyBase, StrategyResult
@@ -61,6 +62,13 @@ class SDA17Strategy(StrategyBase):
     MAX_HISTORY = 24           # 2× BAYESIAN_WINDOW para buffer
     C2_RADIUS = 2              # Raio de C2 (5 números)
     C3_RADIUS = 2              # Raio de C3 (5 números)
+    # REGRA 13/06 — Geometria V2 (fat-SAT): redistribui os MESMOS 17 tirando
+    # massa do centro previsto (raro modal) p/ os satélites (cauda bimodal real).
+    C1_RADIUS_V2 = 1           # V2: C1 estreito (3 números)
+    SAT_RADIUS_V2 = 3          # V2: satélites gordos (7 números cada) → 3+7+7=17
+    OFFSET_MAX_V2 = 15         # V2: teto de offset dos satélites (cauda ±13–17)
+    GEOMETRY_KDE_MIN_N = 12    # amostras mínimas p/ offsets empíricos (senão prior)
+    REGION_ERR_HIST_MAX = 60   # janela do histograma de erro C1 por sentido
     MAX_DELTA_OFFSET = 2       # Legacy v4.2 (não usado por M02)
     SYMMETRY_CAP = 4           # Legacy v4.2 (não usado por M02)
     
@@ -131,6 +139,13 @@ class SDA17Strategy(StrategyBase):
         self._region_err_n: Dict[str, Dict[str, int]] = {
             "cw": {"c1": 0, "c2": 0, "c3": 0},
             "ccw": {"c1": 0, "c2": 0, "c3": 0},
+        }
+        # REGRA 13/06 — Geometria V2: histograma causal do erro C1 assinado por
+        # sentido. É a "estrutura de dados das últimas jogadas" que vira regra:
+        # posiciona os satélites nos picos de densidade reais de cada sentido.
+        self._region_err_hist: Dict[str, "deque"] = {
+            "cw": deque(maxlen=self.REGION_ERR_HIST_MAX),
+            "ccw": deque(maxlen=self.REGION_ERR_HIST_MAX),
         }
         # Config TOML — carregada uma vez (singleton).
         self._cfg = get_strategy_config()
@@ -242,16 +257,23 @@ class SDA17Strategy(StrategyBase):
                 c1_idx_s = (self._wheel_index(c1, wheel_sequence) + region_shift) % len(wheel_sequence)
                 c1 = wheel_sequence[c1_idx_s]
 
-        # Offsets adaptativos assimétricos (M04 Error-Vector)
-        off_c2, off_c3 = self._get_adaptive_offset(timeline.direction)
-
-        # SV-01: correção fina RELATIVA dos satélites (EMA própria, clamp ±2).
-        sat2 = sat3 = 0
-        if self._region_shift_enabled():
-            sat2 = self._region_shift(dk_shift, "c2", self.REGION_SHIFT_CLAMP_SAT)
-            sat3 = -self._region_shift(dk_shift, "c3", self.REGION_SHIFT_CLAMP_SAT)
-            off_c2 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c2 + sat2))
-            off_c3 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c3 + sat3))
+        # Offsets dos satélites
+        if self._geometry_v2_enabled():
+            # REGRA 13/06 (V2): satélites nos picos de densidade do erro do
+            # sentido (KDE causal). Sem correção EMA extra — a densidade já
+            # posiciona; o M5 atua só no C1 (replica o backtest P2).
+            off_c2, off_c3 = self._kde_offsets(dk_shift)
+            sat2 = sat3 = 0
+        else:
+            # Legado: offsets assimétricos (M04 Error-Vector) + correção fina
+            # RELATIVA dos satélites (EMA própria, clamp ±2).
+            off_c2, off_c3 = self._get_adaptive_offset(timeline.direction)
+            sat2 = sat3 = 0
+            if self._region_shift_enabled():
+                sat2 = self._region_shift(dk_shift, "c2", self.REGION_SHIFT_CLAMP_SAT)
+                sat3 = -self._region_shift(dk_shift, "c3", self.REGION_SHIFT_CLAMP_SAT)
+                off_c2 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c2 + sat2))
+                off_c3 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c3 + sat3))
 
         # C2 e C3 posicionados ASSIMETRICAMENTE em relação a C1
         c1_idx = self._wheel_index(c1, wheel_sequence)
@@ -259,11 +281,12 @@ class SDA17Strategy(StrategyBase):
         c2 = wheel_sequence[(c1_idx + off_c2) % wheel_size]
         c3 = wheel_sequence[(c1_idx - off_c3) % wheel_size]
         
-        # Agregar números com raios assimétricos
+        # Agregar números com raios assimétricos (V2: 1/3/3 fat-SAT; legado 3/2/2)
+        _r1, _r2, _r3 = self._geometry_radii()
         nums = set()
-        nums |= set(self.get_neighbors(c1, self.num_neighbors, wheel_sequence))  # 7 nums
-        nums |= set(self.get_neighbors(c2, self.C2_RADIUS, wheel_sequence))      # 5 nums
-        nums |= set(self.get_neighbors(c3, self.C3_RADIUS, wheel_sequence))      # 5 nums
+        nums |= set(self.get_neighbors(c1, _r1, wheel_sequence))   # C1
+        nums |= set(self.get_neighbors(c2, _r2, wheel_sequence))   # C2
+        nums |= set(self.get_neighbors(c3, _r3, wheel_sequence))   # C3
         numbers = sorted(nums)  # Esperado: 17 (pode ser menos se houver overlap)
         
         # BUG-NEW-002 FIX: Alerta se cobertura abaixo do esperado
@@ -289,7 +312,7 @@ class SDA17Strategy(StrategyBase):
                 "centers": [c1, c2, c3],
                 "forces_used": {"median": predicted_force},
                 "unique_count": len(numbers),
-                "overlap": (7 + 5 + 5) - len(numbers),
+                "overlap": (2 * (_r1 + _r2 + _r3) + 3) - len(numbers),
                 "clean_count": pred_info.get("clean_count", 0),
                 "outliers_removed": pred_info.get("outliers_removed", 0),
                 "spread": pred_info.get("spread", 0),
@@ -299,7 +322,10 @@ class SDA17Strategy(StrategyBase):
                 "flagged_forces": flagged,
                 "offset": off_c2,
                 "offset_c3": off_c3,
-                "offset_type": "sigmoid" if self._sigmoid_satellites_enabled() else "prior_fixed",
+                "offset_type": ("kde_v2" if self._geometry_v2_enabled()
+                                else ("sigmoid" if self._sigmoid_satellites_enabled()
+                                      else "prior_fixed")),
+                "geometry": "3+7+7" if self._geometry_v2_enabled() else "7+5+5",
                 "region_shift": region_shift,
                 "region_shift_sat": [sat2, sat3],
                 "cw_history_size": len(self.cw_history),
@@ -328,6 +354,42 @@ class SDA17Strategy(StrategyBase):
             return sigmoid_satellites_enabled()
         except Exception:  # noqa: BLE001
             return True  # comportamento legado em caso de falha de import
+
+    def _geometry_v2_enabled(self) -> bool:
+        try:
+            from app_config.settings import geometry_v2_enabled
+            return geometry_v2_enabled()
+        except Exception:  # noqa: BLE001
+            return False  # falha de import → geometria legada 7+5+5
+
+    def _geometry_radii(self) -> Tuple[int, int, int]:
+        """Raios (C1, C2, C3) da aposta. V2 = fat-SAT 3+7+7 (1/3/3);
+        legado = 7+5+5 (num_neighbors / C2_RADIUS / C3_RADIUS)."""
+        if self._geometry_v2_enabled():
+            return self.C1_RADIUS_V2, self.SAT_RADIUS_V2, self.SAT_RADIUS_V2
+        return self.num_neighbors, self.C2_RADIUS, self.C3_RADIUS
+
+    def _kde_offsets(self, dk: str) -> Tuple[int, int]:
+        """Offsets dos satélites = picos de densidade (KDE triangular) do
+        histograma causal de erro C1 do PRÓPRIO sentido. Fallback prior
+        (BAYESIAN_DEFAULT) enquanto n < GEOMETRY_KDE_MIN_N. INV-3: sempre
+        devolve offsets válidos (>=OFFSET_MIN), nunca pula aposta; os dois
+        offsets ficam em lados opostos (preserva N=17)."""
+        d = self.BAYESIAN_DEFAULT
+        hist = self._region_err_hist.get(dk)
+        if not hist or len(hist) < self.GEOMETRY_KDE_MIN_N:
+            return d, d
+        raw: Dict[int, int] = {}
+        for x in hist:
+            raw[x] = raw.get(x, 0) + 1
+        sm = {k: 2 * raw.get(k, 0) + raw.get(k - 1, 0) + raw.get(k + 1, 0)
+              for k in range(-18, 19)}
+        pos = {k: v for k, v in sm.items() if k > 3 and v > 0}
+        neg = {k: v for k, v in sm.items() if k < -3 and v > 0}
+        o2 = max(pos, key=pos.get) if pos else d
+        o3 = -max(neg, key=neg.get) if neg else d
+        lo, hi = self.OFFSET_MIN, self.OFFSET_MAX_V2
+        return max(lo, min(hi, o2)), max(lo, min(hi, o3))
 
     def _region_shift(self, dk: str, slot: str, clamp: int) -> int:
         """M5: shift inteiro derivado da EMA de erro assinado do slot.
@@ -731,6 +793,10 @@ class SDA17Strategy(StrategyBase):
                 float(sd) if cur is None else (1.0 - a) * cur + a * float(sd)
             )
             self._region_err_n[dk][slot] = self._region_err_n[dk].get(slot, 0) + 1
+            if slot == "c1":
+                # REGRA 13/06: histograma causal do erro C1 por sentido — insumo
+                # dos offsets-KDE dos satélites. Só C1 (sempre real, P11).
+                self._region_err_hist[dk].append(int(sd))
 
     def get_region_err_snapshot(self) -> Dict[str, Dict[str, Any]]:
         """Snapshot da EMA de erro por região + nº de amostras (telemetria).
@@ -801,9 +867,10 @@ class SDA17Strategy(StrategyBase):
             c2 = self._wheel[(c1_idx + o2) % ws]
             c3 = self._wheel[(c1_idx - o3) % ws]
             _centers_are_real = False
-        c1_nbrs = set(self.get_neighbors(c1, self.num_neighbors, self._wheel))
-        c2_nbrs = set(self.get_neighbors(c2, self.C2_RADIUS, self._wheel))
-        c3_nbrs = set(self.get_neighbors(c3, self.C3_RADIUS, self._wheel))
+        _r1f, _r2f, _r3f = self._geometry_radii()
+        c1_nbrs = set(self.get_neighbors(c1, _r1f, self._wheel))
+        c2_nbrs = set(self.get_neighbors(c2, _r2f, self._wheel))
+        c3_nbrs = set(self.get_neighbors(c3, _r3f, self._wheel))
         if coverage:
             # Cobertura REAL da aposta (inclui fallback N=19/21).
             cov = set(coverage)
@@ -1087,6 +1154,8 @@ class SDA17Strategy(StrategyBase):
             # MELHORIA-G (12/06): EMA de erro por região (telemetria).
             "region_err_ema": self._region_err_ema,
             "region_err_n": self._region_err_n,
+            "region_err_hist": {dk: list(self._region_err_hist.get(dk, []))
+                                for dk in ("cw", "ccw")},
             # S-STRAT-7 — batch tune state (versão dict para forward-compat).
             "batch_tune_state": {
                 "version": 1,
@@ -1186,6 +1255,19 @@ class SDA17Strategy(StrategyBase):
                     for slot in ("c1", "c2", "c3"):
                         try:
                             self._region_err_n[dk][slot] = max(0, int(sub.get(slot, 0)))
+                        except (ValueError, TypeError):
+                            pass
+        # REGRA 13/06: restaurar histograma de erro C1 por sentido (offsets-KDE).
+        raw_rh = state.get("region_err_hist", {})
+        if isinstance(raw_rh, dict):
+            for dk in ("cw", "ccw"):
+                seq = raw_rh.get(dk, [])
+                if isinstance(seq, list):
+                    dq = self._region_err_hist[dk]
+                    dq.clear()
+                    for v in seq[-self.REGION_ERR_HIST_MAX:]:
+                        try:
+                            dq.append(int(v))
                         except (ValueError, TypeError):
                             pass
         # S-STRAT-7: restaurar batch tune state (backward-compat: ausente → defaults).
@@ -1293,6 +1375,10 @@ class SDA17Strategy(StrategyBase):
         self._region_err_n = {
             "cw": {"c1": 0, "c2": 0, "c3": 0},
             "ccw": {"c1": 0, "c2": 0, "c3": 0},
+        }
+        self._region_err_hist = {
+            "cw": deque(maxlen=self.REGION_ERR_HIST_MAX),
+            "ccw": deque(maxlen=self.REGION_ERR_HIST_MAX),
         }
         logger.info(
             "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",

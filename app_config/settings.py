@@ -78,3 +78,18 @@ def sigmoid_satellites_enabled() -> bool:
     """
     import os
     return os.environ.get("SDA_SIGMOID_SATELLITES", "0").strip().lower() in ("1", "true", "on")
+
+
+def geometry_v2_enabled() -> bool:
+    """REGRA 13/06 — Geometria V2 (fat-SAT + offsets-KDE por sentido).
+
+    Backtest de DECISÃO (evolution_sim_2026 run_decision, 2762 decisões,
+    vs P0-LIVE 7+5+5@10+M5): P2 = 3+7+7 (raios 1/3/3), satélites nos PICOS
+    de densidade do erro de força do PRÓPRIO sentido (KDE causal das últimas
+    jogadas) + M5 C1-shift mantido. cw vira EV-positiva (EVcov −0.08→+0.34) e
+    ccw melhora (−1.42→−0.92, saldo +16/+19), passando walk-forward nos DOIS
+    sentidos. Default ON; rollback trivial com SDA_GEOMETRY_V2=0 (estado
+    region_err_hist continua persistido).
+    """
+    import os
+    return os.environ.get("SDA_GEOMETRY_V2", "1").strip().lower() not in ("0", "false", "off")
