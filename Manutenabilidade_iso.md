@@ -495,6 +495,17 @@ Constraint: UNIQUE idx_gale_windows_active — apenas 1 janela aberta por direç
 └──────────────────────────────────────────────────────────┘
 ```
 
+> **Fix 13/06/2026 (v4.4.1) — deadlock de eleição corrigido:** o esquema acima
+> tinha uma lacuna. Se o grace period expirava **sem nenhuma conexão** (nenhum
+> SLAVE para promover) e o MASTER voltava depois, `update_device_id` **não** o
+> repromovia (a reconexão exigia `< 10s` e o fallback exigia
+> `last_master_device_id` vazio) → **deadlock: SLAVE permanente, todos os spins
+> descartados** (incidente ~16h sem apostas). Agora: quando não há master **e** o
+> grace já expirou, o **próximo REGISTER assume MASTER**; um device *diferente*
+> permanece SLAVE apenas **dentro** do grace (protege a janela do master
+> original). Escape manual: `force_master` (botão 🎯 na escuta). Detecção:
+> alerta `RoletaNoMaster`. Runbook: `docs/runbooks/sem-apostas-master-slave.md`.
+
 ---
 
 ### 9. Containerização e Deploy
@@ -1245,3 +1256,4 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.3.1 | 31/03/2026 | 6 bug fixes defensivos: race condition, json safe, wheel guard, direction validation, min_dist clamp, empty forces guard |
 | v4.3.2 | 02/04/2026 | **Auditoria frontend:** fix encoding UTF-8 (22 emojis + 7 acentos), dead code cleanup (4 refs DOM null), Martingale instant trace, cache busting, CSS responsive, Dockerfile label, null guards |
 | v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
+| v4.4.1 | 13/06/2026 | **Fix incidente MASTER:** deadlock de reeleição em `connection_manager.update_device_id` (grace expirado sem conexão → SLAVE permanente → ~16h sem spins, dashboard ONLINE porém vazio); reeleição corrigida + 5 testes (`tests/test_connection_manager_master.py`). **Observabilidade:** alerta `RoletaNoMaster` + métricas `roleta_master_present`/`roleta_ws_connections`. **Runbook** `docs/runbooks/sem-apostas-master-slave.md`. Suite 429 |
