@@ -11,3 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # policy (test_b1_b2_b5_12_06.py) setam PROFIT_CUT_V1 explicitamente.
 os.environ.setdefault("PROFIT_CUT_V1", "0")
 os.environ.setdefault("PROFIT_STOP_LOSS_UNITS", "0")
+# SV-01/SV-02 (12/06): suite roda com a mecânica LEGADA (shift OFF, sigmoid ON)
+# — testes do M5 (test_sv_m5_12_06.py) setam as flags explicitamente.
+os.environ.setdefault("REGION_SHIFT_V1", "0")
+os.environ.setdefault("SDA_SIGMOID_SATELLITES", "1")

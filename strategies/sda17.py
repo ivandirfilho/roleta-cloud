@@ -229,10 +229,30 @@ class SDA17Strategy(StrategyBase):
         
         # === M15-ADA v4.1: Triple Focus com offset ASSIMÉTRICO ===
         c1 = self._apply_force(last_number, predicted_force, timeline.direction, wheel_sequence)
-        
+
+        # SV-01 (12/06) — Modelo Universal M5: shift do CONJUNTO pelo viés
+        # EMA da região C1 (replay causal §6: único modelo saldo+ nos 4
+        # quadrantes). Só no Triple Focus; warmup n>=3; zera no reset (P10).
+        region_shift = 0
+        dk_shift = self._dk(timeline.direction)
+        if self._region_shift_enabled():
+            region_shift = self._region_shift(dk_shift, "c1",
+                                              self.REGION_SHIFT_CLAMP_C1)
+            if region_shift:
+                c1_idx_s = (self._wheel_index(c1, wheel_sequence) + region_shift) % len(wheel_sequence)
+                c1 = wheel_sequence[c1_idx_s]
+
         # Offsets adaptativos assimétricos (M04 Error-Vector)
         off_c2, off_c3 = self._get_adaptive_offset(timeline.direction)
-        
+
+        # SV-01: correção fina RELATIVA dos satélites (EMA própria, clamp ±2).
+        sat2 = sat3 = 0
+        if self._region_shift_enabled():
+            sat2 = self._region_shift(dk_shift, "c2", self.REGION_SHIFT_CLAMP_SAT)
+            sat3 = -self._region_shift(dk_shift, "c3", self.REGION_SHIFT_CLAMP_SAT)
+            off_c2 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c2 + sat2))
+            off_c3 = max(self.OFFSET_MIN - 2, min(self.OFFSET_MAX + 2, off_c3 + sat3))
+
         # C2 e C3 posicionados ASSIMETRICAMENTE em relação a C1
         c1_idx = self._wheel_index(c1, wheel_sequence)
         wheel_size = len(wheel_sequence)
@@ -279,11 +299,65 @@ class SDA17Strategy(StrategyBase):
                 "flagged_forces": flagged,
                 "offset": off_c2,
                 "offset_c3": off_c3,
-                "offset_type": "sigmoid",
+                "offset_type": "sigmoid" if self._sigmoid_satellites_enabled() else "prior_fixed",
+                "region_shift": region_shift,
+                "region_shift_sat": [sat2, sat3],
                 "cw_history_size": len(self.cw_history),
                 "ccw_history_size": len(self.ccw_history),
             }
         )
+
+    # ================================================================== #
+    # SV-01/SV-02 (12/06) — Modelo Universal M5 + aposentadoria do sigmoid
+    # ================================================================== #
+    REGION_SHIFT_K = 0.5         # ganho do integrador (replay causal §6)
+    REGION_SHIFT_CLAMP_C1 = 4    # clamp do shift do conjunto
+    REGION_SHIFT_CLAMP_SAT = 2   # clamp da correção relativa dos satélites
+    REGION_SHIFT_MIN_N = 3       # warmup por sentido (P9-compatível)
+
+    def _region_shift_enabled(self) -> bool:
+        try:
+            from app_config.settings import region_shift_v1_enabled
+            return region_shift_v1_enabled()
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _sigmoid_satellites_enabled(self) -> bool:
+        try:
+            from app_config.settings import sigmoid_satellites_enabled
+            return sigmoid_satellites_enabled()
+        except Exception:  # noqa: BLE001
+            return True  # comportamento legado em caso de falha de import
+
+    def _region_shift(self, dk: str, slot: str, clamp: int) -> int:
+        """M5: shift inteiro derivado da EMA de erro assinado do slot.
+
+        REPLICA EXATA da dinâmica vencedora do replay (universal_model_sim
+        M5): ``shift = clamp(round(−ema·K), ±clamp)`` com a EMA alimentada
+        pelo erro RESIDUAL da aposta real (já é o caso em produção pós
+        BUG-B). Não "corrigir" o sinal por intuição — o que foi validado em
+        2762 decisões foi ESTA dinâmica, transiente incluído.
+        """
+        n = self._region_err_n.get(dk, {}).get(slot, 0)
+        ema = self._region_err_ema.get(dk, {}).get(slot)
+        if ema is None or n < self.REGION_SHIFT_MIN_N:
+            return 0
+        s = round(-ema * self.REGION_SHIFT_K)
+        return max(-clamp, min(clamp, int(s)))
+
+    def get_region_shift_snapshot(self) -> Dict[str, Any]:
+        """Telemetria SV-01: shift corrente por sentido (p/ /api e overlay)."""
+        out: Dict[str, Any] = {"enabled": self._region_shift_enabled()}
+        for dk in ("cw", "ccw"):
+            out[dk] = {
+                "shift_c1": self._region_shift(dk, "c1", self.REGION_SHIFT_CLAMP_C1),
+                "sat2": self._region_shift(dk, "c2", self.REGION_SHIFT_CLAMP_SAT),
+                "sat3": -self._region_shift(dk, "c3", self.REGION_SHIFT_CLAMP_SAT),
+                "ema_c1": (round(self._region_err_ema[dk]["c1"], 2)
+                           if self._region_err_ema[dk]["c1"] is not None else None),
+                "n_c1": self._region_err_n[dk]["c1"],
+            }
+        return out
     
     def _fallback_radius(self) -> int:
         """B5 CUT-POLICY v1 (12/06): raio do fallback de 1 centro.
@@ -389,6 +463,10 @@ class SDA17Strategy(StrategyBase):
         Parâmetros independentes por direção — históricos não se misturam.
         """
         dir_key = "cw" if direction in ("cw", "horario") else "ccw"
+        # SV-02 (12/06): sigmoid dos satélites aposentado — offsets fixos no
+        # prior; o M5 (region_shift) assume a adaptação. Rollback via env.
+        if not self._sigmoid_satellites_enabled():
+            return self.BAYESIAN_DEFAULT, self.BAYESIAN_DEFAULT
         off2_raw = self._sigmoid_off.get(f"{dir_key}_off2", float(self.BAYESIAN_DEFAULT))
         off3_raw = self._sigmoid_off.get(f"{dir_key}_off3", float(self.BAYESIAN_DEFAULT))
         off2 = max(self.OFFSET_MIN, min(self.OFFSET_MAX, round(off2_raw)))
@@ -762,6 +840,13 @@ class SDA17Strategy(StrategyBase):
             elif actual_result in c3_nbrs and actual_result not in c1_nbrs and actual_result not in c2_nbrs:
                 self._cooldown[dk]["c3"] = cd_spins
 
+        # SV-02 (12/06): com o sigmoid dos satélites aposentado, o feedback
+        # para aqui — EMA (insumo do M5), recent_hits (QW-1/2/6) e histórico
+        # continuam alimentados; drift-freeze/adaptação/regularizador são
+        # exclusivos do mecanismo aposentado.
+        if not self._sigmoid_satellites_enabled():
+            return
+
         # ---- (5) Drift freeze pipeline (QW-7) ----
         if self._drift_freeze[dk] > 0:
             self._drift_freeze[dk] -= 1
@@ -854,6 +939,10 @@ class SDA17Strategy(StrategyBase):
           - Falha silenciosa (já protegida pelo try/except do caller).
         """
         import time as _t
+        # SV-02 (12/06): sem sigmoid de satélites não há parâmetro a tunar.
+        if not self._sigmoid_satellites_enabled():
+            self._batch_last_action[dk] = "sigmoid-off"
+            return
         hits = self._recent_hits.get(dk, [])
         if len(hits) < 8 or len(hits) < min_warmup:
             self._batch_last_action[dk] = "skip_warmup"

@@ -102,6 +102,18 @@ groups:
           summary: "P&L acumulado caiu {{ $value }}u na última hora"
           description: "Queda > 120u/h mesmo com CUT v1+stop-loss. Investigar sessões/dealer; conferir painel Roleta Profit."
 
+      # SV-03 (12/06): regime de viés por região — a roda "anda" num sentido.
+      # Gatilho objetivo para o operador considerar reset de sessão (P10).
+      # O M5 (REGION_SHIFT_V1) já corrige até ±4 casas automaticamente; o
+      # alerta cobre vieses persistentes/extremos.
+      - alert: RoletaRegionBiasHigh
+        expr: (abs(roleta_region_err_ema{region="C1"}) > 4) and on(direction) (roleta_region_err_n{region="C1"} >= 10)
+        for: 5m
+        labels: { severity: warning, component: strategy }
+        annotations:
+          summary: "Viés de região {{ $labels.direction }}: EMA C1 = {{ $value }} casas (n>=10)"
+          description: "A bola está caindo sistematicamente deslocada do centro previsto neste sentido. M5 está corrigindo (ver roleta_region_shift); se persistir, considerar reset de sessão (botão) ou troca de mesa."
+
   - name: roleta_strategy_alerts
     interval: 30s
     rules:

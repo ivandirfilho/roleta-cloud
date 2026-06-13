@@ -56,3 +56,25 @@ def profit_stop_loss_units() -> float:
         return float(os.environ.get("PROFIT_STOP_LOSS_UNITS", "30"))
     except ValueError:
         return 30.0
+
+
+def region_shift_v1_enabled() -> bool:
+    """SV-01 (12/06) — Modelo Universal M5: atuador de shift por região.
+
+    Vencedor do replay causal (2762 decisões, analise_12_junho.md §6):
+    shift_C1 = clamp(round(−EMA_região·0.5), ±4) + satélites relativos ±2.
+    Default ON; desligar com REGION_SHIFT_V1=0.
+    """
+    import os
+    return os.environ.get("REGION_SHIFT_V1", "1").strip().lower() not in ("0", "false", "off")
+
+
+def sigmoid_satellites_enabled() -> bool:
+    """SV-02 (12/06) — sigmoid dos satélites APOSENTADO em produção.
+
+    Replay causal: offsets presos no prior e M4 (sigmoid em C1) destrutivo;
+    o M5 assume a adaptação. Default OFF; religar com SDA_SIGMOID_SATELLITES=1
+    (rollback trivial — estado continua persistido).
+    """
+    import os
+    return os.environ.get("SDA_SIGMOID_SATELLITES", "0").strip().lower() in ("1", "true", "on")

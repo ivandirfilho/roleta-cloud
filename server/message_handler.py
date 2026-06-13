@@ -757,7 +757,13 @@ class MessageHandler:
                 "t_server": now_ms(),
                 # Novo: Triple Rate advice
                 "bet_advice": advice.to_dict(),
-                "action_reason": action_reason
+                "action_reason": action_reason,
+                # SV-01/SV-03 (12/06): viés/correção do M5 visíveis ao operador
+                # (additive — extension ignora campos desconhecidos).
+                "region_bias": {
+                    "shift": result.details.get("region_shift", 0),
+                    "shift_sat": result.details.get("region_shift_sat", [0, 0]),
+                },
             }
         }
 

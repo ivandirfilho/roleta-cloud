@@ -175,6 +175,9 @@ if _METRICS_AVAILABLE:
             "all_time_pnl": Gauge("roleta_all_time_pnl_units", "P&L acumulado (soma de decisions.pnl_units)"),
             # MELHORIA-G (12/06): EMA do erro circular assinado por região.
             "region_err_ema": Gauge("roleta_region_err_ema", "EMA do erro assinado (casas) do resultado até o centro da região", ["direction", "region"]),
+            "region_err_n": Gauge("roleta_region_err_n", "Amostras da EMA de erro por região (SV-03: gate do alerta de viés)", ["direction", "region"]),
+            # SV-01 (12/06): shift aplicado pelo Modelo Universal M5.
+            "region_shift": Gauge("roleta_region_shift", "Shift de C1 aplicado pelo M5 (casas, por sentido)", ["direction"]),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -211,6 +214,7 @@ def _refresh_custom_metrics() -> None:
                 _PROM_METRICS["seconds_since_spin"].set(float(sec))
             # MELHORIA-G (12/06): EMA de erro por região/sentido.
             ree = sg.get("region_err_ema") or {}
+            ren = sg.get("region_err_n") or {}
             for dk in ("cw", "ccw"):
                 for slot in ("c1", "c2", "c3"):
                     v = (ree.get(dk) or {}).get(slot)
@@ -218,6 +222,17 @@ def _refresh_custom_metrics() -> None:
                         _PROM_METRICS["region_err_ema"].labels(
                             direction=dk, region=slot.upper()
                         ).set(float(v))
+                    nv = (ren.get(dk) or {}).get(slot)
+                    if nv is not None:
+                        _PROM_METRICS["region_err_n"].labels(
+                            direction=dk, region=slot.upper()
+                        ).set(float(nv))
+            # SV-01: shift corrente do M5.
+            rs = sg.get("region_shift") or {}
+            for dk in ("cw", "ccw"):
+                sv = (rs.get(dk) or {}).get("shift_c1")
+                if sv is not None:
+                    _PROM_METRICS["region_shift"].labels(direction=dk).set(float(sv))
             # S-STRAT-11: KILL v4 dynamic thresholds via strategy provider
             ks = sg.get("kill_stats") or {}
             kv4 = ks.get("kill_v4") or {}
