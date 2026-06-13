@@ -267,26 +267,53 @@ empilhando os degraus sobre o estado ATUAL (EVcov = unidades por aposta, blend =
 > **reprova walk-forward**. A V2 já captura a alavanca; micro-ajustes em cima **sobre-corrigem**
 > o C1 estreito. **Conclusão: o estado final ótimo é a V2 SOZINHA — não implantar os EV-2.**
 
-### A REGRA (no ar agora — `SDA_GEOMETRY_V2=1`, default ON)
+### A REGRA (no ar agora — `SDA_GEOMETRY_V2=1` + `SDA_SAT_ASYM=1`, default ON)
 > **A estrutura de dados das últimas jogadas de cada sentido É a regra.** A cada jogada,
 > em cada sentido isolado:
-> 1. **fat-SAT 3+7+7** — C1 raio 1 (3 números, os mais prováveis), C2/C3 raio 3 (7 cada).
->    Redistribui os MESMOS 17 tirando massa do centro (raro modal) p/ os satélites.
+> 1. **fat-SAT** — C1 raio 1 (3 números, os mais prováveis); os satélites recebem
+>    **7 números cada (3/3)** OU, com a densidade assimétrica, **9 e 5 (V3: 4/2)** —
+>    o gordo no lado onde a bola mais cai. Sempre **N=17** (redistribui, nunca cobre mais).
 > 2. **Offsets-KDE** — satélites plantados nos **picos de densidade do histograma causal
 >    de erro C1 do próprio sentido** (`_region_err_hist[dir]`, janela 60, KDE triangular).
 >    Fallback ao prior (10/10) enquanto n<12 (as 2 primeiras jogadas de calibração).
-> 3. **M5 C1-shift mantido** — o centro segue o viés EMA (já em produção).
+> 3. **Raios assimétricos (V3)** — satélite gordo (raio 4) no lado mais denso do sentido,
+>    magro (raio 2) no outro; simétrico (3/3) no empate/frio. Mesma regra, lado vem do dado.
+> 4. **M5 C1-shift mantido** — o centro segue o viés EMA (já em produção).
 > Genérica (uma regra, 2 sentidos; só o dado muda), adaptativa por jogada, **N=17 sempre**
 > (INV-3, nunca fica sem aposta), e **zera no reset de dealer** (P10).
 
-### Implementação (commitada, suíte verde 407)
-- `app_config/settings.py`: `geometry_v2_enabled()` (default ON, rollback `SDA_GEOMETRY_V2=0`).
-- `strategies/sda17.py`: `_geometry_radii()` (1/3/3), `_kde_offsets(dir)` (picos KDE do
-  `_region_err_hist`), feed do histograma no feedback C1 (causal, **antes** do early-return
-  do sigmoid — auditado linha-a-linha), reset/persistência do histograma; `analyze()` ramifica.
+### V3 — raios assimétricos (implantado 13/06, refina a V2)
+Backtest causal vs V2 simétrica: **cw 48.2→48.8% (+0.6pp), ccw 44.7→45.0% (+0.4pp)**, e
+**melhora o EVcov out-of-sample (teste) nos 2 sentidos** (cw +2.76→+2.97; ccw +0.98→+1.27).
+Ganho pequeno e borderline (o treino do ccw regride um pouco), mas é o **último lever a
+N=17** e melhora o acerto nos dois sentidos — implantado a pedido do owner. Flag
+`SDA_SAT_ASYM` default ON, rollback `=0` (volta a 3/3 simétrico).
+
+### Implementação (commitada, suíte verde 414)
+- `app_config/settings.py`: `geometry_v2_enabled()` + `sat_asym_enabled()` (default ON,
+  rollback `SDA_GEOMETRY_V2=0` / `SDA_SAT_ASYM=0`).
+- `strategies/sda17.py`: `_geometry_radii(dk)` (1/3/3 ou V3 1/4/2 por densidade),
+  `_sat_radii(dk)`, `_kde_offsets(dir)` (picos KDE do `_region_err_hist`), feed do
+  histograma no feedback C1 (causal, **antes** do early-return do sigmoid — auditado),
+  reset/persistência; `analyze()` ramifica e rotula a geometria dinamicamente (3+9+5 etc.).
 - `tests/conftest.py`: suite legada com `SDA_GEOMETRY_V2=0` (mantém 7+5+5 dos testes antigos).
-- `tests/test_geometry_v2_12_06.py`: 9 testes (footprint 17, KDE rastreia densidade,
-  fallback frio, isolamento por sentido, reset, persistência, INV-3, rollback legado).
+- `tests/test_geometry_v2_12_06.py` (9) + `tests/test_geometry_v3_13_06.py` (7).
+
+### Auditoria de bugs (13/06) — limpa
+- **Stress 1428 apostas, N≠17 em ZERO** (sem overlap sob qualquer offset×raio); assimetria
+  engaja nos 2 sentidos (3+9+5 e 3+5+9); reset zera o histograma.
+- Feed do histograma alcançado em produção (antes do early-return do sigmoid OFF).
+- `_bayesian_brute_force` (otimizador legado) usa raios antigos — **morto na V2**, intocado.
+- Suíte completa **414 passed**, 9 skipped, 1 xfailed; lint baseline OK.
+
+### DEPLOY (13/06) — NO AR no servidor Debian (187.45.181.75)
+1. `git push` → `9530a67..15bde3c`. Timer de deploy parado (evita corrida).
+2. `docker compose build roleta-cloud` (imagem reconstruída com o código novo).
+3. `docker compose up -d roleta-cloud` → container recriado, **healthy**; timer religado.
+4. **Verificado ao vivo:** flags `V2=True ASYM=True M5=True SIGMOID=False`; raios
+   cold `(1,3,3)` → biased `(1,4,2)`; startup limpo (ws://0.0.0.0:8765, sem erros).
+5. **Decisões pós-deploy (5881–5883, ambos sentidos):** `sda_numbers_count=17`, 3 centros
+   (Triple Focus), `final_action=APOSTAR`. Sem migração (mudança só de código).
 
 ### EV-2 — REJEITADOS ao empilhar na V2 (medido, não implantar)
 A escada de ganho provou que os micro-ajustes validados na geometria ANTIGA **não
@@ -305,16 +332,15 @@ compõem** com a V2 e **reduzem** o ganho — não são "deferidos", são **desc
 
 ## PRÓXIMOS PASSOS DA EVOLUÇÃO (pós-implantação)
 
-1. **Deploy:** `git push` → pull-deploy auto (2 min) **com rebuild da imagem** roleta-cloud
-   (mudança em `strategies/`); confirmar `SDA_GEOMETRY_V2` ON no container e o reset de
-   dealer zerando `region_err_hist`. *(Push é escrita no GitHub → requer aprovação.)*
+1. **✅ FEITO — Deploy V2+V3 no ar** (commit `15bde3c`, servidor 187.45.181.75): rebuild da
+   imagem + restart, flags V2/ASYM/M5 ON verificadas, decisões 5881–5883 com 17 números.
 2. **Telemetria de confirmação (só observar a regra no ar):** Gauges `roleta_geometry{dir}`
-   (3+7+7) e `roleta_sat_offset{dir,slot}` (offset-KDE corrente), p/ ver a densidade real
-   moldando os satélites por sentido no Grafana.
+   (3+7+7 / 3+9+5 / 3+5+9) e `roleta_sat_offset{dir,slot}` (offset-KDE corrente), p/ ver a
+   densidade real moldando os satélites por sentido no Grafana. **Próximo item natural.**
 3. **Acompanhar cw×ccw isolados ao vivo:** a regra deve **manter o cw (agora EV+)** e
    recuperar o ccw; se o ccw seguir difícil, é o candidato natural ao **bias físico de dealer**.
 4. **NÃO implantar os EV-2** (α0.3, A16): a escada de ganho mostrou que eles reduzem o
-   resultado ao empilhar na V2 (α0.3 → +0.39; A16 → +0.03, reprova WF). Estado ótimo = V2 sozinha.
+   resultado ao empilhar na V2 (α0.3 → +0.39; A16 → +0.03, reprova WF). Estado ótimo = V2+V3.
 5. **O único caminho para EV>0 real sustentado continua sendo o viés físico de dealer
    (DEAL capture)** — ortogonal a esta geometria; exige sessão com operador.
 
