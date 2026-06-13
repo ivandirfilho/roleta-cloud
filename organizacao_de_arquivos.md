@@ -14,7 +14,7 @@
 | Categoria | Quantidade | Política |
 |---|---|---|
 | 🟢 **ATIVOS** (referência diária) | 7 | Manter no root |
-| 🟡 **RUNBOOKS** (operacionais) | 8 | Manter em `docs/runbooks/` |
+| 🟡 **RUNBOOKS** (operacionais) | 9 | Manter em `docs/runbooks/` |
 | 🟠 **SESSÃO ATUAL 24/05** (consultar nos próximos dias) | 6 | Manter no root por +7 dias |
 | 🔵 **HISTÓRICOS** (sessões anteriores 28/03–23/05) | 21 | Mover para `archive/sessoes/` |
 | ⚫ **LEGACY ARCHIVE** (já em `archive/`) | 13 | Manter onde estão |
@@ -31,17 +31,18 @@
 | `resultados_agora_24.md` | Resultado live + auditoria (auditado) |
 | `organizacao_de_arquivos.md` | **Este arquivo** |
 
-### A.3 RUNBOOKS (8) — `docs/runbooks/`
+### A.3 RUNBOOKS (9) — `docs/runbooks/`
 
 ```
-wal-g-backblaze.md       # backup PG → B2
-secrets-sops-age.md      # gestão de segredos
-rollback.md              # procedimento rollback
-pause-policy.md          # flag app_paused
-ivfflat-tuning.md        # pgvector lists/probes
-grafana-cloud.md         # remote_write + Loki
-canary-deployment.md     # canário com feature flags
-adoption-playbook.md     # rollout S10-S14
+wal-g-backblaze.md          # backup PG → B2
+secrets-sops-age.md         # gestão de segredos
+rollback.md                 # procedimento rollback
+pause-policy.md             # flag app_paused
+ivfflat-tuning.md           # pgvector lists/probes
+grafana-cloud.md            # remote_write + Loki
+canary-deployment.md        # canário com feature flags
+adoption-playbook.md        # rollout S10-S14
+sem-apostas-master-slave.md # ⚠️ "ONLINE mas sem regiões" = sem MASTER eleito (incidente 13/06)
 ```
 
 ### A.4 SESSÃO 24/05 (6) — manter no root por +7 dias
