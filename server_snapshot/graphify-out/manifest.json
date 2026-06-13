@@ -1,0 +1,52 @@
+{
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\01_sistema.md": {
+    "mtime": 1781117511.170766,
+    "ast_hash": "163d606308b99674a90fd1c9e4d9ab14",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\02_docker.md": {
+    "mtime": 1781117511.479455,
+    "ast_hash": "f4cf1391c69309c085228089a35a4482",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\03_servicos_host.md": {
+    "mtime": 1781117511.7614553,
+    "ast_hash": "fbfab751a377c0b1057b8ab76ab934d2",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\04_nginx_tls.md": {
+    "mtime": 1781117512.039169,
+    "ast_hash": "d99f30c0267149229bfb909b23b47190",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\05_database.md": {
+    "mtime": 1781117512.3236692,
+    "ast_hash": "510976af31b70ca2c1786523472bdbbe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\06_app_runtime.md": {
+    "mtime": 1781117512.5972471,
+    "ast_hash": "bcb5df3d82fc43a59765886132d5f907",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\07_observabilidade.md": {
+    "mtime": 1781117512.8795135,
+    "ast_hash": "cbf977519d2d18702ac0d2e21d454695",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\08_seguranca.md": {
+    "mtime": 1781117513.1613455,
+    "ast_hash": "2ec1d62747660963d25a23808aa2d0f1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\09_arvore_completa_12_06.txt": {
+    "mtime": 1781310079.6934628,
+    "ast_hash": "a84e45e40fa2c4bb96f2d1689c7e4ab4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\10_inventario_12_06.md": {
+    "mtime": 1781310116.6290426,
+    "ast_hash": "91315143c8389994ec4122ad16a04588",
+    "semantic_hash": ""
+  }
+}

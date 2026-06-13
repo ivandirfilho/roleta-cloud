@@ -1,16 +1,853 @@
 {
-  "directed": true,
+  "directed": false,
   "multigraph": false,
   "graph": {},
   "nodes": [
+    {
+      "label": "01_sistema.md",
+      "file_type": "document",
+      "source_file": "01_sistema.md",
+      "source_location": "L1",
+      "id": "01_sistema_md",
+      "community": 13,
+      "norm_label": "01_sistema.md"
+    },
+    {
+      "label": "Servidor Debian \u2014 Sistema",
+      "file_type": "document",
+      "source_file": "01_sistema.md",
+      "source_location": "L1",
+      "id": "server_snapshot_01_sistema_servidor_debian_sistema",
+      "community": 13,
+      "norm_label": "servidor debian \u2014 sistema"
+    },
+    {
+      "label": "Historico de boots (wtmp)",
+      "file_type": "document",
+      "source_file": "01_sistema.md",
+      "source_location": "L14",
+      "id": "server_snapshot_01_sistema_historico_de_boots_wtmp",
+      "community": 13,
+      "norm_label": "historico de boots (wtmp)"
+    },
+    {
+      "label": "code:block1 (reboot   system boot  6.1.0-13-amd64   Wed Jun 10 18:40   st)",
+      "file_type": "document",
+      "source_file": "01_sistema.md",
+      "source_location": "L15",
+      "id": "server_snapshot_01_sistema_codeblock_1",
+      "community": 13,
+      "norm_label": "code:block1 (reboot   system boot  6.1.0-13-amd64   wed jun 10 18:40   st)"
+    },
+    {
+      "label": "02_docker.md",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L1",
+      "id": "02_docker_md",
+      "community": 3,
+      "norm_label": "02_docker.md"
+    },
+    {
+      "label": "Docker \u2014 Containers e Infraestrutura",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L1",
+      "id": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "community": 3,
+      "norm_label": "docker \u2014 containers e infraestrutura"
+    },
+    {
+      "label": "Containers",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L3",
+      "id": "server_snapshot_02_docker_containers",
+      "community": 3,
+      "norm_label": "containers"
+    },
+    {
+      "label": "code:block1 (NAMES                 IMAGE                                 )",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L4",
+      "id": "server_snapshot_02_docker_codeblock_1",
+      "community": 3,
+      "norm_label": "code:block1 (names                 image                                 )"
+    },
+    {
+      "label": "Imagens",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L16",
+      "id": "server_snapshot_02_docker_imagens",
+      "community": 3,
+      "norm_label": "imagens"
+    },
+    {
+      "label": "code:block2 (REPOSITORY                                      TAG         )",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L17",
+      "id": "server_snapshot_02_docker_codeblock_2",
+      "community": 3,
+      "norm_label": "code:block2 (repository                                      tag         )"
+    },
+    {
+      "label": "Volumes",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L32",
+      "id": "server_snapshot_02_docker_volumes",
+      "community": 3,
+      "norm_label": "volumes"
+    },
+    {
+      "label": "code:block3 (VOLUME NAME                      DRIVER)",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L33",
+      "id": "server_snapshot_02_docker_codeblock_3",
+      "community": 3,
+      "norm_label": "code:block3 (volume name                      driver)"
+    },
+    {
+      "label": "Redes",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L42",
+      "id": "server_snapshot_02_docker_redes",
+      "community": 3,
+      "norm_label": "redes"
+    },
+    {
+      "label": "code:block4 (NAME                   DRIVER)",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L43",
+      "id": "server_snapshot_02_docker_codeblock_4",
+      "community": 3,
+      "norm_label": "code:block4 (name                   driver)"
+    },
+    {
+      "label": "Restart policies + healthchecks",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L51",
+      "id": "server_snapshot_02_docker_restart_policies_healthchecks",
+      "community": 3,
+      "norm_label": "restart policies + healthchecks"
+    },
+    {
+      "label": "code:block5 (roleta-cloud              restart=unless-stopped  health=hea)",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L52",
+      "id": "server_snapshot_02_docker_codeblock_5",
+      "community": 3,
+      "norm_label": "code:block5 (roleta-cloud              restart=unless-stopped  health=hea)"
+    },
+    {
+      "label": "Uso de recursos (snapshot)",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L63",
+      "id": "server_snapshot_02_docker_uso_de_recursos_snapshot",
+      "community": 3,
+      "norm_label": "uso de recursos (snapshot)"
+    },
+    {
+      "label": "code:block6 (NAME                  CPU %     MEM USAGE / LIMIT)",
+      "file_type": "document",
+      "source_file": "02_docker.md",
+      "source_location": "L64",
+      "id": "server_snapshot_02_docker_codeblock_6",
+      "community": 3,
+      "norm_label": "code:block6 (name                  cpu %     mem usage / limit)"
+    },
+    {
+      "label": "03_servicos_host.md",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L1",
+      "id": "03_servicos_host_md",
+      "community": 9,
+      "norm_label": "03_servicos_host.md"
+    },
+    {
+      "label": "Servi\u00e7os do Host (fora do Docker)",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L1",
+      "id": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "community": 9,
+      "norm_label": "servicos do host (fora do docker)"
+    },
+    {
+      "label": "Services rodando",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L3",
+      "id": "server_snapshot_03_servicos_host_services_rodando",
+      "community": 9,
+      "norm_label": "services rodando"
+    },
+    {
+      "label": "code:block1 (containerd.service)",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L4",
+      "id": "server_snapshot_03_servicos_host_codeblock_1",
+      "community": 9,
+      "norm_label": "code:block1 (containerd.service)"
+    },
+    {
+      "label": "Timers ativos",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L21",
+      "id": "server_snapshot_03_servicos_host_timers_ativos",
+      "community": 9,
+      "norm_label": "timers ativos"
+    },
+    {
+      "label": "code:block2 (roleta-deploy.service Wed 2026-06-10 18:51:15)",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L22",
+      "id": "server_snapshot_03_servicos_host_codeblock_2",
+      "community": 9,
+      "norm_label": "code:block2 (roleta-deploy.service wed 2026-06-10 18:51:15)"
+    },
+    {
+      "label": "Crontab root",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L35",
+      "id": "server_snapshot_03_servicos_host_crontab_root",
+      "community": 9,
+      "norm_label": "crontab root"
+    },
+    {
+      "label": "code:block3 (* * * * * /usr/local/bin/roleta-gap-check.sh)",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L36",
+      "id": "server_snapshot_03_servicos_host_codeblock_3",
+      "community": 9,
+      "norm_label": "code:block3 (* * * * * /usr/local/bin/roleta-gap-check.sh)"
+    },
+    {
+      "label": "Portas escutando",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L40",
+      "id": "server_snapshot_03_servicos_host_portas_escutando",
+      "community": 9,
+      "norm_label": "portas escutando"
+    },
+    {
+      "label": "code:block4 (0.0.0.0:22 \"sshd\")",
+      "file_type": "document",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L41",
+      "id": "server_snapshot_03_servicos_host_codeblock_4",
+      "community": 9,
+      "norm_label": "code:block4 (0.0.0.0:22 \"sshd\")"
+    },
+    {
+      "label": "04_nginx_tls.md",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L1",
+      "id": "04_nginx_tls_md",
+      "community": 11,
+      "norm_label": "04_nginx_tls.md"
+    },
+    {
+      "label": "Nginx + TLS",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L1",
+      "id": "server_snapshot_04_nginx_tls_nginx_tls",
+      "community": 11,
+      "norm_label": "nginx + tls"
+    },
+    {
+      "label": "Sites habilitados",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L3",
+      "id": "server_snapshot_04_nginx_tls_sites_habilitados",
+      "community": 11,
+      "norm_label": "sites habilitados"
+    },
+    {
+      "label": "code:block1 (roleta)",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L4",
+      "id": "server_snapshot_04_nginx_tls_codeblock_1",
+      "community": 11,
+      "norm_label": "code:block1 (roleta)"
+    },
+    {
+      "label": "server_name + proxy_pass por site",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L8",
+      "id": "server_snapshot_04_nginx_tls_server_name_proxy_pass_por_site",
+      "community": 11,
+      "norm_label": "server_name + proxy_pass por site"
+    },
+    {
+      "label": "code:block2 (server_name roleta.xma-ia.com www.roleta.xma-ia.com;)",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L9",
+      "id": "server_snapshot_04_nginx_tls_codeblock_2",
+      "community": 11,
+      "norm_label": "code:block2 (server_name roleta.xma-ia.com www.roleta.xma-ia.com;)"
+    },
+    {
+      "label": "Certificados (certbot)",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L17",
+      "id": "server_snapshot_04_nginx_tls_certificados_certbot",
+      "community": 11,
+      "norm_label": "certificados (certbot)"
+    },
+    {
+      "label": "code:block3 (Certificate Name: roleta.xma-ia.com)",
+      "file_type": "document",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L18",
+      "id": "server_snapshot_04_nginx_tls_codeblock_3",
+      "community": 11,
+      "norm_label": "code:block3 (certificate name: roleta.xma-ia.com)"
+    },
+    {
+      "label": "05_database.md",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L1",
+      "id": "05_database_md",
+      "community": 6,
+      "norm_label": "05_database.md"
+    },
+    {
+      "label": "PostgreSQL (roleta-pg)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L1",
+      "id": "server_snapshot_05_database_postgresql_roleta_pg",
+      "community": 6,
+      "norm_label": "postgresql (roleta-pg)"
+    },
+    {
+      "label": "Tabelas por volume (n_live_tup)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L8",
+      "id": "server_snapshot_05_database_tabelas_por_volume_n_live_tup",
+      "community": 6,
+      "norm_label": "tabelas por volume (n_live_tup)"
+    },
+    {
+      "label": "code:block1 (shared.outbox = 5)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L9",
+      "id": "server_snapshot_05_database_codeblock_1",
+      "community": 6,
+      "norm_label": "code:block1 (shared.outbox = 5)"
+    },
+    {
+      "label": "Outbox (CDC) por status",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L26",
+      "id": "server_snapshot_05_database_outbox_cdc_por_status",
+      "community": 6,
+      "norm_label": "outbox (cdc) por status"
+    },
+    {
+      "label": "code:block2 (processed = 2706)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L27",
+      "id": "server_snapshot_05_database_codeblock_2",
+      "community": 6,
+      "norm_label": "code:block2 (processed = 2706)"
+    },
+    {
+      "label": "Outbox failed por event_type",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L31",
+      "id": "server_snapshot_05_database_outbox_failed_por_event_type",
+      "community": 6,
+      "norm_label": "outbox failed por event_type"
+    },
+    {
+      "label": "code:block3 (nenhum)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L32",
+      "id": "server_snapshot_05_database_codeblock_3",
+      "community": 6,
+      "norm_label": "code:block3 (nenhum)"
+    },
+    {
+      "label": "Ultimo evento outbox",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L36",
+      "id": "server_snapshot_05_database_ultimo_evento_outbox",
+      "community": 6,
+      "norm_label": "ultimo evento outbox"
+    },
+    {
+      "label": "code:block4 (2026-06-10 18:51:09.081719+00)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L37",
+      "id": "server_snapshot_05_database_codeblock_4",
+      "community": 6,
+      "norm_label": "code:block4 (2026-06-10 18:51:09.081719+00)"
+    },
+    {
+      "label": "Alembic version",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L41",
+      "id": "server_snapshot_05_database_alembic_version",
+      "community": 6,
+      "norm_label": "alembic version"
+    },
+    {
+      "label": "code:block5 (0006_spin_features)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L42",
+      "id": "server_snapshot_05_database_codeblock_5",
+      "community": 6,
+      "norm_label": "code:block5 (0006_spin_features)"
+    },
+    {
+      "label": "Estatisticas de dominio",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L45",
+      "id": "server_snapshot_05_database_estatisticas_de_dominio",
+      "community": 6,
+      "norm_label": "estatisticas de dominio"
+    },
+    {
+      "label": "code:block6 (spins_total = tabela inexistente)",
+      "file_type": "document",
+      "source_file": "05_database.md",
+      "source_location": "L46",
+      "id": "server_snapshot_05_database_codeblock_6",
+      "community": 6,
+      "norm_label": "code:block6 (spins_total = tabela inexistente)"
+    },
+    {
+      "label": "06_app_runtime.md",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L1",
+      "id": "06_app_runtime_md",
+      "community": 7,
+      "norm_label": "06_app_runtime.md"
+    },
+    {
+      "label": "Aplica\u00e7\u00e3o Roleta Cloud \u2014 Runtime",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L1",
+      "id": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "community": 7,
+      "norm_label": "aplicacao roleta cloud \u2014 runtime"
+    },
+    {
+      "label": "Git no servidor",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L3",
+      "id": "server_snapshot_06_app_runtime_git_no_servidor",
+      "community": 7,
+      "norm_label": "git no servidor"
+    },
+    {
+      "label": "code:block1 (e7461a7 Merge pull request #6 from ivandirfilho/copilot/fix-)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L4",
+      "id": "server_snapshot_06_app_runtime_codeblock_1",
+      "community": 7,
+      "norm_label": "code:block1 (e7461a7 merge pull request #6 from ivandirfilho/copilot/fix-)"
+    },
+    {
+      "label": "Arquivos n\u00e3o versionados relevantes",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L12",
+      "id": "server_snapshot_06_app_runtime_arquivos_n\u00e3o_versionados_relevantes",
+      "community": 7,
+      "norm_label": "arquivos nao versionados relevantes"
+    },
+    {
+      "label": "code:block2 (?? models/spin_autoencoder.joblib)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L13",
+      "id": "server_snapshot_06_app_runtime_codeblock_2",
+      "community": 7,
+      "norm_label": "code:block2 (?? models/spin_autoencoder.joblib)"
+    },
+    {
+      "label": ".env \u2014 somente NOMES de vari\u00e1veis (valores omitidos)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L17",
+      "id": "server_snapshot_06_app_runtime_env_somente_nomes_de_vari\u00e1veis_valores_omitidos",
+      "community": 7,
+      "norm_label": ".env \u2014 somente nomes de variaveis (valores omitidos)"
+    },
+    {
+      "label": "code:block3 (ROLETA_PG_DSN)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L18",
+      "id": "server_snapshot_06_app_runtime_codeblock_3",
+      "community": 7,
+      "norm_label": "code:block3 (roleta_pg_dsn)"
+    },
+    {
+      "label": "Estrutura /root/roleta-cloud (nivel 2)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L22",
+      "id": "server_snapshot_06_app_runtime_estrutura_root_roleta_cloud_nivel_2",
+      "community": 7,
+      "norm_label": "estrutura /root/roleta-cloud (nivel 2)"
+    },
+    {
+      "label": "code:block4 (.)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L23",
+      "id": "server_snapshot_06_app_runtime_codeblock_4",
+      "community": 7,
+      "norm_label": "code:block4 (.)"
+    },
+    {
+      "label": "Health endpoint",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L76",
+      "id": "server_snapshot_06_app_runtime_health_endpoint",
+      "community": 7,
+      "norm_label": "health endpoint"
+    },
+    {
+      "label": "code:block5 ({\"status\": \"ok\", \"uptime_sec\": 619, \"version\": \"4.4.0\", \"ts\")",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L77",
+      "id": "server_snapshot_06_app_runtime_codeblock_5",
+      "community": 7,
+      "norm_label": "code:block5 ({\"status\": \"ok\", \"uptime_sec\": 619, \"version\": \"4.4.0\", \"ts\")"
+    },
+    {
+      "label": "state.json / configs runtime",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L81",
+      "id": "server_snapshot_06_app_runtime_state_json_configs_runtime",
+      "community": 7,
+      "norm_label": "state.json / configs runtime"
+    },
+    {
+      "label": "code:block6 (total 8)",
+      "file_type": "document",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L82",
+      "id": "server_snapshot_06_app_runtime_codeblock_6",
+      "community": 7,
+      "norm_label": "code:block6 (total 8)"
+    },
+    {
+      "label": "07_observabilidade.md",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L1",
+      "id": "07_observabilidade_md",
+      "community": 10,
+      "norm_label": "07_observabilidade.md"
+    },
+    {
+      "label": "Observabilidade \u2014 Prometheus / Grafana / Alertmanager",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L1",
+      "id": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "community": 10,
+      "norm_label": "observabilidade \u2014 prometheus / grafana / alertmanager"
+    },
+    {
+      "label": "Targets Prometheus",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L3",
+      "id": "server_snapshot_07_observabilidade_targets_prometheus",
+      "community": 10,
+      "norm_label": "targets prometheus"
+    },
+    {
+      "label": "code:block1 (prometheus http://localhost:9090/metrics up)",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L4",
+      "id": "server_snapshot_07_observabilidade_codeblock_1",
+      "community": 10,
+      "norm_label": "code:block1 (prometheus http://localhost:9090/metrics up)"
+    },
+    {
+      "label": "Regras de alerta carregadas",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L9",
+      "id": "server_snapshot_07_observabilidade_regras_de_alerta_carregadas",
+      "community": 10,
+      "norm_label": "regras de alerta carregadas"
+    },
+    {
+      "label": "code:block2 (RoletaAdaptiveStateLost inactive)",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L10",
+      "id": "server_snapshot_07_observabilidade_codeblock_2",
+      "community": 10,
+      "norm_label": "code:block2 (roletaadaptivestatelost inactive)"
+    },
+    {
+      "label": "Alertas ativos agora",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L27",
+      "id": "server_snapshot_07_observabilidade_alertas_ativos_agora",
+      "community": 10,
+      "norm_label": "alertas ativos agora"
+    },
+    {
+      "label": "code:block3 (1 alertas)",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L28",
+      "id": "server_snapshot_07_observabilidade_codeblock_3",
+      "community": 10,
+      "norm_label": "code:block3 (1 alertas)"
+    },
+    {
+      "label": "Grafana-agent (cloud remoto)",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L33",
+      "id": "server_snapshot_07_observabilidade_grafana_agent_cloud_remoto",
+      "community": 10,
+      "norm_label": "grafana-agent (cloud remoto)"
+    },
+    {
+      "label": "code:block4 (active)",
+      "file_type": "document",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L34",
+      "id": "server_snapshot_07_observabilidade_codeblock_4",
+      "community": 10,
+      "norm_label": "code:block4 (active)"
+    },
+    {
+      "label": "08_seguranca.md",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L1",
+      "id": "08_seguranca_md",
+      "community": 8,
+      "norm_label": "08_seguranca.md"
+    },
+    {
+      "label": "Seguran\u00e7a",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L1",
+      "id": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "community": 8,
+      "norm_label": "seguranca"
+    },
+    {
+      "label": "SSHD config efetiva (itens chave)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L3",
+      "id": "server_snapshot_08_seguranca_sshd_config_efetiva_itens_chave",
+      "community": 8,
+      "norm_label": "sshd config efetiva (itens chave)"
+    },
+    {
+      "label": "code:block1 (port 22)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L4",
+      "id": "server_snapshot_08_seguranca_codeblock_1",
+      "community": 8,
+      "norm_label": "code:block1 (port 22)"
+    },
+    {
+      "label": "Tentativas de invas\u00e3o SSH (\u00faltimos 7 dias do journal)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L11",
+      "id": "server_snapshot_08_seguranca_tentativas_de_invas\u00e3o_ssh_\u00faltimos_7_dias_do_journal",
+      "community": 8,
+      "norm_label": "tentativas de invasao ssh (ultimos 7 dias do journal)"
+    },
+    {
+      "label": "code:block2 (0)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L12",
+      "id": "server_snapshot_08_seguranca_codeblock_2",
+      "community": 8,
+      "norm_label": "code:block2 (0)"
+    },
+    {
+      "label": "fail2ban",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L19",
+      "id": "server_snapshot_08_seguranca_fail2ban",
+      "community": 8,
+      "norm_label": "fail2ban"
+    },
+    {
+      "label": "code:block3 (fail2ban NAO instalado)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L20",
+      "id": "server_snapshot_08_seguranca_codeblock_3",
+      "community": 8,
+      "norm_label": "code:block3 (fail2ban nao instalado)"
+    },
+    {
+      "label": "ufw / firewall",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L24",
+      "id": "server_snapshot_08_seguranca_ufw_firewall",
+      "community": 8,
+      "norm_label": "ufw / firewall"
+    },
+    {
+      "label": "code:block4 (Chain INPUT (policy ACCEPT))",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L25",
+      "id": "server_snapshot_08_seguranca_codeblock_4",
+      "community": 8,
+      "norm_label": "code:block4 (chain input (policy accept))"
+    },
+    {
+      "label": "Updates pendentes",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L30",
+      "id": "server_snapshot_08_seguranca_updates_pendentes",
+      "community": 8,
+      "norm_label": "updates pendentes"
+    },
+    {
+      "label": "code:block5 (118 pacotes atualiz\u00e1veis)",
+      "file_type": "document",
+      "source_file": "08_seguranca.md",
+      "source_location": "L31",
+      "id": "server_snapshot_08_seguranca_codeblock_5",
+      "community": 8,
+      "norm_label": "code:block5 (118 pacotes atualizaveis)"
+    },
+    {
+      "label": "10_inventario_12_06.md",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L1",
+      "id": "10_inventario_12_06_md",
+      "community": 12,
+      "norm_label": "10_inventario_12_06.md"
+    },
+    {
+      "label": "Servidor Debian 187.45.181.75 \u2014 Invent\u00e1rio 12/06/2026 23:20 UTC",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L1",
+      "id": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "community": 12,
+      "norm_label": "servidor debian 187.45.181.75 \u2014 inventario 12/06/2026 23:20 utc"
+    },
+    {
+      "label": "Containers (8, todos healthy)",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L6",
+      "id": "server_snapshot_10_inventario_12_06_containers_8_todos_healthy",
+      "community": 12,
+      "norm_label": "containers (8, todos healthy)"
+    },
+    {
+      "label": "Automa\u00e7\u00e3o do host",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L17",
+      "id": "server_snapshot_10_inventario_12_06_automa\u00e7\u00e3o_do_host",
+      "community": 12,
+      "norm_label": "automacao do host"
+    },
+    {
+      "label": "Backups",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L25",
+      "id": "server_snapshot_10_inventario_12_06_backups",
+      "community": 12,
+      "norm_label": "backups"
+    },
+    {
+      "label": "Volumes",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L30",
+      "id": "server_snapshot_10_inventario_12_06_volumes",
+      "community": 12,
+      "norm_label": "volumes"
+    },
+    {
+      "label": "Deltas funcionais de 12/06 (resumo)",
+      "file_type": "document",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L33",
+      "id": "server_snapshot_10_inventario_12_06_deltas_funcionais_de_12_06_resumo",
+      "community": 12,
+      "norm_label": "deltas funcionais de 12/06 (resumo)"
+    },
     {
       "label": "Servidor Debian xmaiajpvm (187.45.181.75)",
       "file_type": "code",
       "source_file": "server_snapshot/01_sistema.md",
       "source_location": "L1",
       "norm_label": "servidor debian xmaiajpvm (187.45.181.75)",
-      "id": "host",
-      "community": 1
+      "community": 1,
+      "id": "host"
     },
     {
       "label": "Debian 12 bookworm / kernel 6.1.0-13",
@@ -18,8 +855,8 @@
       "source_file": "server_snapshot/01_sistema.md",
       "source_location": "L1",
       "norm_label": "debian 12 bookworm / kernel 6.1.0-13",
-      "id": "os",
-      "community": 1
+      "community": 1,
+      "id": "os"
     },
     {
       "label": "VM QEMU 4 vCPU / 7GB RAM / 79GB disco (10% usado)",
@@ -27,8 +864,8 @@
       "source_file": "server_snapshot/01_sistema.md",
       "source_location": "L1",
       "norm_label": "vm qemu 4 vcpu / 7gb ram / 79gb disco (10% usado)",
-      "id": "vm",
-      "community": 1
+      "community": 1,
+      "id": "vm"
     },
     {
       "label": "DOWNTIME 30/05 14:30 -> 10/06 18:40 (11 dias desligado)",
@@ -36,8 +873,8 @@
       "source_file": "server_snapshot/01_sistema.md",
       "source_location": "L1",
       "norm_label": "downtime 30/05 14:30 -> 10/06 18:40 (11 dias desligado)",
-      "id": "downtime",
-      "community": 1
+      "community": 1,
+      "id": "downtime"
     },
     {
       "label": "nginx (host) :80/:443",
@@ -45,8 +882,8 @@
       "source_file": "server_snapshot/04_nginx_tls.md",
       "source_location": "L1",
       "norm_label": "nginx (host) :80/:443",
-      "id": "nginx",
-      "community": 2
+      "community": 2,
+      "id": "nginx"
     },
     {
       "label": "roleta.xma-ia.com (+ www)",
@@ -54,8 +891,8 @@
       "source_file": "server_snapshot/04_nginx_tls.md",
       "source_location": "L1",
       "norm_label": "roleta.xma-ia.com (+ www)",
-      "id": "dominio",
-      "community": 2
+      "community": 2,
+      "id": "dominio"
     },
     {
       "label": "Cert Let's Encrypt (expira 2026-07-06)",
@@ -63,8 +900,8 @@
       "source_file": "server_snapshot/04_nginx_tls.md",
       "source_location": "L1",
       "norm_label": "cert let's encrypt (expira 2026-07-06)",
-      "id": "cert",
-      "community": 2
+      "community": 2,
+      "id": "cert"
     },
     {
       "label": "certbot.timer (renovacao diaria)",
@@ -72,8 +909,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "certbot.timer (renovacao diaria)",
-      "id": "certbot_timer",
-      "community": 2
+      "community": 2,
+      "id": "certbot_timer"
     },
     {
       "label": "sshd :22 publico (root+password LIGADOS)",
@@ -81,8 +918,8 @@
       "source_file": "server_snapshot/08_seguranca.md",
       "source_location": "L1",
       "norm_label": "sshd :22 publico (root+password ligados)",
-      "id": "sshd",
-      "community": 1
+      "community": 1,
+      "id": "sshd"
     },
     {
       "label": "grafana-agent (host) remote_write",
@@ -90,8 +927,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "grafana-agent (host) remote_write",
-      "id": "grafana_agent",
-      "community": 1
+      "community": 1,
+      "id": "grafana_agent"
     },
     {
       "label": "Grafana Cloud prod-sa-east-1",
@@ -99,8 +936,8 @@
       "source_file": "server_snapshot/07_observabilidade.md",
       "source_location": "L1",
       "norm_label": "grafana cloud prod-sa-east-1",
-      "id": "grafana_cloud",
-      "community": 1
+      "community": 1,
+      "id": "grafana_cloud"
     },
     {
       "label": "roleta-deploy.timer (pull-deploy main a cada 2min)",
@@ -108,8 +945,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "roleta-deploy.timer (pull-deploy main a cada 2min)",
-      "id": "deploy_timer",
-      "community": 5
+      "community": 5,
+      "id": "deploy_timer"
     },
     {
       "label": "/usr/local/bin/roleta-deploy-pull.sh",
@@ -117,8 +954,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "/usr/local/bin/roleta-deploy-pull.sh",
-      "id": "deploy_script",
-      "community": 5
+      "community": 5,
+      "id": "deploy_script"
     },
     {
       "label": "cron 1min roleta-gap-check.sh (flock + textfile)",
@@ -126,8 +963,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "cron 1min roleta-gap-check.sh (flock + textfile)",
-      "id": "gap_cron",
-      "community": 6
+      "community": 0,
+      "id": "gap_cron"
     },
     {
       "label": "tools/gap_detector.py (in-container)",
@@ -135,8 +972,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "tools/gap_detector.py (in-container)",
-      "id": "gap_detector",
-      "community": 6
+      "community": 0,
+      "id": "gap_detector"
     },
     {
       "label": "RISCO: POSTGRES_PASSWORD hardcoded em roleta-gap-check.sh",
@@ -144,8 +981,8 @@
       "source_file": "server_snapshot/08_seguranca.md",
       "source_location": "L1",
       "norm_label": "risco: postgres_password hardcoded em roleta-gap-check.sh",
-      "id": "secret_leak",
-      "community": 6
+      "community": 0,
+      "id": "secret_leak"
     },
     {
       "label": "RISCO: sem fail2ban",
@@ -153,8 +990,8 @@
       "source_file": "server_snapshot/08_seguranca.md",
       "source_location": "L1",
       "norm_label": "risco: sem fail2ban",
-      "id": "no_fail2ban",
-      "community": 1
+      "community": 1,
+      "id": "no_fail2ban"
     },
     {
       "label": "RISCO: iptables INPUT policy ACCEPT (sem firewall)",
@@ -162,8 +999,8 @@
       "source_file": "server_snapshot/08_seguranca.md",
       "source_location": "L1",
       "norm_label": "risco: iptables input policy accept (sem firewall)",
-      "id": "no_fw",
-      "community": 1
+      "community": 1,
+      "id": "no_fw"
     },
     {
       "label": "RISCO: node-exporter *:9100 exposto publico",
@@ -171,8 +1008,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "risco: node-exporter *:9100 exposto publico",
-      "id": "port9100",
-      "community": 1
+      "community": 1,
+      "id": "port9100"
     },
     {
       "label": "RISCO: 118 pacotes atualizaveis",
@@ -180,8 +1017,8 @@
       "source_file": "server_snapshot/08_seguranca.md",
       "source_location": "L1",
       "norm_label": "risco: 118 pacotes atualizaveis",
-      "id": "apt_pend",
-      "community": 1
+      "community": 1,
+      "id": "apt_pend"
     },
     {
       "label": "Docker Engine + compose roleta-cloud_default",
@@ -189,8 +1026,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "docker engine + compose roleta-cloud_default",
-      "id": "docker",
-      "community": 0
+      "community": 0,
+      "id": "docker"
     },
     {
       "label": "container roleta-cloud (302MB, healthy, 512MB lim)",
@@ -198,8 +1035,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-cloud (302mb, healthy, 512mb lim)",
-      "id": "c_app",
-      "community": 3
+      "community": 2,
+      "id": "c_app"
     },
     {
       "label": "container roleta-cdc-worker (healthy)",
@@ -207,8 +1044,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-cdc-worker (healthy)",
-      "id": "c_cdc",
-      "community": 4
+      "community": 4,
+      "id": "c_cdc"
     },
     {
       "label": "container roleta-pg (pg15 + AGE + pgvector)",
@@ -216,8 +1053,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-pg (pg15 + age + pgvector)",
-      "id": "c_pg",
-      "community": 0
+      "community": 0,
+      "id": "c_pg"
     },
     {
       "label": "container roleta-prometheus v2.51.2",
@@ -225,8 +1062,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-prometheus v2.51.2",
-      "id": "c_prom",
-      "community": 0
+      "community": 0,
+      "id": "c_prom"
     },
     {
       "label": "container roleta-grafana 10.4.2",
@@ -234,8 +1071,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-grafana 10.4.2",
-      "id": "c_graf",
-      "community": 0
+      "community": 0,
+      "id": "c_graf"
     },
     {
       "label": "container roleta-alertmanager v0.27.0",
@@ -243,8 +1080,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container roleta-alertmanager v0.27.0",
-      "id": "c_am",
-      "community": 0
+      "community": 0,
+      "id": "c_am"
     },
     {
       "label": "container node-exporter v1.8.2",
@@ -252,8 +1089,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container node-exporter v1.8.2",
-      "id": "c_ne",
-      "community": 0
+      "community": 0,
+      "id": "c_ne"
     },
     {
       "label": "container pg-exporter v0.15.0",
@@ -261,8 +1098,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "container pg-exporter v0.15.0",
-      "id": "c_pge",
-      "community": 0
+      "community": 0,
+      "id": "c_pge"
     },
     {
       "label": "volume roleta_pgdata_prod",
@@ -270,8 +1107,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "volume roleta_pgdata_prod",
-      "id": "vol_pg",
-      "community": 0
+      "community": 0,
+      "id": "vol_pg"
     },
     {
       "label": "volume roleta-data (/app/data)",
@@ -279,8 +1116,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "volume roleta-data (/app/data)",
-      "id": "vol_data",
-      "community": 3
+      "community": 2,
+      "id": "vol_data"
     },
     {
       "label": "volume prometheus-data",
@@ -288,8 +1125,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "volume prometheus-data",
-      "id": "vol_prom",
-      "community": 0
+      "community": 0,
+      "id": "vol_prom"
     },
     {
       "label": "volume grafana-data",
@@ -297,8 +1134,8 @@
       "source_file": "server_snapshot/02_docker.md",
       "source_location": "L1",
       "norm_label": "volume grafana-data",
-      "id": "vol_graf",
-      "community": 0
+      "community": 0,
+      "id": "vol_graf"
     },
     {
       "label": "WebSocket server :8765 (master/slave devices)",
@@ -306,8 +1143,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "websocket server :8765 (master/slave devices)",
-      "id": "ws",
-      "community": 2
+      "community": 2,
+      "id": "ws"
     },
     {
       "label": "health_server :8766 /health /metrics v4.4.0",
@@ -315,8 +1152,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "health_server :8766 /health /metrics v4.4.0",
-      "id": "health",
-      "community": 0
+      "community": 0,
+      "id": "health"
     },
     {
       "label": "state.json (estado da roda persistido)",
@@ -324,8 +1161,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "state.json (estado da roda persistido)",
-      "id": "state_json",
-      "community": 3
+      "community": 2,
+      "id": "state_json"
     },
     {
       "label": "SQLite decisions.db 3.3MB (fonte primaria)",
@@ -333,8 +1170,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "sqlite decisions.db 3.3mb (fonte primaria)",
-      "id": "sqlite",
-      "community": 3
+      "community": 2,
+      "id": "sqlite"
     },
     {
       "label": "decisions = 5347 rows (calibration fill 4092)",
@@ -342,8 +1179,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "decisions = 5347 rows (calibration fill 4092)",
-      "id": "t_decisions",
-      "community": 2
+      "community": 2,
+      "id": "t_decisions"
     },
     {
       "label": "sessions = 150 rows",
@@ -351,8 +1188,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "sessions = 150 rows",
-      "id": "t_sessions",
-      "community": 3
+      "community": 2,
+      "id": "t_sessions"
     },
     {
       "label": "decision_dna = 791 rows",
@@ -360,8 +1197,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "decision_dna = 791 rows",
-      "id": "t_dna",
-      "community": 3
+      "community": 2,
+      "id": "t_dna"
     },
     {
       "label": "gale_windows = 961 rows",
@@ -369,8 +1206,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "gale_windows = 961 rows",
-      "id": "t_gale",
-      "community": 3
+      "community": 2,
+      "id": "t_gale"
     },
     {
       "label": "window_plays = 3889 rows",
@@ -378,8 +1215,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "window_plays = 3889 rows",
-      "id": "t_wplays",
-      "community": 3
+      "community": 2,
+      "id": "t_wplays"
     },
     {
       "label": "OutboxPublisher (dual-write SQLite->PG)",
@@ -387,8 +1224,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "outboxpublisher (dual-write sqlite->pg)",
-      "id": "outbox_pub",
-      "community": 4
+      "community": 2,
+      "id": "outbox_pub"
     },
     {
       "label": "/root/roleta-cloud @ e7461a7 (= origin/main)",
@@ -396,8 +1233,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "/root/roleta-cloud @ e7461a7 (= origin/main)",
-      "id": "repo_srv",
-      "community": 5
+      "community": 5,
+      "id": "repo_srv"
     },
     {
       "label": "RISCO: models/spin_autoencoder.joblib untracked no servidor",
@@ -405,8 +1242,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "risco: models/spin_autoencoder.joblib untracked no servidor",
-      "id": "joblib",
-      "community": 5
+      "community": 5,
+      "id": "joblib"
     },
     {
       "label": "server/configs/mesas/ (runtime, untracked)",
@@ -414,8 +1251,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "server/configs/mesas/ (runtime, untracked)",
-      "id": "configs_mesas",
-      "community": 5
+      "community": 5,
+      "id": "configs_mesas"
     },
     {
       "label": "Extensao Chrome (cliente, captura spins+dealMeta)",
@@ -423,8 +1260,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "extensao chrome (cliente, captura spins+dealmeta)",
-      "id": "extension",
-      "community": 2
+      "community": 2,
+      "id": "extension"
     },
     {
       "label": "BUG: dealer/table/round=None em producao pos-PR#6",
@@ -432,8 +1269,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "bug: dealer/table/round=none em producao pos-pr#6",
-      "id": "deal_gap",
-      "community": 2
+      "community": 2,
+      "id": "deal_gap"
     },
     {
       "label": "DB roleta 13MB (alembic 0006_spin_features)",
@@ -441,8 +1278,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "db roleta 13mb (alembic 0006_spin_features)",
-      "id": "pg_db",
-      "community": 4
+      "community": 4,
+      "id": "pg_db"
     },
     {
       "label": "schema shared (outbox=2711, feature_flags, strategy_versions)",
@@ -450,8 +1287,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "schema shared (outbox=2711, feature_flags, strategy_versions)",
-      "id": "sch_shared",
-      "community": 4
+      "community": 4,
+      "id": "sch_shared"
     },
     {
       "label": "schema cw (spins_vectors=816, spin_features=531)",
@@ -459,8 +1296,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "schema cw (spins_vectors=816, spin_features=531)",
-      "id": "sch_cw",
-      "community": 4
+      "community": 4,
+      "id": "sch_cw"
     },
     {
       "label": "schema ccw (spins_vectors=831, spin_features=533)",
@@ -468,8 +1305,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "schema ccw (spins_vectors=831, spin_features=533)",
-      "id": "sch_ccw",
-      "community": 4
+      "community": 4,
+      "id": "sch_ccw"
     },
     {
       "label": "extensao pgvector (embeddings)",
@@ -477,8 +1314,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "extensao pgvector (embeddings)",
-      "id": "ext_vector",
-      "community": 4
+      "community": 4,
+      "id": "ext_vector"
     },
     {
       "label": "extensao Apache AGE (cw_graph/ccw_graph VAZIOS)",
@@ -486,8 +1323,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "extensao apache age (cw_graph/ccw_graph vazios)",
-      "id": "ext_age",
-      "community": 4
+      "community": 4,
+      "id": "ext_age"
     },
     {
       "label": "14 alert rules (obs/alerts.yml bind-mount)",
@@ -495,8 +1332,8 @@
       "source_file": "server_snapshot/07_observabilidade.md",
       "source_location": "L1",
       "norm_label": "14 alert rules (obs/alerts.yml bind-mount)",
-      "id": "prom_rules",
-      "community": 0
+      "community": 0,
+      "id": "prom_rules"
     },
     {
       "label": "Alertmanager webhook -> health_server",
@@ -504,8 +1341,8 @@
       "source_file": "server_snapshot/07_observabilidade.md",
       "source_location": "L1",
       "norm_label": "alertmanager webhook -> health_server",
-      "id": "am_webhook",
-      "community": 0
+      "community": 0,
+      "id": "am_webhook"
     },
     {
       "label": "FIRING: RoletaDnaRealizeLagHigh (pos-downtime)",
@@ -513,8 +1350,8 @@
       "source_file": "server_snapshot/07_observabilidade.md",
       "source_location": "L1",
       "norm_label": "firing: roletadnarealizelaghigh (pos-downtime)",
-      "id": "alert_lag",
-      "community": 0
+      "community": 1,
+      "id": "alert_lag"
     },
     {
       "label": "node_exporter textfile collector (/var/lib/node_exporter)",
@@ -522,8 +1359,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "node_exporter textfile collector (/var/lib/node_exporter)",
-      "id": "textfile",
-      "community": 6
+      "community": 0,
+      "id": "textfile"
     },
     {
       "label": "wal-g basebackup PG (cron */30min)",
@@ -531,8 +1368,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "wal-g basebackup pg (cron */30min)",
-      "id": "walg",
-      "community": 1
+      "community": 1,
+      "id": "walg"
     },
     {
       "label": "CRITICO: wal-g sem backup desde 25/05 (log parado)",
@@ -540,8 +1377,8 @@
       "source_file": "server_snapshot/03_servicos_host.md",
       "source_location": "L1",
       "norm_label": "critico: wal-g sem backup desde 25/05 (log parado)",
-      "id": "walg_dead",
-      "community": 1
+      "community": 1,
+      "id": "walg_dead"
     },
     {
       "label": "CRITICO: SQLite decisions.db (fonte primaria) SEM backup",
@@ -549,8 +1386,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "critico: sqlite decisions.db (fonte primaria) sem backup",
-      "id": "sqlite_nobackup",
-      "community": 3
+      "community": 2,
+      "id": "sqlite_nobackup"
     },
     {
       "label": "CRITICO: alembic prod=0006 < repo=0008 (deploy nao roda alembic)",
@@ -558,8 +1395,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "critico: alembic prod=0006 < repo=0008 (deploy nao roda alembic)",
-      "id": "mig_drift",
-      "community": 5
+      "community": 5,
+      "id": "mig_drift"
     },
     {
       "label": "migration 0007_deal_dealer_table (nao aplicada)",
@@ -567,8 +1404,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "migration 0007_deal_dealer_table (nao aplicada)",
-      "id": "mig_0007",
-      "community": 2
+      "community": 2,
+      "id": "mig_0007"
     },
     {
       "label": "migration 0008_decision_dna (nao aplicada)",
@@ -576,8 +1413,8 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "migration 0008_decision_dna (nao aplicada)",
-      "id": "mig_0008",
-      "community": 5
+      "community": 5,
+      "id": "mig_0008"
     },
     {
       "label": "CI main VERMELHO desde 27/05 (cdc tests: cw.spins_vectors inexistente)",
@@ -585,8 +1422,8 @@
       "source_file": "server_snapshot/06_app_runtime.md",
       "source_location": "L1",
       "norm_label": "ci main vermelho desde 27/05 (cdc tests: cw.spins_vectors inexistente)",
-      "id": "ci_red",
-      "community": 5
+      "community": 5,
+      "id": "ci_red"
     },
     {
       "label": "CRITICO: dealer='unknown' em 5352/5352 decisoes (DEAL morto)",
@@ -594,656 +1431,1496 @@
       "source_file": "server_snapshot/05_database.md",
       "source_location": "L1",
       "norm_label": "critico: dealer='unknown' em 5352/5352 decisoes (deal morto)",
-      "id": "dealer_unknown",
-      "community": 2
+      "community": 2,
+      "id": "dealer_unknown"
     }
   ],
   "links": [
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "01_sistema.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "01_sistema_md",
+      "target": "server_snapshot_01_sistema_servidor_debian_sistema",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "01_sistema.md",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "server_snapshot_01_sistema_servidor_debian_sistema",
+      "target": "server_snapshot_01_sistema_historico_de_boots_wtmp",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "01_sistema.md",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "server_snapshot_01_sistema_historico_de_boots_wtmp",
+      "target": "server_snapshot_01_sistema_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "02_docker_md",
+      "target": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_containers",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_imagens",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_volumes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_redes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_restart_policies_healthchecks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L63",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_docker_containers_e_infraestrutura",
+      "target": "server_snapshot_02_docker_uso_de_recursos_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_containers",
+      "target": "server_snapshot_02_docker_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_imagens",
+      "target": "server_snapshot_02_docker_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_volumes",
+      "target": "server_snapshot_02_docker_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_redes",
+      "target": "server_snapshot_02_docker_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_restart_policies_healthchecks",
+      "target": "server_snapshot_02_docker_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "02_docker.md",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "server_snapshot_02_docker_uso_de_recursos_snapshot",
+      "target": "server_snapshot_02_docker_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "03_servicos_host_md",
+      "target": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "target": "server_snapshot_03_servicos_host_services_rodando",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "target": "server_snapshot_03_servicos_host_timers_ativos",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "target": "server_snapshot_03_servicos_host_crontab_root",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_servi\u00e7os_do_host_fora_do_docker",
+      "target": "server_snapshot_03_servicos_host_portas_escutando",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_services_rodando",
+      "target": "server_snapshot_03_servicos_host_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_timers_ativos",
+      "target": "server_snapshot_03_servicos_host_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_crontab_root",
+      "target": "server_snapshot_03_servicos_host_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "03_servicos_host.md",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "server_snapshot_03_servicos_host_portas_escutando",
+      "target": "server_snapshot_03_servicos_host_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "04_nginx_tls_md",
+      "target": "server_snapshot_04_nginx_tls_nginx_tls",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_nginx_tls",
+      "target": "server_snapshot_04_nginx_tls_sites_habilitados",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_nginx_tls",
+      "target": "server_snapshot_04_nginx_tls_server_name_proxy_pass_por_site",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_nginx_tls",
+      "target": "server_snapshot_04_nginx_tls_certificados_certbot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_sites_habilitados",
+      "target": "server_snapshot_04_nginx_tls_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_server_name_proxy_pass_por_site",
+      "target": "server_snapshot_04_nginx_tls_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "04_nginx_tls.md",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "server_snapshot_04_nginx_tls_certificados_certbot",
+      "target": "server_snapshot_04_nginx_tls_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "05_database_md",
+      "target": "server_snapshot_05_database_postgresql_roleta_pg",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_tabelas_por_volume_n_live_tup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_outbox_cdc_por_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_outbox_failed_por_event_type",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_ultimo_evento_outbox",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_alembic_version",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_postgresql_roleta_pg",
+      "target": "server_snapshot_05_database_estatisticas_de_dominio",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_tabelas_por_volume_n_live_tup",
+      "target": "server_snapshot_05_database_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_outbox_cdc_por_status",
+      "target": "server_snapshot_05_database_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_outbox_failed_por_event_type",
+      "target": "server_snapshot_05_database_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_ultimo_evento_outbox",
+      "target": "server_snapshot_05_database_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_alembic_version",
+      "target": "server_snapshot_05_database_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "05_database.md",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "server_snapshot_05_database_estatisticas_de_dominio",
+      "target": "server_snapshot_05_database_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "06_app_runtime_md",
+      "target": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_git_no_servidor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_arquivos_n\u00e3o_versionados_relevantes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_env_somente_nomes_de_vari\u00e1veis_valores_omitidos",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_estrutura_root_roleta_cloud_nivel_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L76",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_health_endpoint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_aplica\u00e7\u00e3o_roleta_cloud_runtime",
+      "target": "server_snapshot_06_app_runtime_state_json_configs_runtime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_git_no_servidor",
+      "target": "server_snapshot_06_app_runtime_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_arquivos_n\u00e3o_versionados_relevantes",
+      "target": "server_snapshot_06_app_runtime_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_env_somente_nomes_de_vari\u00e1veis_valores_omitidos",
+      "target": "server_snapshot_06_app_runtime_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_estrutura_root_roleta_cloud_nivel_2",
+      "target": "server_snapshot_06_app_runtime_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_health_endpoint",
+      "target": "server_snapshot_06_app_runtime_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "06_app_runtime.md",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "server_snapshot_06_app_runtime_state_json_configs_runtime",
+      "target": "server_snapshot_06_app_runtime_codeblock_6",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "07_observabilidade_md",
+      "target": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "target": "server_snapshot_07_observabilidade_targets_prometheus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "target": "server_snapshot_07_observabilidade_regras_de_alerta_carregadas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "target": "server_snapshot_07_observabilidade_alertas_ativos_agora",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_observabilidade_prometheus_grafana_alertmanager",
+      "target": "server_snapshot_07_observabilidade_grafana_agent_cloud_remoto",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_targets_prometheus",
+      "target": "server_snapshot_07_observabilidade_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_regras_de_alerta_carregadas",
+      "target": "server_snapshot_07_observabilidade_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_alertas_ativos_agora",
+      "target": "server_snapshot_07_observabilidade_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "07_observabilidade.md",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "server_snapshot_07_observabilidade_grafana_agent_cloud_remoto",
+      "target": "server_snapshot_07_observabilidade_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "08_seguranca_md",
+      "target": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "target": "server_snapshot_08_seguranca_sshd_config_efetiva_itens_chave",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "target": "server_snapshot_08_seguranca_tentativas_de_invas\u00e3o_ssh_\u00faltimos_7_dias_do_journal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "target": "server_snapshot_08_seguranca_fail2ban",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "target": "server_snapshot_08_seguranca_ufw_firewall",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_seguran\u00e7a",
+      "target": "server_snapshot_08_seguranca_updates_pendentes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_sshd_config_efetiva_itens_chave",
+      "target": "server_snapshot_08_seguranca_codeblock_1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_tentativas_de_invas\u00e3o_ssh_\u00faltimos_7_dias_do_journal",
+      "target": "server_snapshot_08_seguranca_codeblock_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_fail2ban",
+      "target": "server_snapshot_08_seguranca_codeblock_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_ufw_firewall",
+      "target": "server_snapshot_08_seguranca_codeblock_4",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "08_seguranca.md",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "server_snapshot_08_seguranca_updates_pendentes",
+      "target": "server_snapshot_08_seguranca_codeblock_5",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "10_inventario_12_06_md",
+      "target": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "target": "server_snapshot_10_inventario_12_06_containers_8_todos_healthy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "target": "server_snapshot_10_inventario_12_06_automa\u00e7\u00e3o_do_host",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "target": "server_snapshot_10_inventario_12_06_backups",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "target": "server_snapshot_10_inventario_12_06_volumes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "10_inventario_12_06.md",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "server_snapshot_10_inventario_12_06_servidor_debian_187_45_181_75_invent\u00e1rio_12_06_2026_23_20_utc",
+      "target": "server_snapshot_10_inventario_12_06_deltas_funcionais_de_12_06_resumo",
+      "confidence_score": 1.0
+    },
+    {
       "context": "runs",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "os",
-      "confidence_score": 1.0
+      "target": "os"
     },
     {
       "context": "provisioned_as",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "vm",
-      "confidence_score": 1.0
+      "target": "vm"
     },
     {
       "context": "suffered",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "downtime",
-      "confidence_score": 1.0
+      "target": "downtime"
     },
     {
       "context": "runs",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "nginx",
-      "confidence_score": 1.0
+      "target": "nginx"
     },
     {
       "context": "runs",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "sshd",
-      "confidence_score": 1.0
+      "target": "sshd"
     },
     {
       "context": "runs",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "grafana_agent",
-      "confidence_score": 1.0
+      "target": "grafana_agent"
     },
     {
       "context": "runs",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "docker",
-      "confidence_score": 1.0
+      "target": "docker"
     },
     {
       "context": "schedules",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "gap_cron",
-      "confidence_score": 1.0
+      "target": "gap_cron"
     },
     {
       "context": "schedules",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "deploy_timer",
-      "confidence_score": 1.0
+      "target": "deploy_timer"
     },
     {
       "context": "schedules",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "certbot_timer",
-      "confidence_score": 1.0
+      "target": "certbot_timer"
     },
     {
       "context": "exposure",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "no_fail2ban",
-      "confidence_score": 1.0
+      "target": "no_fail2ban"
     },
     {
       "context": "exposure",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "no_fw",
-      "confidence_score": 1.0
+      "target": "no_fw"
     },
     {
       "context": "exposure",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "port9100",
-      "confidence_score": 1.0
+      "target": "port9100"
     },
     {
       "context": "exposure",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "apt_pend",
-      "confidence_score": 1.0
+      "target": "apt_pend"
     },
     {
       "context": "schedules",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "host",
-      "target": "walg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "terminates_tls",
-      "confidence": "EXTRACTED",
-      "source": "nginx",
-      "target": "cert",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "proxies_8765",
-      "confidence": "EXTRACTED",
-      "source": "nginx",
-      "target": "ws",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "resolves_to",
-      "confidence": "EXTRACTED",
-      "source": "dominio",
-      "target": "nginx",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "renews",
-      "confidence": "EXTRACTED",
-      "source": "certbot_timer",
-      "target": "cert",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "aggravated_by",
-      "confidence": "EXTRACTED",
-      "source": "sshd",
-      "target": "no_fail2ban",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "remote_write",
-      "confidence": "EXTRACTED",
-      "source": "grafana_agent",
-      "target": "grafana_cloud",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "scrapes",
-      "confidence": "EXTRACTED",
-      "source": "grafana_agent",
-      "target": "c_ne",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "triggers",
-      "confidence": "EXTRACTED",
-      "source": "deploy_timer",
-      "target": "deploy_script",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "git_pull",
-      "confidence": "EXTRACTED",
-      "source": "deploy_script",
-      "target": "repo_srv",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "compose_up",
-      "confidence": "EXTRACTED",
-      "source": "deploy_script",
-      "target": "docker",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "root_cause",
-      "confidence": "EXTRACTED",
-      "source": "deploy_script",
-      "target": "mig_drift",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "docker_exec",
-      "confidence": "EXTRACTED",
-      "source": "gap_cron",
-      "target": "gap_detector",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "gap_cron",
-      "target": "secret_leak",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "writes_metrics",
-      "confidence": "EXTRACTED",
-      "source": "gap_cron",
-      "target": "textfile",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "reads",
-      "confidence": "EXTRACTED",
-      "source": "gap_detector",
-      "target": "sqlite",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "credential_for",
-      "confidence": "EXTRACTED",
-      "source": "secret_leak",
-      "target": "c_pg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_app",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_cdc",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_pg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_prom",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_graf",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_am",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_ne",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "manages",
-      "confidence": "EXTRACTED",
-      "source": "docker",
-      "target": "c_pge",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "exposes",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "ws",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "exposes",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "health",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "persists",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "state_json",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "writes",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "sqlite",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "runs",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "outbox_pub",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "mounts",
-      "confidence": "EXTRACTED",
-      "source": "c_app",
-      "target": "vol_data",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "polls_outbox",
-      "confidence": "EXTRACTED",
-      "source": "c_cdc",
-      "target": "sch_shared",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "writes",
-      "confidence": "EXTRACTED",
-      "source": "c_cdc",
-      "target": "sch_cw",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "writes",
-      "confidence": "EXTRACTED",
-      "source": "c_cdc",
-      "target": "sch_ccw",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "hosts",
-      "confidence": "EXTRACTED",
-      "source": "c_pg",
-      "target": "pg_db",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "mounts",
-      "confidence": "EXTRACTED",
-      "source": "c_pg",
-      "target": "vol_pg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "scrapes_metrics",
-      "confidence": "EXTRACTED",
-      "source": "c_prom",
-      "target": "health",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "evaluates",
-      "confidence": "EXTRACTED",
-      "source": "c_prom",
-      "target": "prom_rules",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "mounts",
-      "confidence": "EXTRACTED",
-      "source": "c_prom",
-      "target": "vol_prom",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "scrapes",
-      "confidence": "EXTRACTED",
-      "source": "c_prom",
-      "target": "c_pge",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "scrapes",
-      "confidence": "EXTRACTED",
-      "source": "c_prom",
-      "target": "c_ne",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "queries",
-      "confidence": "EXTRACTED",
-      "source": "c_graf",
-      "target": "c_prom",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "mounts",
-      "confidence": "EXTRACTED",
-      "source": "c_graf",
-      "target": "vol_graf",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "notifies",
-      "confidence": "EXTRACTED",
-      "source": "c_am",
-      "target": "am_webhook",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "scrapes",
-      "confidence": "EXTRACTED",
-      "source": "c_pge",
-      "target": "c_pg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "t_decisions",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "t_sessions",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "t_dna",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "t_gale",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "t_wplays",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "exposure",
-      "confidence": "EXTRACTED",
-      "source": "sqlite",
-      "target": "sqlite_nobackup",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "t_decisions",
-      "target": "dealer_unknown",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "inserts_outbox",
-      "confidence": "EXTRACTED",
-      "source": "outbox_pub",
-      "target": "sch_shared",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains_untracked",
-      "confidence": "EXTRACTED",
-      "source": "repo_srv",
-      "target": "joblib",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains_untracked",
-      "confidence": "EXTRACTED",
-      "source": "repo_srv",
-      "target": "configs_mesas",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "quality_gate_broken",
-      "confidence": "EXTRACTED",
-      "source": "repo_srv",
-      "target": "ci_red",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "connects_wss",
-      "confidence": "EXTRACTED",
-      "source": "extension",
-      "target": "dominio",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "produces",
-      "confidence": "EXTRACTED",
-      "source": "extension",
-      "target": "deal_gap",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "observed_in_logs",
-      "confidence": "EXTRACTED",
-      "source": "deal_gap",
-      "target": "ws",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "results_in",
-      "confidence": "EXTRACTED",
-      "source": "deal_gap",
-      "target": "dealer_unknown",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "sch_shared",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "sch_cw",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "contains",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "sch_ccw",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "enables",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "ext_vector",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "enables",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "ext_age",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "suffers",
-      "confidence": "EXTRACTED",
-      "source": "pg_db",
-      "target": "mig_drift",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "routes_alerts",
-      "confidence": "EXTRACTED",
-      "source": "prom_rules",
-      "target": "c_am",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "firing",
-      "confidence": "EXTRACTED",
-      "source": "prom_rules",
-      "target": "alert_lag",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "posts_to",
-      "confidence": "EXTRACTED",
-      "source": "am_webhook",
-      "target": "health",
-      "confidence_score": 1.0
+      "target": "walg"
     },
     {
       "context": "caused_by",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "alert_lag",
-      "target": "downtime",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "collected_by",
-      "confidence": "EXTRACTED",
-      "source": "textfile",
-      "target": "c_ne",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "backs_up",
-      "confidence": "EXTRACTED",
-      "source": "walg",
-      "target": "c_pg",
-      "confidence_score": 1.0
-    },
-    {
-      "context": "degraded_to",
-      "confidence": "EXTRACTED",
-      "source": "walg",
-      "target": "walg_dead",
-      "confidence_score": 1.0
+      "target": "downtime"
     },
     {
       "context": "masked_by",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "walg_dead",
-      "target": "downtime",
-      "confidence_score": 1.0
+      "target": "downtime"
     },
     {
-      "context": "missing",
+      "context": "terminates_tls",
       "confidence": "EXTRACTED",
-      "source": "mig_drift",
-      "target": "mig_0007",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nginx",
+      "target": "cert"
     },
     {
-      "context": "missing",
+      "context": "proxies_8765",
       "confidence": "EXTRACTED",
-      "source": "mig_drift",
-      "target": "mig_0008",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nginx",
+      "target": "ws"
     },
     {
-      "context": "same_root_cause",
+      "context": "resolves_to",
       "confidence": "EXTRACTED",
-      "source": "mig_drift",
-      "target": "ci_red",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "dominio",
+      "target": "nginx"
+    },
+    {
+      "context": "connects_wss",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "extension",
+      "target": "dominio"
+    },
+    {
+      "context": "renews",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "certbot_timer",
+      "target": "cert"
+    },
+    {
+      "context": "aggravated_by",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sshd",
+      "target": "no_fail2ban"
+    },
+    {
+      "context": "remote_write",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "grafana_agent",
+      "target": "grafana_cloud"
+    },
+    {
+      "context": "scrapes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "grafana_agent",
+      "target": "c_ne"
+    },
+    {
+      "context": "triggers",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deploy_timer",
+      "target": "deploy_script"
+    },
+    {
+      "context": "git_pull",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deploy_script",
+      "target": "repo_srv"
+    },
+    {
+      "context": "compose_up",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deploy_script",
+      "target": "docker"
+    },
+    {
+      "context": "root_cause",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deploy_script",
+      "target": "mig_drift"
+    },
+    {
+      "context": "docker_exec",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "gap_cron",
+      "target": "gap_detector"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "gap_cron",
+      "target": "secret_leak"
+    },
+    {
+      "context": "writes_metrics",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "gap_cron",
+      "target": "textfile"
+    },
+    {
+      "context": "reads",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "gap_detector",
+      "target": "sqlite"
+    },
+    {
+      "context": "credential_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "secret_leak",
+      "target": "c_pg"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_app"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_cdc"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_pg"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_prom"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_graf"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_am"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_ne"
+    },
+    {
+      "context": "manages",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "docker",
+      "target": "c_pge"
+    },
+    {
+      "context": "exposes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "ws"
+    },
+    {
+      "context": "exposes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "health"
+    },
+    {
+      "context": "persists",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "state_json"
+    },
+    {
+      "context": "writes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "sqlite"
+    },
+    {
+      "context": "runs",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "outbox_pub"
+    },
+    {
+      "context": "mounts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_app",
+      "target": "vol_data"
+    },
+    {
+      "context": "polls_outbox",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_cdc",
+      "target": "sch_shared"
+    },
+    {
+      "context": "writes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_cdc",
+      "target": "sch_cw"
+    },
+    {
+      "context": "writes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_cdc",
+      "target": "sch_ccw"
+    },
+    {
+      "context": "hosts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_pg",
+      "target": "pg_db"
+    },
+    {
+      "context": "mounts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_pg",
+      "target": "vol_pg"
+    },
+    {
+      "context": "scrapes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_pge",
+      "target": "c_pg"
+    },
+    {
+      "context": "backs_up",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "walg",
+      "target": "c_pg"
+    },
+    {
+      "context": "scrapes_metrics",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_prom",
+      "target": "health"
+    },
+    {
+      "context": "evaluates",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_prom",
+      "target": "prom_rules"
+    },
+    {
+      "context": "mounts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_prom",
+      "target": "vol_prom"
+    },
+    {
+      "context": "scrapes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_prom",
+      "target": "c_pge"
+    },
+    {
+      "context": "scrapes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_prom",
+      "target": "c_ne"
+    },
+    {
+      "context": "queries",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_graf",
+      "target": "c_prom"
+    },
+    {
+      "context": "mounts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_graf",
+      "target": "vol_graf"
+    },
+    {
+      "context": "notifies",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "c_am",
+      "target": "am_webhook"
+    },
+    {
+      "context": "routes_alerts",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "prom_rules",
+      "target": "c_am"
+    },
+    {
+      "context": "collected_by",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "textfile",
+      "target": "c_ne"
+    },
+    {
+      "context": "observed_in_logs",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deal_gap",
+      "target": "ws"
+    },
+    {
+      "context": "posts_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "am_webhook",
+      "target": "health"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "t_decisions"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "t_sessions"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "t_dna"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "t_gale"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "t_wplays"
+    },
+    {
+      "context": "exposure",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "sqlite",
+      "target": "sqlite_nobackup"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "t_decisions",
+      "target": "dealer_unknown"
+    },
+    {
+      "context": "inserts_outbox",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "outbox_pub",
+      "target": "sch_shared"
+    },
+    {
+      "context": "contains_untracked",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "repo_srv",
+      "target": "joblib"
+    },
+    {
+      "context": "contains_untracked",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "repo_srv",
+      "target": "configs_mesas"
+    },
+    {
+      "context": "quality_gate_broken",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "repo_srv",
+      "target": "ci_red"
+    },
+    {
+      "context": "produces",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "extension",
+      "target": "deal_gap"
+    },
+    {
+      "context": "results_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "deal_gap",
+      "target": "dealer_unknown"
     },
     {
       "context": "blocks_pg_columns",
       "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source": "mig_0007",
-      "target": "deal_gap",
-      "confidence_score": 1.0
+      "target": "deal_gap"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "sch_shared"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "sch_cw"
+    },
+    {
+      "context": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "sch_ccw"
+    },
+    {
+      "context": "enables",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "ext_vector"
+    },
+    {
+      "context": "enables",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "ext_age"
+    },
+    {
+      "context": "suffers",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "pg_db",
+      "target": "mig_drift"
+    },
+    {
+      "context": "firing",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "prom_rules",
+      "target": "alert_lag"
+    },
+    {
+      "context": "degraded_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "walg",
+      "target": "walg_dead"
+    },
+    {
+      "context": "missing",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "mig_drift",
+      "target": "mig_0007"
+    },
+    {
+      "context": "missing",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "mig_drift",
+      "target": "mig_0008"
+    },
+    {
+      "context": "same_root_cause",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source": "mig_drift",
+      "target": "ci_red"
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e7461a769472197131b4a2a7e8c086a4e9d98638"
+  "built_at_commit": "b1875a0336f16fbb6452c337b0d2d48531ec173f"
 }

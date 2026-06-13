@@ -169,3 +169,81 @@ atuador, constante (0.5), clamp (±4) e gate definidos pela engenharia reversa.
 - Snapshot analisado: prod 12/06 23:18 UTC (5665 decisões; 281 do dia).
 - Cruzamentos ao vivo: `region_err_ema` (ccw c1 −8.14 n=14), `sigmoid_off` (~prior),
   shadow grid (incumbent ccw 21% n=14), painel `roleta-profit`.
+
+---
+
+# §6 — MODELO UNIVERSAL DE ADAPTAÇÃO POR JOGADA (replay causal, 23:30)
+
+> Pergunta do owner: *"qual modelo universal, genérico e adaptável como regra geral,
+> teria se adaptado melhor — transformando erros em acertos e mantendo os acertos?"*
+> Método: **replay walk-forward causal** sobre TODAS as 2.762 decisões resolvidas com
+> 3 centros (109 sessões; treino jan–abr 792 / teste mai–jun 1.970), por SENTIDO-ALVO,
+> estado **zerado a cada sessão** (P10), decisão da jogada t usando SÓ erros até t−1
+> (zero look-ahead). Métrica pedida: matriz **miss→hit / hit→miss** vs a aposta real.
+> Motor: `scripts/universal_model_sim.py`. Grafos atualizados: repo 2.500 nodes /
+> 2.598 edges; servidor 159 nodes (`server_snapshot/graphify-out/` + inventário
+> `server_snapshot/10_inventario_12_06.md`, árvore 426 arquivos).
+
+## 6.1 Os 6 competidores (todos genéricos, por jogada, idênticos nos 2 sentidos)
+
+| Modelo | Atuador | Regra |
+|---|---|---|
+| M0 baseline | — | geometria como apostada |
+| M1 ema-shift | C1 (conjunto inteiro) | `shift = clamp(round(−EMA(err, α=.2)·0.5), ±4)`, n≥3 |
+| M2 med7 | C1 | `shift = clamp(round(−mediana(últimos 7)), ±5)` |
+| M3 step | C1 | passo unitário `±1` por erro, clamp ±4 |
+| M4 sigC1 | C1 | **transplante do M02-sigmoid atual** para o centro |
+| M5 região | C1 + satélites | M1 no C1 **+ EMAs próprias de C2/C3** (satélites relativos, clamp ±2) |
+
+## 6.2 Resultado (EV flat 17u isola o efeito geometria; saldo = miss→hit − hit→miss)
+
+| Modelo | GERAL cw | GERAL ccw | TREINO cw/ccw | TESTE cw/ccw | Saldo 4 quadrantes |
+|---|---|---|---|---|---|
+| M0 | 45.6% · −0.60 | 44.0% · −1.16 | 41.8/44.6% | 47.1/43.8% | — |
+| M1 ema | 46.7% · −0.18 | 46.9% · −0.11 | +4.0/+4.9pp | +0.0/+2.1pp | +16/+19/0/+21 |
+| M2 med7 | 45.9% | 44.7% | +5.7/+0.8pp | −1.8/+0.6pp | ruidoso (≈300 trocas) |
+| M3 step | 46.7% | 44.5% | +2.4/−1.0pp | +0.6/+1.1pp | misto |
+| M4 sigC1 | **39.3%** ❌ | **39.4%** ❌ | −0/−4.3pp | −8.8/−4.7pp | **−87/−63** |
+| **M5 região** | **47.8% · +0.21** | **46.5% · −0.27** | **+4.7/+3.6pp** | **+1.2/+2.0pp** | **+19/+14/+12/+20** ✅ |
+
+## 6.3 Veredito — o modelo universal
+
+**M5 — "EMA de erro circular assinado POR REGIÃO, por sentido, com atuador no
+conjunto inteiro (C1) e correção fina relativa nos satélites" — é o modelo universal.**
+É o ÚNICO com saldo miss→hit **positivo nos 4 quadrantes** (transforma erros em acertos
+SEM perder acertos na mesma proporção: ~165 misses viram hits vs ~135 hits perdidos no
+geral) e o único que **passa o gate A4 estrito**: ΔEV>0 em treino E teste, nos DOIS
+sentidos, nunca pior que baseline em cw. No agregado, cw vira EV-flat **positivo**
+(−0.60→+0.21) e ccw corta 77% da perda (−1.16→−0.27).
+
+**Parâmetros do modelo (a implementar como `REGION_SHIFT_V1`, default OFF):**
+`α=0.2 · K=0.5 · clamp C1 ±4 · clamp satélites ±2 · warmup n≥3 por sentido · zera no
+reset (P10) · idêntico para cw/ccw (P8) · decide a cada jogada (premissa central) ·
+infra já existe: `_region_err_ema`/`_region_err_n` implantados hoje são EXATAMENTE o
+estado que o M5 consome.`
+
+**Descoberta negativa igualmente valiosa (M4):** transplantar o sigmoid atual para o
+C1 é destrutivo (−87 de saldo; hit 39%) — o passo de até 2 casas/miss overshoota num
+processo com σ≈11. Isso **vindica o design** que o confinou aos satélites com
+regularizador, e proíbe o atalho "aumentar a agressividade do que já existe".
+A dinâmica certa para C1 é INTEGRAL lenta (EMA), não proporcional ao último erro.
+
+## 6.4 Honestidade estatística
+- Ganho agregado é modesto (+1.2–2.9pp hit; EV flat ainda ~0 — RNG continua RNG);
+  o valor real do M5 está em **noites de viés** (como hoje: ccw teria +15pp).
+- EV flat ≠ EV com gale/INV-3 — a simulação isola geometria; o stack de stake atual
+  fica por cima inalterado.
+- In-sample apenas no desenho dos 6 modelos; a EXECUÇÃO é causal (sem look-ahead) e
+  validada treino→teste. Próximo passo: implementar atrás de flag + rodar como shadow
+  (paralelo ao incumbent) por alguns dias antes de promover — o shadow grid (R3) vira
+  o harness de promoção.
+
+## 6.5 Roteiro de implementação (quando autorizado)
+1. `SDA17Strategy`: aplicar `shift_c1 = clamp(round(−ema_c1·0.5), ±4)` no índice de C1
+   dentro do `analyze` (flag `REGION_SHIFT_V1`); satélites: `off2_eff = off2 −
+   clamp(round(ema_c2·0.5), ±2)` (idem C3, sinal oposto) — 1 ponto de código, usa
+   estado existente.
+2. Shadow paralelo: registrar hit do M5 por spin (como shadow_grid) para comparação
+   incumbent×M5 ao vivo ANTES de ligar a flag.
+3. Alerta R4 (`RoletaRegionBiasHigh`) já desenhado — operacionaliza o "regime de viés".
+4. Promoção: M5 ON somente se shadow ao vivo confirmar o walk-forward em ≥300 spins.
