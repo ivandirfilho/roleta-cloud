@@ -66,6 +66,8 @@ class SDA17Strategy(StrategyBase):
     # massa do centro previsto (raro modal) p/ os satélites (cauda bimodal real).
     C1_RADIUS_V2 = 1           # V2: C1 estreito (3 números)
     SAT_RADIUS_V2 = 3          # V2: satélites gordos (7 números cada) → 3+7+7=17
+    SAT_RADIUS_HI = 4          # V3: satélite gordo no lado denso (9 números)
+    SAT_RADIUS_LO = 2          # V3: satélite magro no lado raro (5) → 3+9+5=17
     OFFSET_MAX_V2 = 15         # V2: teto de offset dos satélites (cauda ±13–17)
     GEOMETRY_KDE_MIN_N = 12    # amostras mínimas p/ offsets empíricos (senão prior)
     REGION_ERR_HIST_MAX = 60   # janela do histograma de erro C1 por sentido
@@ -281,8 +283,8 @@ class SDA17Strategy(StrategyBase):
         c2 = wheel_sequence[(c1_idx + off_c2) % wheel_size]
         c3 = wheel_sequence[(c1_idx - off_c3) % wheel_size]
         
-        # Agregar números com raios assimétricos (V2: 1/3/3 fat-SAT; legado 3/2/2)
-        _r1, _r2, _r3 = self._geometry_radii()
+        # Agregar números com raios (V2: C1=1; satélites 3/3 ou V3 4/2 por densidade)
+        _r1, _r2, _r3 = self._geometry_radii(dk_shift)
         nums = set()
         nums |= set(self.get_neighbors(c1, _r1, wheel_sequence))   # C1
         nums |= set(self.get_neighbors(c2, _r2, wheel_sequence))   # C2
@@ -325,7 +327,8 @@ class SDA17Strategy(StrategyBase):
                 "offset_type": ("kde_v2" if self._geometry_v2_enabled()
                                 else ("sigmoid" if self._sigmoid_satellites_enabled()
                                       else "prior_fixed")),
-                "geometry": "3+7+7" if self._geometry_v2_enabled() else "7+5+5",
+                "geometry": (f"{2*_r1+1}+{2*_r2+1}+{2*_r3+1}"
+                             if self._geometry_v2_enabled() else "7+5+5"),
                 "region_shift": region_shift,
                 "region_shift_sat": [sat2, sat3],
                 "cw_history_size": len(self.cw_history),
@@ -362,12 +365,42 @@ class SDA17Strategy(StrategyBase):
         except Exception:  # noqa: BLE001
             return False  # falha de import → geometria legada 7+5+5
 
-    def _geometry_radii(self) -> Tuple[int, int, int]:
-        """Raios (C1, C2, C3) da aposta. V2 = fat-SAT 3+7+7 (1/3/3);
-        legado = 7+5+5 (num_neighbors / C2_RADIUS / C3_RADIUS)."""
+    def _geometry_radii(self, dk: Optional[str] = None) -> Tuple[int, int, int]:
+        """Raios (C1, C2, C3) da aposta.
+        V2 = fat-SAT (C1 raio 1); satélites 3/3 OU — com V3 (asimetria ligada e
+        dk fornecido) — 4/2, gordo no lado mais denso do sentido. Sempre N=17.
+        Legado = 7+5+5 (num_neighbors / C2_RADIUS / C3_RADIUS)."""
         if self._geometry_v2_enabled():
-            return self.C1_RADIUS_V2, self.SAT_RADIUS_V2, self.SAT_RADIUS_V2
+            if dk is not None:
+                r2, r3 = self._sat_radii(dk)
+            else:
+                r2 = r3 = self.SAT_RADIUS_V2
+            return self.C1_RADIUS_V2, r2, r3
         return self.num_neighbors, self.C2_RADIUS, self.C3_RADIUS
+
+    def _sat_asym_enabled(self) -> bool:
+        try:
+            from app_config.settings import sat_asym_enabled
+            return sat_asym_enabled()
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _sat_radii(self, dk: str) -> Tuple[int, int]:
+        """V3 (13/06): satélite GORDO (raio 4) no lado mais denso do erro do
+        sentido, MAGRO (raio 2) no outro; (3,3) simétrico no empate/frio.
+        Mantém N=17 (r2+r3=6). Genérico: mesma regra, o lado vem do DADO."""
+        if not self._sat_asym_enabled():
+            return self.SAT_RADIUS_V2, self.SAT_RADIUS_V2
+        hist = self._region_err_hist.get(dk)
+        if not hist or len(hist) < self.GEOMETRY_KDE_MIN_N:
+            return self.SAT_RADIUS_V2, self.SAT_RADIUS_V2
+        pos = sum(1 for x in hist if x > 3)
+        neg = sum(1 for x in hist if x < -3)
+        if pos > neg:
+            return self.SAT_RADIUS_HI, self.SAT_RADIUS_LO   # C2(+) gordo
+        if neg > pos:
+            return self.SAT_RADIUS_LO, self.SAT_RADIUS_HI   # C3(−) gordo
+        return self.SAT_RADIUS_V2, self.SAT_RADIUS_V2
 
     def _kde_offsets(self, dk: str) -> Tuple[int, int]:
         """Offsets dos satélites = picos de densidade (KDE triangular) do
@@ -867,7 +900,7 @@ class SDA17Strategy(StrategyBase):
             c2 = self._wheel[(c1_idx + o2) % ws]
             c3 = self._wheel[(c1_idx - o3) % ws]
             _centers_are_real = False
-        _r1f, _r2f, _r3f = self._geometry_radii()
+        _r1f, _r2f, _r3f = self._geometry_radii(dk)
         c1_nbrs = set(self.get_neighbors(c1, _r1f, self._wheel))
         c2_nbrs = set(self.get_neighbors(c2, _r2f, self._wheel))
         c3_nbrs = set(self.get_neighbors(c3, _r3f, self._wheel))

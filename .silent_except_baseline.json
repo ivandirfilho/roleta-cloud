@@ -8,5 +8,5 @@
   "state/bet_advisor.py": 3,
   "state/game.py": 13,
   "strategies/dealer_offset.py": 1,
-  "strategies/sda17.py": 8
+  "strategies/sda17.py": 9
 }

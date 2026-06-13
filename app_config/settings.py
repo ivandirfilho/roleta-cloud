@@ -93,3 +93,15 @@ def geometry_v2_enabled() -> bool:
     """
     import os
     return os.environ.get("SDA_GEOMETRY_V2", "1").strip().lower() not in ("0", "false", "off")
+
+
+def sat_asym_enabled() -> bool:
+    """V3 (13/06) — raios de satélite ASSIMÉTRICOS adaptativos por sentido.
+
+    Backtest causal: satélite GORDO (raio 4) no lado mais denso do erro do
+    sentido + MAGRO (raio 2) no outro (N=17 mantido) acerta +0.4–0.6pp e
+    melhora o EVcov out-of-sample nos 2 sentidos vs V2 simétrica. Refina a V2;
+    default ON, rollback SDA_SAT_ASYM=0 (volta a 3/3 simétrico).
+    """
+    import os
+    return os.environ.get("SDA_SAT_ASYM", "1").strip().lower() not in ("0", "false", "off")
