@@ -294,12 +294,21 @@ try:
             pass
         adp_keys = sorted(list(adp.keys())) if isinstance(adp, dict) else []
         sigmoid_off = adp.get("sigmoid_off", {}) if isinstance(adp, dict) else {}
+        # SV-02 (12/06): com o sigmoid aposentado, sigmoid_off vazio é o
+        # estado SAUDÁVEL — reporta populated=True para não falso-positivar
+        # o alerta crítico RoletaSigmoidEmpty (detector do BUG-NOVO-11, que
+        # só faz sentido com o mecanismo ligado).
+        try:
+            from app_config.settings import sigmoid_satellites_enabled as _sse
+            _sigmoid_relevant = _sse()
+        except Exception:  # noqa: BLE001
+            _sigmoid_relevant = True
         recent_hits = adp.get("recent_hits", {}) if isinstance(adp, dict) else {}
         recent_hits_lens = {k: len(v) if hasattr(v, "__len__") else 0 for k, v in recent_hits.items()}
         return {
             "adaptive_state_keys_count": len(adp_keys),
             "adaptive_state_keys": adp_keys,
-            "sigmoid_off_populated": bool(sigmoid_off),
+            "sigmoid_off_populated": bool(sigmoid_off) or not _sigmoid_relevant,
             "recent_hits_lens": recent_hits_lens,
             "bet_advisor_state": bet_state,
             "state_file_path": sf,
