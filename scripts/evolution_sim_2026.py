@@ -832,39 +832,50 @@ def rank_general_rule(label, res, baseline, models):
 
 
 def run_decision(seq):
-    """BACKTEST DE DECISÃO — qual geometria vira REGRA de produção.
-    Compara, por sentido isolado e causal, contra a aposta REAL de hoje (P0-LIVE):
-      P0 prod          = 7+5+5 @10 + M5 C1-shift  (o que está no ar)
-      P1 fatSAT @10    = 3+7+7 @10 + M5 C1-shift
-      P2 fatSAT + KDE  = 3+7+7 + offsets-densidade-do-sentido + M5 C1-shift
-      P3 fatSAT + KDE  = 3+7+7 + offsets-densidade, SEM M5
-    miss->hit / hit->miss medidos vs P0-LIVE (mantém acertos? melhora erros?)."""
+    """BACKTEST DE DECISÃO + PROGRESSÃO ATUAL→FINAL (vs P0-LIVE, causal por sentido).
+      P0 prod          = 7+5+5 @10 + M5(α.2)            (estado ATUAL no ar)
+      P2 V2            = 3+7+7 + offsets-KDE + M5(α.2)   (IMPLANTADO hoje)
+      P4 V2+α.3        = + controlador EV-2 (M5 α 0.2→0.3)
+      P5 V2+α.3+A16    = + preditor EV-2 (ensemble med⊕moda) = ESTADO FINAL
+    Mede ganho real EVcov/aposta de cada degrau sobre o estado atual."""
     cfgs = {
-        "P0_prod_755":        dict(r=(3, 2, 2), kde=False, m5=True),
-        "P1_fatSAT_10":       dict(r=(1, 3, 3), kde=False, m5=True),
-        "P2_fatSAT_kde":      dict(r=(1, 3, 3), kde=True,  m5=True),
-        "P3_fatSAT_kde_noM5": dict(r=(1, 3, 3), kde=True,  m5=False),
+        "P0_prod_755":   dict(r=(3, 2, 2), kde=False, alpha=0.2, pred="rec"),
+        "P2_v2_a02":     dict(r=(1, 3, 3), kde=True,  alpha=0.2, pred="rec"),
+        "P4_v2_a03":     dict(r=(1, 3, 3), kde=True,  alpha=0.3, pred="rec"),
+        "P5_v2_a03_a16": dict(r=(1, 3, 3), kde=True,  alpha=0.3, pred="a16"),
     }
     res = defaultdict(lambda: defaultdict(fresh_stats))
     for target in ("cw", "ccw"):
         rows = seq[target]; cut = len(rows) - LAST50
-        sess_state = {}
+        st = {c: {} for c in cfgs}
+        a16 = {}
         for i, r in enumerate(rows):
-            e = circ(r["real_f"] - r["pred_f"])
-            s = sess_state.get(r["sess"])
-            if s is None:
-                s = sess_state[r["sess"]] = {"ema": None, "n": 0, "hist": deque(maxlen=60)}
-            sh = 0
-            if s["n"] >= 3 and s["ema"] is not None:
-                sh = max(-4, min(4, round(-s["ema"] * 0.5)))
-            o2k, o3k = _emp_offsets_kde(s["hist"])
-            base_hit = covered_777_c1shift(e, sh, 10, 10, r1=3, r2=2, r3=2)  # P0-LIVE
+            e_rec = circ(r["real_f"] - r["pred_f"])
+            ap = a16.get(r["sess"])
+            if ap is None:
+                ap = a16[r["sess"]] = A16_ensemble()
+            e_a16 = circ(r["real_f"] - ap.predict())
+            hits = {}
             for c, cf in cfgs.items():
+                s = st[c].get(r["sess"])
+                if s is None:
+                    s = st[c][r["sess"]] = {"ema": None, "n": 0, "hist": deque(maxlen=60)}
+                e = e_a16 if cf["pred"] == "a16" else e_rec
+                sh = 0
+                if s["n"] >= 3 and s["ema"] is not None:
+                    sh = max(-4, min(4, round(-s["ema"] * 0.5)))
+                o2, o3 = _emp_offsets_kde(s["hist"]) if cf["kde"] else (10, 10)
                 r1, r2, r3 = cf["r"]
-                o2, o3 = (o2k, o3k) if cf["kde"] else (10, 10)
-                use_sh = sh if cf["m5"] else 0
-                h = covered_777_c1shift(e, use_sh, o2, o3, r1=r1, r2=r2, r3=r3)
+                h = covered_777_c1shift(e, sh, o2, o3, r1=r1, r2=r2, r3=r3)
                 nN = _footprint_777(o2, o3, r1=r1, r2=r2, r3=r3)
+                hits[c] = (h, nN)
+                a = cf["alpha"]
+                s["hist"].append(e)
+                s["ema"] = e if s["ema"] is None else (1 - a) * s["ema"] + a * e
+                s["n"] += 1
+            ap.update(r["real_f"])
+            base_hit = hits["P0_prod_755"][0]
+            for c, (h, nN) in hits.items():
                 pnl = (36.0 / nN - 1.0) if h else -1.0
                 scopes = [("ALL", target), (r["period"], target)]
                 if i >= cut: scopes.append(("L50", target))
@@ -873,10 +884,30 @@ def run_decision(seq):
                     b["n"] += 1; b["hit"] += 1 if h else 0; b["pnl"] += pnl
                     if h and not base_hit: b["m2h"] += 1
                     if base_hit and not h: b["h2m"] += 1
-            s["hist"].append(e)
-            s["ema"] = e if s["ema"] is None else 0.8 * s["ema"] + 0.2 * e
-            s["n"] += 1
     return res
+
+
+def print_gain_ladder(res):
+    """Ganho real EVcov/aposta de cada degrau vs estado ATUAL (P0), por sentido."""
+    order = ["P0_prod_755", "P2_v2_a02", "P4_v2_a03", "P5_v2_a03_a16"]
+    label = {"P0_prod_755": "ATUAL 7+5+5+M5",
+             "P2_v2_a02": "+V2 fat-SAT+KDE (implantado)",
+             "P4_v2_a03": "+M5 α0.3 (EV-2)",
+             "P5_v2_a03_a16": "+preditor A16 (FINAL)"}
+    print(f"\n--- GANHO REAL ATUAL→FINAL (EVcov u/aposta, vs P0; blend = média cw/ccw) ---")
+    print(f"{'estado':30} {'cw':>8} {'ccw':>8} {'blend':>8} {'Δ vs atual':>11}")
+    base = {}
+    for d in ("cw", "ccw"):
+        base[d] = _evcov(res["P0_prod_755"][("ALL", d)])
+    base_blend = (base["cw"] + base["ccw"]) / 2
+    for c in order:
+        cw = _evcov(res[c][("ALL", "cw")]); ccw = _evcov(res[c][("ALL", "ccw")])
+        blend = (cw + ccw) / 2
+        delta = blend - base_blend
+        print(f"{label[c]:30} {cw:+8.2f} {ccw:+8.2f} {blend:+8.2f} {delta:+11.2f}")
+    print(f"  → por 100 apostas (blend): "
+          f"FINAL rende {((_evcov(res['P5_v2_a03_a16'][('ALL','cw')]) + _evcov(res['P5_v2_a03_a16'][('ALL','ccw')]))/2 - base_blend)*100:+.0f}u "
+          f"vs o estado atual.")
 
 
 def main():
@@ -905,14 +936,14 @@ def main():
     rank_general_rule("PONTO D", rd, "D0_none", list(POINT_D))
 
     print("\n\n" + "#" * 78)
-    print("# BACKTEST DE DECISÃO — qual geometria vira REGRA de produção (vs P0-LIVE)")
+    print("# BACKTEST DE DECISÃO + GANHO REAL ATUAL→FINAL (vs P0-LIVE)")
     print("#" * 78)
-    dec_models = ["P0_prod_755", "P1_fatSAT_10", "P2_fatSAT_kde", "P3_fatSAT_kde_noM5"]
+    dec_models = ["P0_prod_755", "P2_v2_a02", "P4_v2_a03", "P5_v2_a03_a16"]
     rdec = run_decision(seq)
-    print_block("DECISÃO — geometria de produção", rdec, dec_models,
+    print_block("DECISÃO — progressão de produção", rdec, dec_models,
                 "P0_prod_755", show_pnl=True)
     print_walkforward("DECISÃO", rdec, "P0_prod_755", dec_models)
-    rank_general_rule("DECISÃO", rdec, "P0_prod_755", dec_models)
+    print_gain_ladder(rdec)
 
 
 if __name__ == "__main__":

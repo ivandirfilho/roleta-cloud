@@ -187,7 +187,7 @@ controlador mais agressivo** — está na **geometria**:
 >    é bimodal nas caudas, não no centro previsto. *(B13, validado WF nos 2 sentidos.)*
 > 2. **Satélites posicionados no pico de densidade causal do sentido** (offsets
 >    empíricos suavizados por KDE, recomputados por sessão). *(B9/B15, validado WF.)*
-> 3. **C1 segue o viés via M5 já em produção** (α=0.2 mantido na regra; α=0.3 = EV-2).
+> 3. **C1 segue o viés via M5 já em produção** (α=0.2; acelerar p/ 0.3 PIORA ao empilhar na V2).
 
 Por que isto satisfaz literalmente o pedido:
 - **"acerta onde a predição teria errado"** → os números antes desperdiçados no centro
@@ -210,7 +210,7 @@ pelo imposto do N.
 
 ```
 GEOMETRIA (Ponto B)      >   CONTROLADOR (Ponto D)   >   PREDITOR (Ponto A)
-fat-SAT + offsets-KDE        M5 (só acelerar α=0.3)      sem espaço (ensemble≈breakeven)
+fat-SAT + offsets-KDE        M5 mantido (α0.3 piora)      sem espaço (A16 piora na V2)
 ganho honesto, WF 2-dir      teto: nenhum passa 2-dir     teto: só A16 passa, EV≈0
 ```
 
@@ -246,6 +246,27 @@ REAL de hoje (P0-LIVE)** de 4 geometrias de produção.
 (−0.08→+0.34), **melhora materialmente o ccw** (−1.42→−0.92, saldo +16/+19) e **passa
 walk-forward nos DOIS sentidos** — *mantém os acertos e converte erros* (m2h>h2m em cw e ccw).
 
+### ★ GANHO REAL ATUAL→FINAL (medido, não estimado) — `print_gain_ladder`
+Resposta direta a "fazendo todas as implantações, quanto ganhamos?". Backtest causal
+empilhando os degraus sobre o estado ATUAL (EVcov = unidades por aposta, blend = média cw/ccw):
+
+| Estado | cw | ccw | blend | Δ vs ATUAL |
+|---|---|---|---|---|
+| **ATUAL** 7+5+5 @10 + M5 | −0.08 | −1.42 | −0.75 | +0.00 |
+| **+ V2 fat-SAT + KDE (IMPLANTADO)** | **+0.34** | **−0.92** | **−0.29** | **+0.46** |
+| + EV-2 M5 α0.3 | +0.23 | −0.95 | −0.36 | +0.39 |
+| + EV-2 preditor A16 ("tudo") | −1.01 | −0.42 | −0.72 | +0.03 |
+
+> 🔴 **O ganho real está INTEIRO na V2 já implantada: +0.46u/aposta (blend) ≈ +46u por
+> 100 apostas** — o **cw cruza para EV-positivo** (−0.08→+0.34) e o **ccw melhora meio
+> ponto** (−1.42→−0.92). Em termos práticos: ~**60% menos perda** que o estado atual.
+>
+> 🔴 **Empilhar os EV-2 PIORA o resultado.** α0.3 e A16 foram validados **isoladamente na
+> geometria ANTIGA**; sobre a V2 eles **não compõem**: α0.3 cai p/ +0.39 e o **A16 destrói
+> o cw** (−1.01), zerando o ganho (+0.03 — volta ao atual). O estado "tudo implantado" (P5)
+> **reprova walk-forward**. A V2 já captura a alavanca; micro-ajustes em cima **sobre-corrigem**
+> o C1 estreito. **Conclusão: o estado final ótimo é a V2 SOZINHA — não implantar os EV-2.**
+
 ### A REGRA (no ar agora — `SDA_GEOMETRY_V2=1`, default ON)
 > **A estrutura de dados das últimas jogadas de cada sentido É a regra.** A cada jogada,
 > em cada sentido isolado:
@@ -267,9 +288,12 @@ walk-forward nos DOIS sentidos** — *mantém os acertos e converte erros* (m2h>
 - `tests/test_geometry_v2_12_06.py`: 9 testes (footprint 17, KDE rastreia densidade,
   fallback frio, isolamento por sentido, reset, persistência, INV-3, rollback legado).
 
-### EV-2 — Micro-ajustes (anotados, NÃO implantados — exigiriam nova decisão)
-- **Controlador:** M5 **α 0.2 → 0.3** (D8) — acelera a EMA, melhora os 2 sentidos; nunca K/clamp.
-- **Preditor:** mediana-7 → **A16 ensemble** — único preditor que passa WF nos 2 sentidos; ≈breakeven.
+### EV-2 — REJEITADOS ao empilhar na V2 (medido, não implantar)
+A escada de ganho provou que os micro-ajustes validados na geometria ANTIGA **não
+compõem** com a V2 e **reduzem** o ganho — não são "deferidos", são **descartados**:
+- **M5 α 0.2 → 0.3 (D8):** sobre a V2 baixa o blend de −0.29 → −0.36 (over-corrige o C1 estreito).
+- **Preditor A16 ensemble:** sobre a V2 **destrói o cw** (+0.34 → −1.01), zera o ganho e reprova WF.
+- Lição metodológica: efeito medido em isolamento na geometria antiga ≠ efeito ao empilhar.
 
 ### EV-0 — O que NÃO fazer (decidido pelos dados)
 - ❌ Aumentar cobertura (N=19, B4) — imposto do N. ❌ Engordar o centro (fat-C1, B12) — pior N=17.
@@ -289,8 +313,8 @@ walk-forward nos DOIS sentidos** — *mantém os acertos e converte erros* (m2h>
    moldando os satélites por sentido no Grafana.
 3. **Acompanhar cw×ccw isolados ao vivo:** a regra deve **manter o cw (agora EV+)** e
    recuperar o ccw; se o ccw seguir difícil, é o candidato natural ao **bias físico de dealer**.
-4. **EV-2 só com nova decisão do owner:** α=0.3 (D8) e A16 — cada um pelo mesmo backtest
-   de decisão antes de ligar.
+4. **NÃO implantar os EV-2** (α0.3, A16): a escada de ganho mostrou que eles reduzem o
+   resultado ao empilhar na V2 (α0.3 → +0.39; A16 → +0.03, reprova WF). Estado ótimo = V2 sozinha.
 5. **O único caminho para EV>0 real sustentado continua sendo o viés físico de dealer
    (DEAL capture)** — ortogonal a esta geometria; exige sessão com operador.
 
