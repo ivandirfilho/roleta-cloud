@@ -183,6 +183,24 @@ except Exception as _e:  # noqa: BLE001
     logger.warning(f"calibration_provider_register_failed: {_e}")
 
 
+# INCIDENT 13/06: estado do ConnectionManager p/ alerta RoletaNoMaster.
+# Sem MASTER eleito, spins de SLAVE são descartados (silêncio total). Expõe
+# master_present (0/1) e ws_connections p/ detectar a causa em ~1min.
+try:
+    from server.health_server import set_connmgr_provider as _set_cm_p
+
+    def _connmgr_snapshot():
+        return {
+            "master_present": 1 if connection_manager.master_id else 0,
+            "connections": len(connection_manager.connections),
+        }
+
+    _set_cm_p(_connmgr_snapshot)
+    logger.info("connmgr_provider_registered for RoletaNoMaster alert")
+except Exception as _e:  # noqa: BLE001
+    logger.warning(f"connmgr_provider_register_failed: {_e}")
+
+
 # SP-30 OBS-02 (27/05): wheel_dist percentis provider para Prometheus.
 try:
     from server.health_server import set_wheel_dist_provider as _set_wd_p

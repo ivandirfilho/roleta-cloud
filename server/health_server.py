@@ -68,6 +68,8 @@ _WHEEL_DIST_PROVIDER = None  # type: ignore[var-annotated]
 _DNA_REALIZE_PROVIDER = None  # type: ignore[var-annotated]
 # B5 PROFIT-LEDGER (12/06): provider de P&L por sessão.
 _PNL_PROVIDER = None  # type: ignore[var-annotated]
+# INCIDENT 13/06: provider do estado do ConnectionManager (master_present, connections).
+_CONNMGR_PROVIDER = None  # type: ignore[var-annotated]
 
 
 def set_pnl_provider(provider) -> None:
@@ -99,6 +101,13 @@ def set_shadow_provider(provider) -> None:
     global _SHADOW_PROVIDER
     _SHADOW_PROVIDER = provider
 
+
+def set_connmgr_provider(provider) -> None:
+    """INCIDENT 13/06: registra callable() -> {master_present:int, connections:int}
+    para o alerta RoletaNoMaster (sem MASTER eleito = spins descartados)."""
+    global _CONNMGR_PROVIDER
+    _CONNMGR_PROVIDER = provider
+
 try:
     from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Gauge, Counter  # type: ignore
     _METRICS_AVAILABLE = True
@@ -120,6 +129,9 @@ if _METRICS_AVAILABLE:
             "recent_acc_cw": Gauge("roleta_recent_acc_cw", "Accuracy rolling 100 spins direcao CW"),
             "recent_acc_ccw": Gauge("roleta_recent_acc_ccw", "Accuracy rolling 100 spins direcao CCW"),
             "seconds_since_spin": Gauge("roleta_seconds_since_last_spin", "Segundos desde ultimo spin processado"),
+            # INCIDENT 13/06: eleição de MASTER — detectar "sem master com clientes" em ~1min.
+            "master_present": Gauge("roleta_master_present", "1 se ha WS MASTER eleito, 0 caso contrario"),
+            "ws_connections": Gauge("roleta_ws_connections", "Conexoes WS ativas (master + slaves)"),
             "scrape_errors": Counter("roleta_metrics_scrape_errors_total", "Falhas ao atualizar metricas durante scrape"),
             # S-STRAT-7: métricas do auto-tune batch (4 spins por sentido).
             "batch_runs_cw": Gauge("roleta_batch_tune_runs_cw_total", "Total runs do auto-tune batch (direcao CW)"),
@@ -187,6 +199,14 @@ def _refresh_custom_metrics() -> None:
     """S-OBS-9: chamado a cada GET /metrics; tolerante a providers ausentes."""
     if not _PROM_METRICS:
         return
+    # INCIDENT 13/06: eleição de MASTER (bloco isolado — não depende dos demais providers).
+    if _CONNMGR_PROVIDER is not None:
+        try:
+            _cm = _CONNMGR_PROVIDER() or {}
+            _PROM_METRICS["master_present"].set(1.0 if _cm.get("master_present") else 0.0)
+            _PROM_METRICS["ws_connections"].set(float(_cm.get("connections", 0)))
+        except Exception:
+            pass
     try:
         if _STATE_PROVIDER is not None:
             st = _STATE_PROVIDER() or {}

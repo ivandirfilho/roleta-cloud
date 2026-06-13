@@ -164,18 +164,15 @@ docker logs roleta-cloud --since 5m 2>&1 | grep -E "VERIFICANDO|decision_created
    Confirmar no servidor que o `connection_manager.py` em produção contém o ramo
    "MASTER assumido após grace period expirado".
 
-2. **Alerta que aponta a CAUSA, não o sintoma.** Hoje só existe
-   `RoletaNoSpinsRecent` (`obs/alerts.yml:28-33`), que mede "sem spins" — e
-   disparou por 16h sem ação. Adicionar um alerta preciso de **"sem MASTER com
-   clientes conectados"** (recipe conforme o padrão de métrica do repo —
-   provider em `server/websocket.py` boot + Gauge em `server/health_server.py` +
-   alerta em `obs/alerts.yml`):
-   - métrica nova `roleta_master_present` (0/1) e `roleta_ws_connections` (N);
-   - alerta `RoletaNoMaster`: `expr: roleta_master_present == 0 and
-     roleta_ws_connections > 0`, `for: 1m`, `severity: critical`.
-
-   Isso reduz o tempo de detecção de **~16h para ~1min** e diz exatamente o que
-   fazer (Forçar MASTER / restart).
+2. **Alerta que aponta a CAUSA, não o sintoma — ✅ IMPLEMENTADO.** Antes só
+   existia `RoletaNoSpinsRecent` (sintoma, `warning`), que disparou por ~16h sem
+   ação efetiva. Agora há **`RoletaNoMaster`** (`obs/alerts.yml`):
+   `expr: (roleta_ws_connections > 0) and (roleta_master_present == 0)`,
+   `for: 1m`, `severity: critical`. As métricas `roleta_master_present` (0/1) e
+   `roleta_ws_connections` são expostas por um provider do ConnectionManager
+   registrado no boot (`server/websocket.py` → `server/health_server.py`).
+   Reduz a detecção de **~16h para ~1min** e diz o que fazer (Forçar MASTER /
+   restart). *Requer deploy (`git push`) para entrar em produção.*
 
 3. **Elevar severidade/rota do `RoletaNoSpinsRecent`** de `warning` para algo que
    efetivamente notifique o dono em horário de operação (o alerta funcionou; o

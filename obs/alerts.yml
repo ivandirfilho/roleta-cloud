@@ -32,6 +32,13 @@ groups:
         annotations:
           summary: "Sem spins há {{ $value }}s"
 
+      - alert: RoletaNoMaster
+        expr: (roleta_ws_connections > 0) and (roleta_master_present == 0)
+        for: 1m
+        labels: { severity: critical, component: ingestion }
+        annotations:
+          summary: "Sem WS MASTER eleito com {{ $value }} conexao(oes) ativa(s) — spins descartados; forcar MASTER ou reiniciar roleta-cloud"
+
       - alert: RoletaAccuracyDegraded
         expr: (roleta_recent_acc_cw < 0.30) or (roleta_recent_acc_ccw < 0.30)
         for: 10m
