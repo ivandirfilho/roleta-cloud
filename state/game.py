@@ -228,6 +228,11 @@ class GameState:
     # consumido pelo message_handler para persistir em decisions.result_region
     # e na DNA feature hit_region. Não persiste no state.json (efêmero).
     last_hit_attribution: Optional[Dict[str, Any]] = field(default=None)
+
+    # V4 (13/06): últimos resultados sorteados (números puros) para a zona fria
+    # de C3 — refatoracao_estrategica_13_06.md. Não confundir com as timelines
+    # (que guardam FORÇAS). Mais recente em index 0 (appendleft).
+    recent_results: deque = field(default_factory=lambda: deque(maxlen=10))
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -289,6 +294,10 @@ class GameState:
         # Reset Performance Apostas
         self.performance_bet_cw = deque(maxlen=12)
         self.performance_bet_ccw = deque(maxlen=12)
+
+        # V4 (BUG-F): zera a janela de resultados da zona fria de C3 ao trocar
+        # dealer/mesa — senão a frieza mistura sessões.
+        self.recent_results = deque(maxlen=10)
         
         # Calibração removida (momentum desabilitado)
         
@@ -342,6 +351,10 @@ class GameState:
             logger.warning(f"⚠️ Direção inválida ignorada: '{direcao}' (esperado: {self._VALID_DIRECTIONS})")
             return 0
         
+        # V4: registra todo número sorteado (zona fria de C3), independente de
+        # haver spin anterior. Antes do cálculo de força (BUG-F: ciclo de vida).
+        self.recent_results.appendleft(numero)
+
         force = 0
         
         if self.last_direction:  # Tem spin anterior válido
@@ -453,9 +466,11 @@ class GameState:
                               actual_number: int, hit: bool) -> Dict[str, Any]:
         """B2 (12/06) — Atribui o resultado a uma região da jogada (P5).
 
-        Geometria SDA17: centers = [C1, C2, C3]; raios fixos (3, 2, 2) =
-        7+5+5 = 17 números. Fallbacks (SDA-19/21, early-session) têm centers
-        = [c1] e a região inteira conta como C1.
+        Atribuição por CENTRO MAIS PRÓXIMO (geometria-agnóstica): como hit=True
+        implica actual ∈ numbers, o resultado pertence ao cluster cujo centro
+        está mais perto (empate → C1>C2>C3). Independe de raios, então segue a
+        geometria viva (V2 fat-SAT C1=1/sat=3; V3 sat 4/2) sem subcontar os
+        satélites. Fallbacks (SDA-19/21, early-session) têm centers=[c1] → C1.
 
         Returns:
             dict com:
@@ -500,18 +515,24 @@ class GameState:
         if not hit:
             return out
 
-        # Raios por slot (C1=3, C2=2, C3=2). Com 1 centro só (fallback),
-        # qualquer hit nos numbers é C1.
-        radii = [3, 2, 2]
+        # FIX (13/06): atribuição por CENTRO MAIS PRÓXIMO, geometria-agnóstica.
+        # O atribuidor antigo usava raios fixos (3,2,2 = legado 7+5+5); com a
+        # geometria viva fat-SAT (C1 raio 1; satélites raio 3, ou 4/2 no V3),
+        # ~2,6% dos acertos de satélite (dist 3-4) caíam em 'unattributed',
+        # subcontando C2/C3 na telemetria P5/hit_region. Como hit ⇒ actual ∈
+        # numbers, o resultado pertence ao cluster do centro mais próximo
+        # (empate → C1>C2>C3, via '<' estrito preservando a ordem dos slots).
+        best_idx: Optional[int] = None
+        best_dist: Optional[int] = None
         for idx, c in enumerate(centers[:3]):
             sd = _signed(c, actual_number)
-            radius = radii[idx] if idx < len(radii) else 2
-            if sd is not None and abs(sd) <= radius:
-                out["slot"] = f"C{idx + 1}"
-                return out
-        # Hit fora dos raios padrão: fallback N=19/21 (centers=[c1]) conta
-        # como C1; com 3 centros não deveria ocorrer → 'unattributed'.
-        out["slot"] = "C1" if len(centers) == 1 else "unattributed"
+            if sd is None:
+                continue
+            d = abs(sd)
+            if best_dist is None or d < best_dist:
+                best_dist = d
+                best_idx = idx
+        out["slot"] = f"C{best_idx + 1}" if best_idx is not None else "C1"
         return out
     
     # _circular_diff e _update_calibration removidos (momentum desabilitado)
@@ -1104,6 +1125,8 @@ class GameState:
             # BUG-A24-V3-17: persistir incumbent_shadow paralelo
             "incumbent_shadow_cw": list(self.incumbent_shadow_cw),
             "incumbent_shadow_ccw": list(self.incumbent_shadow_ccw),
+            # V4 (13/06): janela de resultados para a zona fria de C3.
+            "recent_results": list(self.recent_results),
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -1191,6 +1214,8 @@ class GameState:
             )
             # M15-ADA: Restaurar estado adaptativo (v1.6+, vazio se v1.5)
             gs._adaptive_state = data.get("adaptive_state", {})
+            # V4 (13/06): restaurar janela de resultados (compat: vazio se ausente)
+            gs.recent_results = deque(data.get("recent_results", []), maxlen=10)
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))

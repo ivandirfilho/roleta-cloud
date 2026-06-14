@@ -105,3 +105,18 @@ def sat_asym_enabled() -> bool:
     """
     import os
     return os.environ.get("SDA_SAT_ASYM", "1").strip().lower() not in ("0", "false", "off")
+
+
+def strategy_regions_v4_enabled() -> bool:
+    """V4 (13/06) — Refatoração de regiões: 3 regiões DISJUNTAS de 7 = 21 distintos.
+
+    C1 mantém o critério atual (força prevista + shift M5), raio 3. C2 = gravidade
+    circular sobre as 4 últimas forças fora do alvo de C1. C3 = zona menos visitada
+    (heatmap) dos 5 últimos resultados. Composição C1→C2→C3 sem sobreposição
+    (centros a >=7 casas) garante 21 números. Mutuamente exclusiva com a geometria
+    V2/V3 (quando V4 ON, ignora offsets-KDE/raios assimétricos/shift dos satélites;
+    mantém o shift M5 de C1). Default OFF; ligar com SDA_REGIONS_V4=1. Spec/auditoria:
+    refatoracao_estrategica_13_06.md.
+    """
+    import os
+    return os.environ.get("SDA_REGIONS_V4", "0").strip().lower() in ("1", "true", "on")

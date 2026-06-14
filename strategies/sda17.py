@@ -71,6 +71,11 @@ class SDA17Strategy(StrategyBase):
     OFFSET_MAX_V2 = 15         # V2: teto de offset dos satélites (cauda ±13–17)
     GEOMETRY_KDE_MIN_N = 12    # amostras mínimas p/ offsets empíricos (senão prior)
     REGION_ERR_HIST_MAX = 60   # janela do histograma de erro C1 por sentido
+    # V4 (13/06) — Regiões disjuntas (refatoracao_estrategica_13_06.md).
+    REGIONS_V4_GRAVITY = 7        # alcance circular de força (filtro C1 + cluster C2)
+    REGIONS_V4_C2_WINDOW = 4      # nº de forças recentes para a gravidade de C2
+    REGIONS_V4_C3_WINDOW = 5      # nº de resultados recentes para a zona fria de C3
+    REGION_RADIUS_V4 = 3          # raio de cada região (7 números) → 7+7+7 = 21
     MAX_DELTA_OFFSET = 2       # Legacy v4.2 (não usado por M02)
     SYMMETRY_CAP = 4           # Legacy v4.2 (não usado por M02)
     
@@ -158,7 +163,8 @@ class SDA17Strategy(StrategyBase):
         last_number: int,
         wheel_sequence: List[int],
         calibration: int = 0,
-        error_history: List[int] = None
+        error_history: List[int] = None,
+        recent_numbers: List[int] = None
     ) -> StrategyResult:
         """Analisa timeline e prediz próxima força usando pipeline robusto."""
 
@@ -258,6 +264,18 @@ class SDA17Strategy(StrategyBase):
             if region_shift:
                 c1_idx_s = (self._wheel_index(c1, wheel_sequence) + region_shift) % len(wheel_sequence)
                 c1 = wheel_sequence[c1_idx_s]
+
+        # === V4 (13/06): 3 regiões DISJUNTAS de 7 = 21 distintos ===
+        # C1 mantido (força prevista + shift M5 já aplicado acima). C2 por
+        # gravidade circular das forças residuais; C3 por zona fria dos últimos
+        # resultados. Filtro de C2 usa predicted_force PRÉ-shift (D9), c1 (posição
+        # pós-shift) ancora a disjunção. refatoracao_estrategica_13_06.md §3-5.
+        if self._regions_v4_enabled():
+            return self._build_v4_regions(
+                last_number, predicted_force, c1, region_shift, timeline,
+                wheel_sequence, recent_numbers, pred_info, forces,
+                original_force, calibration, flagged,
+            )
 
         # Offsets dos satélites
         if self._geometry_v2_enabled():
@@ -465,6 +483,166 @@ class SDA17Strategy(StrategyBase):
             return 10 if profit_cut_v1_enabled() else 9
         except Exception:
             return 9
+
+    # ================================================================== #
+    # V4 (13/06) — Regiões disjuntas (refatoracao_estrategica_13_06.md).
+    # Helpers PUROS (testáveis isoladamente) + montagem das 3 regiões.
+    # ================================================================== #
+    def _regions_v4_enabled(self) -> bool:
+        try:
+            from app_config.settings import strategy_regions_v4_enabled
+            return strategy_regions_v4_enabled()
+        except ImportError:  # módulo de settings ausente → geometria legada
+            return False
+
+    def _circ_dist_idx(self, a: int, b: int, wheel: List[int]) -> int:
+        """Distância circular NÃO-assinada (casas na roda) entre dois números."""
+        ia, ib = self._wheel_index(a, wheel), self._wheel_index(b, wheel)
+        size = len(wheel)
+        d = abs(ia - ib)
+        return min(d, size - d)
+
+    def _signed_dist_idx(self, frm: int, to: int, wheel: List[int]) -> int:
+        """Distância circular ASSINADA frm→to (+ no sentido da sequência)."""
+        a, b = self._wheel_index(frm, wheel), self._wheel_index(to, wheel)
+        size = len(wheel)
+        d = (b - a) % size
+        return d - size if d > size // 2 else d
+
+    def _circ_force(self, f1: int, f2: int, size: int) -> int:
+        """BUG-C: distância CIRCULAR de força = distância na roda entre os
+        centros projetados de f1 e f2 (ambos a partir de last_number)."""
+        d = abs(f1 - f2) % size
+        return min(d, size - d)
+
+    def _regions_disjoint(self, a: int, b: int, wheel: List[int]) -> bool:
+        """BUG-D: duas regiões de raio R não se sobrepõem sse circ >= 2R+1."""
+        return self._circ_dist_idx(a, b, wheel) >= 2 * self.REGION_RADIUS_V4 + 1
+
+    def _compute_c2_gravity(self, last_forces: List[int], c1_force: int,
+                            size: int) -> int:
+        """§3 — C2 por gravidade circular das forças residuais.
+
+        Filtra as forças capturadas pela gravidade de C1 (no alvo) e escolhe o
+        centro-força que engloba o máximo das residuais. Sem residual → prior
+        (D3). Empate → mais recente (residual está recente→antiga, '>' mantém).
+        """
+        last4 = list(last_forces)[:self.REGIONS_V4_C2_WINDOW]
+        g = self.REGIONS_V4_GRAVITY
+        residual = [f for f in last4 if self._circ_force(f, c1_force, size) > g]
+        if not residual:
+            return c1_force + self.BAYESIAN_DEFAULT  # D3 (apply_force faz mod)
+        best_f, best_cov = residual[0], -1
+        for cand in residual:
+            cov = sum(1 for f in residual if self._circ_force(f, cand, size) <= g)
+            if cov > best_cov:
+                best_cov, best_f = cov, cand
+        return best_f
+
+    def _nearest_non_overlapping(self, ideal: int, occupied: List[int],
+                                 wheel: List[int]) -> int:
+        """§5 — empurra um centro ideal para a posição mais próxima cuja região
+        não sobreponha nenhuma região ocupada (BUG-J usa centros já resolvidos)."""
+        if all(self._regions_disjoint(ideal, o, wheel) for o in occupied):
+            return ideal
+        i0 = self._wheel_index(ideal, wheel)
+        size = len(wheel)
+        for d in range(1, size // 2 + 1):
+            for cand in (wheel[(i0 + d) % size], wheel[(i0 - d) % size]):
+                if all(self._regions_disjoint(cand, o, wheel) for o in occupied):
+                    return cand
+        return ideal  # degenerado (não ocorre: sempre sobram >=11 centros)
+
+    def _compute_c3_cold(self, last_numbers: List[int], occupied: List[int],
+                         wheel: List[int]) -> int:
+        """§4 — C3 = zona menos visitada pelos últimos resultados.
+
+        BUG-E: heatmap triangular (cada resultado pinta ±R com peso decrescente)
+        para discriminar empates. Escolhe, entre os centros disjuntos de C1/C2,
+        o de menor calor; tie-break determinístico (D6: + distante → menor idx).
+        """
+        r = self.REGION_RADIUS_V4
+        last5 = list(last_numbers)[:self.REGIONS_V4_C3_WINDOW]
+        heat = {n: 0 for n in wheel}
+        for res in last5:
+            if res not in wheel:
+                continue
+            for n in self.get_neighbors(res, r, wheel):
+                heat[n] += (r + 1) - self._circ_dist_idx(res, n, wheel)
+        cands = [c for c in wheel
+                 if all(self._regions_disjoint(c, o, wheel) for o in occupied)]
+        if not cands:  # fallback INV-3: mais distante de occupied
+            return max((c for c in wheel if c not in occupied),
+                       key=lambda c: min(self._circ_dist_idx(c, o, wheel)
+                                         for o in occupied))
+
+        def _key(c: int):
+            warmth = sum(heat[n] for n in self.get_neighbors(c, r, wheel))
+            mind = min(self._circ_dist_idx(c, o, wheel) for o in occupied)
+            return (warmth, -mind, self._wheel_index(c, wheel))
+
+        return min(cands, key=_key)
+
+    def _compose_regions_v4(self, c1: int, c2_ideal: int,
+                            last_numbers: List[int],
+                            wheel: List[int]) -> Tuple[List[int], List[int]]:
+        """§5 — C1 marca 1º; C2 empurrado p/ não sobrepor C1; C3 = zona fria das
+        regiões remanescentes. Garante 21 distintos (BUG-K: valida no fim)."""
+        r = self.REGION_RADIUS_V4
+        c2 = self._nearest_non_overlapping(c2_ideal, [c1], wheel)
+        c3 = self._compute_c3_cold(last_numbers, [c1, c2], wheel)
+        nums = set(self.get_neighbors(c1, r, wheel))
+        nums |= set(self.get_neighbors(c2, r, wheel))
+        nums |= set(self.get_neighbors(c3, r, wheel))
+        return [c1, c2, c3], sorted(nums)
+
+    def _build_v4_regions(self, last_number, predicted_force, c1, region_shift,
+                          timeline, wheel, recent_numbers, pred_info, forces,
+                          original_force, calibration, flagged) -> StrategyResult:
+        """Monta o StrategyResult da geometria V4 (21 distintos)."""
+        size = len(wheel)
+        last4 = timeline.get_last_n(self.REGIONS_V4_C2_WINDOW)  # BUG-A: da timeline
+        c2_force = self._compute_c2_gravity(last4, predicted_force, size)
+        c2_ideal = self._apply_force(last_number, c2_force, timeline.direction, wheel)
+        centers, numbers = self._compose_regions_v4(
+            c1, c2_ideal, list(recent_numbers or []), wheel)
+        c1f, c2f, c3f = centers
+        r = self.REGION_RADIUS_V4
+        if len(numbers) != 21:  # BUG-K: nunca crash (INV-3), mas registra
+            logger.warning("[REGIONS-V4] cobertura inesperada: %d (centros=%s)",
+                           len(numbers), centers)
+        return StrategyResult(
+            should_bet=True,
+            numbers=numbers,
+            center=c1f,
+            score=pred_info.get("score", 3),
+            visual=f"[{c1f}] [{c2f}] [{c3f}]",
+            details={
+                "forces": forces,
+                "predicted_force": predicted_force,
+                "original_prediction": original_force,
+                "method": "regions_v4_gravity_cold",
+                "centers": centers,
+                "unique_count": len(numbers),
+                "overlap": (2 * (3 * r) + 3) - len(numbers),
+                "clean_count": pred_info.get("clean_count", 0),
+                "outliers_removed": pred_info.get("outliers_removed", 0),
+                "spread": pred_info.get("spread", 0),
+                "drift": pred_info.get("drift", 0),
+                "survival_rate": pred_info.get("survival_rate", 1.0),
+                "calibration": calibration,
+                "flagged_forces": flagged,
+                "offset": self._signed_dist_idx(c1f, c2f, wheel),
+                "offset_c3": self._signed_dist_idx(c1f, c3f, wheel),
+                "offset_type": "regions_v4",
+                "geometry": f"{2 * r + 1}+{2 * r + 1}+{2 * r + 1}",
+                "c2_force": c2_force,
+                "region_shift": region_shift,
+                "region_shift_sat": [0, 0],
+                "cw_history_size": len(self.cw_history),
+                "ccw_history_size": len(self.ccw_history),
+            },
+        )
 
     def _predict_robust(self, forces: List[int]) -> Tuple[int, Dict[str, Any]]:
         """

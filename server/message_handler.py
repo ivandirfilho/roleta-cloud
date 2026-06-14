@@ -360,7 +360,8 @@ class MessageHandler:
                 self.game_state.target_timeline,
                 self.game_state.last_number,
                 roulette.WHEEL_SEQUENCE,
-                calibration=0  # Momentum desabilitado
+                calibration=0,  # Momentum desabilitado
+                recent_numbers=list(self.game_state.recent_results),  # V4: zona fria C3
             )
         trace.step("analyzed", {
             "should_bet": result.should_bet,
@@ -841,6 +842,7 @@ class MessageHandler:
         # Reset das timelines
         self.game_state.timeline_cw.clear()
         self.game_state.timeline_ccw.clear()
+        self.game_state.recent_results.clear()  # V4: reprocessa do zero (zona fria C3)
         self.game_state.last_number = 0
         self.game_state.last_direction = ""
 
