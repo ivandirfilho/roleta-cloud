@@ -424,7 +424,13 @@ class MessageHandler:
             # indicação existe em toda jogada com predição).
             mg = self.game_state.target_martingale
             bet_c4_rate = self.game_state.get_bet_c4_rate()
-            mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
+            # S-STAKE (flat_kelly_junho.md §RN-6): só o modo gale escala por streak.
+            # flat/kelly travam level=1 (sem escalação — elimina o sangramento).
+            from app_config.settings import staking_mode as _staking_mode
+            if _staking_mode() == "gale":
+                mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
+            else:
+                mg.level = 1
 
             acao = "APOSTAR"
             action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
@@ -492,7 +498,8 @@ class MessageHandler:
         # v4.4 QW-1/2: Stake modulation (INV-3 — apenas valor; aposta continua)
         try:
             stake_info = self.game_state.get_effective_bet(
-                self.game_state.target_direction, self.strategy
+                self.game_state.target_direction, self.strategy,
+                n_numbers=len(final_numbers),
             )
         except Exception as _qw_e:
             logger.warning(f"[QW] get_effective_bet falhou ({_qw_e}) — fallback base")

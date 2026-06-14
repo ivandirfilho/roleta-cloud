@@ -1005,7 +1005,7 @@ class GameState:
     # Estes métodos NÃO alteram should_bet/acao. Apenas ajustam o VALOR     #
     # exibido (`current_bet`) preservando martingale e Triple Rate.         #
     # ==================================================================== #
-    def get_effective_bet(self, direction: str, strategy) -> Dict[str, Any]:
+    def get_effective_bet(self, direction: str, strategy, n_numbers: int = 21) -> Dict[str, Any]:
         """
         QW-1 (Stake Minimizer) + QW-2 (Stake Weight) — calcula valor de aposta
         efetivo aplicando modulações em cima de `current_bet`.
@@ -1013,6 +1013,8 @@ class GameState:
         Args:
             direction: "cw"/"horario"/"ccw"/"anti-horario" (target direction).
             strategy: instância de SDA17Strategy (exposta via message_handler).
+            n_numbers: nº de números apostados (geometria viva) — usado pelos
+                modos flat/kelly (stake = U·N). Ignorado no modo gale.
 
         Returns:
             dict com {
@@ -1024,6 +1026,22 @@ class GameState:
                 "minimizer_active": bool,
             }
         """
+        # S-STAKE (flat_kelly_junho.md §6.2) — dispatcher de staking. Em flat/kelly
+        # delega para staking.policy e retorna ANTES do bloco QW (RN-6). No modo
+        # gale (default) o ramo é pulado e o código abaixo roda inalterado
+        # (byte-idêntico — rollback trivial via SDA_STAKING_MODE=gale). Um único
+        # except (fail-safe): qualquer falha de staking → cai no gale legado.
+        try:
+            from app_config.settings import staking_mode as _staking_mode
+            _mode = _staking_mode()
+            if _mode in ("flat", "kelly"):
+                from staking.policy import compute_staking
+                return compute_staking(
+                    _mode, direction=direction, n_numbers=n_numbers, strategy=strategy
+                )
+        except Exception as _stk_e:  # noqa: BLE001 — staking nunca quebra a aposta
+            logger.warning(f"[STAKE] dispatcher falhou ({_stk_e}) — fallback gale legado")
+
         mg = self.martingale_cw if direction in ("cw", "horario") else self.martingale_ccw
         base_bet = mg.current_bet
         result = {

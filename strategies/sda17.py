@@ -878,6 +878,26 @@ class SDA17Strategy(StrategyBase):
         sample = h[-window:]
         return sum(sample) / len(sample)
 
+    def rolling_hit_rate(self, direction: str, window: int = 100) -> Optional[float]:
+        """p̂ rolling sobre uma janela ARBITRÁRIA (Kelly — flat_kelly_junho.md §RN-3).
+
+        Difere de ``_recent_hit_rate`` (preso à janela do minimizer = 30): aqui a
+        janela é parametrizável (default 100 = todo o buffer ``_recent_hits``),
+        para um ``p̂`` mais estável no dimensionamento de Kelly. Retorna ``None``
+        durante o warmup (``< warmup_n`` amostras) — o caller cai no flat. INV-1:
+        isolado por sentido.
+        """
+        dk = self._dk(direction)
+        h = self._recent_hits[dk]
+        warmup_n = int(self._cfg.get("sda17.minimizer", "warmup_n", 10))
+        if len(h) < warmup_n:
+            return None
+        w = max(1, int(window))
+        sample = h[-w:]
+        if not sample:
+            return None
+        return sum(sample) / len(sample)
+
     def should_minimize(self, direction: str) -> Tuple[bool, Optional[float]]:
         """
         QW-1 — decisão de minimizer (stake mínimo + force level=1).

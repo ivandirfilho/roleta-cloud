@@ -120,3 +120,17 @@ def strategy_regions_v4_enabled() -> bool:
     """
     import os
     return os.environ.get("SDA_REGIONS_V4", "0").strip().lower() in ("1", "true", "on")
+
+
+def staking_mode() -> str:
+    """Seletor de staking (spec flat_kelly_junho.md §RN-1).
+
+    Enum de 3 valores via env SDA_STAKING_MODE: "gale" (default — comportamento
+    atual byte-idêntico), "flat" (stake constante U·N por sentido) ou "kelly"
+    (Kelly fracionário por sentido). Valor inválido cai em "gale" (fail-safe).
+
+    Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
+    """
+    import os
+    v = os.environ.get("SDA_STAKING_MODE", "gale").strip().lower()
+    return v if v in ("gale", "flat", "kelly") else "gale"

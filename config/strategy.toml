@@ -74,3 +74,12 @@ improvement_threshold = 0.10   # delta acc para considerar "melhorou" (no-op em 
 degrade_threshold = -0.10      # delta acc para considerar "piorou" (aplica pull-back)
 lr_batch = 0.30                # learning rate do nudge explore (modulado por volatility)
 
+# S-STAKE (flat_kelly_junho.md §6.4) — modo de staking flat/kelly por sentido.
+# Só tem efeito quando SDA_STAKING_MODE in {flat, kelly} (default gale = ignora a seção).
+[sda17.staking]
+unit           = 1.0    # U por número; stake_total = round(unit * n_numbers) -> 21u na V4
+kelly_fraction = 0.5    # half-Kelly (1/4 p/ mais conservador sob edge incerto)
+kelly_cap      = 0.02   # <=2% do bankroll por jogada
+kelly_window   = 100    # janela LONGA de p-hat por sentido (!= os 30 do QW-1 minimizer)
+kelly_bankroll = 100.0  # proxy de banca p/ dimensionar o Kelly (ate haver ledger real)
+

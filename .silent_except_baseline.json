@@ -6,7 +6,7 @@
   "server/message_handler.py": 18,
   "server/websocket.py": 22,
   "state/bet_advisor.py": 3,
-  "state/game.py": 13,
+  "state/game.py": 14,
   "strategies/dealer_offset.py": 1,
   "strategies/sda17.py": 9
 }
