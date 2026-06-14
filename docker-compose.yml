@@ -31,6 +31,11 @@ services:
       # 🎯 ROOT CAUSE HOOK-1: sem essa var, o hook nunca consegue init
       # (lia DSN como None e marcava _publisher_init_attempted=True para sempre)
       - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      # V4 (14/06): geometria de 3 regiões disjuntas de 7 = 21 números (C1
+      # força+shift M5, C2 gravidade circular, C3 zona fria). ON por decisão do
+      # operador (sem backtest). Desativar: SDA_REGIONS_V4=0 no host + redeploy,
+      # ou git revert. Spec/auditoria: refatoracao_estrategica_13_06.md.
+      - SDA_REGIONS_V4=${SDA_REGIONS_V4:-1}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
