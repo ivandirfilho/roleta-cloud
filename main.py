@@ -83,13 +83,19 @@ def main():
             version = f.read().strip()
     except FileNotFoundError:
         pass
-    
+
+    try:
+        from app_config.settings import strategy_regions_v4_enabled as _v4_on
+        _geo = "V4: 21 numeros (3 regioes disjuntas)" if _v4_on() else "V2: 17 numeros adaptativo"
+    except Exception:
+        _geo = "geometria adaptativa"
+
     print(f"""
     ╔═══════════════════════════════════════════════════════════╗
     ║              🎰 ROLETA CLOUD v{version:<24s}  ║
     ║                                                           ║
     ║  Backend para processamento de roleta em tempo real       ║
-    ║  Estratégia: M15-ADA (17 números, offset adaptativo)     ║
+    ║  Estratégia: M15-ADA · {_geo:<35s}║
     ╚═══════════════════════════════════════════════════════════╝
     """)
     

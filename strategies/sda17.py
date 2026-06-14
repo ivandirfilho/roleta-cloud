@@ -90,7 +90,13 @@ class SDA17Strategy(StrategyBase):
         self.min_forces = 2    # v4.3: reduzido de 3→2 para warmup mais rápido
         self.default_window = 7
         self.decay = 0.8
-        self.description = "M02-PctSigmoid v4.4 (QW INV-3), Triple Focus 17 números"
+        # NEW-V4 (14/06): descrição reflete a geometria viva (vai ao front via
+        # trace.strategy.description). Sob a flag, 21 números (3 regiões); senão 17.
+        if self._regions_v4_enabled():
+            self.description = ("Regiões V4: 3 regiões disjuntas = 21 números "
+                                "(C1 força+M5 · C2 gravidade · C3 zona fria)")
+        else:
+            self.description = "M02-PctSigmoid v4.4 (QW INV-3), Triple Focus 17 números"
 
         # SP-26 ML-02: prior bayesiano configurável via env SDA_OFFSET_PRIOR.
         # Default mantém comportamento atual (BAYESIAN_DEFAULT=10, PRIOR_CENTER=10).
