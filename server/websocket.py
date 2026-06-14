@@ -360,14 +360,33 @@ async def broadcast_heartbeat():
                 
                 # Verificar se a última predição foi uma aposta real
                 last_bet_placed = game_state.pending_prediction.get("bet_placed", False)
-                
+
+                # S-STAKE (flat_kelly_junho.md) — heartbeat reflete o stake EFETIVO
+                # do modo ativo. Em gale mantém mg.current_bet (inalterado). Em
+                # flat/kelly mostra o stake real (ex.: 21u) — senão o overlay exibia
+                # 17 entre spins enquanto a aposta real é 21. (Protegido pelo
+                # try/except externo do heartbeat.)
+                from app_config.settings import staking_mode as _hb_sm
+                _hb_mode = _hb_sm()
+                if _hb_mode in ("flat", "kelly"):
+                    _hb_nums = game_state.pending_prediction.get("numbers", []) or []
+                    _hb_info = game_state.get_effective_bet(
+                        game_state.target_direction, strategy,
+                        n_numbers=len(_hb_nums) if _hb_nums else 21,
+                    )
+                    _hb_aposta = _hb_info["effective_bet"]
+                    _hb_mode = _hb_info["mode"]
+                else:
+                    _hb_aposta = mg.current_bet
+
                 state_sync = {
                     "type": "state_sync",
                     "data": {
                         "gale_level": mg.level,
                         "gale_display": mg.gale_display,
                         "martingale": mg.multiplier,
-                        "aposta": mg.current_bet,
+                        "aposta": _hb_aposta,
+                        "stake_mode": _hb_mode,
                         "last_number": game_state.last_number,
                         "target_direction": game_state.target_direction,
                         "performance": game_state.get_performance_stats(),

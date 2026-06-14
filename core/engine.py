@@ -113,7 +113,13 @@ class GameEngine:
 
         if result.should_bet:
             mg = self.game_state.target_martingale
-            mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
+            # S-STAKE (flat_kelly_junho.md §RN-6): só gale escala por streak;
+            # flat/kelly travam level=1 (consistente com server/message_handler).
+            from app_config.settings import staking_mode as _staking_mode
+            if _staking_mode() == "gale":
+                mg.get_gale(score=result.score, c4_rate=bet_c4_rate, confidence=advice.confidence)
+            else:
+                mg.level = 1
             
             acao = "APOSTAR"
             action_reason = f"SDA score={result.score} | {mg.gale_display} | C4={bet_c4_rate:.0%}"
