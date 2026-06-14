@@ -237,7 +237,7 @@ kelly_bankroll = 100.0  # proxy de banca p/ dimensionar o Kelly (até haver ledg
 
 ## 7. Plano de sprints — implantação e GANHO por etapa
 
-> Sequência incremental; cada sprint tem *exit-criteria* e rollback de **1 env-var**. **Default `gale` até S5** (promoção só após evidência out-of-sample).
+> Sequência incremental; cada sprint tem *exit-criteria* e rollback de **1 env-var**. **S1–S3 implantados (commit 7d9bce8)**; **S5 promovido em 14/06** — produção migrada `gale → flat` via `docker-compose.yml` (`SDA_STAKING_MODE=${SDA_STAKING_MODE:-flat}`); o **S4 (shadow OOS) foi dispensado por decisão do operador** ("estamos migrando de gale"). Rollback: `SDA_STAKING_MODE=gale` no host + redeploy.
 
 | Sprint | Entrega | Toca (§5/§6) | Exit-criteria / testes | **GANHO (o que ganhamos)** | Rollback |
 |---|---|---|---|---|---|
@@ -245,8 +245,8 @@ kelly_bankroll = 100.0  # proxy de banca p/ dimensionar o Kelly (até haver ledg
 | **S1** · Flag + **Flat puro** (`StakingPolicy`) | Cria `staking/policy.py`; `get_effective_bet` vira dispatcher; `pre_decision` no-op p/ flat; flag `SDA_STAKING_MODE` (default `gale`) | P1–P5, P8 | Stake constante toda jogada; INV-3 ok; `mode=gale` byte-idêntico | **Para o sangramento:** swing **~+176u** (de −77u → +99u) nas mesmas apostas; **variância e risco de ruína despencam** | `SDA_STAKING_MODE=gale` |
 | **S2** · Telemetria / ledger / front | `stake_mode='flat'`; `gale_display`→"FLAT"; `pnl_units` correto no payload e DB | P6, P7, P10 | `stake_mode` certo no front; `pnl_units` bate com o backtest | **Observabilidade:** permite comparar shadow P&L com confiança (sem isto, S4 é cego) | reverte payload |
 | **S3** · **Kelly por sentido** | `KellyStaking`: `f*` com `p̂` rolling por sentido + `[sda17.staking]` cap/floor; half-Kelly | P4, P9, P11 | `f*≤0 → stake mín`; cap respeitado; CW/CCW usam `p̂` próprio | **Teto de upside:** half-Kelly ≈ **75% do crescimento a ½ da variância**; pronto p/ quando houver edge real (dealer-bias) | `SDA_STAKING_MODE=flat` |
-| **S4** · Shadow A/B (validação OOS) | Calcula stake `flat`/`kelly` em paralelo ao `gale` vivo; loga P&L comparado por N dias | telemetria S2 | `P&L_shadow(flat) > P&L_gale` com folga, **fora-da-amostra** | **Prova OOS antes de promover** — evita repetir o erro do Gale (bom in-sample, ruim OOS — §2.3) | desligar shadow |
-| **S5** · Promoção | Troca default p/ `flat` (ou `kelly` se S4 provar) | P8 (default) | 1 release; `gale` segue acessível | **Captura REAL do swing em produção;** `gale` = rollback de 1 env-var | `SDA_STAKING_MODE=gale` |
+| **S4** · Shadow A/B (validação OOS) | Calcula stake `flat`/`kelly` em paralelo ao `gale` vivo; loga P&L comparado por N dias | telemetria S2 | `P&L_shadow(flat) > P&L_gale` com folga, **fora-da-amostra** | **Prova OOS antes de promover** — evita repetir o erro do Gale (bom in-sample, ruim OOS — §2.3) | ⏭️ **DISPENSADO** (decisão do operador 14/06 — migração direta) |
+| **S5** · Promoção | ✅ **FEITO 14/06**: `docker-compose.yml` → `SDA_STAKING_MODE=${SDA_STAKING_MODE:-flat}` (default do código segue `gale`); deploy via `roleta-deploy.timer` no Debian | P8 (compose) | `docker compose config` resolve `SDA_STAKING_MODE: flat`; CI verde | **Captura REAL do swing em produção;** `gale` = rollback de 1 env-var | `SDA_STAKING_MODE=gale` no host + redeploy, ou git revert |
 
 ### 7.1 Ganhos por implantação — visão consolidada (ROI)
 - **Imediato (S1):** maior alavanca dos estudos — converter o staking de **−77u → +99u** nas mesmas 309 jogadas (**~176u de swing**), só mudando *como* aposta. É **gestão de variância**, não edge mágico (ver caveats §8).

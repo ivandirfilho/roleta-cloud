@@ -36,6 +36,13 @@ services:
       # operador (sem backtest). Desativar: SDA_REGIONS_V4=0 no host + redeploy,
       # ou git revert. Spec/auditoria: refatoracao_estrategica_13_06.md.
       - SDA_REGIONS_V4=${SDA_REGIONS_V4:-1}
+      # S-STAKE (14/06) — MIGRAÇÃO gale -> flat. Stake CONSTANTE U*N (21u na V4)
+      # por sentido, sem escalação por streak (elimina o sangramento do Gale:
+      # backtest -77u gale vs +99u flat nas mesmas ~309 jogadas). Default do
+      # código é 'gale' (app_config/settings.py, fail-safe); PRODUÇÃO roda 'flat'
+      # por esta env. Rollback: SDA_STAKING_MODE=gale no host + redeploy, ou git
+      # revert. Spec/auditoria: flat_kelly_junho.md.
+      - SDA_STAKING_MODE=${SDA_STAKING_MODE:-flat}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
