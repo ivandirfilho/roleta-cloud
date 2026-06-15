@@ -493,7 +493,7 @@
 <body>
   <div class="header">
     <h1>👂 ESCUTA BEAT</h1>
-    <small>v2.5 - Detecção de Status Aprimorada</small>
+    <small id="appVersion">v3.3</small>
   </div>
 
   <!-- Status de Conexão -->
@@ -503,6 +503,17 @@
       <div id="connectionStatus" class="connection-status">Conectando...</div>
       <div id="connectionUrl" class="connection-url">-</div>
     </div>
+  </div>
+
+  <!-- 🆕 v3.3: Auto-detecção (zero-upload) -->
+  <div class="autostart-container" style="margin: 10px 0; padding: 10px; border: 1px solid #1a7f37; border-radius: 6px; background: #0d1f12;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size: 12px; color:#3fb950;">🔎 <strong id="autoProvider">Detectando roleta…</strong></span>
+      <label style="font-size: 11px; color:#8b949e; display:flex; align-items:center; gap:4px; cursor:pointer;" title="Detecta a roleta e inicia a escuta automaticamente">
+        <input type="checkbox" id="autoStartToggle" checked /> Auto-start
+      </label>
+    </div>
+    <div id="autoStatus" style="font-size: 10px; color:#8b949e; margin-top:5px;">Abra a mesa: a Escuta identifica o provider e começa sozinha.</div>
   </div>
 
   <!-- Seleção de Mesa (Novo Microserviço) -->
@@ -521,7 +532,7 @@
   <!-- Fallback Manual: Carregar JSON do Extrator Beat -->
   <div class="fallback-container" style="margin-bottom: 12px; border-top: 1px dashed #333; padding-top: 10px;">
     <div style="font-size: 10px; color: #666; text-align: center; margin-bottom: 6px;">
-      ⚠️ SERVIDOR OFFLINE? USE O MODO MANUAL:
+      Modo manual (opcional) — carregar manifest específico:
     </div>
     <button id="btnLoad" class="btn btn-load">
       📂 CARREGAR ARQUIVO DO EXTRATOR BEAT

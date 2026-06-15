@@ -11,6 +11,18 @@ try {
   console.warn('⚠️ Falha ao carregar extractor_meta.js:', e?.message || e);
 }
 
+try {
+  importScripts('session_extractor.js');
+} catch (e) {
+  console.warn('⚠️ Falha ao carregar session_extractor.js:', e?.message || e);
+}
+
+try {
+  importScripts('provider_router.js');
+} catch (e) {
+  console.warn('⚠️ Falha ao carregar provider_router.js:', e?.message || e);
+}
+
 
 // ===== SISTEMA DE LOGS ESTRUTURADOS =====
 const LOG_HISTORY_MAX = 100; // Manter últimos 100 registros
@@ -70,8 +82,17 @@ const DEFAULT_STATE = {
     currentBet: 0,
     activeChip: 0
   },
+  sessionData: {
+    dealer: null,
+    round_id: null,
+    table: null,
+    frameUrl: null,
+    lastUpdate: null
+  },
   currentMesa: null,
-  mesaConfig: null
+  mesaConfig: null,
+  detectedProvider: null,
+  autoStarted: false
 };
 
 // 🆕 v2.6: Removido readIntervalId - não persiste em MV3 Service Workers
@@ -135,17 +156,275 @@ async function getDeviceId() {
   return newId;
 }
 
+// ===== AUTO-START + ZERO-UPLOAD (v3.3) =====
+// Detecta o provider da aba (provider_router.js), carrega o manifest empacotado
+// (providers/*.json) e inicia a escuta automaticamente. Mata o upload manual.
+
+// Filtros de host para o webNavigation (derivados de PROVIDER_DETECTION).
+const CASINO_HOST_FILTERS = (typeof PROVIDER_DETECTION !== 'undefined' ? PROVIDER_DETECTION : [])
+  .flatMap((p) => (p.hostPatterns || []).map((h) => ({ hostContains: h })));
+
+// Lock in-memory por aba: serializa disparos concorrentes de auto-start.
+const autoStartInProgress = new Set();
+
+// Abas paradas manualmente: o auto-start NÃO re-inicia até o operador reiniciar
+// explicitamente ou a aba fechar. Persistido em storage porque o SW é reciclado
+// e os listeners/scan rodariam de novo, re-iniciando o que o operador parou
+// (auditoria pós-implantação 14/06, achado #1).
+async function tabHost(tabId) {
+  try {
+    const t = await chrome.tabs.get(tabId);
+    return (typeof hostOf === 'function') ? hostOf(t.url || '') : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function suppressTab(tabId) {
+  if (!tabId) return;
+  try {
+    const host = await tabHost(tabId);
+    const data = await chrome.storage.local.get(['suppressedTabs']);
+    const map = data.suppressedTabs || {};
+    map[tabId] = { ts: Date.now(), host: host || null };
+    await chrome.storage.local.set({ suppressedTabs: map });
+  } catch (e) { /* best-effort */ }
+}
+async function unsuppressTab(tabId) {
+  if (!tabId) return;
+  try {
+    const data = await chrome.storage.local.get(['suppressedTabs']);
+    const map = data.suppressedTabs || {};
+    if (map[tabId] != null) {
+      delete map[tabId];
+      await chrome.storage.local.set({ suppressedTabs: map });
+    }
+  } catch (e) { /* best-effort */ }
+}
+// Revalida host + TTL para não prender uma aba NOVA cujo tabId foi reciclado
+// após reinício do Chrome (auditoria #a, 14/06).
+async function isTabSuppressed(tabId) {
+  try {
+    const data = await chrome.storage.local.get(['suppressedTabs']);
+    const map = data.suppressedTabs || {};
+    const entry = map[tabId];
+    if (entry == null) return false;
+    const ts = (typeof entry === 'object' ? entry.ts : 0) || 0;
+    const TTL = 24 * 60 * 60 * 1000;
+    if (Date.now() - ts > TTL) { await unsuppressTab(tabId); return false; }
+    const expectedHost = (typeof entry === 'object') ? entry.host : null;
+    if (expectedHost) {
+      const host = await tabHost(tabId);
+      if (host && host !== expectedHost) { await unsuppressTab(tabId); return false; }
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+// Poda no boot: remove supressões de abas que não existem mais (tabId fechado
+// sem onRemoved, ex.: shutdown do Chrome).
+async function pruneSuppressedTabs() {
+  try {
+    const data = await chrome.storage.local.get(['suppressedTabs']);
+    const map = data.suppressedTabs || {};
+    const ids = Object.keys(map);
+    if (!ids.length) return;
+    const tabs = await chrome.tabs.query({});
+    const live = new Set(tabs.map((t) => String(t.id)));
+    let changed = false;
+    for (const id of ids) {
+      if (!live.has(String(id))) { delete map[id]; changed = true; }
+    }
+    if (changed) await chrome.storage.local.set({ suppressedTabs: map });
+  } catch (e) { /* best-effort */ }
+}
+
+// Política de auto-start: 'auto' (default) | 'off'. Qualquer valor legado ≠ 'off'
+// (ex.: 'ask' gravado por versão anterior) é normalizado para 'auto' (achado #4/extra).
+async function getAutoStartPolicy() {
+  try {
+    const data = await chrome.storage.local.get(['autoStartPolicy']);
+    return data.autoStartPolicy === 'off' ? 'off' : 'auto';
+  } catch (e) {
+    return 'auto';
+  }
+}
+
+// Carrega manifest empacotado via fetch(getURL) — zero-upload.
+async function loadBundledManifest(providerId) {
+  const path = (typeof manifestPathFor === 'function')
+    ? manifestPathFor(providerId)
+    : `providers/${providerId}.json`;
+  if (!path) return null;
+  try {
+    const res = await fetch(chrome.runtime.getURL(path));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch (e) {
+    console.warn('⚠️ Falha ao carregar manifest empacotado', providerId, e?.message || e);
+    addLog('error', `Falha ao carregar manifest ${providerId}: ${e?.message || e}`);
+    return null;
+  }
+}
+
+async function getFrameUrlsForTab(tabId) {
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    return (frames || []).map((f) => f.url).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Combina URL principal + URLs dos iframes (o jogo Evolution vive num iframe).
+async function detectProviderForTab(tabId, mainUrl) {
+  const frameUrls = await getFrameUrlsForTab(tabId);
+  const all = [mainUrl, ...frameUrls].filter(Boolean);
+  if (typeof detectFromFrames !== 'function') return { providerId: null, confidence: 0 };
+  return detectFromFrames(all);
+}
+
+function setBadge(text, color) {
+  try {
+    chrome.action.setBadgeText({ text: text || '' });
+    if (color) chrome.action.setBadgeBackgroundColor({ color });
+  } catch (e) { /* badge best-effort */ }
+}
+
+// Núcleo compartilhado de start (usado por auto-start e pelo botão manual).
+async function startListeningInternal(tabId, manifest, providerId, origin) {
+  const state = await getState();
+  if (state.isListening && state.tabId === tabId) return false;
+
+  if (manifest) {
+    state.extractorData = manifest;
+    await seedDealMetaFromExtractorData(manifest);
+    if (manifest?.data?.results?.lastNumbers) {
+      state.results = manifest.data.results.lastNumbers.slice(0, 12);
+      state.lastHash = state.results.slice(0, 5).join(',');
+    }
+  }
+  state.detectedProvider = providerId || state.detectedProvider || null;
+  state.autoStarted = origin === 'auto';
+  state.isListening = true;
+  state.tabId = tabId;
+  state.error = null;
+  state.lastUpdate = Date.now();
+  readCount = 0;
+
+  await saveState(state);
+
+  startReadLoopAlarm();
+  startKeepAliveAlarm();
+  connectWebSocket();
+  setBadge('●', '#1a7f37');
+  broadcastToTabs({
+    action: 'stateSync',
+    data: { isListening: true, autoStarted: state.autoStarted, detectedProvider: state.detectedProvider },
+  });
+  addLog('info', `Escuta ${origin === 'auto' ? 'AUTO-iniciada' : 'iniciada'} (${providerId || 'manual'}) tab ${tabId}`);
+  console.log(`✅ Escuta ${origin} iniciada — tab ${tabId} provider ${providerId}`);
+  return true;
+}
+
+// Decide se deve auto-iniciar a escuta para uma aba.
+async function maybeAutoStart(tabId, url) {
+  if (!tabId) return;
+  // Lock por aba: onCompleted + onHistoryStateUpdated + scan + popup trigger podem
+  // disparar quase ao mesmo tempo; sem isto o guard por getState() é TOCTOU e dois
+  // fluxos chegam a connectWebSocket criando socket duplicado (review 14/06).
+  if (autoStartInProgress.has(tabId)) return;
+  autoStartInProgress.add(tabId);
+  try {
+    const policy = await getAutoStartPolicy();
+    if (policy === 'off') return;
+
+    // STOP manual segura: não re-inicia aba parada pelo operador (achado #1).
+    if (await isTabSuppressed(tabId)) return;
+
+    const state = await getState();
+    if (state.isListening && state.tabId === tabId) return; // já escutando esta aba
+    // Já escutando OUTRA aba: não sequestra o tabId singleton (achado #3).
+    if (state.isListening && state.tabId !== tabId) {
+      addLog('info', `Auto-start ignorado: já escutando a aba ${state.tabId}; aba ${tabId} não assumida.`);
+      return;
+    }
+
+    const detection = await detectProviderForTab(tabId, url);
+    if (!detection || !detection.providerId) return; // unknown ou ambíguo (NB-03)
+
+    const provider = (typeof getProvider === 'function') ? getProvider(detection.providerId) : null;
+    if (!provider || !provider.available) {
+      addLog('info', `Provider detectado sem manifest empacotado: ${detection.providerId}`);
+      return;
+    }
+
+    if (policy === 'ask') {
+      await chrome.storage.local.set({
+        pendingAutoStart: { tabId, providerId: detection.providerId, confidence: detection.confidence, ts: Date.now() },
+      });
+      setBadge('!', '#9a6700');
+      broadcastToTabs({ action: 'providerDetected', data: { tabId, providerId: detection.providerId, confidence: detection.confidence } });
+      return;
+    }
+
+    // policy === 'auto'
+    const manifest = await loadBundledManifest(detection.providerId);
+    if (!manifest) return;
+    await startListeningInternal(tabId, manifest, detection.providerId, 'auto');
+  } finally {
+    autoStartInProgress.delete(tabId);
+  }
+}
+
+// Registra os listeners de auto-detecção (1×).
+let autoDetectRegistered = false;
+function registerAutoDetectListeners() {
+  if (autoDetectRegistered) return;
+  if (!chrome.webNavigation || !chrome.webNavigation.onCompleted) return;
+  const filter = CASINO_HOST_FILTERS.length ? { url: CASINO_HOST_FILTERS } : undefined;
+  const handler = (details) => { maybeAutoStart(details.tabId, details.url).catch(() => {}); };
+  try {
+    chrome.webNavigation.onCompleted.addListener(handler, filter);
+    if (chrome.webNavigation.onHistoryStateUpdated) {
+      chrome.webNavigation.onHistoryStateUpdated.addListener(handler, filter);
+    }
+    autoDetectRegistered = true;
+    console.log('🔎 Auto-detecção registrada para', CASINO_HOST_FILTERS.length, 'padrões de host');
+  } catch (e) {
+    console.warn('⚠️ webNavigation listener falhou:', e?.message || e);
+  }
+}
+
+// Varre abas já abertas (cobre o caso de a aba existir antes do SW iniciar).
+async function scanOpenTabsForProviders() {
+  try {
+    await pruneSuppressedTabs(); // limpa supressões de abas que sumiram (achado #a)
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (!tab.id) continue;
+      await maybeAutoStart(tab.id, tab.url).catch(() => {});
+    }
+  } catch (e) { /* best-effort */ }
+}
+
 
 function connectWebSocket() {
-  if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-    return; // Já conectado
+  // Idempotente: já conectado OU em conexão. O segundo guard (CONNECTING) é
+  // essencial sob auto-start concorrente — sem ele, dois disparos quase
+  // simultâneos criam um 2º socket e deixam o 1º órfão (review 14/06).
+  if (wsConnection && (wsConnection.readyState === WebSocket.OPEN || wsConnection.readyState === WebSocket.CONNECTING)) {
+    return;
   }
 
   try {
     console.log('🔌 Conectando ao servidor WebSocket...');
-    wsConnection = new WebSocket(WS_CONFIG.url);
+    const socket = new WebSocket(WS_CONFIG.url);
+    wsConnection = socket;
 
-    wsConnection.onopen = async () => {
+    socket.onopen = async () => {
+      if (wsConnection !== socket) { try { socket.close(); } catch (e) {} return; } // órfão
       console.log('✅ WebSocket conectado ao servidor Python');
       wsConnected = true;
       wsReconnectAttempts = 0;
@@ -153,7 +432,7 @@ function connectWebSocket() {
 
       // 🆕 v3.5: Enviar registro com device_id
       const deviceId = await getDeviceId();
-      wsConnection.send(JSON.stringify({
+      socket.send(JSON.stringify({
         type: 'register',
         device_id: deviceId
       }));
@@ -162,7 +441,9 @@ function connectWebSocket() {
       notifyConnectionStatus(true); // 🆕 v3.0: Notificar overlay
     };
 
-    wsConnection.onclose = () => {
+    socket.onclose = () => {
+      // Ignora close de socket órfão: não derruba a referência saudável atual.
+      if (wsConnection !== socket) return;
       console.log('🔌 WebSocket desconectado');
       wsConnected = false;
       wsConnection = null;
@@ -172,12 +453,12 @@ function connectWebSocket() {
       scheduleReconnect();
     };
 
-    wsConnection.onerror = (error) => {
+    socket.onerror = (error) => {
       console.warn('⚠️ Erro WebSocket:', error);
-      wsConnected = false;
+      if (wsConnection === socket) wsConnected = false;
     };
 
-    wsConnection.onmessage = async (event) => {
+    socket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
 
@@ -525,19 +806,26 @@ async function capturarMesaRemota() {
 // ===== FIM WEBSOCKET =====
 
 // ===== INICIALIZAÇÃO =====
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   console.log('Extensão instalada/atualizada');
   chrome.storage.local.set({ escutaState: DEFAULT_STATE });
+  // 🆕 v3.3: política de auto-start default = 'auto' (responde §8 #7 do plano)
+  const pol = await chrome.storage.local.get(['autoStartPolicy']);
+  if (!pol.autoStartPolicy) await chrome.storage.local.set({ autoStartPolicy: 'auto' });
+  registerAutoDetectListeners();
+  scanOpenTabsForProviders();
 });
 
 // 🆕 v2.6: Listener para quando o Chrome inicia
 chrome.runtime.onStartup.addListener(async () => {
   console.log('🔄 Chrome iniciou - verificando estado...');
+  registerAutoDetectListeners();
   const state = await getState();
   if (state.isListening && state.tabId) {
     console.log('🔄 Retomando escuta após startup do Chrome');
     startReadLoopAlarm();
   }
+  scanOpenTabsForProviders();
 });
 
 // Carregar estado ao iniciar worker
@@ -550,6 +838,12 @@ chrome.storage.local.get(['escutaState'], (data) => {
     connectWebSocket(); // Garantir que WS está conectado
   }
 });
+
+// 🆕 v3.3: registra a auto-detecção sempre que o service worker carrega
+// (event-driven MV3). Guard interno evita listener duplicado; o scan cobre
+// abas de cassino já abertas antes do SW acordar.
+registerAutoDetectListeners();
+scanOpenTabsForProviders();
 
 // Listener ÚNICO para mensagens do popup e content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -651,6 +945,35 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function handleMessage(message, sender = null) {
   const { action } = message;
 
+  // 🆕 v3.3: controle de auto-start (zero-upload)
+  if (action === 'getAutoStartPolicy') {
+    return { success: true, policy: await getAutoStartPolicy() };
+  }
+
+  if (action === 'setAutoStartPolicy') {
+    // 'ask' removido da whitelist: não há UI que consuma pendingAutoStart (achado #4).
+    const policy = ['auto', 'off'].includes(message.policy) ? message.policy : 'auto';
+    await chrome.storage.local.set({ autoStartPolicy: policy });
+    addLog('info', `Política de auto-start: ${policy}`);
+    return { success: true, policy };
+  }
+
+  // Popup pede detecção imediata na aba atual (botão "Detectar agora").
+  if (action === 'detectProvider') {
+    const tabId = message.tabId || sender?.tab?.id;
+    const detection = await detectProviderForTab(tabId, message.url || null);
+    return { success: true, detection };
+  }
+
+  // Popup força o auto-start na aba. force=true (operador ligou o toggle/clicou)
+  // remove a supressão; sem force (popup só abriu) respeita STOP manual (achado #1).
+  if (action === 'triggerAutoStart') {
+    const tabId = message.tabId || sender?.tab?.id;
+    if (message.force && tabId) await unsuppressTab(tabId);
+    await maybeAutoStart(tabId, message.url || null);
+    return { success: true };
+  }
+
   if (action === 'setExtractorData') {
     const state = await getState();
     state.extractorData = message.data;
@@ -670,25 +993,26 @@ async function handleMessage(message, sender = null) {
   if (action === 'startListening') {
     const state = await getState();
 
-    // 🆕 v3.1: CORREÇÃO BUG #2 - Se não tem extractorData, usa template base automaticamente
+    // 🆕 v3.3: ZERO-UPLOAD — sem extractorData, carrega o manifest EMPACOTADO do
+    // provider detectado na aba (ou Evolution por default). Conserta o template
+    // mínimo legado, que vinha em formato antigo (selectors:{}) incompatível com o
+    // readResults data-driven (data.session/monitoring/results).
     if (!state.extractorData) {
-      console.log('⚠️ Sem extractorData - usando template base do Evolution');
+      const tabId = message.tabId || sender?.tab?.id || state.tabId;
+      let providerId = 'evolution';
+      try {
+        const det = await detectProviderForTab(tabId, null);
+        if (det && det.providerId) providerId = det.providerId;
+      } catch (e) { /* mantém evolution */ }
 
-      // Template base mínimo para funcionar
-      state.extractorData = {
-        provider: 'evolution',
-        version: '1.0',
-        selectors: {
-          results: "[data-role='recent-number']",
-          gameStatus: "[class*='trafficLightText']",
-          balance: "[data-role='balance-label-value']",
-          totalBet: "[data-role='total-bet-label-value']",
-          chips: "[data-role='chip']",
-          chipWrapper: "[data-role='chip-stack-wrapper']"
-        }
-      };
-
-      addLog('info', 'Template base Evolution carregado automaticamente');
+      const bundled = await loadBundledManifest(providerId);
+      if (bundled) {
+        state.extractorData = bundled;
+        state.detectedProvider = providerId;
+        addLog('info', `Manifest empacotado '${providerId}' carregado automaticamente (zero-upload)`);
+      } else {
+        addLog('error', 'Zero-upload falhou: nenhum manifest empacotado disponível');
+      }
     }
 
     await seedDealMetaFromExtractorData(state.extractorData);
@@ -701,6 +1025,7 @@ async function handleMessage(message, sender = null) {
     readCount = 0;
 
     await saveState(state);
+    await unsuppressTab(state.tabId); // início explícito remove a supressão (achado #1)
 
     // 🆕 v2.6: Usar alarms persistentes
     startReadLoopAlarm();
@@ -708,6 +1033,7 @@ async function handleMessage(message, sender = null) {
 
     // 🆕 v2.7: Conectar ao servidor WebSocket
     connectWebSocket();
+    setBadge('●', '#1a7f37'); // badge consistente com auto-start (achado #2)
 
     // 🆕 v4.0: Broadcast para atualizar UIs
     broadcastToTabs({ action: 'stateSync', data: { isListening: true } });
@@ -718,16 +1044,19 @@ async function handleMessage(message, sender = null) {
 
   if (action === 'stopListening') {
     const state = await getState();
+    const stoppedTab = state.tabId;
     state.isListening = false;
     state.error = null;
 
     await saveState(state);
 
-    // 🆕 v2.6: Parar todos os alarms
+    // Teardown PRIMEIRO — não pode ser pulado se o suppress (storage) falhar (achado #c)
     stopAllAlarms();
-
-    // 🆕 v2.7: Desconectar WebSocket
     closeWebSocket();
+    setBadge(''); // limpa o badge ao parar (achado #2)
+
+    // Depois suprime o auto-start desta aba até reinício explícito (achado #1)
+    if (stoppedTab) await suppressTab(stoppedTab);
 
     // 🆕 v4.0: Broadcast para atualizar UIs
     broadcastToTabs({ action: 'stateSync', data: { isListening: false } });
@@ -993,6 +1322,7 @@ async function readResults() {
       state.error = 'Aba fechada';
       await saveState(state);
       stopAllAlarms();
+      setBadge(''); // limpa o badge quando a aba some (achado #2)
       return;
     }
 
@@ -1161,6 +1491,53 @@ async function readResults() {
       }
       // ===== FIM DA NOVA SEÇÃO =====
 
+      // ===== NOVA SEÇÃO v18.2 (14/06): COLETA DE DADOS DE SESSÃO (dealer/round/table) =====
+      // Data-driven: usa seletores de state.extractorData.data.session do extrator_completo.json.
+      // Tudo opcional: se o JSON nao tiver bloco session, simplesmente nao popula sessionData
+      // e o caminho legacy (deal_capture.js + latestDealMeta) continua sendo a fonte.
+      const sessionConfig = state.extractorData?.data?.session || null;
+      if (sessionConfig && typeof extractSessionData === 'function') {
+        try {
+          const sessionResults = await chrome.scripting.executeScript({
+            target: { tabId: state.tabId, allFrames: true },
+            func: extractSessionData,
+            args: [sessionConfig]
+          });
+
+          const combinedSession = (typeof combineSessionFrames === 'function')
+            ? combineSessionFrames(sessionResults)
+            : (function () {
+                const out = { dealer: null, round_id: null, table: null, frameUrl: null };
+                for (const r of (sessionResults || [])) {
+                  const d = r && r.result;
+                  if (!d) continue;
+                  if (!out.dealer && d.dealer) out.dealer = d.dealer;
+                  if (!out.round_id && d.round_id) out.round_id = d.round_id;
+                  if (!out.table && d.table) out.table = d.table;
+                  if (!out.frameUrl && d.frameUrl) out.frameUrl = d.frameUrl;
+                }
+                return out;
+              })();
+
+          if (combinedSession.dealer || combinedSession.round_id || combinedSession.table) {
+            state.sessionData = {
+              dealer: combinedSession.dealer,
+              round_id: combinedSession.round_id,
+              table: combinedSession.table,
+              frameUrl: combinedSession.frameUrl,
+              lastUpdate: new Date().toISOString()
+            };
+            if (readCount % 10 === 1) {
+              addLog('monitoring', 'Sessão capturada (data-driven)', state.sessionData);
+            }
+          }
+        } catch (sessionError) {
+          // Erro na coleta de sessão nao quebra a funcionalidade principal
+          console.warn('⚠️ Erro ao coletar sessão:', sessionError.message);
+        }
+      }
+      // ===== FIM DA SEÇÃO SESSION =====
+
       if (newHash !== state.lastHash && state.lastHash !== '') {
         // NOVO RESULTADO!
         const newNumber = newNumbers[0];
@@ -1191,7 +1568,11 @@ async function readResults() {
             if (stored.dealMeta) latestDealMeta = stored.dealMeta; // re-hidrata cache
           } catch (_) { _dm = {}; }
         }
-        console.log('🎯 DEAL meta no envio:', _dm);
+        // v18.2 (14/06): data-driven session capture tem prioridade sobre deal_capture legacy.
+        // state.sessionData vem do bloco data.session do extrator_completo.json (Etapa 2-4).
+        // Se nao tiver dado, cai para latestDealMeta (deal_capture.js).
+        const _sd = (state.sessionData && typeof state.sessionData === 'object') ? state.sessionData : {};
+        console.log('🎯 DEAL meta no envio:', { sessionData: _sd, dealMeta: _dm });
         const sent = sendToWebSocket({
           type: 'novo_resultado',
           numero: newNumber,
@@ -1201,10 +1582,10 @@ async function readResults() {
           timestamp: Date.now(),
           allNumbers: newNumbers.slice(0, 12),
           monitoringData: state.monitoringData,
-          dealer: _dm.dealer || null,         // SP-11
-          table: _dm.table || null,           // SP-11
-          provider: _dm.provider || null,     // SP-11
-          round_id: _dm.round_id || null      // SP-11
+          dealer: _sd.dealer || _dm.dealer || null,         // SP-11 + v18.2 data-driven first
+          table: _sd.table || _dm.table || null,            // SP-11 + v18.2 data-driven first
+          provider: _dm.provider || null,                   // SP-11 (provider continua do deal_meta - URL-based)
+          round_id: _sd.round_id || _dm.round_id || null    // SP-11 + v18.2 data-driven first
         });
 
         if (sent) {
@@ -1586,7 +1967,9 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     state.error = 'Aba fechada';
     await saveState(state);
     stopAllAlarms();
+    setBadge(''); // limpa o badge (achado #2)
   }
+  await unsuppressTab(tabId); // limpa supressão da aba fechada (após o teardown)
 });
 
 console.log('🎧 Background v2.6 (Persistente) pronto');

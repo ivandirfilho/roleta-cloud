@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.1.1",
-  "description": "Monitor de resultados - v3.1.1 captura dealer/provider em iframes (SP-11)",
+  "version": "3.3.0",
+  "description": "Monitor de resultados - v3.3.0 AUTO-START: detecta a roleta sozinha (zero-upload) e inicia a escuta automaticamente via provider_router + manifests empacotados",
   "permissions": [
     "activeTab",
     "tabs",
     "scripting",
     "storage",
-    "alarms"
+    "alarms",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -42,5 +43,11 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["providers/*.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

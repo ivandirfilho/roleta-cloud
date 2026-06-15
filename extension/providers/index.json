@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "service": "ExtractorBeat",
+    "registry_version": "1.0.0",
+    "updated_at": "2026-06-14",
+    "note": "Registry de providers federados. Apenas 'available:true' tem manifest empacotado. Detection usado pelo provider_router.js para auto-detecção (zero-upload)."
+  },
+  "providers": [
+    {
+      "id": "evolution",
+      "displayName": "Evolution Gaming",
+      "path": "providers/evolution.json",
+      "version": "18.2.0",
+      "available": true,
+      "detection": {
+        "hostPatterns": ["evo-games", "evolution"],
+        "urlPatterns": ["*://*.evo-games.com/*", "*://*.evolutiongaming.com/*"],
+        "minConfidence": 0.6
+      }
+    },
+    {
+      "id": "pragmatic",
+      "displayName": "Pragmatic Play Live",
+      "path": "providers/pragmatic.json",
+      "version": null,
+      "available": false,
+      "detection": {
+        "hostPatterns": ["pragmatic"],
+        "urlPatterns": ["*://*.pragmaticplaylive.net/*"],
+        "minConfidence": 0.6
+      }
+    },
+    {
+      "id": "playtech",
+      "displayName": "Playtech",
+      "path": "providers/playtech.json",
+      "version": null,
+      "available": false,
+      "detection": {
+        "hostPatterns": ["playtech", "iconic21"],
+        "urlPatterns": [],
+        "minConfidence": 0.6
+      }
+    },
+    {
+      "id": "imagine",
+      "displayName": "Imagine Live",
+      "path": "providers/imagine.json",
+      "version": null,
+      "available": false,
+      "detection": {
+        "hostPatterns": ["imagine"],
+        "urlPatterns": [],
+        "minConfidence": 0.6
+      }
+    }
+  ]
+}

@@ -47,3 +47,52 @@ def test_merge_preserves_dom_fields_while_filling_extractor_fields():
     assert merged["provider"] == "evolution"
     assert merged["table"] == "PorROU0000000001"
     assert merged["round_id"] == "r-1"
+
+
+def test_deal_audit_c2_reads_dealer_from_data_session():
+    """DEAL-AUDIT C2 (14/06): extractDealMetaFromExtractorData passa a popular
+    dealer/round_id quando v18.2+ trouxer data.session. Antes era hardcoded null.
+    """
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const fake = {{
+        _meta: {{
+          source: {{ url: 'https://betvip.bet.br/games/evolution/roleta' }},
+          provider: {{ name: 'Evolution Gaming' }}
+        }},
+        _detectedFrames: {{ frames: [
+          {{ url: 'https://a8-latam.evo-games.com/frontend/evo/r2/#provider=evolution&table_id=PorROU0000000001',
+             isMainFrame: false, isEvolution: true, isPotentialGame: true }}
+        ] }},
+        data: {{
+          session: {{
+            dealer: {{ name: {{ value: 'Maria' }} }},
+            round:  {{ id:   {{ value: 'R987654' }} }}
+          }}
+        }}
+      }};
+      process.stdout.write(JSON.stringify(helper.extractDealMetaFromExtractorData(fake)));
+    """
+    meta = _run_node(script)
+    assert meta["dealer"] == "Maria"
+    assert meta["round_id"] == "R987654"
+    assert meta["table"] == "PorROU0000000001"
+    assert meta["provider"] == "evolution"
+
+
+def test_deal_audit_c2_returns_dealer_alone_when_only_session_present():
+    """DEAL-AUDIT C2: helper deve retornar objeto quando só dealer foi capturado
+    (antes exigia provider OR table). Garante que dealer puro nao é descartado.
+    """
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const fake = {{
+        data: {{ session: {{ dealer: {{ name: {{ value: 'Carlos' }} }} }} }}
+      }};
+      process.stdout.write(JSON.stringify(helper.extractDealMetaFromExtractorData(fake)));
+    """
+    meta = _run_node(script)
+    assert meta is not None
+    assert meta["dealer"] == "Carlos"
+    assert meta["provider"] is None
+    assert meta["table"] is None

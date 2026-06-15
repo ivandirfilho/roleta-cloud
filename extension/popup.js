@@ -106,6 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Conectar à aba
   await connectToTab();
 
+  // 🆕 v3.3: inicializar auto-detecção / auto-start
+  await initAutoStart();
+
   // Carregar estado do storage
   await loadStateFromStorage();
 
@@ -140,6 +143,73 @@ document.addEventListener('DOMContentLoaded', async () => {
   log('Sistema pronto v3.0 (Microserviço)', 'info');
 });
 
+
+// ===== AUTO-START / ZERO-UPLOAD (v3.3) =====
+let autoProviderEl, autoStartToggleEl, autoStatusEl;
+
+async function initAutoStart() {
+  autoProviderEl = document.getElementById('autoProvider');
+  autoStartToggleEl = document.getElementById('autoStartToggle');
+  autoStatusEl = document.getElementById('autoStatus');
+
+  // Versão dinâmica no header (PP-06)
+  try {
+    const ver = document.getElementById('appVersion');
+    if (ver) ver.textContent = 'v' + chrome.runtime.getManifest().version + ' · auto-start';
+  } catch (e) { /* noop */ }
+
+  // Carregar política atual
+  let policy = 'auto';
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'getAutoStartPolicy' });
+    if (resp && resp.policy) policy = resp.policy;
+  } catch (e) { /* background pode estar dormindo */ }
+  if (autoStartToggleEl) autoStartToggleEl.checked = policy !== 'off';
+
+  // Toggle: liga/desliga auto-start
+  if (autoStartToggleEl) {
+    autoStartToggleEl.addEventListener('change', async () => {
+      const newPolicy = autoStartToggleEl.checked ? 'auto' : 'off';
+      try { await chrome.runtime.sendMessage({ action: 'setAutoStartPolicy', policy: newPolicy }); } catch (e) {}
+      log(`Auto-start ${newPolicy === 'auto' ? 'ligado' : 'desligado'}`, 'info');
+      if (newPolicy === 'auto') triggerAutoStart(true); // ação explícita do operador
+    });
+  }
+
+  await refreshAutoProvider();
+  if (policy === 'auto') triggerAutoStart(false); // abertura do popup respeita STOP manual
+}
+
+async function refreshAutoProvider() {
+  if (!autoProviderEl || !currentTab) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({
+      action: 'detectProvider', tabId: currentTab.id, url: currentTab.url,
+    });
+    const det = resp && resp.detection;
+    if (det && det.providerId) {
+      const name = det.providerId.charAt(0).toUpperCase() + det.providerId.slice(1);
+      autoProviderEl.textContent = `${name} detectado`;
+      if (autoStatusEl) {
+        autoStatusEl.textContent = `Confiança ${(det.confidence * 100).toFixed(0)}% — manifest empacotado, sem upload.`;
+      }
+    } else {
+      autoProviderEl.textContent = 'Nenhuma roleta conhecida';
+      if (autoStatusEl) autoStatusEl.textContent = 'Abra a mesa de roleta — ou use o modo manual abaixo.';
+    }
+  } catch (e) {
+    autoProviderEl.textContent = 'Detecção indisponível';
+  }
+}
+
+async function triggerAutoStart(force = false) {
+  if (!currentTab) return;
+  try {
+    await chrome.runtime.sendMessage({
+      action: 'triggerAutoStart', tabId: currentTab.id, url: currentTab.url, force: !!force,
+    });
+  } catch (e) { /* idempotente; background tentará via webNavigation */ }
+}
 
 // ===== FALLBACK: CARREGAR ARQUIVO DO EXTRATOR =====
 async function loadExtractorFile() {

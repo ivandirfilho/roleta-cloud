@@ -10,15 +10,30 @@
   'use strict';
 
   // Detecta provider pela URL/host.
+  // FIX 14/06 (DEAL-AUDIT C1): incluir 'evo-games' (dominio real do iframe
+  // Evolution, e.g. a8-latam.evo-games.com). Sem isso, o provider ficava
+  // 'null' dentro do iframe do jogo e dealer nunca era capturado.
   const HOST = (location.host || '').toLowerCase();
   let provider = null;
-  if (HOST.includes('evolution')) provider = 'evolution';
+  if (HOST.includes('evolution') || HOST.includes('evo-games')) provider = 'evolution';
   else if (HOST.includes('playtech') || HOST.includes('iconic21')) provider = 'playtech';
   else if (HOST.includes('imagine')) provider = 'imagine';
   else if (HOST.includes('pragmatic')) provider = 'pragmatic';
   // Fallback: usa host como provider para permitir rastreio mesmo em
   // dominios novos (operador pode adicionar regra depois). DEAL audit 27/05.
   const PROVIDER_FALLBACK = provider || (HOST ? `host:${HOST}` : 'unknown');
+
+  // FIX 14/06 (DEAL-AUDIT A1/A5): nao instalar observer/interval em frames
+  // que claramente nao tem dealer (analytics, sw_iframe, about:blank).
+  // Reduz custo de CPU em ~9 frames por aba para 1-2 frames relevantes.
+  const IS_IRRELEVANT_FRAME = !provider && (
+    HOST === '' ||
+    HOST.includes('uol.com.br') ||
+    HOST.includes('amazonaws.com') ||
+    HOST.includes('sst.') ||
+    HOST.includes('googletagmanager') ||
+    HOST.includes('google-analytics')
+  );
 
   // Selectors por provider (atualizar conforme DOM real). Cada entrada:
   //  - dealer: CSS selector para nome do dealer
@@ -79,19 +94,40 @@
       chrome.storage && chrome.storage.local && chrome.storage.local.set({ dealMeta: meta });
       chrome.runtime && chrome.runtime.sendMessage &&
         chrome.runtime.sendMessage({ action: 'dealMetaUpdate', dealMeta: meta });
+      // FIX 14/06 (DEAL-AUDIT B2): log so quando mudar (lastJson ja garante
+      // que so chegamos aqui em mudancas reais).
       console.log('[deal_capture] published', meta);
     } catch (_) { /* extension context invalido */ }
   }
 
+  // FIX 14/06 (DEAL-AUDIT A1): throttle de 500ms no publish para evitar
+  // centenas de calls/seg quando timer da roleta atualiza characterData.
+  let pubTimer = null;
+  let pubPending = false;
+  function scheduledPublish() {
+    if (pubTimer) { pubPending = true; return; }
+    publish();
+    pubTimer = setTimeout(() => {
+      pubTimer = null;
+      if (pubPending) { pubPending = false; scheduledPublish(); }
+    }, 500);
+  }
+
+  // FIX 14/06 (DEAL-AUDIT A1/A5): pular observer/interval em frames sem
+  // dealer (analytics, sw, blank). Custo zero nestes frames.
+  if (IS_IRRELEVANT_FRAME) {
+    return;
+  }
+
   // Observa mudancas no body para capturar mudancas de dealer/mesa.
   try {
-    const obs = new MutationObserver(() => { publish(); });
+    const obs = new MutationObserver(() => { scheduledPublish(); });
     obs.observe(document.body || document.documentElement, {
       subtree: true, childList: true, characterData: true,
     });
   } catch (_) { /* DOM nao disponivel ainda */ }
 
   // Polling defensivo a cada 3s para casos onde MutationObserver perde eventos.
-  setInterval(publish, 3000);
+  setInterval(scheduledPublish, 3000);
   publish();
 })();

@@ -71,13 +71,32 @@
       cleanText(getUrlParam(rawUrl, 'table'), 80) ||
       null;
 
-    if (!provider && !table) return null;
+    // FIX 14/06 (DEAL-AUDIT C2): popular dealer/round_id a partir de
+    // data.session quando v18.2+ trouxer essa secao no JSON. Antes ficava
+    // hardcoded null e o helper era inerte mesmo com schema novo.
+    const session = extractorData?.data?.session || null;
+    const dealer = cleanText(
+      session?.dealer?.name?.value ??
+      session?.dealer?.name?.innerText ??
+      session?.dealer?.value ??
+      null,
+      120,
+    );
+    const round_id = cleanText(
+      session?.round?.id?.value ??
+      session?.round?.id?.innerText ??
+      session?.round?.value ??
+      null,
+      80,
+    );
+
+    if (!provider && !table && !dealer && !round_id) return null;
 
     return {
-      dealer: null,
+      dealer,
       table,
       provider,
-      round_id: null,
+      round_id,
       captured_at: Date.now(),
     };
   }

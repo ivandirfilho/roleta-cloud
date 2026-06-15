@@ -1,4 +1,10 @@
 {
+  "_detection": {
+    "provider_id": "evolution",
+    "hostPatterns": ["evo-games", "evolution"],
+    "urlPatterns": ["*://*.evo-games.com/*", "*://*.evolutiongaming.com/*"],
+    "minConfidence": 0.6
+  },
   "_meta": {
     "service": "ExtractorBeat",
     "version": "18.2.0",
