@@ -133,4 +133,61 @@ def staking_mode() -> str:
     """
     import os
     v = os.environ.get("SDA_STAKING_MODE", "gale").strip().lower()
-    return v if v in ("gale", "flat", "kelly") else "gale"
+    return v if v in ("gale", "flat", "kelly", "block_gale") else "gale"
+
+
+# ---------- SP-IMPL (16/06): motores C1/C2 variável + Block-Gale (default OFF) ----------
+
+def bet_pair_mode() -> str:
+    """Cobertura da aposta (implantação C1/C2 variável).
+
+    Enum via env SDA_BET_PAIR: "full" (default — 3 centros, byte-idêntico ao
+    atual), "var_c1c2_c3" (C1/C2 variável pelas últimas 3 não-C3 + C3 fixo, 14#),
+    "c1c3", "c2c3" (duplas estáticas de referência). Valor inválido cai em "full".
+
+    Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
+    """
+    import os
+    v = os.environ.get("SDA_BET_PAIR", "full").strip().lower()
+    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3") else "full"
+
+
+def gale_only_after_green() -> bool:
+    """Block-gale: só coloca aposta (stake real) após um green. Default OFF.
+
+    Stake-gate (não supressão — INV-3): quando ativo e a última foi red, a
+    indicação continua mas o stake vai a 0 (papel). Toggle via GALE_ONLY_AFTER_GREEN.
+    """
+    import os
+    return os.environ.get("GALE_ONLY_AFTER_GREEN", "0").strip().lower() in ("1", "true", "on")
+
+
+def gale_cap(direction: str = "") -> int:
+    """Teto do block-gale (1=flat, 2=G2, 3=G3, 4=G4). Default 1 (flat).
+
+    Global via GALE_CAP; override por sentido via GALE_CAP_CW / GALE_CAP_CCW.
+    Subir o teto é opt-in explícito do operador (risco de ruína — ver §9.6).
+    """
+    import os
+    dk = "cw" if direction in ("cw", "horario") else ("ccw" if direction else "")
+    raw = None
+    if dk == "cw":
+        raw = os.environ.get("GALE_CAP_CW")
+    elif dk == "ccw":
+        raw = os.environ.get("GALE_CAP_CCW")
+    if raw is None:
+        raw = os.environ.get("GALE_CAP", "1")
+    try:
+        return min(4, max(1, int(raw)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def c_selection_auto_promote_enabled() -> bool:
+    """Promoção automática (human-in-the-loop) de regra do CSelectionEngine.
+
+    Default OFF — o motor só sugere; humano aplica. Toggle via
+    C_SELECTION_AUTO_PROMOTE. Mesmo padrão de shadow_auto_promote_enabled.
+    """
+    import os
+    return os.environ.get("C_SELECTION_AUTO_PROMOTE", "0").strip().lower() in ("1", "true", "on")
