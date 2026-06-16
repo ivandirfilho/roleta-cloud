@@ -695,9 +695,10 @@ shadow/canário** (§11) — nenhum bug bloqueante remanescente.
 
 ## 14. Sprint de deploy + GitHub
 
-### 14.1 O que foi preparado (local, reversível)
-- **Branch:** `feat/c-variavel-block-gale` (a partir de `main`).
-- **Commit:** `24a1b35` — `feat(strategy): motores C1/C2 variavel + Block-Gale (shadow-first, default OFF)`.
+### 14.1 O que foi executado
+- **Branch:** `feat/c-variavel-block-gale` (a partir de `main`) — **publicado em `origin`** ✅.
+- **Commit:** `0bdad55` — `feat(strategy): motores C1/C2 variavel + Block-Gale (shadow-first, default OFF)`.
+- **Pull Request:** **#8 aberto** → https://github.com/ivandirfilho/roleta-cloud/pull/8 (revisão) ✅.
 - **Arquivos no commit (6, só os da implementação):** `app_config/settings.py`,
   `state/block_gale.py`, `strategies/c_selection.py`, `tests/test_block_gale.py`,
   `tests/test_c_selection.py`, `implantação_c_variavel_gale_junho.md`.
@@ -708,26 +709,22 @@ shadow/canário** (§11) — nenhum bug bloqueante remanescente.
 ### 14.2 Por que é seguro shippar
 A camada implementada é **default-OFF e não acoplada ao caminho quente** (os módulos só são
 chamados quando as flags forem ligadas + wiring de canário). Logo o **runtime é byte-idêntico**
-ao atual ao subir este commit — risco operacional ~nulo, e totalmente reversível por flag/rollback.
+ao atual ao mergear/subir — risco operacional ~nulo, e totalmente reversível por flag/rollback.
 
-### 14.3 Passos (GATED — exigem aprovação do operador)
-> Push, PR, merge e deploy de produção são operações remotas num **sistema de dinheiro real** →
-> **não executo sem aprovação explícita.**
-1. `git push -u origin feat/c-variavel-block-gale`
-2. Abrir **PR** `feat/c-variavel-block-gale → main` (revisão; **não** push direto em main para
-   mudança de lógica de aposta).
-3. Após review/merge: deploy padrão — `roleta-deploy` (systemd timer, 2min) **ou**
-   `systemctl start roleta-deploy.service` (servidor `187.45.181.75`), que faz
-   `git fetch + reset --hard origin/main + docker compose build/up + healthcheck:8766` e
-   **rollback `last_good`** em falha. DB protegido (volume + `*.db` gitignored).
-4. **Pós-deploy:** confirmar healthcheck `:8766`; flags continuam OFF → comportamento inalterado.
-   Ligar `SDA_BET_PAIR`/`SDA_STAKING_MODE` só na fase de canário (§11/SP-7), por mesa, com
-   métricas — **nunca** direto em produção ampla.
+### 14.3 Pendente (HUMANO — irreversível num sistema de dinheiro real)
+> Push e PR **feitos**. O que falta é a etapa irreversível, deixada para revisão/decisão humana:
+1. **Revisar e mergear o PR #8** em `main` (não auto-mergeado de propósito — é lógica de aposta).
+2. **Deploy** auto-segue o merge: `roleta-deploy` (systemd timer, 2min) **ou**
+   `systemctl start roleta-deploy.service` (servidor `187.45.181.75`) →
+   `git fetch + reset --hard origin/main + docker compose build/up + healthcheck:8766` +
+   **rollback `last_good`** em falha. DB protegido. Sobe **inerte** (flags OFF).
+3. **Pós-deploy:** confirmar healthcheck `:8766`. Ligar `SDA_BET_PAIR`/`SDA_STAKING_MODE` só na
+   fase de canário (§11/SP-7), por mesa, com métricas — **nunca** direto em produção ampla.
 
 ### 14.4 Recomendação
-**PR para revisão** (não merge direto), deploy **após merge**, e **flags OFF** no go-live (o
-código sobe inerte). A ativação dos motores segue o §11 (shadow → paper → canário), honrando o
-veredito do estudo (default flat, gale como risco governado).
+Merge **após review** do PR #8; deploy **inerte** (flags OFF) no go-live. Ativação dos motores
+segue o §11 (shadow → paper → canário), honrando o veredito do estudo (default flat, gale como
+risco governado).
 
 ---
 
