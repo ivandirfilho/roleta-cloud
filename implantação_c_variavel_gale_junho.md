@@ -885,8 +885,8 @@ aviso de ruína. O default acima roda a **estrutura nova 100%** sem risco de gal
 | **3ª sprint de auditoria (wiring)** + fix do bug latente | ✅ feito — ver §17.5 |
 | **Merge do PR #8 em `main`** | ✅ feito — `origin/main` = `1923077` |
 | Deploy do código no servidor | ✅ **auto** via `roleta-deploy` (systemd timer): container tem os módulos novos, HEAD = `1923077` |
-| **Ativar flags** (go-live) | ✅ **nos defaults do `docker-compose.yml`** versionado (§17.6) — deploy do compose ativa `var_c1c2_c3` + `block_gale` + `cap=1` |
-| Verificação live (N=14) | 🔄 pós-deploy do compose (§17.6) |
+| **Ativar flags** (go-live) | ✅ **nos defaults do `docker-compose.yml`** versionado (§17.6) — PR #9 → `origin/main` = `31c39c1` |
+| Verificação live (N=14) | ✅ **VERIFICADO** — N=21→14 em 17/06 16:52 UTC (decisões 7124–7125); ver §17.7 |
 
 > **Estratégia de ativação (sem `.env` no servidor):** o deploy faz `git reset --hard origin/main`,
 > então qualquer `.env`/compose editado à mão no host é revertido. A ativação persistente vive nos
@@ -913,6 +913,23 @@ INV-3 como `min()`, byte-idêntico no fluxo de dinheiro com flags OFF).
 Deploy: push em `main` → `systemctl start roleta-deploy.service` (fetch+reset+build+`up -d`) → o
 container recria lendo os novos defaults. **Verificação:** `curl :8766/api/strategy` + últimas
 decisões com **N=14** e overlay `block_gale`/`c_selection`, sem erros nos logs.
+
+### 17.7 Verificação live em produção (17/06/2026, 16:52 UTC)
+Deploy de `31c39c1` (PR #9) recriou o container (`Up healthy`); env confirmado dentro do container:
+`SDA_BET_PAIR=var_c1c2_c3`, `SDA_STAKING_MODE=block_gale`, `GALE_CAP=1`, `GALE_BANKROLL=1000`,
+`GALE_ONLY_AFTER_GREEN=0`. Código novo presente (`_engine_resolve(self, pending, hit_result=None)`
+em `/app/server/message_handler.py:164`). **Transição observada no banco** (`decisions.db`):
+
+| decisão | sentido | N (sda_numbers) | centers | ação | gale_lvl | quando (UTC) |
+|---:|---|:---:|:---:|---|:---:|---|
+| 7123 | horário | **21** | 3 | APOSTAR | 1 | 16:51:45 |
+| 7122 | anti-horário | **21** | 3 | APOSTAR | 1 | 16:51:00 |
+| 7124 | anti-horário | **14** | 3 | APOSTAR | 1 | 16:52:26 |
+| 7125 | horário | **14** | 3 | APOSTAR | 1 | 16:53:08 |
+
+A cobertura caiu de **21 → 14 números** exatamente no boundary do deploy, mantendo `centers=3`
+(continuidade de DNA/atribuição), `acao=APOSTAR` (INV-3), `gale_level=1` (cap=1, sem escalonar).
+`/health` ok (version 4.4.1), **0 erros/tracebacks** nos logs. Sistema rodando a estrutura nova 100%.
 update (214-229); atribuição/DNA `hit_region` (291-327); `analyze()` + INV-3 + `staking_mode`
 (415-515); `get_gale` (425-431); overlay `sugestao` (744-778); broadcast `trace` com
 `martingale_cw/ccw` (782-815).
