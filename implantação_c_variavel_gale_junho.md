@@ -876,6 +876,23 @@ mergeado/wired). Para ativá-la: merge → deploy → wiring → flags em canár
 
 Subir `GALE_CAP` (G2/G3/G4) ou ligar `only_after_green` é **opt-in do operador** (canário), com
 aviso de ruína. O default acima roda a **estrutura nova 100%** sem risco de gale.
+
+### 17.4 Status do deploy (17/06/2026)
+| Etapa | Status |
+|---|---|
+| Wiring + testes (521 passed) | ✅ feito |
+| **Merge do PR #8 em `main`** | ✅ feito — `origin/main` = `1923077` |
+| Deploy do código no servidor | 🔄 **auto** via `roleta-deploy` (systemd timer 2min: fetch+reset origin/main+build+up) — sobe **inerte** (flags OFF = byte-idêntico, seguro) |
+| **Ativar flags** (`SDA_BET_PAIR=var_c1c2_c3` + `SDA_STAKING_MODE=block_gale` + `GALE_CAP=1`) | ⏸️ **bloqueado** — servidor `187.45.181.75` ficou **inalcançável** (TCP/22 timeout) durante o go-live; setar env exige acesso ao servidor |
+| Verificação live (N=14) | ⏸️ pendente (depende da ativação) |
+
+> **Runbook de ativação (quando o servidor voltar):**
+> 1. Confirmar deploy: `ssh root@187.45.181.75 "cd /root/roleta-cloud && git rev-parse --short HEAD"` → deve ser `1923077` (ou forçar `systemctl start roleta-deploy.service`).
+> 2. Adicionar as flags ao env do serviço (`.env`/`docker-compose*.yml` da `roleta-cloud`):
+>    `SDA_BET_PAIR=var_c1c2_c3`, `SDA_STAKING_MODE=block_gale`, `GALE_CAP=1`, `GALE_BANKROLL=1000`.
+> 3. Recarregar: `docker compose up -d roleta-cloud` (recria com o novo env).
+> 4. Verificar: `curl :8766/api/strategy` + últimas decisões com **N=14** e sem erros nos logs.
+> Reverter = remover as flags (volta a 21# flat) — sem risco.
 update (214-229); atribuição/DNA `hit_region` (291-327); `analyze()` + INV-3 + `staking_mode`
 (415-515); `get_gale` (425-431); overlay `sugestao` (744-778); broadcast `trace` com
 `martingale_cw/ccw` (782-815).
