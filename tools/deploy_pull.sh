@@ -70,4 +70,23 @@ if [ "$ok" -ne 1 ]; then
     exit 1
 fi
 
+# --- Frontend estático para o nginx do host (gap de deploy corrigido 17/06) ---
+# O container serve só o WebSocket; os assets do dashboard Glass Box são servidos
+# pelo nginx do HOST a partir de $WWW_DIR (roleta.conf: `root /var/www/roleta`).
+# Sem este passo, mudanças em frontend/ nunca chegavam em produção. Não-fatal.
+# (Nota: duplicado mais antigo de scripts/roleta-deploy-pull.sh — manter em sincronia.)
+WWW_DIR="${WWW_DIR:-/var/www/roleta}"
+if [ -d "$REPO_DIR/frontend" ]; then
+    if mkdir -p "$WWW_DIR" && cp -a "$REPO_DIR/frontend/." "$WWW_DIR/"; then
+        log "FRONTEND sync ok -> $WWW_DIR (sha=$REMOTE)"
+        if command -v nginx >/dev/null 2>&1 && nginx -t >/dev/null 2>&1; then
+            systemctl reload nginx && log "NGINX reload ok" || log "NGINX reload falhou (nao-fatal)"
+        else
+            log "NGINX ausente/config invalida — reload pulado (nao-fatal)"
+        fi
+    else
+        log "FRONTEND sync FALHOU (nao-fatal)"
+    fi
+fi
+
 log "DEPLOY OK sha=$REMOTE"

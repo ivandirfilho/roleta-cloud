@@ -36,6 +36,8 @@ const el = {
     spinLatency: document.getElementById('spin-latency'),
     resultCard: document.getElementById('result-card'),
     resultAction: document.getElementById('result-action'),
+    resultVerdict: document.getElementById('result-verdict'),
+    resultPair: document.getElementById('result-pair'),
     resultCenter: document.getElementById('result-center'),
     resultScore: document.getElementById('result-score'),
     resultRegion: document.getElementById('result-region'),
@@ -120,9 +122,19 @@ function handleMessage(data) {
 
 // Handle heartbeat state_sync from server
 function handleStateSync(data) {
-    // Update Martingale per direction
-    if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
-    if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+    // Staking display: block_gale (nova lógica C1/C2 14#) só tem precedência quando
+    // está ATIVO (SDA_STAKING_MODE=block_gale); em gale/flat/kelly cai no martingale
+    // legado (o engine fica sempre instanciado, então checar `active` é obrigatório).
+    if (data.block_gale && data.block_gale.active) {
+        updateBlockGale(data.block_gale, data.aposta, data.target_direction);
+    } else {
+        if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
+        if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+    }
+
+    // Par escolhido (C1+C3 / C2+C3) e veredito red/green do último spin (aditivos)
+    if (data.c_selection) updateCSelection(data.c_selection);
+    if (data.ultimo_acerto) updateVerdict(data.ultimo_acerto);
 
     // Update Performance (4 lists: sda17 + bet per direction)
     if (data.performance) updatePerformance4(data.performance);
@@ -219,9 +231,18 @@ function handleTrace(data) {
     if (data.strategy) updateStrategy(data.strategy, data.result.trend);
     if (data.performance) updatePerformance(data.performance);
 
-    // Martingale per direction (instant update on spin)
-    if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
-    if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+    // Staking instantâneo no spin: block_gale só quando ATIVO; senão martingale legado.
+    // aposta omitida aqui (o valor vem no state_sync 1s); evita flicker.
+    if (data.block_gale && data.block_gale.active) {
+        updateBlockGale(data.block_gale, undefined, data.spin && data.spin.direcao);
+    } else {
+        if (data.martingale_cw) updateMartingale('cw', data.martingale_cw);
+        if (data.martingale_ccw) updateMartingale('ccw', data.martingale_ccw);
+    }
+
+    // Par escolhido (C1+C3 / C2+C3) + veredito red/green (aditivos no trace)
+    if (data.c_selection) updateCSelection(data.c_selection);
+    if (data.ultimo_acerto) updateVerdict(data.ultimo_acerto);
 
     // Log
     const dir = data.spin.direcao === 'horario' ? '🔄' : '🔃';
@@ -313,7 +334,7 @@ function updatePerformance(perf) {
 function updateMartingale(direction, mg) {
     const hits = mg.window_hits ?? mg.consecutive_hits ?? 0;
     const count = mg.window_count ?? mg.total_bets ?? 0;
-    const bet = mg.current_bet ?? 17;
+    const bet = mg.current_bet ?? '--';
     if (direction === 'cw') {
         if (el.mgCWDisplay) {
             el.mgCWDisplay.textContent = `G${mg.level} ${hits}/${count}`;
@@ -327,6 +348,45 @@ function updateMartingale(direction, mg) {
         }
         if (el.mgCCWBet) el.mgCCWBet.textContent = `R$${bet}`;
     }
+}
+
+// Update staking display from Block-Gale per direction (nova lógica C1/C2 14#).
+// O valor apostado (R$) vem do servidor (data.aposta) — FONTE ÚNICA, sem fallback
+// hardcoded. aposta só é aplicada na direção ALVO (aposta-se um sentido por vez);
+// quando omitida (mensagem trace), o valor é preservado para evitar flicker.
+function updateBlockGale(bg, aposta, targetDir) {
+    if (!bg) return;
+    const tdir = (targetDir === 'horario' || targetDir === 'cw') ? 'cw' : 'ccw';
+    ['cw', 'ccw'].forEach(dir => {
+        const st = bg[dir];
+        if (!st) return;
+        const dispEl = dir === 'cw' ? el.mgCWDisplay : el.mgCCWDisplay;
+        const betEl = dir === 'cw' ? el.mgCWBet : el.mgCCWBet;
+        if (dispEl) {
+            dispEl.textContent = `G${st.level} ${st.block}`;
+            dispEl.className = `mg-gale level-${st.level}`;
+        }
+        if (betEl && aposta != null) {
+            betEl.textContent = (dir === tdir) ? `R$${aposta}` : '--';
+        }
+    });
+}
+
+// Update the chosen pair badge (C1+C3 / C2+C3) from c_selection.
+function updateCSelection(cs) {
+    if (!cs || !el.resultPair) return;
+    el.resultPair.textContent = cs.pair || (cs.chosen ? `${cs.chosen}+C3` : '--');
+}
+
+// Update red/green verdict of the last verified spin (slot 'miss' = red).
+function updateVerdict(ua) {
+    if (!ua || !el.resultVerdict) return;
+    const green = ua.green === true;
+    el.resultVerdict.className = `result-verdict ${green ? 'green' : 'red'}`;
+    const slot = ua.slot && ua.slot !== 'miss' ? ` em ${ua.slot}` : '';
+    el.resultVerdict.textContent = green
+        ? `✅ GREEN — ${ua.numero}${slot}`
+        : `❌ RED — ${ua.numero}`;
 }
 
 // Update all 4 performance lists (sda17 and bet per direction)

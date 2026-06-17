@@ -980,6 +980,14 @@ class MessageHandler:
                 "last_number": self.game_state.last_number
             }
         }
+        # IMPL C1/C2 + Block-Gale (17/06, tarde): overlay aditivo no canal `trace`.
+        # O Glass Box consome `trace`/`state_sync` (não `sugestao`), então sem isto
+        # c_selection/block_gale/bet_gate/ultimo_acerto nunca chegam ao dashboard.
+        # Fonte única em game_state (sem depender de _cs_meta do handler). Defensivo.
+        try:
+            trace_broadcast.update(self.game_state.engine_overlay_fields())
+        except Exception:  # noqa: BLE001
+            pass
         await connection_manager.broadcast(json.dumps(trace_broadcast), exclude_disconnected=False)
 
         logger.info(trace.to_log_line())

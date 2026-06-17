@@ -242,6 +242,28 @@ body {
     background: rgba(245, 158, 11, 0.1);
 }
 
+/* Veredito red/green do último spin (IMPL C1/C2 14#, 17/06) */
+.result-verdict {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.35rem 0.5rem;
+    margin-bottom: 0.75rem;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: rgba(107, 114, 128, 0.12);
+}
+
+.result-verdict.green {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.14);
+}
+
+.result-verdict.red {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.14);
+}
+
 /* Timeline Card */
 .timeline-card {
     grid-column: 3;

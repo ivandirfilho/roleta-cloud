@@ -376,6 +376,16 @@ async def broadcast_heartbeat():
                     )
                     _hb_aposta = _hb_info["effective_bet"]
                     _hb_mode = _hb_info["mode"]
+                elif _hb_mode == "block_gale":
+                    # BE-2 (17/06, tarde): get_effective_bet NÃO conhece block_gale
+                    # (desvia só flat/kelly; block_gale cairia no fallback gale legado
+                    # → mg.current_bet, valor ERRADO). O stake real do bloco é
+                    # base_unit × N × MULT[level] (state/block_gale.py:stake). cap=1 ⇒ 14u.
+                    _hb_nums = game_state.pending_prediction.get("numbers", []) or []
+                    _hb_n = len(_hb_nums) if _hb_nums else 14
+                    _hb_aposta = int(round(
+                        game_state.block_gale_engine.stake(game_state.target_direction, _hb_n)
+                    ))
                 else:
                     _hb_aposta = mg.current_bet
 
@@ -401,7 +411,12 @@ async def broadcast_heartbeat():
                         "timestamp": now_ms()
                     }
                 }
-            
+                # IMPL C1/C2 + Block-Gale (17/06, tarde): overlay aditivo no heartbeat
+                # — mesma fonte única do `trace` (game_state.engine_overlay_fields),
+                # sob o state_lock para snapshot coerente. Destrava c_selection/
+                # block_gale/bet_gate/ultimo_acerto no dashboard (Glass Box).
+                state_sync["data"].update(game_state.engine_overlay_fields())
+
             message = json.dumps(state_sync)
             
             # Broadcast para todas as conexões

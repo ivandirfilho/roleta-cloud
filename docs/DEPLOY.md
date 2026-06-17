@@ -14,6 +14,7 @@ roleta-deploy.timer (systemd, 2min)
     ↓ git fetch + compara hashes
     ↓ se diff: reset --hard + build + up -d roleta-cloud
     ↓ healthcheck 3× @ http://127.0.0.1:8766/health
+    ↓ sync frontend/ → /var/www/roleta + reload nginx   (NOVO 17/06)
     ↓ falha → rollback automatico para HEAD anterior
 PROD running
 ```
@@ -71,6 +72,34 @@ Se `curl http://127.0.0.1:8766/health` falhar 3× consecutivas apos
 `docker compose up -d`, o script reverte para o SHA salvo em
 `/var/lib/roleta-deploy/last_good` e religa o container. O log fica em
 `/var/log/roleta-deploy.log` com a tag `DEPLOY FAIL — rollback`.
+
+## Frontend (nginx do host) — IMPORTANTE
+
+O container **não** serve os estáticos do dashboard. O `frontend/`
+(`index.html`, `app.js`, `style.css`) é servido pelo **nginx do host** a partir de
+`root /var/www/roleta` (`roleta.conf`), que também faz proxy de `/ws` → `127.0.0.1:8765`.
+
+> ⚠️ **Gap corrigido (17/06):** o deploy fazia `git reset` + `docker build/up` mas
+> **não** copiava `frontend/` para `/var/www/roleta` nem recarregava o nginx — então
+> mudanças de front **nunca chegavam em produção** (prod ficou congelado em `app.js?v=4.3.2`).
+> O `roleta-deploy-pull.sh` agora, **após o healthcheck OK**, sincroniza
+> `frontend/ → $WWW_DIR` (default `/var/www/roleta`) e roda `nginx -t && systemctl reload nginx`
+> (passo **não-fatal**: não derruba o backend saudável).
+
+Pré-requisitos no host (one-time, não automatizados):
+- `roleta.conf` instalado em `/etc/nginx/sites-enabled/` (versionado no repo, mas o deploy
+  não o copia).
+- `nginx` instalado e `/var/www/roleta` gravável pelo usuário do deploy (root).
+
+Verificação pós-deploy:
+```bash
+curl -s https://roleta.xma-ia.com/app.js | grep -c updateBlockGale   # >=1 (versão nova)
+curl -s https://roleta.xma-ia.com/ | grep -o 'app.js?v=[0-9.]*'      # confirma o ?v= novo
+```
+
+> ℹ️ Há **dois** scripts de deploy no repo: `scripts/roleta-deploy-pull.sh` (canônico, com
+> passo `alembic`) e `tools/deploy_pull.sh` (duplicado mais antigo). Ambos receberam o sync do
+> frontend; **follow-up:** unificar num só e apontar a instalação para o canônico.
 
 ## Bypass (deploy SSH direto)
 
