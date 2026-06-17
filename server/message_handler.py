@@ -564,8 +564,9 @@ class MessageHandler:
 
         action_reason = ""
         _stake_override: Optional[float] = None  # fração do base_bet (INV-3)
-        # IMPL C1/C2 variável (17/06): substitui a cobertura por 14# ANTES de
-        # final_numbers (gated por SDA_BET_PAIR=var_c1c2_c3; default não muda nada).
+        # IMPL aposta 14# (17/06): substitui a cobertura ANTES de final_numbers,
+        # despachado por SDA_BET_PAIR (c2c3/c1c3 estático ou var_c1c2_c3 voto;
+        # full/inválido = no-op, 21#).
         self._engine_apply_selection(result)
         # Indicação FINAL da jogada (auditoria 12/06): o overlay e a Decision
         # devem SEMPRE refletir o que foi indicado — inclusive no fallback de

@@ -325,6 +325,72 @@ escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection
 
 ---
 
+## ADENDO 17/06/2026 (noite) — Pivô para par ESTÁTICO C2+C3 + auditoria pós-implantação
+
+> O voto C1/C2 móvel (`var_c1c2_c3`) deu **resultados desfavoráveis** em produção. A aposta passou ao
+> **par ESTÁTICO {C2, C3} fixo em toda jogada** (`SDA_BET_PAIR=c2c3`) — o melhor par estático do estudo
+> (`resultados_15_junho.md`). Continua **14#**, `block_gale` teto 1, INV-3 e isolamento por sentido.
+
+### A. Mudança com impacto ISO
+
+1. **`CSelectionEngine.static_select(...)`** (`strategies/c_selection.py:252`): par fixo `{C1|C2, C3}`
+   via união real (`coverage_numbers`), `chosen` fixo, `freeze_candidates={}` ⇒ **determinístico, sem
+   shadow/feedback/promoção**.
+2. **`_engine_apply_selection`** (`server/message_handler.py:94-118`) despacha por `SDA_BET_PAIR`:
+   `var_c1c2_c3`→voto; `c2c3`/`c1c3`→estático; `full`/inválido→no-op (21#).
+3. **`docker-compose.yml`** default `SDA_BET_PAIR=c2c3`; **`settings.py:141`** docstring atualizada.
+4. O **motor de voto permanece** no código (rollback/experimento) — só deixa de ser o default.
+
+### B. Auditoria pós-implantação (bug hunt) — 2 frentes
+
+- **Code-review dedicado** (8 pontos: ordem dos centros, resolve/feedback no modo estático, stake
+  `cap=1`, persistência/reset, INV-3, outros usos de `var_c1c2_c3`, byte-identidade com `full`,
+  fallback) **+ trace próprio**. Rodou a suíte (538) e simulação e2e hit/miss. **0 bugs funcionais.**
+- **Correções menores aplicadas:**
+  1. Comentário **stale** em `message_handler.py:567` (dizia "gated por var_c1c2_c3"; agora reflete o
+     dispatch c2c3/c1c3/var).
+  2. Consistência do branch de **fallback morto** de `static_select` (<3 centros): passou a respeitar o
+     `pair` (`c1c3`→C1) em vez de fixar C2. Sem impacto em produção (o dispatch faz early-return em
+     `<3 centros`), mas elimina inconsistência interna. Regressão: `test_static_fallback_under_3_centers`.
+- **Verificado em produção** (servidor 187.45.181.75): env `SDA_BET_PAIR=c2c3`, `static_select` no
+  container, decisões pós-deploy **7374–7379 todas N=14**, ambos sentidos, `APOSTAR`, `/health` ok, **0 erros**.
+
+### C. Impacto ISO por característica
+
+- **Adequação Funcional (FS):** a aposta passa ao par estático de maior taxa-base do estudo (C2+C3),
+  sem a variância (sem edge) do voto. Ordem dos centros confirmada (`centers[1]=C2`, `centers[2]=C3` em
+  `game.py:526-529`, idêntico ao consumido por `static_select`).
+- **Confiabilidade (Rel):** o modo estático é **stateless/determinístico** — menos superfície que o voto
+  (sem feedback/promoção); `block_gale` segue com o **hit real**; persistência/reset intactos.
+- **Manutenibilidade (Maint):** dispatch explícito por flag (3 modos + no-op) + testes; sem crescimento
+  relevante de `message_handler.py` (Gap D.1 inalterado).
+
+### D. Scorecard — delta (17/06 noite, vs ADENDO da manhã)
+
+| # | Característica | manhã | noite | Justificativa |
+|:-:|---|:---:|:---:|---|
+| 1 | Adequação Funcional | 8.8 | **8.8** | troca de política de aposta (estática); corretude inalterada |
+| 5 | Confiabilidade | 8.8 | **8.8** | modo determinístico; auditoria (2 frentes) sem bugs |
+| 7 | Manutenibilidade | 8.7 | **8.7** | dispatch claro + testes; débito de LOC inalterado |
+
+> **Nota geral mantém 8.5/10** — mudança estratégica de política de aposta, com auditoria limpa.
+
+### E. Obrigações de manutenção (deltas)
+
+1. **Par estático é stateless** — `static_select` não lê/escreve estado do motor; não introduzir efeitos
+   colaterais sem necessidade.
+2. **`c_attr` segue alimentado** no resolve mesmo no modo estático (deque bounded `maxlen=12`, inócuo) —
+   evita cold-start do voto se reativado.
+3. **Rollback de regra:** `SDA_BET_PAIR=var_c1c2_c3` (voto) / `c1c3` (par alternativo) / `full` (21#) +
+   redeploy. Reversível sem perda.
+4. Demais obrigações do ADENDO 17/06 (manhã) seguem válidas (flags por-chamada, INV-3 como `min()`,
+   block_gale com hit real, persistência completa, lint de excepts, Gap D.1, overlay aditivo).
+
+> **Evidência de testes:** `tests/test_c_selection.py::TestStaticSelect` (4) +
+> `tests/test_wiring_c_gale.py` (c2c3, 2) + suíte completa **538 passed, 9 skipped, 1 xfailed**.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 ---
