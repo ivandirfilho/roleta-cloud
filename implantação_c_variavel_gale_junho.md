@@ -789,6 +789,54 @@ em **canário** (§11). Sequência para ativar: **mergear PR #8 → deploy (iner
 
 ---
 
+## 16. Auditoria de bugs — Docker, servidor e local (17/06/2026)
+
+> Resposta ao alerta do operador: "é um docker, pode estar rodando o antigo". Método: SSH
+> read-only ao `187.45.181.75` + md5 host↔container + scan de logs de produção + compile/test local.
+
+### 16.1 O Docker NÃO está rodando código antigo (imagem consistente)
+| Verificação | Resultado |
+|---|---|
+| md5 `server/message_handler.py` | host == container — **MATCH** |
+| md5 `strategies/sda17.py` | **MATCH** |
+| md5 `state/game.py` | **MATCH** |
+| md5 `app_config/settings.py` | **MATCH** |
+| md5 `core/roulette.py` | **MATCH** |
+| md5 `server/health_server.py` | **MATCH** |
+| Imagem criada | `2026-06-15T02:16:07Z` (3 min após commit `23c3490` de 02:13Z) |
+| Container started | `2026-06-15T02:16:24Z` |
+| Uncommitted no host | **0** |
+
+⇒ O container roda **exatamente** o código do host = última `main` (`23c3490`), **byte-idêntico**
+(md5). **A imagem NÃO está stale** — foi rebuildada corretamente do commit. A percepção de
+"antigo" é só porque o **PR #8 não foi mergeado** (a nova implementação não está em `main`), e
+**não** por imagem desatualizada.
+
+### 16.2 Servidor (live) — sem bugs ativos
+- `restarts=0`, `status=running`, `health=healthy`.
+- **0 erros/exceptions/tracebacks** em 12h (`roleta-cloud` e `roleta-cdc-worker`).
+- Warnings **benignos/esperados**: stop-loss disparando (perdas da sessão recém-iniciada),
+  alertas de startup já **resolvidos** (`RoletaStateFileStale`/`RoletaNoSpinsRecent` — o sistema
+  estava desligado), e `Force fora dos limites: 0 → clamp [1,37]` 2× (12:57, 12:59).
+- **Observação menor (código existente, não-bloqueante):** força=0 (número repetido / early-session)
+  é clampada para 1 em `state/timeline.py` — trata "sem movimento" como 1 casa. Ocorre no início da
+  sessão e estabiliza com a timeline cheia. Tratado graciosamente; não é crash nem bug do código novo.
+
+### 16.3 Código local — limpo
+- `python -m compileall server strategies state core app_config database tools` → **exit 0**
+  (sem erro de sintaxe/import, inclui os módulos novos).
+- Suíte: **513 passed, 9 skipped, 1 xfailed**.
+- Módulos novos (`c_selection`/`block_gale`): já auditados em 2 sprints (§10/§13) — 13+6 bugs
+  corrigidos e cobertos por teste.
+
+### 16.4 Veredito
+**Nenhum bug ativo** — nem no Docker (imagem ≠ stale; md5 confirma host==container), nem no
+servidor (healthy, 0 erros em 12h), nem no código local (compile + testes verdes). O sistema vivo
+roda o existente `23c3490` corretamente; a nova implementação segue **inerte** (PR #8, não
+mergeado/wired). Para ativá-la: merge → deploy → wiring → flags em canário (§11/§14/§15).
+
+---
+
 ## Apêndice — citações de código (auditoria)
 
 **Backend / decisão** — `server/message_handler.py`: `_build_sda_regions` (27-57); martingale
