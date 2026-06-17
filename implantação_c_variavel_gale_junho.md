@@ -662,6 +662,22 @@ Wiring no `message_handler` (mudar a cobertura/staking ao vivo), migration `0009
 — ficam para os sprints de feature (§8) executados **após** a validação shadow/canário, porque
 tocam dinheiro real. A fundação aqui é **pré-requisito testado** desses sprints.
 
+### 12.5 Como testar no Debian AGORA (sem tocar produção)
+Os motores ainda **não estão ligados** ao servidor (caminho quente). Para validar a lógica de ponta
+a ponta no Debian, há duas formas isoladas e seguras (read-only):
+```bash
+git fetch && git checkout feat/c-variavel-block-gale
+# 1) testes unitários (28 dos motores; 513 no total):
+python -m pytest tests/test_block_gale.py tests/test_c_selection.py -q
+# 2) harness de ponta a ponta (mostra seleção C1/C2 + 14# + gale + banca por sentido):
+python tools/sim_c_gale.py --db data/decisions_prod_1206b.db --n 100 --cap 4 --verbose
+python tools/sim_c_gale.py --cap 1 --only-after-green      # flat + só-após-green (sintético)
+```
+`tools/sim_c_gale.py` roda `CSelectionEngine` + `BlockGaleEngine` exatamente como em produção, mas
+**fora do servidor** (não escreve no DB, não muda aposta). É o que permite "ver funcionando" antes
+do wiring. **Para rodar dentro do fluxo real (Escuta→servidor) ainda falta o wiring (§8/SP-3/SP-4)**,
+que muda lógica de aposta e exige revisão/canário.
+
 ---
 
 ## 13. 2ª sprint de auditoria — pós-implementação (bug hunt no código novo)
