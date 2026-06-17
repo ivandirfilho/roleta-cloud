@@ -70,6 +70,9 @@ class MessageHandler:
         self.last_spin_ts: Optional[float] = None  # S-OBS-6: epoch float do último spin
         self._decision_count: int = 0
         self.extractor_service = ExtractorService(configs_path)
+        # IMPL C1/C2 variável + Block-Gale (17/06): metadados por spin (gated por flag).
+        self._cs_meta = None
+        self._bg_meta = None
 
     def is_duplicate_spin(self, numero: int, timestamp: int) -> bool:
         """Verifica se é um spin duplicado (mesmo número no mesmo segundo)."""
@@ -78,6 +81,138 @@ class MessageHandler:
             return True
         self.last_spin_hash = current_hash
         return False
+
+    # ================= IMPL C1/C2 variável + Block-Gale (17/06) =================
+    # Motores isolados (state/block_gale.py, strategies/c_selection.py), gated por
+    # flags (SDA_BET_PAIR, SDA_STAKING_MODE, GALE_CAP, GALE_ONLY_AFTER_GREEN).
+    # Tudo defensivo: telemetria/override nunca quebra o fluxo (INV-3 preservado).
+
+    def _engine_dk(self) -> str:
+        d = self.game_state.target_direction
+        return "cw" if d in ("cw", "horario") else "ccw"
+
+    def _engine_apply_selection(self, result) -> None:
+        """SDA_BET_PAIR=var_c1c2_c3: substitui a cobertura por {C1|C2, C3} = 14#.
+        Mantém details['centers']=3 (continuidade de DNA/atribuição). Stasha _cs_meta."""
+        self._cs_meta = None
+        try:
+            from app_config.settings import bet_pair_mode
+            if bet_pair_mode() != "var_c1c2_c3":
+                return
+            centers = list((getattr(result, "details", {}) or {}).get("centers") or [])
+            if len(centers) < 3:
+                return
+            gs = self.game_state
+            hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
+            sel = gs.c_selection_engine.select(
+                gs.target_direction, centers, hist, roulette.WHEEL_SEQUENCE)
+            if sel.numbers:
+                result.numbers = list(sel.numbers)
+            self._cs_meta = {
+                "chosen": sel.chosen, "pair": f"{sel.chosen}+C3", "rule": sel.rule,
+                "n": len(sel.numbers), "freeze": sel.freeze_candidates,
+                "centers3": centers,
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[IMPL c_selection] falha: {e}")
+
+    def _engine_apply_stake(self, stake_info, n_numbers, acao) -> None:
+        """SDA_STAKING_MODE=block_gale: stake = nível do bloco-gale. O override de
+        veto INV-3 (adiante) ainda aplica o piso/min. Stasha _bg_meta."""
+        self._bg_meta = None
+        try:
+            from app_config.settings import staking_mode, gale_cap, gale_only_after_green
+            if acao != "APOSTAR" or staking_mode() != "block_gale":
+                return
+            import os
+            gs = self.game_state
+            eng = gs.block_gale_engine
+            eng.set_cap(gs.target_direction, gale_cap(gs.target_direction))
+            eng.only_after_green = gale_only_after_green()
+            try:
+                base_bk = float(os.environ.get("GALE_BANKROLL", "1000"))
+                pnl = db_service.get_session_pnl(self.current_session_id) or 0.0
+            except Exception:  # noqa: BLE001
+                base_bk, pnl = 1000.0, 0.0
+            bankroll = max(0.0, base_bk + float(pnl))
+            dec = eng.decide(gs.target_direction, bankroll, int(n_numbers))
+            eff = dec["stake"] if dec["place"] else 0.0
+            stake_info["effective_bet"] = int(round(eff))
+            stake_info["base_bet"] = int(round(gs.block_gale_engine.base_unit * max(0, int(n_numbers))))
+            stake_info["multiplier"] = float(dec["mult"])
+            stake_info["mode"] = "block_gale"
+            self._bg_meta = {"level": dec["level"], "cap": dec["cap"], "mult": dec["mult"],
+                             "gated": dec["gated"], "solvent": dec["solvent"],
+                             "placed": bool(dec["place"] and eff > 0)}
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[IMPL block_gale] falha: {e}")
+
+    def _engine_inject_pending(self) -> None:
+        """Anexa metadados dos motores ao pending_prediction (resolução do próximo spin)."""
+        try:
+            p = self.game_state.pending_prediction
+            if not p:
+                return
+            if self._cs_meta:
+                p["shadow_candidates"] = self._cs_meta["freeze"]
+                p["cs_chosen"] = self._cs_meta["chosen"]
+            if self._bg_meta is not None:
+                p["bg_placed"] = self._bg_meta["placed"]
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _engine_resolve(self, pending) -> None:
+        """Resolve os motores com o resultado do spin recém-verificado (t-1)."""
+        try:
+            if not pending:
+                return
+            gs = self.game_state
+            attr = getattr(gs, "last_hit_attribution", None) or {}
+            bdir = pending.get("direction", "") or ""
+            dk = "cw" if bdir in ("cw", "horario") else "ccw"
+
+            def _a(x):
+                return abs(x) if isinstance(x, (int, float)) else 99
+
+            chosen = pending.get("cs_chosen")
+            if chosen in ("C1", "C2"):
+                d_chosen = attr.get("dist_c1") if chosen == "C1" else attr.get("dist_c2")
+                shadow_green = min(_a(d_chosen), _a(attr.get("dist_c3"))) <= 3
+            else:
+                shadow_green = _a(attr.get("dist_min")) <= 3
+            fc = pending.get("shadow_candidates")
+            if fc:
+                gs.c_selection_engine.feedback(bdir, fc, attr)
+            placed = bool(pending.get("bg_placed", pending.get("bet_placed", False)))
+            gs.block_gale_engine.on_result(bdir, shadow_green, placed)
+            if attr.get("dist_c1") is not None:
+                tgt = gs.c_attr_cw if dk == "cw" else gs.c_attr_ccw
+                tgt.append({"dist_c1": attr.get("dist_c1"), "dist_c2": attr.get("dist_c2"),
+                            "dist_c3": attr.get("dist_c3")})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[IMPL engine_resolve] falha: {e}")
+
+    def _engine_overlay_fields(self) -> dict:
+        """Campos aditivos para sugestao/state_sync (extensão ignora desconhecidos)."""
+        try:
+            gs = self.game_state
+            out = {}
+            if self._cs_meta:
+                out["c_selection"] = {"chosen": self._cs_meta["chosen"], "pair": self._cs_meta["pair"],
+                                      "rule": self._cs_meta["rule"], "n": self._cs_meta["n"]}
+            st_cw = gs.block_gale_engine.states["cw"]
+            st_ccw = gs.block_gale_engine.states["ccw"]
+            out["block_gale"] = {
+                "active": self._bg_meta is not None,
+                "cw": {"level": st_cw.level, "cap": st_cw.cap, "block": f"{st_cw.block_bets}/4", "max": st_cw.max_level_seen},
+                "ccw": {"level": st_ccw.level, "cap": st_ccw.cap, "block": f"{st_ccw.block_bets}/4", "max": st_ccw.max_level_seen},
+            }
+            if self._bg_meta is not None:
+                out["bet_gate"] = {"only_after_green": gs.block_gale_engine.only_after_green,
+                                   "gated": self._bg_meta.get("gated", False)}
+            return out
+        except Exception:  # noqa: BLE001
+            return {}
 
     async def process_message(self, websocket: WebSocketServerProtocol, message: str, conn_id: str) -> None:
         """Processa uma mensagem recebida."""
@@ -339,6 +474,10 @@ class MessageHandler:
                 except Exception as _ur_e:  # noqa: BLE001
                     logger.error(f"update_result (pre-gate) falhou: {_ur_e}")
 
+            # IMPL C1/C2 + Block-Gale (17/06): resolve os motores com o resultado
+            # do spin recém-verificado (t-1) — feedback c_selection + on_result block_gale.
+            self._engine_resolve(pending)
+
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
             # S-OBS-6: registra timestamp epoch para /api/strategy
@@ -411,6 +550,9 @@ class MessageHandler:
 
         action_reason = ""
         _stake_override: Optional[float] = None  # fração do base_bet (INV-3)
+        # IMPL C1/C2 variável (17/06): substitui a cobertura por 14# ANTES de
+        # final_numbers (gated por SDA_BET_PAIR=var_c1c2_c3; default não muda nada).
+        self._engine_apply_selection(result)
         # Indicação FINAL da jogada (auditoria 12/06): o overlay e a Decision
         # devem SEMPRE refletir o que foi indicado — inclusive no fallback de
         # calibração. Bug pré-existente confirmado em prod: 121/121 decisões
@@ -530,6 +672,11 @@ class MessageHandler:
                 stake_info["multiplier"],
             )
 
+        # IMPL Block-Gale (17/06): stake = nível do bloco (gated por
+        # SDA_STAKING_MODE=block_gale). Aplicado ANTES do override de veto INV-3,
+        # que ainda impõe o piso/min. Default (flat/gale) não muda nada.
+        self._engine_apply_stake(stake_info, len(final_numbers), acao)
+
         # INV-3 (12/06): override de stake dos vetos (TR/CUT v1/stop-loss),
         # aplicado APÓS QW-1/QW-2 — vale o MENOR stake entre os moduladores.
         # A indicação (números/regiões) permanece intacta.
@@ -547,6 +694,10 @@ class MessageHandler:
                 stake_info["multiplier"],
                 action_reason,
             )
+
+        # IMPL C1/C2 + Block-Gale (17/06): anexa metadados dos motores ao pending
+        # (escolhas congeladas + bg_placed) para a resolução do próximo spin.
+        self._engine_inject_pending()
 
         # ====================================================
         # LOGGING - Salvar decisão no banco de dados
@@ -774,6 +925,12 @@ class MessageHandler:
                 },
             }
         }
+
+        # IMPL C1/C2 + Block-Gale (17/06): campos aditivos (extensão ignora desconhecidos).
+        try:
+            overlay_response["data"].update(self._engine_overlay_fields())
+        except Exception:  # noqa: BLE001
+            pass
 
         await websocket.send(json.dumps(overlay_response))
         trace.step("sent")
