@@ -14,6 +14,9 @@ from app_config.settings import settings
 from core.roulette import roulette
 from .timeline import Timeline
 from .bet_advisor import TripleRateAdvisor, BetAdvice
+# Implantação C1/C2 variável + Block-Gale (17/06) — motores isolados, gated por flag.
+from strategies.c_selection import CSelectionEngine
+from state.block_gale import BlockGaleEngine
 
 
 
@@ -259,6 +262,17 @@ class GameState:
         if not hasattr(self, "incumbent_shadow_ccw") or self.incumbent_shadow_ccw is None:
             self.incumbent_shadow_ccw = deque(maxlen=100)
 
+        # Implantação C1/C2 variável + Block-Gale (17/06): motores por sentido +
+        # histórico de atribuições (dist_c1/c2/c3) para o voto. Gated por flag no handler.
+        if not hasattr(self, "c_selection_engine") or self.c_selection_engine is None:
+            self.c_selection_engine = CSelectionEngine()
+        if not hasattr(self, "block_gale_engine") or self.block_gale_engine is None:
+            self.block_gale_engine = BlockGaleEngine(base_unit=1.0)
+        if not hasattr(self, "c_attr_cw") or self.c_attr_cw is None:
+            self.c_attr_cw = deque(maxlen=12)
+        if not hasattr(self, "c_attr_ccw") or self.c_attr_ccw is None:
+            self.c_attr_ccw = deque(maxlen=12)
+
     def reset_session(self, keep_last_number: bool = False) -> Dict[str, Any]:
         """
         Reseta estado para nova sessão/dealer.
@@ -323,6 +337,16 @@ class GameState:
         # S-STRAT-14: reset bandit no reset de sessão (evita contaminação cross-dealer).
         self._adaptive_state.pop("bandit", None)
         self._adaptive_state.pop("auto_promotes", None)
+
+        # Implantação C1/C2 + Block-Gale (17/06): reset dos motores por sentido
+        # (evita contaminação cross-dealer, igual ao shadow/bandit acima).
+        try:
+            self.c_selection_engine.reset()
+            self.block_gale_engine.reset()
+            self.c_attr_cw = deque(maxlen=12)
+            self.c_attr_ccw = deque(maxlen=12)
+        except Exception:  # noqa: BLE001
+            pass
         
         # Reset Prediction pendente
         self.pending_prediction = {}
@@ -1145,6 +1169,11 @@ class GameState:
             "incumbent_shadow_ccw": list(self.incumbent_shadow_ccw),
             # V4 (13/06): janela de resultados para a zona fria de C3.
             "recent_results": list(self.recent_results),
+            # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
+            "c_selection": self.c_selection_engine.state_dict(),
+            "block_gale": self.block_gale_engine.state_dict(),
+            "c_attr_cw": list(self.c_attr_cw),
+            "c_attr_ccw": list(self.c_attr_ccw),
         }
         
         # Escrita atômica: escreve em temp, depois renomeia
@@ -1259,6 +1288,14 @@ class GameState:
                 gs.incumbent_shadow_ccw = deque(data.get("incumbent_shadow_ccw", []), maxlen=100)
             except Exception as _e:
                 logger.warning(f"S-STRAT-13: falha ao restaurar shadow_grid: {_e}")
+            # Implantação C1/C2 + Block-Gale (17/06): rehidratar motores (compat: ausente => default).
+            try:
+                gs.c_selection_engine.load_state(data.get("c_selection", {}))
+                gs.block_gale_engine.load_state(data.get("block_gale", {}))
+                gs.c_attr_cw = deque(data.get("c_attr_cw", []), maxlen=12)
+                gs.c_attr_ccw = deque(data.get("c_attr_ccw", []), maxlen=12)
+            except Exception as _e:
+                logger.warning(f"IMPL C1C2/gale: falha ao restaurar motores: {_e}")
             return gs
         except Exception as e:
             logger.error(f"Falha ao carregar state.json: {e}")
