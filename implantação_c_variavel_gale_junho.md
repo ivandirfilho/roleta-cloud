@@ -744,6 +744,51 @@ risco governado).
 
 ---
 
+## 15. Auditoria em tempo real (17/06/2026) — o que está rodando AGORA
+
+> Disparada após o operador ligar o sistema. Método: **SSH read-only** ao servidor de produção
+> `187.45.181.75` + 6 sinais independentes (git/PR, commit deployado, arquivos da imagem, decisões
+> ao vivo, `state.json`, `/api/strategy` + logs). **Nada foi alterado** no servidor.
+
+### 15.1 Conclusão (definitiva)
+**O sistema vivo está rodando o código EXISTENTE (`23c3490`, v4.4.1) — NÃO a nova implementação.**
+O operador ligou a **Escuta** (feed de spins voltou: 11 decisões hoje, última há ~40s), mas os
+motores `CSelectionEngine`/`BlockGaleEngine` **não estão deployados, não estão na imagem, não estão
+wired e as flags não estão ligadas**. O que se aposta agora é **21 números (SDA17 V4) com staking
+flat** — exatamente o comportamento anterior.
+
+### 15.2 Evidência ao vivo (6 sinais)
+| Sinal | Observado | Implicação |
+|---|---|---|
+| PR #8 | **OPEN, não mergeado**; `origin/main`=`23c3490` | novo código não está em main |
+| Commit no servidor | `git rev-parse HEAD` = **`23c3490`** | deploy roda o código antigo |
+| Arquivos na imagem | `c_selection.py` / `block_gale.py` / `sim_c_gale.py` → **No such file** | motores ausentes do runtime |
+| Flags (env do container) | `SDA_REGIONS_V4=1`, **`SDA_STAKING_MODE=flat`**; **sem** `SDA_BET_PAIR`/`GALE_*`/`C_SELECTION_*` | nova cobertura/gale **desligados** |
+| Decisões ao vivo (DB) | últimas: **N=21** sempre; stakes 1/2/17/21; `final_action=APOSTAR`; última `12:57:24Z` | 21# + flat + INV-3 (existente) |
+| `state.json::adaptive_state` | **sem** `c_selection`/`block_gale`; `martingale level=1` | motores nunca instanciados |
+| `/api/strategy` + logs | SDA17 V4 adaptativo (`region_err_ema`/`region_shift`), timeline 5/5; **sem erros**, sem menção a c_selection/block_gale | estratégia antiga ativa, saudável |
+
+### 15.3 Status de cada ponto citado (tempo real)
+| Ponto da nova implementação | Esperado se ativo | Observado AGORA | Status |
+|---|---|---|---|
+| Motor C1/C2 (`CSelectionEngine`) | módulo na imagem + estado em `adaptive_state` | ausente; sem estado | ❌ **não usado** |
+| Motor Block-Gale | `SDA_STAKING_MODE=block_gale` + estado | `flat`; sem estado | ❌ **não usado** |
+| Cobertura 14# (`SDA_BET_PAIR=var_c1c2_c3`) | N=14 nas decisões | **N=21** (48/50) | ❌ **21# (V4)** |
+| "Só após green" (`GALE_ONLY_AFTER_GREEN`) | flag=1 | flag ausente | ❌ off |
+| Teto de gale (`GALE_CAP`) | 1..4 | ausente | ❌ n/a |
+| Staking | block_gale (×1/2/4/8) | **flat** (×1; 1/2/17/21 = modulação INV-3 cut/stop) | ▶ flat existente |
+| INV-3 (sempre indica) | `final_action=APOSTAR` | **APOSTAR sempre** ✓ | ✅ (sistema existente) |
+| Correções §10/§13 (Newcombe, solvência, placed, None-safe, clamp) | no código novo | código novo **não roda** | n/a (não exposto) |
+
+### 15.4 Por que (e o que falta para rodar a nova implementação ao vivo)
+O deploy padrão puxa `origin/main`; como o **PR #8 não foi mergeado**, o servidor segue em
+`23c3490`. Mesmo se mergeado/deployado, os motores **não mudam nada** enquanto não houver **(a)
+wiring no `message_handler` (§8/SP-3/SP-4)** e **(b) as flags ligadas** — e o design manda ligar só
+em **canário** (§11). Sequência para ativar: **mergear PR #8 → deploy (inerte) → wiring → ligar
+`SDA_BET_PAIR`/`SDA_STAKING_MODE` numa mesa canário com métricas**.
+
+---
+
 ## Apêndice — citações de código (auditoria)
 
 **Backend / decisão** — `server/message_handler.py`: `_build_sda_regions` (27-57); martingale
