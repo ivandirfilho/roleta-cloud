@@ -267,6 +267,64 @@ flag-gated, plugados no hot path. Spec/auditoria completa: `implantação_c_vari
 
 ---
 
+## ADENDO 17/06/2026 (tarde) — Correção de UX/contrato do front C1-variável (Glass Box)
+
+Auditoria pós-go-live revelou que o **backend** envia a aposta nova (14#, par C1/C2, stake
+block_gale) corretamente, mas o **front (Glass Box Dashboard)** ainda operava no contrato antigo:
+mostrava `martingale.current_bet` legado com fallback **`R$17` hardcoded**, não exibia o **par**
+escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection`/`block_gale`/
+`bet_gate`) só iam no canal `sugestao` — que o dashboard ignora. Diagnóstico completo em
+`proposta_atualização_front_c1_variavel.md`.
+
+### A. Capacidades NOVAS com impacto ISO
+
+1. **Fonte única de overlay** (`GameState.engine_overlay_fields()`, `state/game.py`) — deriva
+   `c_selection{chosen,pair}` + `block_gale{cw,ccw}` + `bet_gate` + **`ultimo_acerto{slot,green,numero}`**
+   do **estado persistente** (engine sempre instanciado, `pending.cs_chosen`, `last_hit_attribution`),
+   sem depender do handler. Consumida por `trace` e `state_sync` (canais que o dashboard lê).
+2. **Heartbeat com stake real do block_gale** (`server/websocket.py`) — ramo próprio que usa
+   `block_gale_engine.stake(dir,N)=base_unit×N×MULT[level]` (cap=1 ⇒ 14u), em vez do `mg.current_bet`
+   legado. Fecha a divergência valor-exibido × valor-apostado.
+3. **Dashboard alinhado à nova lógica** (`frontend/`) — card mostra **Par** (C1+C3/C2+C3),
+   **selo GREEN/RED** do último spin, painel block-gale (`G{level} {bloco}/4`) e o **valor do
+   servidor** (fonte única, sem `R$17`). Cache-bust `app.js?v=4.4.0`.
+
+### B. Bugs corrigidos na auditoria (3 bugs nos snippets P0 da proposta, antes de codar)
+
+- **AUDIT-1:** `handler._engine_overlay_fields()` no `state_sync` era inviável — `broadcast_heartbeat()`
+  é função **global** (sem `self`/`handler`). → fonte única em `game_state`.
+- **AUDIT-2:** adicionar `block_gale` ao ramo de `get_effective_bet` seria **falso fix** — a função
+  só desvia `flat`/`kelly`; `block_gale` cairia no fallback `mg.current_bet`. → stake via engine.
+- **AUDIT-3:** snippet de front referenciava `data`/`setBetValue` fora de escopo. → `updateBlockGale`
+  lê `data.aposta` no `handleStateSync`.
+
+### C. Impacto ISO por característica
+
+- **Usabilidade (Usab):** + o operador passa a ver o **par real**, o **valor correto** e o **veredito
+  red/green** — elimina a leitura enganosa (`R$17` ≠ 14u) e a ambiguidade de 3-vs-2 centros.
+- **Adequação Funcional (FS):** + paridade de contrato entre os 3 canais WS (`sugestao`/`trace`/
+  `state_sync`) para a telemetria dos motores; `ultimo_acerto` expõe a validação que já respeitava 14#.
+- **Confiabilidade (Rel):** mantida — tudo **aditivo** (flags OFF = byte-idêntico), `try/except`
+  defensivo no `trace`, acessos seguros em `engine_overlay_fields`, **529 passed**.
+- **Manutenibilidade (Maint):** + fonte única reduz o risco do ARCH-1 (dois sistemas de gale); + teste
+  de contrato (`tests/test_ws_overlay_contract.py`).
+
+### D. Obrigações de manutenção observadas neste ciclo
+
+1. **#7 (defensive excepts)** — 1 novo `except` no `trace` (espelha o do `sugestao`); rodado
+   `python tools/lint_silent_except.py --update` (baseline 25→26 em `message_handler.py`).
+2. **#9 (overlay aditivo)** — só **adição** de chaves; `sugestao`/extensão intocados; clientes antigos
+   ignoram os novos campos.
+3. **#1 (flags por-chamada)** — `staking_mode()` lido no heartbeat a cada tick (sem cache).
+4. **Escopo deferido** — extensão (`EXT-1/2`) fora desta rodada (working tree sujo do operador);
+   extração `engines_wiring.py` (Obrigação #8) segue pendente.
+
+> **Evidência de testes:** `tests/test_ws_overlay_contract.py` (6 casos) + suíte completa
+> **529 passed, 9 skipped, 1 xfailed**. Arquivos: `state/game.py`, `server/message_handler.py`,
+> `server/websocket.py`, `frontend/{app.js,index.html,style.css}`.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 ---

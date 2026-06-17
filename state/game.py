@@ -16,7 +16,7 @@ from .timeline import Timeline
 from .bet_advisor import TripleRateAdvisor, BetAdvice
 # Implantação C1/C2 variável + Block-Gale (17/06) — motores isolados, gated por flag.
 from strategies.c_selection import CSelectionEngine
-from state.block_gale import BlockGaleEngine
+from state.block_gale import BlockGaleEngine, BLOCK_SIZE
 
 
 
@@ -514,7 +514,7 @@ class GameState:
             return d - size if d > size // 2 else d
 
         out: Dict[str, Any] = {"slot": "miss", "dist_c1": None, "dist_min": None,
-                               "dist_c2": None, "dist_c3": None}
+                               "dist_c2": None, "dist_c3": None, "numero": actual_number}
         if not centers:
             return out
 
@@ -927,6 +927,50 @@ class GameState:
             }
         }
     
+    def engine_overlay_fields(self) -> Dict[str, Any]:
+        """Telemetria aditiva dos motores C1/C2 + Block-Gale, derivada do estado
+        PERSISTENTE (não do handler) — fonte única para os canais que o dashboard
+        consome (`trace`/`state_sync`). Espelha `c_selection`/`block_gale`/`bet_gate`
+        do `sugestao` e acrescenta `ultimo_acerto` (veredito red/green do último spin).
+
+        Aditivo e retrocompatível (Obrigação ISO #9: não remove/renomeia chaves).
+        Geometria-agnóstico, sem I/O, acessos seguros (não levanta em uso normal),
+        e o chamador ainda envolve em try/except defensivo.
+        """
+        out: Dict[str, Any] = {}
+        eng = getattr(self, "block_gale_engine", None)
+        if eng is not None:
+            # `active` distingue o modo no ar: o engine está SEMPRE instanciado, mas
+            # só é a fonte de staking quando SDA_STAKING_MODE=block_gale. Sem isto o
+            # dashboard mostraria o bloco (parado) mesmo em gale/flat/kelly legado.
+            from app_config.settings import staking_mode as _sm
+            st_cw = eng.states["cw"]
+            st_ccw = eng.states["ccw"]
+            out["block_gale"] = {
+                "active": _sm() == "block_gale",
+                "cw": {"level": st_cw.level, "cap": st_cw.cap,
+                       "block": f"{st_cw.block_bets}/{BLOCK_SIZE}", "max": st_cw.max_level_seen},
+                "ccw": {"level": st_ccw.level, "cap": st_ccw.cap,
+                        "block": f"{st_ccw.block_bets}/{BLOCK_SIZE}", "max": st_ccw.max_level_seen},
+            }
+            out["bet_gate"] = {"only_after_green": bool(eng.only_after_green)}
+        # c_selection: par escolhido do spin corrente (injetado no pending_prediction).
+        chosen = (self.pending_prediction or {}).get("cs_chosen")
+        if chosen in ("C1", "C2"):
+            out["c_selection"] = {"chosen": chosen, "pair": f"{chosen}+C3"}
+        # ultimo_acerto: veredito red/green do último spin verificado (slot 'miss' = red).
+        # Usa o `numero` da própria atribuição (não last_number), senão um spin sem
+        # predição mostraria o número novo com o slot antigo (número/veredito incoerentes).
+        attr = self.last_hit_attribution
+        if isinstance(attr, dict) and attr.get("slot"):
+            slot = attr["slot"]
+            out["ultimo_acerto"] = {
+                "slot": slot,
+                "green": slot in ("C1", "C2", "C3"),
+                "numero": attr.get("numero", self.last_number),
+            }
+        return out
+
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
         """Calcula a distância (força) entre dois números."""
         try:
