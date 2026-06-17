@@ -139,11 +139,12 @@ def staking_mode() -> str:
 # ---------- SP-IMPL (16/06): motores C1/C2 variável + Block-Gale (default OFF) ----------
 
 def bet_pair_mode() -> str:
-    """Cobertura da aposta (implantação C1/C2 variável).
+    """Cobertura da aposta (implantação aposta 14#).
 
-    Enum via env SDA_BET_PAIR: "full" (default — 3 centros, byte-idêntico ao
-    atual), "var_c1c2_c3" (C1/C2 variável pelas últimas 3 não-C3 + C3 fixo, 14#),
-    "c1c3", "c2c3" (duplas estáticas de referência). Valor inválido cai em "full".
+    Enum via env SDA_BET_PAIR: "full" (default do código — 3 centros, byte-idêntico),
+    "c2c3"/"c1c3" (par ESTÁTICO fixo {C2,C3} ou {C1,C3} = 14#, sem voto — PRODUÇÃO
+    roda "c2c3" desde 17/06), "var_c1c2_c3" (voto C1/C2 móvel pelas últimas 3 não-C3
+    + C3 fixo — DESATIVADO por resultados desfavoráveis). Valor inválido cai em "full".
 
     Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
     """

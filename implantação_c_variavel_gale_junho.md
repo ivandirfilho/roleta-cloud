@@ -952,3 +952,25 @@ update (214-229); atribuição/DNA `hit_region` (291-327); `analyze()` + INV-3 +
 `martingale_cw/ccw`, `window_history`).
 **Observabilidade** — `server/health_server.py` (`_PROM_METRICS`), `obs/alerts.yml`,
 `obs/grafana/dashboards/roleta-dna-regions.json`.
+
+---
+
+## 18. Pivô para par ESTÁTICO C2+C3 (17/06, noite)
+
+**Decisão:** o voto C1/C2 móvel (`var_c1c2_c3`) deu **resultados desfavoráveis** em produção
+(confirmando o estudo: voto com edge ≈ 0). Trocado pelo **par ESTÁTICO {C2, C3} fixo em toda jogada**
+(`SDA_BET_PAIR=c2c3`), o **melhor par estático** do `resultados_15_junho.md`. Continua 14#, `block_gale`
+teto 1, INV-3 e isolamento por sentido inalterados.
+
+**Mudanças:**
+- `strategies/c_selection.py` — `CSelectionEngine.static_select(direction, centers, pair, wheel)`:
+  par fixo `{C1|C2, C3}` via união real (`coverage_numbers`); `chosen` fixo (C2 p/ `c2c3`);
+  `freeze_candidates={}` ⇒ **sem shadow/feedback/promoção** (determinístico, stateless).
+- `server/message_handler.py` — `_engine_apply_selection` despacha por `SDA_BET_PAIR`:
+  `var_c1c2_c3`→`select` (voto); `c2c3`/`c1c3`→`static_select`; `full`/inválido→no-op (21#).
+- `app_config/settings.py` — docstring de `bet_pair_mode` (c2c3/c1c3 implementados; prod=`c2c3`).
+- `docker-compose.yml` — default `SDA_BET_PAIR=${SDA_BET_PAIR:-c2c3}`.
+
+**Testes:** +4 unitários (`TestStaticSelect`) +2 wiring (`c2c3` fixa 14# e ignora histórico). Suíte
+**538 passed**. **Rollback:** host `SDA_BET_PAIR=var_c1c2_c3` (voto) / `full` (21#) + redeploy.
+O motor de voto permanece no código (default só deixa de ser ele).
