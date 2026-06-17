@@ -259,6 +259,11 @@ flag-gated, plugados no hot path. Spec/auditoria completa: `implantação_c_vari
 
 > **Evidência de testes:** `tests/test_block_gale.py`, `tests/test_c_selection.py`,
 > `tests/test_wiring_c_gale.py` (38 casos) + suíte completa **523 passed, 9 skipped, 1 xfailed**.
+>
+> **Evidência em produção (17/06 16:52 UTC):** deploy de `31c39c1` (PR #9) recriou o container
+> com o env go-live; as decisões caíram de **N=21 → N=14** no boundary do deploy (7123=21 →
+> 7124/7125=14), mantendo `centers=3`, `acao=APOSTAR` (INV-3) e `gale_level=1` (cap=1). `/health`
+> ok, 0 erros. Detalhe em `implantação_c_variavel_gale_junho.md` §17.7.
 
 ---
 
