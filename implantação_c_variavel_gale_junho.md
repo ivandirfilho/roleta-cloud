@@ -837,9 +837,45 @@ mergeado/wired). Para ativá-la: merge → deploy → wiring → flags em canár
 
 ---
 
-## Apêndice — citações de código (auditoria)
+## 17. Wiring + Go-live (17/06/2026) — sistema 100% na estrutura nova
 
-**Backend / decisão** — `server/message_handler.py`: `_build_sda_regions` (27-57); martingale
+> Após autorização do operador ("implantar tudo, 100% funcionando com a estruturação nova"),
+> os motores foram **acoplados ao caminho quente** (gated, default OFF) e ativados.
+
+### 17.1 Wiring (acoplamento)
+- **`state/game.py`**: `GameState` instancia `c_selection_engine`/`block_gale_engine` +
+  `c_attr_cw/ccw` (histórico de atribuições para o voto); persiste em `state.json`
+  (`save`/`load`) e **reseta em `reset_session`** (troca de dealer).
+- **`server/message_handler.py`** — 5 call-sites **defensivos** (telemetria/override nunca
+  quebra o fluxo; INV-3 preservado):
+  1. `_engine_apply_selection(result)` (após `analyze`, antes de `final_numbers`):
+     `SDA_BET_PAIR=var_c1c2_c3` ⇒ substitui a cobertura por `{C1|C2, C3}` = **14#** (união real);
+     mantém `details['centers']=3` (continuidade DNA).
+  2. `_engine_apply_stake(stake_info, N, acao)` (antes do override de veto INV-3):
+     `SDA_STAKING_MODE=block_gale` ⇒ stake = nível do bloco (× mult); compõe com stop-loss/cut.
+  3. `_engine_resolve(pending)` (após `check_prediction`): `shadow_green` da escolha **congelada**
+     `{chosen, C3}` ⇒ `feedback` do c_selection + `on_result` do block_gale + append em `c_attr`.
+  4. `_engine_inject_pending()`: anexa escolhas congeladas + `bg_placed` ao `pending_prediction`.
+  5. `_engine_overlay_fields()`: campos aditivos `c_selection`/`block_gale`/`bet_gate` no
+     `sugestao`/`state_sync` (extensão ignora desconhecidos).
+
+### 17.2 Validação
+- **8 testes de wiring** (`tests/test_wiring_c_gale.py`): flags OFF ⇒ 21# inalterado; `var_c1c2_c3`
+  ⇒ N≤14; `block_gale` ⇒ stake por nível; `only_after_green` ⇒ stake 0 (gate, INV-3); resolução
+  alimenta os motores. **Suíte completa: 521 passed**, 9 skipped, 1 xfailed. **Flags OFF =
+  byte-idêntico** ao comportamento atual.
+
+### 17.3 Config de go-live (segura, honra o estudo)
+| Flag | Valor | Efeito |
+|---|---|---|
+| `SDA_BET_PAIR` | `var_c1c2_c3` | **cobertura 14#** C1/C2 variável + C3 fixo (o lever principal) |
+| `SDA_STAKING_MODE` | `block_gale` | staking pela engine nova |
+| `GALE_CAP` | `1` | **flat-equivalente** (sem escalonar; sem ruína — §9.6) |
+| `GALE_ONLY_AFTER_GREEN` | `0` | aposta todas (sem gate) |
+| `GALE_BANKROLL` | `1000` | banca p/ trava de solvência (não limita em cap=1) |
+
+Subir `GALE_CAP` (G2/G3/G4) ou ligar `only_after_green` é **opt-in do operador** (canário), com
+aviso de ruína. O default acima roda a **estrutura nova 100%** sem risco de gale.
 update (214-229); atribuição/DNA `hit_region` (291-327); `analyze()` + INV-3 + `staking_mode`
 (415-515); `get_gale` (425-431); overlay `sugestao` (744-778); broadcast `trace` com
 `martingale_cw/ccw` (782-815).
