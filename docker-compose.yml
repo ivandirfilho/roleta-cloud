@@ -42,7 +42,25 @@ services:
       # código é 'gale' (app_config/settings.py, fail-safe); PRODUÇÃO roda 'flat'
       # por esta env. Rollback: SDA_STAKING_MODE=gale no host + redeploy, ou git
       # revert. Spec/auditoria: flat_kelly_junho.md.
-      - SDA_STAKING_MODE=${SDA_STAKING_MODE:-flat}
+      #
+      # IMPL C1/C2 variável + Block-Gale (17/06): go-live da estrutura nova
+      # (implantação_c_variavel_gale_junho.md §17). Default do repo já ativa a
+      # aposta de 14# (C1|C2 móvel + C3 fixo) com staking block_gale TETO 1
+      # (= flat-equivalente, SEM ruína — o estudo resultados_15_junho.md mostrou
+      # que gale só sangra; cap=1 é o único seguro). Rollback total: no host,
+      # SDA_BET_PAIR=full + SDA_STAKING_MODE=flat + redeploy, ou git revert.
+      - SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}
+      # Cobertura: var_c1c2_c3 = {C1 ou C2 móvel pelas últimas 3 não-C3} + C3 fixo
+      # = 14 números (vs 21 dos 3 centros). "full" volta aos 3 centros.
+      - SDA_BET_PAIR=${SDA_BET_PAIR:-var_c1c2_c3}
+      # Teto do block-gale: 1=flat (seguro, default). Subir é opt-in de risco.
+      - GALE_CAP=${GALE_CAP:-1}
+      # Banca de referência para o solvency-guard do block-gale (R$).
+      - GALE_BANKROLL=${GALE_BANKROLL:-1000}
+      # "Só apostar após green" — OFF por padrão (não suprime indicação; INV-3).
+      - GALE_ONLY_AFTER_GREEN=${GALE_ONLY_AFTER_GREEN:-0}
+      # Promoção automática de regra do CSelectionEngine: OFF (só sugere; humano aplica).
+      - C_SELECTION_AUTO_PROMOTE=${C_SELECTION_AUTO_PROMOTE:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

@@ -114,6 +114,43 @@ class TestResolveWiring:
         # c_selection registrou feedback (n>=1 nos candidatos)
         assert gs.c_selection_engine._dirs["cw"]["candidates"]["always_c2"].n == 1
 
+    def test_block_gale_uses_real_hit_not_dist_min(self):
+        # Bug audit 17/06: no branch cs_chosen=None (fallback de calibração N=21
+        # raio 10, ou geometria não-radius-3) dist_min<=3 divergia do hit real.
+        # on_result deve usar o HIT REAL (verdade de campo do stake), não dist_min.
+        os.environ["SDA_STAKING_MODE"] = "block_gale"
+        h = _handler()
+        gs = h.game_state
+        # dist_min=5 => shadow_green seria False; mas o número caiu na cobertura
+        # (hit_result=True) => block_gale DEVE contar GREEN.
+        gs.last_hit_attribution = {"dist_c1": 15, "dist_c2": 9, "dist_c3": 12, "dist_min": 5}
+        pending = {"direction": "horario", "cs_chosen": None, "bg_placed": True}
+        h._engine_resolve(pending, hit_result=True)
+        st = gs.block_gale_engine.states["cw"]
+        assert st.block_bets == 1
+        assert st.block_wins == 1          # green pelo hit real, não por dist_min
+        assert st.last_green is True
+        # inverso: dist_min=1 (shadow seria True) mas hit_result=False => red real
+        gs.block_gale_engine.reset("cw")
+        gs.last_hit_attribution = {"dist_c1": 1, "dist_c2": 9, "dist_c3": 12, "dist_min": 1}
+        h._engine_resolve(pending, hit_result=False)
+        st = gs.block_gale_engine.states["cw"]
+        assert st.block_bets == 1
+        assert st.block_wins == 0          # red real apesar de dist_min<=3
+        assert st.last_green is False
+
+    def test_resolve_fallback_to_shadow_when_hit_none(self):
+        # Sem hit_result (chamada legada/defensiva): cai no shadow_green por dist.
+        os.environ["SDA_STAKING_MODE"] = "block_gale"
+        h = _handler()
+        gs = h.game_state
+        gs.last_hit_attribution = {"dist_c1": 1, "dist_c2": 9, "dist_c3": 12, "dist_min": 1}
+        pending = {"direction": "horario", "cs_chosen": "C1", "bg_placed": True}
+        h._engine_resolve(pending)           # hit_result default None -> shadow_green
+        st = gs.block_gale_engine.states["cw"]
+        assert st.block_bets == 1
+        assert st.block_wins == 1             # shadow_green True (dist_c1=1)
+
     def test_overlay_fields_present_when_active(self):
         os.environ["SDA_STAKING_MODE"] = "block_gale"
         h = _handler()

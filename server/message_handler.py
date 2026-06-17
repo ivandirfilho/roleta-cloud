@@ -161,8 +161,15 @@ class MessageHandler:
         except Exception:  # noqa: BLE001
             pass
 
-    def _engine_resolve(self, pending) -> None:
-        """Resolve os motores com o resultado do spin recém-verificado (t-1)."""
+    def _engine_resolve(self, pending, hit_result=None) -> None:
+        """Resolve os motores com o resultado do spin recém-verificado (t-1).
+
+        block_gale usa o HIT REAL (hit_result = número ∈ cobertura apostada) como
+        verdade de campo para escalar/resetar o bloco — é o que dita o stake real.
+        c_selection segue por distância (avaliação contrafactual por candidato).
+        shadow_green (recomputado de dist) é só fallback: diverge do hit real no
+        fallback de calibração (N=21, raio 10) e geometrias não-radius-3 — bug
+        latente corrigido na auditoria 17/06 (implantação_c_variavel_gale_junho §17)."""
         try:
             if not pending:
                 return
@@ -184,7 +191,8 @@ class MessageHandler:
             if fc:
                 gs.c_selection_engine.feedback(bdir, fc, attr)
             placed = bool(pending.get("bg_placed", pending.get("bet_placed", False)))
-            gs.block_gale_engine.on_result(bdir, shadow_green, placed)
+            gale_green = bool(hit_result) if hit_result is not None else shadow_green
+            gs.block_gale_engine.on_result(bdir, gale_green, placed)
             if attr.get("dist_c1") is not None:
                 tgt = gs.c_attr_cw if dk == "cw" else gs.c_attr_ccw
                 tgt.append({"dist_c1": attr.get("dist_c1"), "dist_c2": attr.get("dist_c2"),
@@ -475,8 +483,9 @@ class MessageHandler:
                     logger.error(f"update_result (pre-gate) falhou: {_ur_e}")
 
             # IMPL C1/C2 + Block-Gale (17/06): resolve os motores com o resultado
-            # do spin recém-verificado (t-1) — feedback c_selection + on_result block_gale.
-            self._engine_resolve(pending)
+            # do spin recém-verificado (t-1) — feedback c_selection (distância) +
+            # on_result block_gale (hit REAL como verdade de campo, fix audit 17/06).
+            self._engine_resolve(pending, hit_result)
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)

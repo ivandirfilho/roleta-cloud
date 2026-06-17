@@ -1,7 +1,7 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
 > **Versão do Software:** 4.4.0  
-> **Data da Análise:** 02/04/2026 · **Atualizado:** 12/06/2026 (ver ADENDO)  
+> **Data da Análise:** 02/04/2026 · **Atualizado:** 14/06/2026 (ver ADENDOS 12/06 e 14/06)  
 > **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid) + ciclo 24/05→12/06  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
 > **Total de Linhas de Código:** ~119 arquivos Python ativos · 48 arquivos de teste (374 testes)
@@ -79,6 +79,186 @@
 
 > Rastreabilidade completa do ciclo: `proximos_passos_10_06.md` (premissas P1–P12,
 > trilhas A/B/C, auditorias 12/06 r1/r2) e `analise_regioes_12_06.md` (A1–A3).
+
+---
+
+## ADENDO 14/06/2026 — Ciclo Auto-Start & Zero-Upload (Escuta Beat, extensão v3.3.0)
+
+> Este adendo registra o ciclo **client-side** de 14/06: a extensão Chrome "Escuta
+> Beat" passou de **mono-provider com upload manual** para **auto-detecção +
+> zero-upload + auto-start**. O backend Python (v4.4.1) **NÃO foi alterado** — o deploy
+> (commit `23c3490`) confirma o servidor saudável e alinhado; a extensão é client-side
+> e é ativada por *reload* no Chrome do operador. Roadmap e auditoria UX completos em
+> `passos_escuta_junho.md` (§4.9 e §12).
+
+### A. Capacidades NOVAS com impacto ISO
+
+| Capacidade | Característica ISO | Evidência |
+|---|---|---|
+| Auto-detecção de provider por fingerprint ponderado (URL/host dos frames) | Usabilidade (operabilidade) | `extension/provider_router.js` (`detectFromFrames`/`matchHostToProvider`) |
+| Zero-upload: manifests empacotados servidos via `web_accessible_resources` | Usabilidade / Manutenibilidade | `extension/providers/{evolution,index}.json`; `extension/manifest.json` |
+| Auto-start: `webNavigation.onCompleted` + `getAllFrames` → inicia a escuta sozinha | Usabilidade (operabilidade) | `background.js::maybeAutoStart`/`registerAutoDetectListeners` |
+| Supressão de auto-start pós-STOP (TTL 24h + revalidação de host + prune no boot) | Confiabilidade / Usabilidade | `background.js::suppressTab`/`isTabSuppressed`/`pruneSuppressedTabs` |
+| Registry de providers extensível (novo provider = 1 entrada + 1 JSON) | Manutenibilidade (modificabilidade) | `provider_router.js::PROVIDER_DETECTION`; `providers/index.json` |
+| Badge de status fora do popup + toggle de auto-start | Usabilidade | `popup.html`/`popup.js`; `background.js::setBadge` |
+
+### B. Bugs corrigidos na auditoria pós-implantação (3 rodadas de code-review)
+
+| # | Bug | Sev | Característica ISO | Correção |
+|:-:|---|:--:|---|---|
+| 1 | WebSocket duplicado por race (`CONNECTING` não idempotente; `onclose` órfão derrubava o socket saudável) | High | Confiabilidade (maturidade) | guard `OPEN\|CONNECTING` + `wsConnection!==socket` nos handlers + lock por tabId |
+| 2 | STOP manual não segurava (auto-start re-iniciava via webNavigation/scan/popup) | High | Usabilidade / Confiabilidade | `suppressTab` persistido + TTL 24h + revalidação de host + prune no boot |
+| 3 | Badge verde não limpo ao parar/fechar (status mentia) | Med | Usabilidade | `setBadge('')` em stop/onRemoved/auto-stop |
+| 4 | 2ª aba de cassino sequestrava o `tabId` singleton silenciosamente | Med | Confiabilidade | recusa + log em vez de sobrescrever |
+| 5 | Política `'ask'` beco sem saída (detectava, nunca iniciava) | Low | Manutenibilidade | `getAutoStartPolicy` normaliza ≠`off`→`auto` |
+
+### C. Impacto ISO por característica
+
+**Usabilidade (cap. 4)** — maior ganho do ciclo. O fluxo "abrir site → upload do JSON →
+escolher mesa → clicar Iniciar" (60-90 s, sujeito a carregar o JSON errado) vira "abrir a
+mesa → a escuta inicia sozinha" (< 10 s, zero upload). Salvaguarda de consentimento (NB-02):
+o auto-start só inicia a **leitura**, nunca aposta; toggle `auto|off`; STOP manual é
+respeitado. 20 pain points UX mapeados em `passos_escuta_junho.md` §4.6.
+
+**Manutenibilidade (cap. 7)** — federação extensível: adicionar um provider é 1 entrada em
+`PROVIDER_DETECTION` + 1 manifest `providers/<id>.json`, sem tocar no runtime; a detecção
+foi **centralizada** (antes espalhada em `deal_capture.js`). 13 testes novos
+(`test_provider_router` 9 + `test_bundled_manifest` 4); suite total **480 passed**.
+
+**Confiabilidade (cap. 5)** — idempotência de WebSocket sob concorrência; supressão
+persistida resiliente à reciclagem do service worker (MV3) e ao reuso de `tabId`;
+tolerância a frames cross-origin inacessíveis.
+
+**Segurança (cap. 6)** — `<all_urls>` (já existente) mantido; a auto-detecção **não amplia**
+permissões. Riscos NB-01 (content_scripts amplo) e NB-05 (integridade OTA via Ed25519) ficam
+**documentados** como pré-condições das fases futuras (CDN), não implementados neste ciclo.
+
+**Portabilidade (cap. 8)** — manifests empacotados tornam a extensão self-contained (sem
+dependência de upload externo); o canal OTA assinado permanece como roadmap (Sprint 5).
+
+### D. Scorecard — delta client-side (14/06)
+
+| # | Característica | 12/06 | 14/06 | Justificativa |
+|:-:|---|:---:|:---:|---|
+| 4 | Usabilidade | 8.2 | **8.6** | zero-upload + auto-start + toggle/badge; ~-90% no tempo "abrir→escutar" |
+| 7 | Manutenibilidade | 8.6 | **8.7** | registry de providers extensível + 13 testes; detecção centralizada |
+| 5 | Confiabilidade | 8.8 | **8.8** | mantido (correções de concorrência compensam a nova superfície) |
+
+> Demais características inalteradas (backend v4.4.1 intacto). **Nota geral mantém 8.5/10**,
+> com Usabilidade puxando para cima no eixo client.
+
+### E. Gaps remanescentes (escopo client-side)
+
+1. **Multi-mesa singleton** — 1 `tabId`/escuta por vez; a 2ª aba é recusada (com log), não
+   suportada. Multi-mesa real exige o `ServerSessionRegistry` (Sprint 4 do roadmap).
+2. **CDN OTA não implementado** — manifests só empacotados; correção de seletor ainda exige
+   rebuild/republicação. Sprint 5 (OTA Ed25519) endereça.
+3. **`content_scripts: <all_urls>`** — NB-01 aberto (privacidade/perf/revisão CWS); migração
+   para `declarativeContent` + injeção pós-detecção fica para a Sprint 2 plena.
+4. **Self-heal apenas modelado** — a promoção de fallback por telemetria hit/miss está
+   desenhada (§4.9.3) mas não codada neste ciclo.
+5. **Extensão fora da CI** — os testes JS rodam via Node dentro do pytest, mas não há
+   lint/build da extensão no `ci.yml` nem smoke E2E (Puppeteer planejado na Sprint 7).
+
+---
+
+## ADENDO 17/06/2026 — Implantação C1/C2 variável + Block-Gale (aposta 14# + staking por bloco)
+
+Ciclo que materializou o estudo `resultados_15_junho.md` em produção: a cobertura
+deixa de ser os 3 centros fixos (21#) e passa a **{C1 ou C2 móvel} + C3 fixo = 14#**,
+com staking **por bloco isolado por sentido**. Dois motores novos, isolados e
+flag-gated, plugados no hot path. Spec/auditoria completa: `implantação_c_variavel_gale_junho.md` §17.
+
+### A. Capacidades NOVAS com impacto ISO
+
+1. **CSelectionEngine** (`strategies/c_selection.py`) — escolhe C1 ou C2 pela tendência
+   das últimas 3 jogadas não-C3 do **próprio sentido** (análise isolada CW/CCW), monta a
+   união real de 14# (C_escolhido ∪ C3) sobre `WHEEL_SEQUENCE`, e mantém candidatos-sombra
+   congelados com guardrail de promoção via IC de diferença de Newcombe (1998, método 10).
+   `MAXLEN=200 ≥ MIN_N_PROMOTE=150` (promoção pode disparar). Persistência deque↔list.
+2. **BlockGaleEngine** (`state/block_gale.py`) — gale **por sentido**, blocos de 4, critério
+   2-de-4, níveis ×1/2/4/8, "só apostar após green" (stake-gate, não supressão), solvency-guard
+   e reset por troca de dealer. `cap` clampado a 1..4; `cap=1` nunca escala (flat-equivalente).
+3. **Wiring no pipeline** (`server/message_handler.py:85-215` + call-sites 479/555/678/700/931):
+   resolve(t-1) → select(t) → stake → inject-pending → overlay aditivo. Tudo `try/except`
+   defensivo: telemetria/override nunca quebra o fluxo de decisão.
+4. **Flags operacionais** (`app_config/settings.py:141-193`): `SDA_BET_PAIR`, `SDA_STAKING_MODE`
+   (+`block_gale`), `GALE_CAP[_CW/_CCW]`, `GALE_ONLY_AFTER_GREEN`, `GALE_BANKROLL`,
+   `C_SELECTION_AUTO_PROMOTE` — **lidas por chamada** (toggle em runtime, sem restart).
+5. **Go-live config** (defaults do repo em `docker-compose.yml:34-66`):
+   `SDA_BET_PAIR=var_c1c2_c3` + `SDA_STAKING_MODE=block_gale` + `GALE_CAP=1` (flat-equivalente,
+   **sem ruína** — o estudo mostrou que gale só sangra; cap=1 é o único seguro) +
+   `GALE_ONLY_AFTER_GREEN=0` + `GALE_BANKROLL=1000`. Rollback total via host env
+   (`SDA_BET_PAIR=full` + `SDA_STAKING_MODE=flat`) + redeploy, ou `git revert`.
+
+### B. Bugs corrigidos na auditoria pós-implantação (3 rodadas)
+
+- **Sprint design (§10/§11):** 13 bugs de projeto corrigidos antes de codar.
+- **Sprint código (code-review):** 6 bugs nos motores (tolerância a `dist=None`, MAXLEN,
+  clamp de nível, validação de incumbente no load, IC de Newcombe, contagem de bloco só se `placed`).
+- **Sprint wiring (code-review 17/06):** **1 bug latente** — `_engine_resolve` alimentava
+  `block_gale.on_result` com um `shadow_green` **recomputado** (`dist_min<=3`) em vez do **hit
+  real**. Diverge no fallback de calibração (N=21, raio 10) e em geometrias não-radius-3, o que
+  corromperia a contagem 2-de-4 e (com `cap>1`) o stake real. **Fix:** threading do `hit_result`
+  real (já computado em `message_handler.py:344`) para `on_result`; `c_selection.feedback`
+  permanece por distância (avaliação contrafactual). Cobertura: `tests/test_wiring_c_gale.py::
+  test_block_gale_uses_real_hit_not_dist_min` + `test_resolve_fallback_to_shadow_when_hit_none`.
+  Inerte na config de go-live (`cap=1` trava o nível em 1), mas necessário para correção de
+  telemetria e segurança caso o teto suba.
+
+### C. Impacto ISO por característica
+
+- **Adequação Funcional (FS):** + completude/correção — a aposta passa a refletir a tendência
+  por sentido (14#) fielmente ao estudo; INV-3 preservado (indicação sempre emitida; gates só
+  modulam stake como `min()`, `message_handler.py:678` antes do bloco INV-3:683).
+- **Confiabilidade (Rel):** default-safe (flags OFF = byte-idêntico no fluxo de dinheiro),
+  motores isolados + defensivos, persistência round-trip (`game.py:1173-1176`↔`1293-1296`),
+  reset por dealer (`game.py:337-349`), 38 testes dedicados. `cap=1` elimina ruína.
+- **Manutenibilidade (Maint):** + alta coesão/baixo acoplamento (motores em módulos próprios,
+  testáveis em isolamento) e 38 testes; **−** `message_handler.py` cresceu ~+200 LOC (agrava o
+  gap D.1 — ver Obrigações).
+- **Segurança/risco financeiro:** `cap=1` (flat-equivalente) é o único modo sem ruína (estudo:
+  gale janela 3/5 uncapped ⇒ ruína 38–78% em banca de 50u). Subir teto é opt-in explícito.
+
+### D. Scorecard — delta backend (17/06)
+
+| # | Característica | 14/06 | 17/06 | Justificativa |
+|:-:|---|:---:|:---:|---|
+| 1 | Adequação Funcional | 8.7 | **8.8** | cobertura 14# por-sentido fiel ao estudo; INV-3 intacto; 38 testes |
+| 5 | Confiabilidade | 8.8 | **8.8** | mantido — nova superfície compensada por gating/defensividade/persistência |
+| 7 | Manutenibilidade | 8.7 | **8.7** | motores isolados (+) vs +200 LOC em message_handler (−) se anulam |
+
+> **Nota geral mantém 8.5/10.** O ganho é de capacidade estratégica com risco contido (cap=1),
+> não de qualidade estrutural líquida — o débito de tamanho de `message_handler.py` neutraliza o
+> ganho de coesão dos motores até a extração modular (Obrigação 8).
+
+### E. Obrigações de manutenção (observar em ciclos futuros)
+
+1. **Flags por-chamada** — `settings.py` lê env a cada decisão (toggle runtime). **Não cachear**
+   em módulo; manter o padrão para permitir rollback sem restart.
+2. **INV-3 inviolável** — a estratégia SEMPRE indica (`acao=APOSTAR`); qualquer novo modulador de
+   stake entra como `min()` e **nunca** suprime a indicação. Posicionar antes/depois do bloco
+   INV-3 conforme o piso desejado (`message_handler.py:678` vs `:683`).
+3. **block_gale usa HIT REAL** — `on_result` deve receber o resultado real da cobertura, não um
+   proxy de distância. Ao tocar `_engine_resolve`, preservar o threading de `hit_result`
+   (regressão guardada por `test_block_gale_uses_real_hit_not_dist_min`).
+4. **Rollback** — host env (`SDA_BET_PAIR=full` + `SDA_STAKING_MODE=flat`) + redeploy, ou
+   `git revert` do `docker-compose.yml`. O deploy faz `git reset --hard origin/main`, então
+   flags persistentes vivem no **compose versionado** (não há `.env` no servidor).
+5. **`GALE_CAP>1` é opt-in de risco** — só com decisão explícita do operador (ruína 38–78% no
+   estudo). Default permanece `1` (flat-equivalente).
+6. **Persistência completa** — todo campo novo de motor precisa entrar em `save()` **e** `load()`
+   **e** `reset_session()` (round-trip + reset por dealer). Validar com os testes de persistência.
+7. **Defensive excepts** — ao adicionar `except Exception`, rodar
+   `python tools/lint_silent_except.py --update` (baseline de `tests/test_sp05_safe_except.py`).
+8. **Gap D.1 agravado** — `server/message_handler.py` passou de ~1000 para ~1200 LOC (helpers de
+   motor). Candidato a extrair para `server/engines_wiring.py` (mixin/serviço) no próximo ciclo
+   de refatoração, sem alterar comportamento.
+9. **Overlay aditivo** — `c_selection`/`block_gale` no `sugestao`/`state_sync` são campos novos
+   ignorados por clientes antigos; manter retro-compatibilidade (não remover/renomear chaves).
+
+> **Evidência de testes:** `tests/test_block_gale.py`, `tests/test_c_selection.py`,
+> `tests/test_wiring_c_gale.py` (38 casos) + suíte completa **523 passed, 9 skipped, 1 xfailed**.
 
 ---
 
@@ -1257,3 +1437,4 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.3.2 | 02/04/2026 | **Auditoria frontend:** fix encoding UTF-8 (22 emojis + 7 acentos), dead code cleanup (4 refs DOM null), Martingale instant trace, cache busting, CSS responsive, Dockerfile label, null guards |
 | v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
 | v4.4.1 | 13/06/2026 | **Fix incidente MASTER:** deadlock de reeleição em `connection_manager.update_device_id` (grace expirado sem conexão → SLAVE permanente → ~16h sem spins, dashboard ONLINE porém vazio); reeleição corrigida + 5 testes (`tests/test_connection_manager_master.py`). **Observabilidade:** alerta `RoletaNoMaster` + métricas `roleta_master_present`/`roleta_ws_connections`. **Runbook** `docs/runbooks/sem-apostas-master-slave.md`. Suite 429 |
+| ext v3.3.0 | 14/06/2026 | **Auto-Start & Zero-Upload (Escuta Beat, client-side)** — ver ADENDO 14/06: auto-detecção de provider (`provider_router.js`, fingerprint por host dos frames), manifests empacotados (`extension/providers/` via web_accessible_resources), auto-start via `chrome.webNavigation` + `getAllFrames`, supressão pós-STOP (TTL 24h + revalidação de host + prune), badge + toggle. Auditoria em **3 rodadas de code-review** corrigiu 5 bugs (WS duplicado/race, STOP não segurava o auto-start, badge não limpo, 2ª aba sequestrava o `tabId`, política `'ask'` beco sem saída). Backend Python v4.4.1 **intacto**. Deploy `23c3490` (servidor Debian alinhado, 6 containers healthy). Suite **480**. Detalhes: `passos_escuta_junho.md` §4.9/§12 |

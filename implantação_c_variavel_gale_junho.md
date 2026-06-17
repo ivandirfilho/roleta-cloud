@@ -853,17 +853,18 @@ mergeado/wired). Para ativá-la: merge → deploy → wiring → flags em canár
      mantém `details['centers']=3` (continuidade DNA).
   2. `_engine_apply_stake(stake_info, N, acao)` (antes do override de veto INV-3):
      `SDA_STAKING_MODE=block_gale` ⇒ stake = nível do bloco (× mult); compõe com stop-loss/cut.
-  3. `_engine_resolve(pending)` (após `check_prediction`): `shadow_green` da escolha **congelada**
-     `{chosen, C3}` ⇒ `feedback` do c_selection + `on_result` do block_gale + append em `c_attr`.
+  3. `_engine_resolve(pending, hit_result)` (após `check_prediction`): `feedback` do
+     c_selection (por **distância** — contrafactual por candidato) + `on_result` do block_gale
+     (**hit REAL** como verdade de campo, fix audit 17/06) + append em `c_attr`.
   4. `_engine_inject_pending()`: anexa escolhas congeladas + `bg_placed` ao `pending_prediction`.
   5. `_engine_overlay_fields()`: campos aditivos `c_selection`/`block_gale`/`bet_gate` no
      `sugestao`/`state_sync` (extensão ignora desconhecidos).
 
 ### 17.2 Validação
-- **8 testes de wiring** (`tests/test_wiring_c_gale.py`): flags OFF ⇒ 21# inalterado; `var_c1c2_c3`
+- **10 testes de wiring** (`tests/test_wiring_c_gale.py`): flags OFF ⇒ 21# inalterado; `var_c1c2_c3`
   ⇒ N≤14; `block_gale` ⇒ stake por nível; `only_after_green` ⇒ stake 0 (gate, INV-3); resolução
-  alimenta os motores. **Suíte completa: 521 passed**, 9 skipped, 1 xfailed. **Flags OFF =
-  byte-idêntico** ao comportamento atual.
+  alimenta os motores; **hit real vs `dist_min`** (fix audit). **Suíte completa: 523 passed**,
+  9 skipped, 1 xfailed. **Flags OFF = byte-idêntico** ao comportamento atual.
 
 ### 17.3 Config de go-live (segura, honra o estudo)
 | Flag | Valor | Efeito |
@@ -880,19 +881,38 @@ aviso de ruína. O default acima roda a **estrutura nova 100%** sem risco de gal
 ### 17.4 Status do deploy (17/06/2026)
 | Etapa | Status |
 |---|---|
-| Wiring + testes (521 passed) | ✅ feito |
+| Wiring + testes (523 passed) | ✅ feito |
+| **3ª sprint de auditoria (wiring)** + fix do bug latente | ✅ feito — ver §17.5 |
 | **Merge do PR #8 em `main`** | ✅ feito — `origin/main` = `1923077` |
-| Deploy do código no servidor | 🔄 **auto** via `roleta-deploy` (systemd timer 2min: fetch+reset origin/main+build+up) — sobe **inerte** (flags OFF = byte-idêntico, seguro) |
-| **Ativar flags** (`SDA_BET_PAIR=var_c1c2_c3` + `SDA_STAKING_MODE=block_gale` + `GALE_CAP=1`) | ⏸️ **bloqueado** — servidor `187.45.181.75` ficou **inalcançável** (TCP/22 timeout) durante o go-live; setar env exige acesso ao servidor |
-| Verificação live (N=14) | ⏸️ pendente (depende da ativação) |
+| Deploy do código no servidor | ✅ **auto** via `roleta-deploy` (systemd timer): container tem os módulos novos, HEAD = `1923077` |
+| **Ativar flags** (go-live) | ✅ **nos defaults do `docker-compose.yml`** versionado (§17.6) — deploy do compose ativa `var_c1c2_c3` + `block_gale` + `cap=1` |
+| Verificação live (N=14) | 🔄 pós-deploy do compose (§17.6) |
 
-> **Runbook de ativação (quando o servidor voltar):**
-> 1. Confirmar deploy: `ssh root@187.45.181.75 "cd /root/roleta-cloud && git rev-parse --short HEAD"` → deve ser `1923077` (ou forçar `systemctl start roleta-deploy.service`).
-> 2. Adicionar as flags ao env do serviço (`.env`/`docker-compose*.yml` da `roleta-cloud`):
->    `SDA_BET_PAIR=var_c1c2_c3`, `SDA_STAKING_MODE=block_gale`, `GALE_CAP=1`, `GALE_BANKROLL=1000`.
-> 3. Recarregar: `docker compose up -d roleta-cloud` (recria com o novo env).
-> 4. Verificar: `curl :8766/api/strategy` + últimas decisões com **N=14** e sem erros nos logs.
-> Reverter = remover as flags (volta a 21# flat) — sem risco.
+> **Estratégia de ativação (sem `.env` no servidor):** o deploy faz `git reset --hard origin/main`,
+> então qualquer `.env`/compose editado à mão no host é revertido. A ativação persistente vive nos
+> **defaults do `docker-compose.yml` versionado** (`${VAR:-default}`), mesmo padrão de `SDA_REGIONS_V4`
+> e `SDA_STAKING_MODE`. Rollback = host env (`SDA_BET_PAIR=full`+`SDA_STAKING_MODE=flat`) + redeploy, ou `git revert`.
+
+### 17.5 3ª sprint de auditoria (wiring) — bug latente corrigido
+Code-review dedicado ao acoplamento (7 pontos: direção, shadow_green, store/inject, composição
+INV-3, persistência, re-entrância, exception-safety). **1 bug genuíno (latente):**
+`_engine_resolve` alimentava `block_gale.on_result` com `shadow_green` recomputado (`dist_min<=3`)
+em vez do **hit real** — diverge no fallback de calibração (N=21, raio 10) e geometrias
+não-radius-3, corrompendo a contagem 2-de-4 e (com `cap>1`) o stake real. **Fix:** threading do
+`hit_result` real (`message_handler.py:344` → `_engine_resolve(pending, hit_result)`) para
+`on_result`; `c_selection.feedback` permanece por distância. Regressão:
+`test_block_gale_uses_real_hit_not_dist_min` + `test_resolve_fallback_to_shadow_when_hit_none`.
+Demais 6 pontos: **corretos** (direção sem off-by-one, persistência round-trip, metas reset por spin,
+INV-3 como `min()`, byte-idêntico no fluxo de dinheiro com flags OFF).
+
+### 17.6 Go-live via compose versionado
+`docker-compose.yml` (env defaults) passa a ativar a estrutura nova:
+`SDA_BET_PAIR=${SDA_BET_PAIR:-var_c1c2_c3}`, `SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}`,
+`GALE_CAP=${GALE_CAP:-1}`, `GALE_BANKROLL=${GALE_BANKROLL:-1000}`,
+`GALE_ONLY_AFTER_GREEN=${GALE_ONLY_AFTER_GREEN:-0}`, `C_SELECTION_AUTO_PROMOTE=${C_SELECTION_AUTO_PROMOTE:-0}`.
+Deploy: push em `main` → `systemctl start roleta-deploy.service` (fetch+reset+build+`up -d`) → o
+container recria lendo os novos defaults. **Verificação:** `curl :8766/api/strategy` + últimas
+decisões com **N=14** e overlay `block_gale`/`c_selection`, sem erros nos logs.
 update (214-229); atribuição/DNA `hit_region` (291-327); `analyze()` + INV-3 + `staking_mode`
 (415-515); `get_gale` (425-431); overlay `sugestao` (744-778); broadcast `trace` com
 `martingale_cw/ccw` (782-815).
