@@ -160,6 +160,10 @@ class TestStaticSelect:
         eng = CSelectionEngine(radius=3)
         sel = eng.static_select("horario", [7], "c2c3", WHEEL)
         assert "fallback" in sel.reason and len(sel.numbers) >= 1
+        assert sel.chosen == "C2" and sel.pair == ("C2", "C3")
+        # fallback respeita o par pedido (c1c3 -> C1)
+        sel1 = eng.static_select("horario", [7], "c1c3", WHEEL)
+        assert sel1.chosen == "C1" and sel1.pair == ("C1", "C3")
 
     def test_tolerates_none_distances(self):
         # issue#2: _attribute_hit_region poe dist_c2/c3=None (chave existe!) -> abs(None) quebrava

@@ -264,9 +264,10 @@ class CSelectionEngine:
         """
         if not centers or len(centers) < 3:
             base = centers[0] if centers else 0
+            chosen = "C1" if pair == "c1c3" else "C2"
             nums = coverage_numbers(base, base, wheel, self.radius)
             return CSelection(
-                chosen="C2", pair=("C2", "C3"), numbers=nums, centers=[base, base],
+                chosen=chosen, pair=(chosen, "C3"), numbers=nums, centers=[base, base],
                 rule=f"static_{pair}", scoreboard={}, confidence=0.0,
                 reason="fallback:<3 centros", freeze_candidates={},
             )
