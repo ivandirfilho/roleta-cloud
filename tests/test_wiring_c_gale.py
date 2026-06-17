@@ -66,6 +66,30 @@ class TestSelectionWiring:
         h._engine_apply_selection(r)
         assert len(r.numbers) == 21
 
+    def test_static_c2c3_fixes_pair_to_14(self):
+        # Decisao 17/06: par ESTATICO C2+C3 fixo (sem voto)
+        os.environ["SDA_BET_PAIR"] = "c2c3"
+        h = _handler()
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) <= 14
+        assert h._cs_meta is not None
+        assert h._cs_meta["chosen"] == "C2"          # sempre C2 (fixo)
+        assert h._cs_meta["rule"] == "static_c2c3"
+        assert h._cs_meta["freeze"] == {}            # sem shadow -> sem feedback
+
+    def test_static_c2c3_is_invariant_to_history(self):
+        # Nao varia: mesma cobertura independente do historico de atribuicoes
+        os.environ["SDA_BET_PAIR"] = "c2c3"
+        h = _handler()
+        gs = h.game_state
+        gs.c_attr_cw.append({"dist_c1": 1, "dist_c2": 15, "dist_c3": 9})  # "tendencia C1"
+        r1 = _Result(list(range(21)), [0, 5, 26]); h._engine_apply_selection(r1)
+        c1 = h._cs_meta["chosen"]; n1 = sorted(r1.numbers)
+        r2 = _Result(list(range(21)), [0, 5, 26]); h._engine_apply_selection(r2)
+        assert h._cs_meta["chosen"] == c1 == "C2"    # ignora "tendencia", fica em C2
+        assert sorted(r2.numbers) == n1
+
 
 class TestStakeWiring:
     def test_flat_default_keeps_stake(self):

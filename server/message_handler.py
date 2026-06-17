@@ -92,20 +92,25 @@ class MessageHandler:
         return "cw" if d in ("cw", "horario") else "ccw"
 
     def _engine_apply_selection(self, result) -> None:
-        """SDA_BET_PAIR=var_c1c2_c3: substitui a cobertura por {C1|C2, C3} = 14#.
+        """SDA_BET_PAIR: var_c1c2_c3 (voto C1/C2 + C3 fixo) OU c2c3/c1c3 (par
+        ESTÁTICO fixo, sem voto). Substitui a cobertura por {C?, C3} = 14#.
         Mantém details['centers']=3 (continuidade de DNA/atribuição). Stasha _cs_meta."""
         self._cs_meta = None
         try:
             from app_config.settings import bet_pair_mode
-            if bet_pair_mode() != "var_c1c2_c3":
+            mode = bet_pair_mode()
+            if mode not in ("var_c1c2_c3", "c1c3", "c2c3"):
                 return
             centers = list((getattr(result, "details", {}) or {}).get("centers") or [])
             if len(centers) < 3:
                 return
             gs = self.game_state
-            hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
-            sel = gs.c_selection_engine.select(
-                gs.target_direction, centers, hist, roulette.WHEEL_SEQUENCE)
+            eng = gs.c_selection_engine
+            if mode == "var_c1c2_c3":
+                hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
+                sel = eng.select(gs.target_direction, centers, hist, roulette.WHEEL_SEQUENCE)
+            else:
+                sel = eng.static_select(gs.target_direction, centers, mode, roulette.WHEEL_SEQUENCE)
             if sel.numbers:
                 result.numbers = list(sel.numbers)
             self._cs_meta = {

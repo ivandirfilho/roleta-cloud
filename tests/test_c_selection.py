@@ -129,6 +129,38 @@ class TestEngine:
         assert sel.chosen in ("C1", "C2")
         eng.feedback("horario", sel.freeze_candidates, {"dist_c1": 2})  # sem c2/c3
 
+
+class TestStaticSelect:
+    """Par estático fixo (decisão 17/06: c2c3 fixo em vez do voto)."""
+
+    def test_c2c3_picks_c2_and_c3_union(self):
+        eng = CSelectionEngine(radius=3)
+        sel = eng.static_select("horario", [0, 5, 26], "c2c3", WHEEL)
+        assert sel.chosen == "C2"
+        assert sel.pair == ("C2", "C3")
+        assert sel.rule == "static_c2c3"
+        assert sel.freeze_candidates == {}            # sem shadow -> sem feedback
+        assert sel.numbers == coverage_numbers(5, 26, WHEEL, 3)
+
+    def test_c1c3_picks_c1_and_c3_union(self):
+        eng = CSelectionEngine(radius=3)
+        sel = eng.static_select("anti-horario", [0, 5, 26], "c1c3", WHEEL)
+        assert sel.chosen == "C1"
+        assert sel.numbers == coverage_numbers(0, 26, WHEEL, 3)
+
+    def test_static_is_deterministic_and_stateless(self):
+        # sem variar: mesma entrada -> mesma saída; não toca o estado dos candidatos
+        eng = CSelectionEngine(radius=3)
+        a = eng.static_select("horario", [0, 5, 26], "c2c3", WHEEL)
+        b = eng.static_select("horario", [0, 5, 26], "c2c3", WHEEL)
+        assert a.numbers == b.numbers and a.chosen == b.chosen == "C2"
+        assert eng._dirs["cw"]["candidates"]["vote_k3_nonc3"].n == 0
+
+    def test_static_fallback_under_3_centers(self):
+        eng = CSelectionEngine(radius=3)
+        sel = eng.static_select("horario", [7], "c2c3", WHEEL)
+        assert "fallback" in sel.reason and len(sel.numbers) >= 1
+
     def test_tolerates_none_distances(self):
         # issue#2: _attribute_hit_region poe dist_c2/c3=None (chave existe!) -> abs(None) quebrava
         eng = CSelectionEngine(radius=3)

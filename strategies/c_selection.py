@@ -248,6 +248,38 @@ class CSelectionEngine:
             freeze_candidates=freeze,
         )
 
+    # ---- seleção estática (par fixo, sem voto) ----
+    def static_select(
+        self,
+        direction: str,
+        centers: List[int],
+        pair: str,
+        wheel: List[int],
+    ) -> CSelection:
+        """Par ESTÁTICO {C1|C2, C3} fixo — SEM voto e SEM shadow.
+
+        Decisão 17/06: o voto C1/C2 não rendeu (resultados desfavoráveis); volta-se
+        ao melhor par estático do estudo (C2+C3). `pair` ∈ {'c1c3','c2c3'}.
+        `freeze_candidates={}` ⇒ o caller não dispara feedback/promoção (par é fixo).
+        """
+        if not centers or len(centers) < 3:
+            base = centers[0] if centers else 0
+            nums = coverage_numbers(base, base, wheel, self.radius)
+            return CSelection(
+                chosen="C2", pair=("C2", "C3"), numbers=nums, centers=[base, base],
+                rule=f"static_{pair}", scoreboard={}, confidence=0.0,
+                reason="fallback:<3 centros", freeze_candidates={},
+            )
+        c1, c2, c3 = centers[0], centers[1], centers[2]
+        chosen = "C1" if pair == "c1c3" else "C2"
+        c_win = c1 if chosen == "C1" else c2
+        nums = coverage_numbers(c_win, c3, wheel, self.radius)
+        return CSelection(
+            chosen=chosen, pair=(chosen, "C3"), numbers=nums, centers=[c_win, c3],
+            rule=f"static_{pair}", scoreboard={}, confidence=1.0,
+            reason=f"par estatico {chosen}+C3 (sem voto)", freeze_candidates={},
+        )
+
     # ---- feedback ----
     def feedback(
         self,
