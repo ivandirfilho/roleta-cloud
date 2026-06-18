@@ -156,17 +156,21 @@ def bet_pair_mode() -> str:
 
 
 def force17_exact_enabled() -> bool:
-    """force17: completa a cobertura para EXATAMENTE 17 números (default ON).
+    """force17: completa a cobertura para EXATAMENTE 17 números. **Default OFF**
+    (18/06, tarde — realinhado ao estudo).
 
-    Pedido do operador ("apostar sempre 17 números"). Quando a sobreposição das 3
-    regiões (C2-7 ∪ C3-5 ∪ C1=ForceLast-5) reduz a união abaixo de 17, adiciona os
-    números não-cobertos mais próximos até 17 (estende as regiões para fora — NÃO
-    move os centros, preserva o ForceLast). OFF (SDA_FORCE17_EXACT=0) volta à união
-    real ~15 do estudo (analise_400, que mostrou a união ligeiramente melhor que
-    forçar disjunção — edge modesto/não-conclusivo). Lido por chamada (toggle runtime).
+    O estudo `analise_400_junho.md` (L940/L985) é explícito: a estratégia vencedora
+    aposta a **união real ~15** (sobreposição PERMITIDA e BENÉFICA — reduz N, baixa o
+    breakeven de 47,2% p/ 42,8%); **forçar a cobertura a 17 PIORA** (alarga a aposta,
+    sobe o breakeven). Por isso o default fiel ao estudo é **OFF (união ~15)**.
+
+    ON (`SDA_FORCE17_EXACT=1`) é **opt-in** p/ consistência visual de "sempre 17
+    números": quando o overlap reduz a união abaixo de 17, adiciona os números
+    não-cobertos mais próximos até 17 (estende as regiões; não move centros). Custo:
+    breakeven +4,4 pontos (42,8%→47,2%). Lido por chamada (toggle runtime).
     """
     import os
-    return os.environ.get("SDA_FORCE17_EXACT", "1").strip().lower() in ("1", "true", "on")
+    return os.environ.get("SDA_FORCE17_EXACT", "0").strip().lower() in ("1", "true", "on")
 
 
 def gale_only_after_green() -> bool:

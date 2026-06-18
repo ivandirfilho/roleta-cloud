@@ -459,9 +459,12 @@ união validada permanece um subconjunto; nunca remove número validado.
 `handle_new_result`: **18/18 decisões APOSTAR = N=17** (distribuição `{17: 18}`).
 
 ### 12.3 Trade-off e rollback
-- **ON (default):** sempre 17 — atende o pedido do operador; desvia levemente da união ~15 do estudo
-  (edge união-vs-17 é **modesto e não-conclusivo**: p≈0,13, roda uniforme; o padding é aditivo).
-- **OFF (`SDA_FORCE17_EXACT=0`):** volta à união real ~15 (comportamento validado do estudo) — 1 env + redeploy.
+> ⚠️ **ATUALIZAÇÃO (levantamento C1, `resposta_estruturada_c1_junho.md`):** o default de `SDA_FORCE17_EXACT`
+> foi **revertido para OFF (união ~15)** após confirmar no estudo (L940) que **forçar 17 PIORA o breakeven**
+> (42,8%→47,2%) — contradiz a base de lucro (cobertura menor). O EXATO virou **opt-in**.
+
+- **OFF (novo default):** **união ~15** — fiel ao estudo (breakeven 42,8%, cobertura enxuta). Cobertura varia 12–17.
+- **ON (`SDA_FORCE17_EXACT=1`):** opt-in p/ "sempre 17" (consistência visual), custo breakeven +4,4pts.
 - **Testes:** `TestForce17Exact` (5) + wiring exato (3); suíte **566 passed**.
 
 > **Resumo:** a variação era a **geometria de união** (correta/validada). Atendendo ao pedido de "sempre
