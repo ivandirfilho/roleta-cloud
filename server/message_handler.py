@@ -120,7 +120,10 @@ class MessageHandler:
                 raw = getattr(self.strategy, "cw_history" if dk == "cw" else "ccw_history", []) or []
                 last_results = [int(h[1]) for h in list(raw)[-2:]
                                 if isinstance(h, (list, tuple)) and len(h) >= 2]
-                sel = eng.force_select(gs.target_direction, centers, last_results, roulette.WHEEL_SEQUENCE)
+                from app_config.settings import force17_exact_enabled
+                tn = 17 if force17_exact_enabled() else None
+                sel = eng.force_select(gs.target_direction, centers, last_results,
+                                       roulette.WHEEL_SEQUENCE, target_n=tn)
             else:
                 sel = eng.static_select(gs.target_direction, centers, mode, roulette.WHEEL_SEQUENCE)
             if sel.numbers:
@@ -695,12 +698,19 @@ class MessageHandler:
                 mg = self.game_state.target_martingale
                 mg.level = 1
                 center = self.game_state.last_number
+                # force17-exato: o fallback de calibração também respeita "sempre 17"
+                # (raio 8 = 17#); senão mantém o histórico N=21 (raio 10).
+                try:
+                    from app_config.settings import bet_pair_mode, force17_exact_enabled
+                    _fb_radius = 8 if (bet_pair_mode() == "force17" and force17_exact_enabled()) else 10
+                except Exception:  # noqa: BLE001
+                    _fb_radius = 10
                 fallback_nums = sorted(
-                    self.strategy.get_neighbors(center, 10, roulette.WHEEL_SEQUENCE)
+                    self.strategy.get_neighbors(center, _fb_radius, roulette.WHEEL_SEQUENCE)
                 )
                 acao = "APOSTAR"
                 action_reason = (
-                    f"Calibração ({self.game_state.target_timeline.size} força no sentido) → N=21 G1"
+                    f"Calibração ({self.game_state.target_timeline.size} força no sentido) → N={len(fallback_nums)} G1"
                 )
                 final_numbers = list(fallback_nums)
                 final_center = center

@@ -387,16 +387,87 @@ dispara shadow, persistência sem poluição, INV-3 intacto, payload serializáv
   **559 passed**, 9 skipped, 1 xfailed; `content.js`/`app.js` syntax OK.
 - **Front-end (overlay da Escuta):** ✅ mostra as **3 regiões rotuladas c2/c3/c1** (numerinho embaixo de
   cada centro) + os **N números** + **🟢/🔴 + sentido**; bug de 1ª renderização (BUG-F1) corrigido.
-- **Produção (servidor Debian):** ⏳ o go-live está **no compose versionado** (`SDA_BET_PAIR=force17`), mas
-  só entra no ar no **próximo deploy** (`git push` em `main` → `roleta-deploy.service`). Até lá a produção
-  segue em `c2c3` (14#). **Os 17# ficam "live" após o deploy** — passo de produção que depende de
-  confirmação (push aciona o servidor real).
+- **Produção (servidor Debian):** ✅ **GO-LIVE EXECUTADO** — PR **#14** mergeado em `main` (`7e477df`),
+  **CI verde** (lint + suíte em Python 3.11/3.12/3.13). O `roleta-deploy.timer` (a cada 2 min) faz
+  `git reset --hard origin/main` + `docker compose build` + `up -d` (healthcheck-gated, **auto-rollback** se
+  falhar), recriando o container com `SDA_BET_PAIR=force17`. Deploy leve (build cacheado), mínima interrupção.
 
 > **Conclusão Auditoria #3:** front-ends auditados e **corrigidos** (4 bugs); fluxo recepção→retorno
-> **validado live e sem bugs remanescentes**; sistema **100% funcional** no código. A ativação em produção
-> é o deploy (1 push), documentado na §7.
+> **validado live e sem bugs remanescentes**; sistema **100% funcional** e **go-live executado** (PR #14).
+
+### 11.6 Go-live executado (18/06) — verificação e passos do operador
+**Servidor (auto-deploy via timer; verificar quando concluir, ~2–3 min após o merge):**
+```bash
+ssh root@187.45.181.75
+docker exec roleta-cloud env | grep SDA_BET_PAIR              # → force17
+curl -fsS http://localhost:8766/health                        # v4.x healthy
+curl -fsS http://localhost:8766/metrics | grep force17_active # → roleta_force17_active 1
+docker exec roleta-cloud sqlite3 /app/data/decisions.db \
+  "SELECT id,direction,json_array_length(sda_numbers) FROM decisions ORDER BY id DESC LIMIT 5;"  # N≤17
+tail -n 30 /var/log/roleta-deploy.log                          # log do pull-deploy
+```
+**Extensão (Escuta — roda no navegador do operador, NÃO é deployada pelo servidor):**
+> ⚠️ **Recarregar a extensão** para pegar o `content.js` novo: `chrome://extensions` → **Recarregar**
+> "Escuta Beat". Só então o overlay passa a renderizar as 3 regiões rotuladas + 17 números + veredito.
+**Dashboard Glass Box** (`frontend/`, servido pelo container): atualiza sozinho no deploy.
+**Rollback:** `SDA_BET_PAIR=c2c3` (ou `full`) no host + redeploy, ou `git revert` do commit do compose.
 
 ---
 
 *Auditoria #3 registrada em 18/06/2026. Evidência: captura live do `sugestao` via `handle_new_result`;
 suíte 559 passed. Correções: `content.js` (BUG-F1/F2), `message_handler.py` (BUG-S1), `game.py` (BUG-D1).*
+
+---
+
+## 12. 🔢 Diagnóstico "por que N varia" + force17-EXATO (sempre 17) — 18/06
+
+> Pergunta do operador: *"a lógica é sempre apostar 17 números? o que está ocorrendo que essa numeração
+> está variando?"*. Diagnóstico com dados reais (`data/decisions.db`) + correção opcional (default ON).
+
+### 12.1 Causa da variação (não era bug — era a geometria)
+`coverage3` (`strategies/c_selection.py`) devolve a **união de conjuntos** das 3 regiões:
+```
+aposta = vizinhos(C2,±3)=7  ∪  vizinhos(C3,±2)=5  ∪  vizinhos(C1=ForceLast,±2)=5   # 17 nominal
+```
+A roda tem 37 casas; quando os 3 centros caem **perto**, as vizinhanças **se sobrepõem** e os repetidos
+contam **uma vez** → N < 17. Distribuição real observada (decisões force17 de teste):
+
+| N | causa |
+|---|---|
+| **12–17** | force17 normal — varia com o **overlap** entre C2/C3/C1 (ex.: C2=10,C3=17,C1=5 → união 12; C2=0,C3=10,C1=22 → 17) |
+| **21** | calibração/2ª jogada (SDA17 com 1 só centro → fallback `vizinhos(centro,10)`) |
+| **0→PULAR** | 1ª jogada de cada sentido (cold-start, sem dados) |
+
+Isso era o comportamento **validado** (`analise_400` PARTE XIV: apostar a união ~15; **mover** o C1 para
+desfazer overlap **piora** — quebra o sinal balístico do ForceLast).
+
+### 12.2 Correção: `SDA_FORCE17_EXACT` (default ON) — sempre 17
+O operador pediu **17 fixos**. Solução que honra o pedido **sem mover os centros** (preserva o ForceLast):
+quando o overlap reduz a união abaixo de 17, **estende as regiões para fora** adicionando os números
+não-cobertos **mais próximos** de qualquer centro, até **exatamente 17** (`pad_to_n`). É **aditivo** — a
+união validada permanece um subconjunto; nunca remove número validado.
+
+| Componente | Mudança |
+|---|---|
+| `strategies/c_selection.py` | `pad_to_n(nums, centers, wheel, n)` + `force_select(..., target_n)` (padding p/ N exato) |
+| `app_config/settings.py` | `force17_exact_enabled()` — env `SDA_FORCE17_EXACT` (default `1`) |
+| `server/message_handler.py` | dispatch passa `target_n=17`; fallback de calibração vira **17** (raio 8) quando exato |
+| `docker-compose.yml` | `SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-1}` |
+
+**Cobre todos os casos de aposta:** 3 centros (overlap→17), aquecendo (C2∪C3→17), calibração (21→17).
+Único caso sem 17 = **1ª jogada por sentido** (zero dados → PULAR, INV-3). Verificação e2e via
+`handle_new_result`: **18/18 decisões APOSTAR = N=17** (distribuição `{17: 18}`).
+
+### 12.3 Trade-off e rollback
+- **ON (default):** sempre 17 — atende o pedido do operador; desvia levemente da união ~15 do estudo
+  (edge união-vs-17 é **modesto e não-conclusivo**: p≈0,13, roda uniforme; o padding é aditivo).
+- **OFF (`SDA_FORCE17_EXACT=0`):** volta à união real ~15 (comportamento validado do estudo) — 1 env + redeploy.
+- **Testes:** `TestForce17Exact` (5) + wiring exato (3); suíte **566 passed**.
+
+> **Resumo:** a variação era a **geometria de união** (correta/validada). Atendendo ao pedido de "sempre
+> 17", o force17-exato completa a cobertura para 17 estendendo as regiões (sem mover centros), reversível
+> por env. A 1ª jogada de cada sentido (cold-start) permanece PULAR por falta de dados.
+
+---
+
+*Atualizado 18/06/2026 com force17-EXATO (`SDA_FORCE17_EXACT`, default ON). Suíte 566 passed.*

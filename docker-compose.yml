@@ -57,6 +57,11 @@ services:
       # var_c1c2_c3 (voto, DESATIVADO). "full"=3 centros (21#); c1c3/c2c3 estáticos.
       # Rollback: SDA_BET_PAIR=c2c3 (ou full) no host + redeploy, ou git revert.
       - SDA_BET_PAIR=${SDA_BET_PAIR:-force17}
+      # force17 "sempre 17 números" (18/06, pedido do operador): completa a união
+      # para EXATAMENTE 17 quando o overlap das 3 regiões a reduz (estende as regiões
+      # para fora, SEM mover os centros — preserva o ForceLast). Default ON. Voltar à
+      # união real ~15 do estudo (analise_400): SDA_FORCE17_EXACT=0 no host + redeploy.
+      - SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-1}
       # Teto do block-gale: 1=flat (seguro, default). Subir é opt-in de risco.
       - GALE_CAP=${GALE_CAP:-1}
       # Banca de referência para o solvency-guard do block-gale (R$).
