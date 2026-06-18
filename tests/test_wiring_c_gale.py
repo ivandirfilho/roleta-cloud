@@ -30,7 +30,8 @@ class _Result:
 @pytest.fixture(autouse=True)
 def _clean_env():
     saved = {k: os.environ.get(k) for k in
-             ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "GALE_ONLY_AFTER_GREEN")}
+             ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "GALE_ONLY_AFTER_GREEN",
+              "SDA_FORCE17_EXACT")}
     for k in saved:
         os.environ.pop(k, None)
     yield
@@ -152,6 +153,25 @@ class TestForce17Wiring:
         r = _Result(list(range(21)), [10, 17, 5])
         h._engine_apply_selection(r)
         assert len(r.numbers) == 21 and h._cs_meta is None
+
+    def test_force17_exact_on_gives_exactly_17(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        os.environ["SDA_FORCE17_EXACT"] = "1"
+        h = _handler()
+        h.strategy = _StrategyStub(cw=[(0, 10), (0, 17)])  # ForceLast com overlap
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) == 17 and len(set(r.numbers)) == 17
+        assert h._cs_meta["force17"]["coverage_n"] == 17
+
+    def test_force17_exact_off_keeps_union(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        os.environ["SDA_FORCE17_EXACT"] = "0"
+        h = _handler()
+        h.strategy = _StrategyStub(cw=[(0, 32), (0, 15)])
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) <= 16   # união real (overlap), sem padding
 
 
 class TestB1NonEmptyCoverage:

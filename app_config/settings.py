@@ -155,6 +155,20 @@ def bet_pair_mode() -> str:
     return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17") else "full"
 
 
+def force17_exact_enabled() -> bool:
+    """force17: completa a cobertura para EXATAMENTE 17 números (default ON).
+
+    Pedido do operador ("apostar sempre 17 números"). Quando a sobreposição das 3
+    regiões (C2-7 ∪ C3-5 ∪ C1=ForceLast-5) reduz a união abaixo de 17, adiciona os
+    números não-cobertos mais próximos até 17 (estende as regiões para fora — NÃO
+    move os centros, preserva o ForceLast). OFF (SDA_FORCE17_EXACT=0) volta à união
+    real ~15 do estudo (analise_400, que mostrou a união ligeiramente melhor que
+    forçar disjunção — edge modesto/não-conclusivo). Lido por chamada (toggle runtime).
+    """
+    import os
+    return os.environ.get("SDA_FORCE17_EXACT", "1").strip().lower() in ("1", "true", "on")
+
+
 def gale_only_after_green() -> bool:
     """Block-gale: só coloca aposta (stake real) após um green. Default OFF.
 

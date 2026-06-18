@@ -3,6 +3,7 @@ from strategies.c_selection import (
     CSelectionEngine,
     coverage_numbers,
     coverage3,
+    pad_to_n,
     force_last_center,
     _signed_dist,
     newcombe_diff_ci,
@@ -273,3 +274,40 @@ class TestForceSelect:
         sel = eng.force_select("anti-horario", [10, 17, 5], [32, 15], WHEEL)
         regs = {r["label"]: r["radius"] for r in sel.scoreboard["regioes"]}
         assert regs == {"c2": 3, "c3": 2, "c1": 2}
+
+
+class TestForce17Exact:
+    """force17 'sempre 17' (SDA_FORCE17_EXACT) — completa a união por padding."""
+
+    def test_pad_to_n_reaches_exactly_n_and_is_additive(self):
+        base = coverage3(10, 17, 5, WHEEL)            # overlap -> <17
+        assert len(base) < 17
+        padded = pad_to_n(base, [10, 17, 5], WHEEL, 17)
+        assert len(padded) == 17
+        assert set(base).issubset(set(padded))         # aditivo: não remove validados
+        assert len(set(padded)) == 17                  # distintos
+
+    def test_pad_to_n_noop_when_already_n(self):
+        base = coverage3(0, 10, 22, WHEEL)            # disjunto -> 17
+        assert len(base) == 17
+        assert pad_to_n(base, [0, 10, 22], WHEEL, 17) == base
+
+    def test_force_select_exact_always_17_even_with_overlap(self):
+        eng = CSelectionEngine()
+        for centers, last in ([10, 17, 5], [32, 15]), ([21, 30, 28], [7, 28]):
+            sel = eng.force_select("anti-horario", centers, last, WHEEL, target_n=17)
+            assert len(sel.numbers) == 17 and len(set(sel.numbers)) == 17
+            assert sel.scoreboard["exact"] is True
+            assert sel.scoreboard["coverage_n"] == 17
+
+    def test_force_select_exact_pads_when_warming_up(self):
+        # <2 resultados (C1=None): C2∪C3 ~12-14 -> padded para 17
+        eng = CSelectionEngine()
+        sel = eng.force_select("horario", [10, 17, 5], [7], WHEEL, target_n=17)
+        assert len(sel.numbers) == 17
+        assert sel.scoreboard["regioes"][2]["status"] == "aquecendo"
+
+    def test_force_select_without_target_keeps_union(self):
+        eng = CSelectionEngine()
+        sel = eng.force_select("anti-horario", [10, 17, 5], [32, 15], WHEEL)
+        assert len(sel.numbers) < 17 and sel.scoreboard["exact"] is False

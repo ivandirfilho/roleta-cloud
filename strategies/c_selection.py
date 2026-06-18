@@ -146,6 +146,44 @@ def coverage3(
     return sorted(nums)
 
 
+def pad_to_n(nums: List[int], centers: List[int], wheel: List[int], n: int) -> List[int]:
+    """Completa a cobertura para EXATAMENTE ``n`` números, adicionando os números
+    NÃO-cobertos mais próximos (menor distância circular a QUALQUER centro) — i.e.,
+    **estende as regiões para fora, SEM mover os centros** (preserva o ForceLast).
+
+    Motivação (operador): "apostar sempre 17 números". Quando a sobreposição das 3
+    regiões reduz a união abaixo de 17, em vez de mover um centro para desfazer o
+    overlap (o estudo `analise_400` PARTE XIV mostrou que MOVER piora), apenas
+    adicionamos as casas adjacentes mais próximas até atingir ``n``. Aditivo: a
+    união validada permanece um subconjunto. ``len(nums) >= n`` ⇒ inalterado
+    (não ocorre com 7+5+5≤17). Defensivo a roda vazia / centros fora da roda.
+    """
+    cur = set(nums)
+    if len(cur) >= n or not wheel:
+        return sorted(cur)
+    valid = [c for c in centers if c in wheel]
+    if not valid:
+        return sorted(cur)
+    size = len(wheel)
+    cpos = [wheel.index(c) for c in valid]
+
+    def _mind(num: int) -> int:
+        i = wheel.index(num)
+        best = size
+        for j in cpos:
+            d = abs(i - j)
+            best = min(best, min(d, size - d))
+        return best
+
+    extra = sorted((w for w in wheel if w not in cur),
+                   key=lambda x: (_mind(x), wheel.index(x)))
+    for w in extra:
+        if len(cur) >= n:
+            break
+        cur.add(w)
+    return sorted(cur)
+
+
 def _vote_window(history: List[Dict[str, Any]], k: int) -> str:
     """Voto das últimas `k` jogadas NÃO-C3. Retorna 'C1'|'C2'|'' (sem maioria estrita).
 
@@ -361,6 +399,7 @@ class CSelectionEngine:
         centers: List[int],
         last_results: List[int],
         wheel: List[int],
+        target_n: Optional[int] = None,
     ) -> CSelection:
         """Cobertura **17#** = C2(centers[1], r3) ∪ C3(centers[2], r2) ∪ **C1=ForceLast**(r2).
 
@@ -371,16 +410,21 @@ class CSelectionEngine:
         de ``cw_history``/``ccw_history``). Determinístico/stateless: ``freeze={}``
         ⇒ o caller NÃO dispara feedback/promoção (sem shadow).
 
-        Saída ``centers = [C1_exibido, C2, C3]`` para rotulagem c1/c2/c3 no front;
-        ``scoreboard`` carrega ``regioes`` rotuladas, ``c1_force`` e ``coverage_n``.
-        Fallback <3 centros / <2 resultados ⇒ cobertura sem C1 (NUNCA vazio — B1).
+        ``target_n`` (ex.: 17): completa a união para EXATAMENTE esse total quando o
+        overlap a reduziu (``pad_to_n`` — estende as regiões, sem mover centros).
+        ``None`` ⇒ união real ~15 do estudo. Saída ``centers = [C1_exibido, C2, C3]``
+        para rotulagem c1/c2/c3; ``scoreboard`` carrega ``regioes``, ``c1_force``,
+        ``coverage_n`` e ``exact``. Fallback <3 centros ⇒ cobertura do centro (NUNCA vazio — B1).
         """
         if not centers or len(centers) < 3:
             base = centers[0] if centers else 0
             nums = coverage_numbers(base, base, wheel, self.radius)
+            if target_n:
+                nums = pad_to_n(nums, [base], wheel, target_n)
             return CSelection(
                 chosen="C1", pair=("C1", "C3"), numbers=nums, centers=[base, base],
-                rule="force17", scoreboard={"mode": "force17", "coverage_n": len(nums)},
+                rule="force17", scoreboard={"mode": "force17", "coverage_n": len(nums),
+                                            "exact": bool(target_n)},
                 confidence=0.0, reason="fallback:<3 centros", freeze_candidates={},
             )
         c1_geo, c2, c3 = centers[0], centers[1], centers[2]
@@ -390,8 +434,13 @@ class CSelectionEngine:
         nums = coverage3(c2, c3, c1_force, wheel)
         c1_status = "ok" if c1_force is not None else "aquecendo"
         disp_c1 = c1_force if c1_force is not None else c1_geo
+        if target_n:
+            # estende para EXATAMENTE target_n ao redor dos centros REAIS da cobertura
+            pad_centers = [x for x in (c2, c3, c1_force) if x is not None]
+            nums = pad_to_n(nums, pad_centers, wheel, target_n)
         scoreboard = {
             "mode": "force17",
+            "exact": bool(target_n),
             "c1_force": {
                 "value": c1_force, "forca": forca, "status": c1_status,
                 "geo": c1_geo, "radius": R_C1_FORCE17,
@@ -408,7 +457,7 @@ class CSelectionEngine:
             chosen="C1", pair=("C1", "C3"), numbers=nums,
             centers=[disp_c1, c2, c3], rule="force17", scoreboard=scoreboard,
             confidence=1.0 if c1_force is not None else 0.5,
-            reason=f"force17 C1=ForceLast({c1_force}) f={forca} {c1_status}",
+            reason=f"force17 C1=ForceLast({c1_force}) f={forca} {c1_status} n={len(nums)}",
             freeze_candidates={},
         )
 
