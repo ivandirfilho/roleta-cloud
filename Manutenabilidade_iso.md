@@ -474,6 +474,36 @@ escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection
 > `tests/test_wiring_c_gale.py::{TestForce17Wiring, TestB1NonEmptyCoverage}` (8) +
 > `test_ws_overlay_contract.py` (direction) + suíte completa **557 passed, 9 skipped, 1 xfailed**.
 
+### F. Atualização 18/06 (tarde/noite) — force17-EXATO, realinhamento à UNIÃO e auditoria com servidor real
+
+1. **`SDA_FORCE17_EXACT` (opt-in, default OFF)** — `app_config/settings.py:force17_exact_enabled()` +
+   `strategies/c_selection.py:pad_to_n()` + `force_select(target_n=)`. ON completa a cobertura para
+   EXATAMENTE 17 (padding dos não-cobertos mais próximos, sem mover centros). **Default OFF = união ~15**,
+   pois o estudo (`analise_400` L940) prova que **forçar 17 PIORA o breakeven** (47,2% vs 42,8% da união);
+   a sobreposição é **benéfica** (reduz N). Saga: PR #15 (exato ON) → **PR #16 (realinhado a OFF/união)**.
+   Levantamento completo em `resposta_estruturada_c1_junho.md`.
+2. **Caveat de produto (documentado):** o motor entrega a **COBERTURA** (C1=ForceLast/17# união), **não o
+   EDGE**. O lucro do estudo (+2%/+5%) **exige disciplina do operador**: anti-only (horário abster, −EV),
+   após-red (driver do edge), stop-loss 15u, parar ~jogada 40. Seguir a sugestão crua nos 2 sentidos ≈ 0%.
+3. **Auditoria com acesso ao SERVIDOR REAL (18/06):** SSH `root@187.45.181.75` (host `xmaiajpvm`):
+   - **Git:** server HEAD = `8201ffa` (= origin/main = local). Sincronizado. Deploy log: `DEPLOY OK`,
+     `HEALTHCHECK ok (try 1)`, `FRONTEND sync ok -> /var/www/roleta`, `NGINX reload ok`, `ALEMBIC 0008 (head)`.
+   - **Container:** `roleta-cloud Up (healthy)`, **0 restarts**, **0 erros/tracebacks** nos logs. Health v4.4.1.
+     Env: `SDA_BET_PAIR=force17`, **`SDA_FORCE17_EXACT=0`**, `SDA_STAKING_MODE=block_gale`, `GALE_CAP=1`.
+     Métrica `roleta_force17_active=1.0`.
+   - **Dados reais (decisões pós-deploy ≥ 15:46 UTC):** N varia (12/14/17 — **união ativa**, fix confirmado).
+     **Hit real: horário 33,3% · anti 42,0%** — confirma empiricamente o **−EV do horário** do estudo (o
+     motor aposta ambos; o operador deve abster no horário).
+   - **Stack observabilidade no ar:** roleta-prometheus, roleta-grafana, roleta-alertmanager, roleta-cdc-worker,
+     roleta-pg (todos `healthy`). Nota benigna: deploy loga "orphan containers" (gerencia só `roleta-cloud`).
+4. **Recomendações operacionais (1 env cada, sem código):** `PROFIT_STOP_LOSS_UNITS=15` (estudo +5,5% vs
+   +1,4%); operar janela ~4–40 anti; abster no horário (`dir_bias`).
+
+> **Veredito da auditoria live:** servidor, git e deploy **100% atualizados e funcionais** (HEAD 8201ffa,
+> healthy, 0 erros, união ativa). 0 bugs (code-review + fuzz 25k casos). O único "gap" é **operacional/de
+> disciplina** (horário −EV + stop-loss 30u frouxo), não de software. Este `Manutenabilidade_iso.md` fica
+> atualizado com esta seção F.
+
 ---
 
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
