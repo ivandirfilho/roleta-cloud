@@ -37,14 +37,19 @@ class TestEngineOverlayFields:
     def test_ultimo_acerto_green_and_red(self):
         gs = _gs()
         gs.last_number = 26
+        gs.last_direction = "anti-horario"
         gs.last_hit_attribution = {"slot": "C2", "dist_min": 1}
         ua = gs.engine_overlay_fields()["ultimo_acerto"]
-        assert ua == {"slot": "C2", "green": True, "numero": 26}
+        # force17 (18/06): inclui o SENTIDO analisado (horário/anti-horário).
+        assert ua == {"slot": "C2", "green": True, "numero": 26,
+                      "direction": "anti-horario"}
 
         gs.last_number = 9
+        gs.last_direction = "horario"
         gs.last_hit_attribution = {"slot": "miss", "dist_min": 7}
         ua = gs.engine_overlay_fields()["ultimo_acerto"]
         assert ua["green"] is False and ua["numero"] == 9
+        assert ua["direction"] == "horario"
 
     def test_overlay_is_json_serializable(self):
         import json
@@ -53,6 +58,32 @@ class TestEngineOverlayFields:
         gs.last_number = 0
         gs.last_hit_attribution = {"slot": "C1"}
         json.dumps(gs.engine_overlay_fields())  # não deve levantar
+
+    def test_force17_regioes_and_dir_bias_in_dashboard_channel(self):
+        # force17 (18/06): canal trace/state_sync expõe regioes rotuladas + dir_bias.
+        gs = _gs()
+        gs.last_direction = "horario"   # target = anti-horario (ccw) -> favoravel
+        gs.last_force17_meta = {
+            "regioes": [
+                {"label": "c2", "center": 30, "radius": 3},
+                {"label": "c3", "center": 28, "radius": 2},
+                {"label": "c1", "center": 12, "radius": 2, "status": "ok"},
+            ],
+            "c1_force": {"value": 12, "forca": -7, "status": "ok"},
+            "coverage_n": 13,
+        }
+        out = gs.engine_overlay_fields()
+        assert out["force17"]["active"] is True
+        assert out["regioes"] == out["force17"]["regioes"]
+        assert [r["label"] for r in out["regioes"]] == ["c2", "c3", "c1"]
+        assert out["force17"]["coverage_n"] == 13
+        assert out["force17"]["dir_bias"] == "favoravel"   # target anti-horario
+        import json
+        json.dumps(out)  # serializável
+
+    def test_force17_absent_when_no_meta(self):
+        gs = _gs()
+        assert "force17" not in gs.engine_overlay_fields()  # aditivo
 
 
 class TestHeartbeatBlockGaleStake:

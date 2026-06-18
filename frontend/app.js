@@ -135,6 +135,7 @@ function handleStateSync(data) {
     // Par escolhido (C1+C3 / C2+C3) e veredito red/green do último spin (aditivos)
     if (data.c_selection) updateCSelection(data.c_selection);
     if (data.ultimo_acerto) updateVerdict(data.ultimo_acerto);
+    if (data.force17 || data.regioes) updateForce17(data.force17, data.regioes);
 
     // Update Performance (4 lists: sda17 + bet per direction)
     if (data.performance) updatePerformance4(data.performance);
@@ -243,6 +244,7 @@ function handleTrace(data) {
     // Par escolhido (C1+C3 / C2+C3) + veredito red/green (aditivos no trace)
     if (data.c_selection) updateCSelection(data.c_selection);
     if (data.ultimo_acerto) updateVerdict(data.ultimo_acerto);
+    if (data.force17 || data.regioes) updateForce17(data.force17, data.regioes);
 
     // Log
     const dir = data.spin.direcao === 'horario' ? '🔄' : '🔃';
@@ -384,9 +386,40 @@ function updateVerdict(ua) {
     const green = ua.green === true;
     el.resultVerdict.className = `result-verdict ${green ? 'green' : 'red'}`;
     const slot = ua.slot && ua.slot !== 'miss' ? ` em ${ua.slot}` : '';
+    // Sentido analisado (horário/anti-horário) junto do veredito (pedido do operador).
+    const dir = ua.direction === 'horario' ? ' · horário'
+              : (ua.direction ? ' · anti-horário' : '');
     el.resultVerdict.textContent = green
-        ? `✅ GREEN — ${ua.numero}${slot}`
-        : `❌ RED — ${ua.numero}`;
+        ? `✅ GREEN — ${ua.numero}${slot}${dir}`
+        : `❌ RED — ${ua.numero}${dir}`;
+}
+
+// force17: renderiza as 3 regiões rotuladas (c2/c3/c1) com o número central e o
+// rótulo pequeno embaixo, mais os números cobertos. Aditivo/defensivo.
+function updateForce17(f17, regioes) {
+    const body = document.getElementById('f17-body');
+    const cov = document.getElementById('f17-cov');
+    const bias = document.getElementById('f17-bias');
+    if (!body) return;
+    const regs = (regioes && regioes.length ? regioes : (f17 && f17.regioes) || []);
+    if (!regs.length) return;
+    const centros = regs.map(r => {
+        const warm = r.status === 'aquecendo' ? ' ⏳' : '';
+        const color = r.label === 'c1' ? '#ffd166' : (r.label === 'c2' ? '#06d6a0' : '#118ab2');
+        return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:0 10px;">`
+            + `<span style="font-size:26px;font-weight:bold;color:${color};line-height:1.1;">${r.center}${warm}</span>`
+            + `<span style="font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.8;">${r.label}</span>`
+            + `</div>`;
+    }).join('');
+    const nums = (state.lastResult && state.lastResult.numeros) || [];
+    const numsHTML = nums.length
+        ? `<div style="margin-top:8px;font-size:12px;opacity:0.85;line-height:1.6;">${nums.join(' · ')}</div>`
+        : '';
+    body.innerHTML = `<div style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centros}</div>${numsHTML}`;
+    if (cov && f17 && f17.coverage_n) cov.textContent = `(${f17.coverage_n}#)`;
+    if (bias && f17 && f17.dir_bias) {
+        bias.textContent = f17.dir_bias === 'favoravel' ? '✅ favorável' : '⚠️ desfavorável';
+    }
 }
 
 // Update all 4 performance lists (sda17 and bet per direction)

@@ -391,6 +391,91 @@ escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection
 
 ---
 
+## ADENDO 18/06/2026 — force17: C1=ForceLast + geometria 17# (3 regiões) + saída no front
+
+> Evolução da aposta de produção de **c2c3 (14#)** para **force17**: 3 regiões = **17 números** =
+> C2(±3,7) ∪ C3(±2,5) ∪ **C1=ForceLast**(±2,5). O front-end mostra os 3 centros rotulados **c2/c3/c1**
+> (numerinho embaixo de cada centro), os 17 números apostados a cada jogada, e o reflexo **verde/vermelho
+> + sentido** do resultado anterior. Base empírica: `analise_400_junho.md` PARTES VII–XV; spec:
+> `implantação_c1_proposta_nova_junho.md`; registro: `implantação_efetuada_17_junho.md`.
+
+### A. Capacidades NOVAS com impacto ISO
+
+1. **`force_select()` + `coverage3()` + `force_last_center()`** (`strategies/c_selection.py`): C1=ForceLast
+   1-passo (`WHEEL[(pos(r[-1]) + sdist(r[-2],r[-1])) % 37]`), cobertura 17# pela união real, **isolado por
+   sentido**, determinístico/stateless (`freeze={}`). Saída com 3 centros rotulados c2/c3/c1.
+2. **Modo `force17`** no enum `SDA_BET_PAIR` (`app_config/settings.py:141`); dispatch em
+   `_engine_apply_selection` (`server/message_handler.py`) lendo os 2 últimos `actual_result` do
+   `target_direction` (`cw_history/ccw_history[i][1]` — fix B4). Mantém `centers=3`.
+3. **Telemetria** `force17{regioes, c1_force, coverage_n, dir_bias}` + `ultimo_acerto{green, direction}`
+   nos canais `sugestao` e `trace`/`state_sync` (aditivo, retrocompatível).
+4. **Front-end**: overlay da extensão (`content.js`) e dashboard Glass Box (`frontend/`) renderizam as 3
+   regiões rotuladas, os 17 números e o veredito verde/vermelho + sentido analisado.
+5. **Observabilidade**: gauge `roleta_force17_active`.
+6. **Go-live** no `docker-compose.yml` (`SDA_BET_PAIR=${SDA_BET_PAIR:-force17}`).
+
+### B. Bugs corrigidos na auditoria pós-implantação (2 frentes)
+
+- **B1 — cobertura vazia (`sda_numbers=[]`, ~4% das decisões):** bug **pré-existente** bloqueante para
+  "apostar a cada jogada". **Fix:** `_ensure_nonempty_coverage()` — após a seleção, se a cobertura ficou
+  vazia mas há centros, emite a união (`coverage3` se 3, vizinhança se 1). Agnóstico de modo, dispara só no
+  caso quebrado (preserva byte-identidade). Regressão: `TestB1NonEmptyCoverage` (4).
+- **Auditoria #1 (10 frentes)** + **#2 (passo-a-passo e2e, SDA17 real, 24 spins):** **0 bugs funcionais**.
+  Verificados: fonte/timing/isolamento do ForceLast, alimentação do DB por sentido, consistência
+  `green==hit` (slot=miss só com hit=False), persistência sem poluição (`GameState` sem `__slots__`;
+  `last_force17_meta` transiente fora do `save()`), INV-3, overlay aditivo, byte-identidade com `full`.
+- **Nuances documentadas (não-bugs):** `ultimo_acerto.slot` usa centros geométricos (cosmético; veredito
+  correto); ForceLast reaquece pós-reset de dealer; calibração da 1ª oportunidade/sentido = PULAR (INV-3).
+- **Auditoria #3 (front-ends + fluxo recepção→retorno, captura live do `sugestao`):** **4 bugs corrigidos** —
+  **BUG-F1** (overlay-null na 1ª renderização: `const overlay` não reatribuído após `createOverlay` →
+  `TypeError`, não mostrava os números; `content.js`), **BUG-F2** (minimizado mostrava centros geométricos
+  em vez de force17; consistência), **BUG-S1** (fallback de calibração deixava `_cs_meta` force17 stale →
+  regiões+N=21 incoerentes; `message_handler.py`), **BUG-D1** (canal `trace`/`state_sync` sem `dir_bias`;
+  `game.py`). Cadeia server→background→content verificada (sem stripping de campos); `popup.js` não mostra
+  sugestões; `overlay.css` sem clip. **Sistema 100% funcional no código** (go-live em produção = próximo deploy).
+
+### C. Impacto ISO por característica
+
+- **Adequação Funcional (FS):** cobertura estruturalmente superior (17# breakeven 47% + C1 balístico de
+  menor variância) fiel ao estudo; **B1 corrigido** (a indicação nunca cobre zero números). INV-3 intacto.
+- **Confiabilidade (Rel):** force17 stateless/determinístico (sem shadow/feedback); default-safe (`full` =
+  byte-idêntico); rede de segurança nunca-vazio; persistência round-trip sem novos campos.
+- **Usabilidade (Usab):** salto de UX — 3 regiões rotuladas + 17 números + reflexo verde/vermelho **com o
+  sentido**; operador opera e audita em tempo real (overlay + dashboard).
+- **Manutenibilidade (Maint):** dispatch explícito (4 modos + no-op) + 19 testes; `message_handler.py`
+  ~+45 LOC (Gap D.1 inalterado em natureza).
+
+### D. Scorecard — delta (18/06, vs ADENDO 17/06 noite)
+
+| # | Característica | 17/06 noite | 18/06 | Justificativa |
+|:-:|---|:---:|:---:|---|
+| 1 | Adequação Funcional | 8.8 | **8.9** | geometria validada (17# + ForceLast) + **B1 corrigido** (indicação nunca-vazia) |
+| 4 | Usabilidade | 8.5 | **8.7** | 3 regiões rotuladas + veredito verde/vermelho com sentido (overlay + dashboard) |
+| 5 | Confiabilidade | 8.8 | **8.8** | motor stateless/determinístico; 2 auditorias sem bugs funcionais |
+| 7 | Manutenibilidade | 8.7 | **8.7** | dispatch claro + 19 testes; débito de LOC estável |
+
+> **Nota geral 8.5 → 8.6/10** — ganho de Adequação Funcional (geometria validada + B1) e Usabilidade
+> (saída rica no front), com auditorias limpas. Risco contido (default-safe, reversível por env).
+
+### E. Obrigações de manutenção (deltas)
+
+1. **force17 é stateless** — `force_select` lê `cw/ccw_history[i][1]` (resultado bruto), nunca `c_attr`
+   (distâncias). Não introduzir estado.
+2. **Rede B1 (`_ensure_nonempty_coverage`)** roda para TODOS os modos — manter agnóstica (só preenche vazio).
+3. **Overlay aditivo** (`force17`/`regioes`/`ultimo_acerto.direction`) — não remover/renomear chaves.
+4. **Geometria 17# = raios 3/2/2** com overlap **permitido** (não forçar disjunção — piora, PARTE XIV).
+5. **Rollback:** `SDA_BET_PAIR=c2c3`/`full` + redeploy, ou `git revert` do compose. Reversível sem perda.
+6. **Honestidade:** o edge é **modesto/não-conclusivo** (roda uniforme); a entrega é estrutura +
+   instrumentação, não promessa de lucro. O *timing* (esperar um red) é do **usuário**; o motor sugere e mede.
+7. Demais obrigações dos ADENDOs 17/06 seguem válidas (flags por-chamada, INV-3 como `min()`, block_gale
+   com hit real, persistência completa, lint de excepts, Gap D.1).
+
+> **Evidência de testes:** `tests/test_c_selection.py::TestForceSelect` (11) +
+> `tests/test_wiring_c_gale.py::{TestForce17Wiring, TestB1NonEmptyCoverage}` (8) +
+> `test_ws_overlay_contract.py` (direction) + suíte completa **557 passed, 9 skipped, 1 xfailed**.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 ---

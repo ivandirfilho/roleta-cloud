@@ -190,6 +190,8 @@ if _METRICS_AVAILABLE:
             "region_err_n": Gauge("roleta_region_err_n", "Amostras da EMA de erro por região (SV-03: gate do alerta de viés)", ["direction", "region"]),
             # SV-01 (12/06): shift aplicado pelo Modelo Universal M5.
             "region_shift": Gauge("roleta_region_shift", "Shift de C1 aplicado pelo M5 (casas, por sentido)", ["direction"]),
+            # force17 (18/06): 1 se o modo C1=ForceLast/17# está no ar (SDA_BET_PAIR=force17).
+            "force17_active": Gauge("roleta_force17_active", "1 se SDA_BET_PAIR=force17 (C1=ForceLast + 17# / 3 regiões)"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -200,6 +202,12 @@ def _refresh_custom_metrics() -> None:
     if not _PROM_METRICS:
         return
     try:
+        # force17 (18/06): modo de cobertura no ar (auto-contido; sem provider).
+        try:
+            from app_config.settings import bet_pair_mode as _bpm
+            _PROM_METRICS["force17_active"].set(1.0 if _bpm() == "force17" else 0.0)
+        except Exception:  # noqa: BLE001
+            pass
         # INCIDENT 13/06: eleição de MASTER (sob o try comum; erros contam em scrape_errors).
         if _CONNMGR_PROVIDER is not None:
             _cm = _CONNMGR_PROVIDER() or {}
