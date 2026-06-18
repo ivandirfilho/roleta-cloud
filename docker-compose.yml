@@ -50,11 +50,13 @@ services:
       # que gale só sangra; cap=1 é o único seguro). Rollback total: no host,
       # SDA_BET_PAIR=full + SDA_STAKING_MODE=flat + redeploy, ou git revert.
       - SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}
-      # Cobertura (atualizado 17/06): c2c3 = par ESTÁTICO {C2, C3} fixo em toda
-      # jogada = 14 números (melhor par estático do estudo). O voto C1/C2 móvel
-      # (var_c1c2_c3) foi DESATIVADO por resultados desfavoráveis. "full" = 3
-      # centros (21#); c1c3 = par estático alternativo.
-      - SDA_BET_PAIR=${SDA_BET_PAIR:-c2c3}
+      # Cobertura (atualizado 18/06): force17 = C1=ForceLast + geometria 17# =
+      # C2(±3)=7 ∪ C3(±2)=5 ∪ C1=ForceLast(±2)=5 (3 regiões, união real ~15),
+      # isolado por sentido. É a SAÍDA NOVA de produção (analise_400 PARTES VII–XV:
+      # menor breakeven 47% e menor variância). Histórico: c2c3 (14#, 17/06) e
+      # var_c1c2_c3 (voto, DESATIVADO). "full"=3 centros (21#); c1c3/c2c3 estáticos.
+      # Rollback: SDA_BET_PAIR=c2c3 (ou full) no host + redeploy, ou git revert.
+      - SDA_BET_PAIR=${SDA_BET_PAIR:-force17}
       # Teto do block-gale: 1=flat (seguro, default). Subir é opt-in de risco.
       - GALE_CAP=${GALE_CAP:-1}
       # Banca de referência para o solvency-guard do block-gale (R$).

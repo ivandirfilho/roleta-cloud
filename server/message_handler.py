@@ -93,13 +93,15 @@ class MessageHandler:
 
     def _engine_apply_selection(self, result) -> None:
         """SDA_BET_PAIR: var_c1c2_c3 (voto C1/C2 + C3 fixo) OU c2c3/c1c3 (par
-        ESTÁTICO fixo, sem voto). Substitui a cobertura por {C?, C3} = 14#.
-        Mantém details['centers']=3 (continuidade de DNA/atribuição). Stasha _cs_meta."""
+        ESTÁTICO fixo, sem voto) OU force17 (C1=ForceLast + 17#, 3 regiões).
+        Substitui a cobertura. Mantém details['centers']=3 (continuidade de
+        DNA/atribuição). Stasha _cs_meta."""
         self._cs_meta = None
+        self.game_state.last_force17_meta = None
         try:
             from app_config.settings import bet_pair_mode
             mode = bet_pair_mode()
-            if mode not in ("var_c1c2_c3", "c1c3", "c2c3"):
+            if mode not in ("var_c1c2_c3", "c1c3", "c2c3", "force17"):
                 return
             centers = list((getattr(result, "details", {}) or {}).get("centers") or [])
             if len(centers) < 3:
@@ -109,6 +111,16 @@ class MessageHandler:
             if mode == "var_c1c2_c3":
                 hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
                 sel = eng.select(gs.target_direction, centers, hist, roulette.WHEEL_SEQUENCE)
+            elif mode == "force17":
+                # B4: o ForceLast lê os RESULTADOS BRUTOS do MESMO sentido (target),
+                # de cw_history/ccw_history = [(c1, actual_result)] do SDA17 — NÃO as
+                # distâncias de c_attr. target_direction é o oposto do último spin,
+                # logo seu history não foi tocado por este spin (isolamento estável).
+                dk = self._engine_dk()
+                raw = getattr(self.strategy, "cw_history" if dk == "cw" else "ccw_history", []) or []
+                last_results = [int(h[1]) for h in list(raw)[-2:]
+                                if isinstance(h, (list, tuple)) and len(h) >= 2]
+                sel = eng.force_select(gs.target_direction, centers, last_results, roulette.WHEEL_SEQUENCE)
             else:
                 sel = eng.static_select(gs.target_direction, centers, mode, roulette.WHEEL_SEQUENCE)
             if sel.numbers:
@@ -118,8 +130,42 @@ class MessageHandler:
                 "n": len(sel.numbers), "freeze": sel.freeze_candidates,
                 "centers3": centers,
             }
+            if (sel.scoreboard or {}).get("mode") == "force17":
+                self._cs_meta["force17"] = {
+                    "regioes": sel.scoreboard.get("regioes", []),
+                    "c1_force": sel.scoreboard.get("c1_force"),
+                    "coverage_n": sel.scoreboard.get("coverage_n", len(sel.numbers)),
+                    "centros": list(sel.centers),
+                }
+            # Fonte única p/ os canais que o dashboard consome (trace/state_sync):
+            # stasha no game_state (transiente, recomputado a cada spin, não persiste).
+            self.game_state.last_force17_meta = (self._cs_meta or {}).get("force17")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[IMPL c_selection] falha: {e}")
+
+    def _ensure_nonempty_coverage(self, result) -> None:
+        """Sprint 0 / B1: a indicação NUNCA cobre zero números. Se a cobertura
+        ficou vazia mas há ≥1 centro, emite a união dos centros (C2∪C3∪C1 se 3,
+        senão a vizinhança do centro disponível) como rede de segurança. Corrige
+        o bug pré-existente de ``sda_numbers=[]`` (~4% das decisões de calibração,
+        message_handler.py comentário §615). Dispara só no caso quebrado (vazio),
+        então preserva byte-identidade dos caminhos normais (full/c2c3/force17)."""
+        try:
+            if result.numbers:
+                return
+            centers = list((getattr(result, "details", {}) or {}).get("centers") or [])
+            if len(centers) >= 3:
+                from strategies.c_selection import coverage3
+                nums = coverage3(centers[1], centers[2], centers[0], roulette.WHEEL_SEQUENCE)
+            elif centers:
+                nums = sorted(self.strategy.get_neighbors(centers[0], 3, roulette.WHEEL_SEQUENCE))
+            else:
+                return
+            if nums:
+                result.numbers = list(nums)
+                logger.info("[B1 fix] cobertura vazia -> rede de seguranca N=%d", len(nums))
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[B1 fix] falha: {e}")
 
     def _engine_apply_stake(self, stake_info, n_numbers, acao) -> None:
         """SDA_STAKING_MODE=block_gale: stake = nível do bloco-gale. O override de
@@ -213,6 +259,17 @@ class MessageHandler:
             if self._cs_meta:
                 out["c_selection"] = {"chosen": self._cs_meta["chosen"], "pair": self._cs_meta["pair"],
                                       "rule": self._cs_meta["rule"], "n": self._cs_meta["n"]}
+                f17 = self._cs_meta.get("force17")
+                if f17:
+                    out["force17"] = {
+                        "active": True,
+                        "regioes": f17.get("regioes", []),
+                        "c1_force": f17.get("c1_force"),
+                        "coverage_n": f17.get("coverage_n"),
+                        "dir_bias": "favoravel" if self._engine_dk() == "ccw" else "desfavoravel",
+                    }
+                    # Espelha as 3 regiões rotuladas no topo (consumo direto pelo overlay).
+                    out["regioes"] = f17.get("regioes", [])
             st_cw = gs.block_gale_engine.states["cw"]
             st_ccw = gs.block_gale_engine.states["ccw"]
             out["block_gale"] = {
@@ -223,6 +280,17 @@ class MessageHandler:
             if self._bg_meta is not None:
                 out["bet_gate"] = {"only_after_green": gs.block_gale_engine.only_after_green,
                                    "gated": self._bg_meta.get("gated", False)}
+            # ultimo_acerto (verde/vermelho + sentido analisado do spin t-1) também no
+            # canal `sugestao` — o overlay da extensão marca o reflexo da sugestão.
+            attr = getattr(gs, "last_hit_attribution", None)
+            if isinstance(attr, dict) and attr.get("slot"):
+                slot = attr["slot"]
+                out["ultimo_acerto"] = {
+                    "slot": slot,
+                    "green": slot in ("C1", "C2", "C3"),
+                    "numero": attr.get("numero", gs.last_number),
+                    "direction": getattr(gs, "last_direction", "") or "",
+                }
             return out
         except Exception:  # noqa: BLE001
             return {}
@@ -568,6 +636,9 @@ class MessageHandler:
         # despachado por SDA_BET_PAIR (c2c3/c1c3 estático ou var_c1c2_c3 voto;
         # full/inválido = no-op, 21#).
         self._engine_apply_selection(result)
+        # Sprint 0 (B1): garante cobertura não-vazia (rede de segurança) ANTES de
+        # final_numbers/store_prediction — a indicação nunca cobre zero números.
+        self._ensure_nonempty_coverage(result)
         # Indicação FINAL da jogada (auditoria 12/06): o overlay e a Decision
         # devem SEMPRE refletir o que foi indicado — inclusive no fallback de
         # calibração. Bug pré-existente confirmado em prod: 121/121 decisões
@@ -635,6 +706,12 @@ class MessageHandler:
                 final_center = center
                 final_centers = [center]
                 final_score = 1
+                # Auditoria 18/06: o fallback de calibração SOBRESCREVE a cobertura
+                # (N=21). Se o force17 tivesse marcado _cs_meta (centros≥3), o overlay
+                # mostraria regiões de 3 centros junto de numeros=21 (inconsistente).
+                # Zera a telemetria force17 para o overlay refletir o fallback real.
+                self._cs_meta = None
+                self.game_state.last_force17_meta = None
                 if _stop_loss_active:
                     _stake_override = 0.0
                     action_reason += " | STOP-LOSS: stake mínimo (INV-3)"

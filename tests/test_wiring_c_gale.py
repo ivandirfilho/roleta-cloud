@@ -23,7 +23,7 @@ def _handler():
 class _Result:
     def __init__(self, numbers, centers):
         self.numbers = list(numbers)
-        self.center = centers[0]
+        self.center = centers[0] if centers else 0
         self.details = {"centers": list(centers)}
 
 
@@ -89,6 +89,104 @@ class TestSelectionWiring:
         r2 = _Result(list(range(21)), [0, 5, 26]); h._engine_apply_selection(r2)
         assert h._cs_meta["chosen"] == c1 == "C2"    # ignora "tendencia", fica em C2
         assert sorted(r2.numbers) == n1
+
+
+class _StrategyStub:
+    """Strategy mínima expondo cw_history/ccw_history = [(c1, actual_result)]."""
+    def __init__(self, cw=None, ccw=None):
+        self.cw_history = list(cw or [])
+        self.ccw_history = list(ccw or [])
+
+    def get_neighbors(self, center, radius, wheel):
+        if center not in wheel:
+            return [center]
+        i, n = wheel.index(center), len(wheel)
+        return [wheel[(i + o) % n] for o in range(-radius, radius + 1)]
+
+
+class TestForce17Wiring:
+    """force17 — C1=ForceLast + 17# / 3 regiões (proposta 18/06)."""
+
+    def test_force17_overrides_to_17_and_reads_history(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        h = _handler()
+        # target_direction default = horario -> dk=cw -> lê cw_history
+        h.strategy = _StrategyStub(cw=[(0, 32), (0, 15)])  # ForceLast([32,15])=19
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) <= 17 and len(r.numbers) >= 12
+        assert h._cs_meta is not None and h._cs_meta["rule"] == "force17"
+        f17 = h._cs_meta["force17"]
+        assert f17["c1_force"]["value"] == 19         # ForceLast do history cw
+        labels = [reg["label"] for reg in f17["regioes"]]
+        assert labels == ["c2", "c3", "c1"]
+        # stashado no game_state (fonte única p/ dashboard)
+        assert h.game_state.last_force17_meta is not None
+
+    def test_force17_warming_up_without_two_results(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        h = _handler()
+        h.strategy = _StrategyStub(cw=[(0, 7)])        # só 1 resultado -> aquecendo
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        assert r.numbers                               # nunca vazio (fix B1)
+        c1_reg = h._cs_meta["force17"]["regioes"][2]
+        assert c1_reg["status"] == "aquecendo"
+
+    def test_force17_overlay_exposes_regioes_and_dir_bias(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        h = _handler()
+        h.strategy = _StrategyStub(cw=[(0, 32), (0, 15)])
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        out = h._engine_overlay_fields()
+        assert out["force17"]["active"] is True
+        assert out["regioes"] == out["force17"]["regioes"]
+        # target=horario(cw) -> desfavoravel (anti é o sentido com edge)
+        assert out["force17"]["dir_bias"] == "desfavoravel"
+
+    def test_force17_flags_off_keeps_full(self):
+        # sem SDA_BET_PAIR=force17, default full -> não toca cobertura
+        h = _handler()
+        h.strategy = _StrategyStub(cw=[(0, 32), (0, 15)])
+        r = _Result(list(range(21)), [10, 17, 5])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) == 21 and h._cs_meta is None
+
+
+class TestB1NonEmptyCoverage:
+    """Sprint 0 / B1: a indicação NUNCA cobre zero números (rede de segurança)."""
+
+    def test_empty_coverage_filled_from_3_centers(self):
+        h = _handler()
+        h.strategy = _StrategyStub()
+        r = _Result([], [10, 17, 5])        # cobertura vazia mas 3 centros
+        h._ensure_nonempty_coverage(r)
+        assert len(r.numbers) >= 12          # C2∪C3∪C1 (coverage3)
+
+    def test_empty_coverage_filled_from_single_center(self):
+        h = _handler()
+        h.strategy = _StrategyStub()
+        r = _Result([], [7])                 # vazio, 1 centro
+        h._ensure_nonempty_coverage(r)
+        assert len(r.numbers) >= 1           # vizinhança do centro
+
+    def test_nonempty_coverage_untouched(self):
+        # não altera quando já há cobertura (byte-idêntico no caminho normal)
+        h = _handler()
+        h.strategy = _StrategyStub()
+        original = list(range(21))
+        r = _Result(original, [10, 17, 5])
+        h._ensure_nonempty_coverage(r)
+        assert r.numbers == original
+
+    def test_no_centers_stays_empty(self):
+        # sem centros não há o que cobrir (1ª jogada real -> PULAR é correto)
+        h = _handler()
+        h.strategy = _StrategyStub()
+        r = _Result([], [])
+        h._ensure_nonempty_coverage(r)
+        assert r.numbers == []
 
 
 class TestStakeWiring:

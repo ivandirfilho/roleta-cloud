@@ -73,6 +73,79 @@ def coverage_numbers(c_win: int, c3: int, wheel: List[int], radius: int = R_DEFA
     return sorted(nums)
 
 
+# ============================================================================
+# force17 — C1 = ForceLast + geometria 17# (proposta 18/06)
+# ----------------------------------------------------------------------------
+# Spec: implantação_c1_proposta_nova_junho.md §3; base empírica analise_400_junho.md
+# §24/30-41 (geometria 17# = C2-7 ∪ C3-5 ∪ CX-5, CX=ForceLast — menor breakeven
+# 47,2% e menor variância). Determinístico, causal, isolado por sentido.
+# ============================================================================
+R_C2_FORCE17: int = 3   # C2 (denso) — 7 números (centro ±3)
+R_C3_FORCE17: int = 2   # C3 (frio)  — 5 números (centro ±2)
+R_C1_FORCE17: int = 2   # C1=ForceLast — 5 números (centro ±2)
+
+
+def _signed_dist(frm: int, to: int, wheel: List[int]) -> Optional[int]:
+    """Distância circular ASSINADA frm→to (−18..+18) na WHEEL_SEQUENCE.
+
+    Mesma convenção de sinal de ``sda17._signed_dist_idx`` (+ no sentido da
+    sequência da roda). Retorna ``None`` se algum número não está na roda (B2/B3
+    da auditoria: força sempre opera na POSIÇÃO da roda, com wrap circular).
+    """
+    if not wheel:
+        return None
+    try:
+        a = wheel.index(frm)
+        b = wheel.index(to)
+    except ValueError:
+        return None
+    size = len(wheel)
+    d = (b - a) % size
+    return d - size if d > size // 2 else d
+
+
+def force_last_center(last_results: List[int], wheel: List[int]) -> Optional[int]:
+    """ForceLast (CX validado): projeta o último resultado pela ÚLTIMA força.
+
+    ``forca = sdist(r[-2], r[-1])``; ``C1 = WHEEL[(pos(r[-1]) + forca) % 37]``.
+    Extrapolação balística de velocidade constante (assinatura do crupiê). Exige
+    ≥2 resultados brutos do MESMO sentido; ``None`` se insuficiente/inválido
+    (1ª/2ª jogada pós-reset → C1 "aquecendo").
+    """
+    if not wheel or not last_results or len(last_results) < 2:
+        return None
+    r_prev, r_last = last_results[-2], last_results[-1]
+    forca = _signed_dist(r_prev, r_last, wheel)
+    if forca is None:
+        return None
+    try:
+        pos_last = wheel.index(r_last)
+    except ValueError:
+        return None
+    return wheel[(pos_last + forca) % len(wheel)]
+
+
+def coverage3(
+    c2: int,
+    c3: int,
+    c1: Optional[int],
+    wheel: List[int],
+    r_c2: int = R_C2_FORCE17,
+    r_c3: int = R_C3_FORCE17,
+    r_c1: int = R_C1_FORCE17,
+) -> List[int]:
+    """União real C2(r_c2) ∪ C3(r_c3) ∪ C1(r_c1) — geometria 17# (~15 real).
+
+    Sobreposição PERMITIDA (não forçar disjunção — PARTE XIV §64). ``c1=None``
+    (aquecendo) ⇒ só C2∪C3 (12–14#). NUNCA retorna vazio se houver ≥1 centro
+    válido na roda (fix B1: fallback de cobertura jamais emite [] em produção).
+    """
+    nums = set(_neighbors(c2, r_c2, wheel)) | set(_neighbors(c3, r_c3, wheel))
+    if c1 is not None:
+        nums |= set(_neighbors(c1, r_c1, wheel))
+    return sorted(nums)
+
+
 def _vote_window(history: List[Dict[str, Any]], k: int) -> str:
     """Voto das últimas `k` jogadas NÃO-C3. Retorna 'C1'|'C2'|'' (sem maioria estrita).
 
@@ -279,6 +352,64 @@ class CSelectionEngine:
             chosen=chosen, pair=(chosen, "C3"), numbers=nums, centers=[c_win, c3],
             rule=f"static_{pair}", scoreboard={}, confidence=1.0,
             reason=f"par estatico {chosen}+C3 (sem voto)", freeze_candidates={},
+        )
+
+    # ---- seleção force17 (C1=ForceLast + geometria 17# / 3 regiões) ----
+    def force_select(
+        self,
+        direction: str,
+        centers: List[int],
+        last_results: List[int],
+        wheel: List[int],
+    ) -> CSelection:
+        """Cobertura **17#** = C2(centers[1], r3) ∪ C3(centers[2], r2) ∪ **C1=ForceLast**(r2).
+
+        Proposta validada (analise_400 PARTES VII–XV): a 3ª região (CX) é o
+        **ForceLast** — último resultado do sentido projetado pela última força —
+        em vez do C1 geométrico do SDA17. Recalculado a CADA jogada, **isolado por
+        sentido** (``last_results`` são os ``actual_result`` brutos do MESMO sentido,
+        de ``cw_history``/``ccw_history``). Determinístico/stateless: ``freeze={}``
+        ⇒ o caller NÃO dispara feedback/promoção (sem shadow).
+
+        Saída ``centers = [C1_exibido, C2, C3]`` para rotulagem c1/c2/c3 no front;
+        ``scoreboard`` carrega ``regioes`` rotuladas, ``c1_force`` e ``coverage_n``.
+        Fallback <3 centros / <2 resultados ⇒ cobertura sem C1 (NUNCA vazio — B1).
+        """
+        if not centers or len(centers) < 3:
+            base = centers[0] if centers else 0
+            nums = coverage_numbers(base, base, wheel, self.radius)
+            return CSelection(
+                chosen="C1", pair=("C1", "C3"), numbers=nums, centers=[base, base],
+                rule="force17", scoreboard={"mode": "force17", "coverage_n": len(nums)},
+                confidence=0.0, reason="fallback:<3 centros", freeze_candidates={},
+            )
+        c1_geo, c2, c3 = centers[0], centers[1], centers[2]
+        last = [int(x) for x in (last_results or []) if x is not None]
+        c1_force = force_last_center(last, wheel)
+        forca = _signed_dist(last[-2], last[-1], wheel) if len(last) >= 2 else None
+        nums = coverage3(c2, c3, c1_force, wheel)
+        c1_status = "ok" if c1_force is not None else "aquecendo"
+        disp_c1 = c1_force if c1_force is not None else c1_geo
+        scoreboard = {
+            "mode": "force17",
+            "c1_force": {
+                "value": c1_force, "forca": forca, "status": c1_status,
+                "geo": c1_geo, "radius": R_C1_FORCE17,
+            },
+            # Ordem pedida pelo operador: c2, c3, c1 (numerinho embaixo de cada centro).
+            "regioes": [
+                {"label": "c2", "center": c2, "radius": R_C2_FORCE17},
+                {"label": "c3", "center": c3, "radius": R_C3_FORCE17},
+                {"label": "c1", "center": disp_c1, "radius": R_C1_FORCE17, "status": c1_status},
+            ],
+            "coverage_n": len(nums),
+        }
+        return CSelection(
+            chosen="C1", pair=("C1", "C3"), numbers=nums,
+            centers=[disp_c1, c2, c3], rule="force17", scoreboard=scoreboard,
+            confidence=1.0 if c1_force is not None else 0.5,
+            reason=f"force17 C1=ForceLast({c1_force}) f={forca} {c1_status}",
+            freeze_candidates={},
         )
 
     # ---- feedback ----

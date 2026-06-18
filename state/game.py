@@ -968,7 +968,25 @@ class GameState:
                 "slot": slot,
                 "green": slot in ("C1", "C2", "C3"),
                 "numero": attr.get("numero", self.last_number),
+                # Sentido analisado do spin recém-resolvido (horário/anti-horário) —
+                # o front marca verde/vermelho COM o sentido (pedido do operador).
+                "direction": getattr(self, "last_direction", "") or "",
             }
+        # force17 (C1=ForceLast + 3 regiões): telemetria do spin corrente, stashada
+        # transientemente pelo handler em last_force17_meta. Aditivo/retrocompatível.
+        f17 = getattr(self, "last_force17_meta", None)
+        if isinstance(f17, dict) and f17.get("regioes"):
+            # dir_bias: anti-horário = favorável (sentido com edge); horário = desfavorável.
+            _tgt = self.target_direction
+            _bias = "favoravel" if _tgt in ("ccw", "anti-horario") else "desfavoravel"
+            out["force17"] = {
+                "active": True,
+                "regioes": f17.get("regioes", []),
+                "c1_force": f17.get("c1_force"),
+                "coverage_n": f17.get("coverage_n"),
+                "dir_bias": _bias,
+            }
+            out["regioes"] = f17.get("regioes", [])
         return out
 
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:

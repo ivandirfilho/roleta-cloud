@@ -139,18 +139,20 @@ def staking_mode() -> str:
 # ---------- SP-IMPL (16/06): motores C1/C2 variável + Block-Gale (default OFF) ----------
 
 def bet_pair_mode() -> str:
-    """Cobertura da aposta (implantação aposta 14#).
+    """Cobertura da aposta (implantação aposta 14#/17#).
 
     Enum via env SDA_BET_PAIR: "full" (default do código — 3 centros, byte-idêntico),
     "c2c3"/"c1c3" (par ESTÁTICO fixo {C2,C3} ou {C1,C3} = 14#, sem voto — PRODUÇÃO
-    roda "c2c3" desde 17/06), "var_c1c2_c3" (voto C1/C2 móvel pelas últimas 3 não-C3
-    + C3 fixo — DESATIVADO por resultados desfavoráveis). Valor inválido cai em "full".
+    rodava "c2c3" desde 17/06), "var_c1c2_c3" (voto C1/C2 móvel pelas últimas 3 não-C3
+    + C3 fixo — DESATIVADO por resultados desfavoráveis), "force17" (C1=ForceLast +
+    geometria 17# = C2-7 ∪ C3-5 ∪ C1-5; 3 regiões, isolado por sentido — proposta
+    validada analise_400 PARTES VII–XV). Valor inválido cai em "full".
 
     Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
     """
     import os
     v = os.environ.get("SDA_BET_PAIR", "full").strip().lower()
-    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3") else "full"
+    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17") else "full"
 
 
 def gale_only_after_green() -> bool:

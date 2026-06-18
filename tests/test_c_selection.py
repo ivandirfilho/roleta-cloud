@@ -2,6 +2,9 @@
 from strategies.c_selection import (
     CSelectionEngine,
     coverage_numbers,
+    coverage3,
+    force_last_center,
+    _signed_dist,
     newcombe_diff_ci,
     _vote_window,
     MIN_N_PROMOTE,
@@ -195,3 +198,78 @@ class TestStaticSelect:
         eng.load_state({"radius": 3, "cw": {"incumbent": "regra_inexistente"}})
         sel = eng.select("horario", [0, 5, 26], [], WHEEL)  # nao deve quebrar
         assert eng._dirs["cw"]["incumbent"] == "always_strong"
+
+
+class TestForceSelect:
+    """force17 — C1=ForceLast + geometria 17# / 3 regiões (proposta 18/06)."""
+
+    def test_force_last_projects_last_by_force(self):
+        # r_prev=32(pos1), r_last=15(pos2) -> forca=+1 -> C1=WHEEL[(2+1)%37]=19
+        assert _signed_dist(32, 15, WHEEL) == 1
+        assert force_last_center([32, 15], WHEEL) == 19
+
+    def test_force_last_needs_two_results(self):
+        assert force_last_center([15], WHEEL) is None
+        assert force_last_center([], WHEEL) is None
+
+    def test_force_last_wraps_circularly(self):
+        # força negativa também projeta corretamente (wrap em −18..+18)
+        c = force_last_center([15, 32], WHEEL)  # forca=-1 -> WHEEL[(1-1)%37]=0
+        assert c == 0
+
+    def test_coverage3_nominal_17_when_disjoint(self):
+        # 3 centros bem separados -> 7+5+5 = 17
+        nums = coverage3(c2=0, c3=10, c1=22, wheel=WHEEL)
+        assert len(nums) == 17
+
+    def test_coverage3_real_under_17_with_overlap(self):
+        # sobreposição permitida -> união real < 17 (~15)
+        nums = coverage3(c2=17, c3=5, c1=19, wheel=WHEEL)
+        assert 12 <= len(nums) < 17
+
+    def test_coverage3_without_c1_is_c2_c3_only(self):
+        nums = coverage3(c2=0, c3=10, c1=None, wheel=WHEEL)
+        assert len(nums) == 12  # 7 + 5 disjuntos, sem C1
+
+    def test_force_select_builds_17_and_labels(self):
+        eng = CSelectionEngine()
+        sel = eng.force_select("anti-horario", centers=[10, 17, 5],
+                               last_results=[32, 15], wheel=WHEEL)
+        assert sel.rule == "force17"
+        assert sel.numbers and len(sel.numbers) <= 17
+        assert sel.centers == [19, 17, 5]  # [C1=ForceLast, C2, C3]
+        labels = [r["label"] for r in sel.scoreboard["regioes"]]
+        assert labels == ["c2", "c3", "c1"]   # ordem pedida pelo operador
+        assert sel.scoreboard["c1_force"]["value"] == 19
+        assert sel.scoreboard["coverage_n"] == len(sel.numbers)
+
+    def test_force_select_warming_up_without_c1(self):
+        # <2 resultados -> C1 "aquecendo", cobertura só C2∪C3 (NUNCA vazio — B1)
+        eng = CSelectionEngine()
+        sel = eng.force_select("horario", centers=[10, 17, 5],
+                               last_results=[7], wheel=WHEEL)
+        assert sel.numbers  # nunca vazio
+        c1_region = sel.scoreboard["regioes"][2]
+        assert c1_region["label"] == "c1" and c1_region["status"] == "aquecendo"
+
+    def test_force_select_deterministic_stateless(self):
+        eng = CSelectionEngine()
+        a = eng.force_select("horario", [10, 17, 5], [32, 15], WHEEL)
+        b = eng.force_select("horario", [10, 17, 5], [32, 15], WHEEL)
+        assert a.numbers == b.numbers and a.centers == b.centers
+        assert a.freeze_candidates == {}  # sem shadow/feedback
+        # não tocou o estado dos candidatos
+        assert eng._dirs["cw"]["candidates"]["vote_k3_nonc3"].n == 0
+
+    def test_force_select_fallback_under_3_centers_never_empty(self):
+        eng = CSelectionEngine()
+        sel = eng.force_select("horario", [7], [32, 15], WHEEL)
+        assert "fallback" in sel.reason and len(sel.numbers) >= 1
+        assert sel.rule == "force17"
+
+    def test_force_select_radii_are_3_2_2(self):
+        # C2 raio 3 (7#), C3 raio 2 (5#), C1 raio 2 (5#)
+        eng = CSelectionEngine()
+        sel = eng.force_select("anti-horario", [10, 17, 5], [32, 15], WHEEL)
+        regs = {r["label"]: r["radius"] for r in sel.scoreboard["regioes"]}
+        assert regs == {"c2": 3, "c3": 2, "c1": 2}

@@ -23,6 +23,46 @@ function buildCentroHTML(centros) {
       .join(' ');
 }
 
+// === force17 (18/06): 3 regiões rotuladas c2/c3/c1 + 17 números ===
+// Cada centro de região exibe o número grande e, EMBAIXO, um rótulo pequeno
+// (c2/c3/c1) indicando a qual indicação aquele número central se refere.
+function buildForce17HTML(sugestao) {
+  const regioes = sugestao.regioes || [];
+  const numeros = sugestao.numeros || [];
+  const f17 = sugestao.force17 || {};
+  const coverageN = f17.coverage_n || numeros.length;
+  const bias = f17.dir_bias === 'favoravel' ? '✅ favorável'
+             : (f17.dir_bias === 'desfavoravel' ? '⚠️ desfavorável' : '');
+  const centrosHTML = regioes.map(r => {
+    const cls = r.label === 'c1' ? 'eb-rc-c1' : (r.label === 'c2' ? 'eb-rc-c2' : 'eb-rc-c3');
+    const warming = (r.status === 'aquecendo') ? '<span style="font-size:9px;"> ⏳</span>' : '';
+    return `<div class="eb-rc ${cls}" style="display:inline-flex;flex-direction:column;align-items:center;margin:0 8px;">`
+      + `<span class="eb-rc-num" style="font-size:22px;font-weight:bold;line-height:1.1;">${r.center}${warming}</span>`
+      + `<span class="eb-rc-label" style="font-size:10px;font-weight:bold;opacity:0.85;text-transform:uppercase;letter-spacing:0.5px;">${r.label}</span>`
+      + `</div>`;
+  }).join('');
+  const numerosHTML = numeros.length
+    ? `<div class="eb-numeros" style="margin-top:6px;font-size:12px;line-height:1.6;word-spacing:2px;">${numeros.join(' · ')}</div>`
+    : '';
+  const header = `<div class="eb-regioes-head" style="font-size:10px;opacity:0.75;margin-bottom:3px;">`
+    + `🎯 3 regiões · ${coverageN} números${bias ? ' · ' + bias : ''}</div>`;
+  return header
+    + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}</div>`
+    + numerosHTML;
+}
+
+// Reflexo do último resultado: verde/vermelho + SENTIDO analisado (horário/anti).
+function buildVeredito(ua) {
+  if (!ua || ua.green === undefined) return '';
+  const dir = ua.direction === 'horario' ? 'horário'
+            : (ua.direction ? 'anti-horário' : '');
+  const cor = ua.green ? '#1db954' : '#e53935';
+  const txt = ua.green ? '🟢 VERDE' : '🔴 VERMELHO';
+  const num = (ua.numero != null) ? ` · nº ${ua.numero}` : '';
+  return `<span style="color:${cor};font-weight:bold;">${txt}</span>`
+    + `<span style="opacity:0.85;">${dir ? ' · ' + dir : ''}${num}</span>`;
+}
+
 // 🆕 v4.0: Carregar estado salvo de UI
 async function loadUIState() {
   try {
@@ -72,6 +112,7 @@ function createOverlay() {
         <div class="eb-region" id="eb-regiao">
           Aguardando dados...
         </div>
+        <div class="eb-veredito" id="eb-veredito" style="text-align:center;font-size:11px;min-height:14px;margin:2px 0;"></div>
         <div class="eb-row">
           <span class="eb-label">Gale</span>
           <span class="eb-gale-display g1" id="eb-gale-display">G1 0/0</span>
@@ -382,7 +423,10 @@ function toggleMinimize() {
     overlay.classList.add('minimized');
     // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
     if (status && galeDisplay && overlayState.lastSugestao) {
-      const centros = overlayState.lastSugestao.centros || [overlayState.lastSugestao.centro];
+      const s = overlayState.lastSugestao;
+      const centros = (s.regioes && s.regioes.length)
+        ? s.regioes.map(r => r.center)
+        : (s.centros || [s.centro]);
       const centroDisplay = buildCentroHTML(centros);
       const galeText = galeDisplay.textContent;
       status.innerHTML = `${centroDisplay} ${galeText}`;
@@ -445,11 +489,11 @@ function setupDrag(overlay) {
 
 // ===== ATUALIZAR OVERLAY COM SUGESTÃO =====
 function updateOverlay(sugestao) {
-  const overlay = document.getElementById('escuta-beat-overlay');
+  let overlay = document.getElementById('escuta-beat-overlay');
   if (!overlay) {
     createOverlay();
-    const retryOverlay = document.getElementById('escuta-beat-overlay');
-    if (!retryOverlay) return;
+    overlay = document.getElementById('escuta-beat-overlay');
+    if (!overlay) return;
   }
 
   overlayState.lastSugestao = sugestao;
@@ -473,7 +517,10 @@ function updateOverlay(sugestao) {
   if (acao === 'APOSTAR') {
     panel.classList.add('apostar');
     regiao.classList.remove('pular');
-    if (sugestao.centros && sugestao.centros.length > 0) {
+    if (sugestao.regioes && sugestao.regioes.length > 0) {
+      // force17: 3 regiões rotuladas c2/c3/c1 + os 17 números sugeridos.
+      regiao.innerHTML = buildForce17HTML(sugestao);
+    } else if (sugestao.centros && sugestao.centros.length > 0) {
       const c = sugestao.centros;
       regiao.innerHTML = `Centros: <span class="eb-c1">${c[0]}</span>` +
           (c.length > 1 ? `, ${c.slice(1).join(', ')}` : '');
@@ -489,12 +536,21 @@ function updateOverlay(sugestao) {
     regiao.textContent = 'Aguardando...';
   }
 
+  // Reflexo do último resultado (verde/vermelho + sentido analisado) — sempre
+  // que disponível (independe da ação atual). Pedido do operador.
+  const veredito = overlay.querySelector('#eb-veredito');
+  if (veredito) veredito.innerHTML = buildVeredito(sugestao.ultimo_acerto);
+
   // Atualizar status - SEMPRE mostrar [centros] + gale
   status.classList.remove('apostar', 'pular', 'aguardando', 'g1', 'g2', 'g3');
 
   // Sempre mostrar formato [C1] [C2] [C3] G1 2/5 no status se minimizado
   // Se expandido, mostrar a Ação (APOSTAR/PULAR)
-  const centros = sugestao.centros || [sugestao.centro];
+  // force17: usa os 3 centros rotulados (c2/c3/c1=ForceLast) p/ consistência com
+  // a vista expandida; senão cai nos centros geométricos do SDA.
+  const centros = (sugestao.regioes && sugestao.regioes.length)
+      ? sugestao.regioes.map(r => r.center)
+      : (sugestao.centros || [sugestao.centro]);
   const centroDisplay = buildCentroHTML(centros);
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
