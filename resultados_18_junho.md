@@ -422,6 +422,29 @@ apenas alinham a cobertura do fallback e a renderização ao contrato force17.
 + _fb_radius = 8 if bet_pair_mode() == "force17" else 10
 ```
 
+### 17.1 Correção adicional (front escuta) — quadro minimizado: fonte única (c2, c3, c1)
+
+**Sintoma (operador):** a escuta tem 2 quadros — **aberto** (mostra as 3 regiões + números) e
+**minimizado** (mostra só os 3 números das regiões). O minimizado **divergia** do aberto e **só
+atualizava ao abrir/fechar** o botão minimizar; os números pareciam vir de **outra fonte/ordem**.
+
+**Causa:** o minimizado era preenchido em 3 pontos com **fontes diferentes**. `updateOverlay` e
+`toggleMinimize` usavam `sugestao.regioes` (ordem **c2, c3, c1** — `strategies/c_selection.py:448`,
+"ordem pedida pelo operador"), mas o **heartbeat** `handleStateSync` (1 Hz) reescrevia o minimizado a
+partir de `data.pending_prediction.centers` — **outra fonte e outra ordem ([C1, C2, C3])**. A cada
+state_sync o minimizado voltava à ordem errada; abrir/fechar forçava a re-renderização da fonte certa.
+
+**Correção (`extension/content.js`):** helper único `centrosFromSugestao(s)` — sempre
+`sugestao.regioes` na ordem **c2, c3, c1**, idêntico à vista expandida (`buildForce17HTML`). Usado nos
+**3 pontos** (`updateOverlay`, `toggleMinimize`, `handleStateSync`). Agora aberto e minimizado vêm da
+**MESMA fonte e MESMA ordem**, e o minimizado **atualiza sozinho** no heartbeat (sem abrir/fechar). O
+gale continua vindo do `state_sync` (dinâmico). Sem alteração de tamanho/fontes/estilo. `manifest`
+`3.3.0 → 3.3.1`.
+
+> ⚠️ **Distribuição:** a extensão roda no browser (MV3) e **não** é servida pelo deploy do servidor
+> (`roleta-deploy-pull.sh` só sincroniza `frontend/` → nginx). É preciso **recarregar a extensão** no
+> browser (chrome://extensions → recarregar) para aplicar a correção.
+
 ## 18. Verificação (pré-deploy)
 
 | Gate | Resultado |

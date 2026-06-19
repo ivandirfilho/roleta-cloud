@@ -23,6 +23,18 @@ function buildCentroHTML(centros) {
       .join(' ');
 }
 
+// === Fonte ÚNICA dos centros do quadro minimizado ===
+// Extrai os centros da sugestão NA MESMA ORDEM (c2, c3, c1) e da MESMA fonte que a
+// vista expandida (buildForce17HTML usa sugestao.regioes). Usar este helper em TODOS
+// os pontos que preenchem o minimizado garante que aberto e minimizado NUNCA divirjam
+// (antes o heartbeat lia data.pending_prediction.centers = [C1,C2,C3], outra ordem).
+function centrosFromSugestao(s) {
+  if (!s) return [];
+  if (s.regioes && s.regioes.length) return s.regioes.map(r => r.center);
+  if (s.centros && s.centros.length) return s.centros;
+  return s.centro != null ? [s.centro] : [];
+}
+
 // === force17 (18/06): 3 regiões rotuladas c2/c3/c1 + 17 números ===
 // Cada centro de região exibe o número grande e, EMBAIXO, um rótulo pequeno
 // (c2/c3/c1) indicando a qual indicação aquele número central se refere.
@@ -428,9 +440,7 @@ function toggleMinimize() {
     // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
     if (status && galeDisplay && overlayState.lastSugestao) {
       const s = overlayState.lastSugestao;
-      const centros = (s.regioes && s.regioes.length)
-        ? s.regioes.map(r => r.center)
-        : (s.centros || [s.centro]);
+      const centros = centrosFromSugestao(s);
       const centroDisplay = buildCentroHTML(centros);
       const galeText = galeDisplay.textContent;
       status.innerHTML = `${centroDisplay} ${galeText}`;
@@ -552,9 +562,8 @@ function updateOverlay(sugestao) {
   // Se expandido, mostrar a Ação (APOSTAR/PULAR)
   // force17: usa os 3 centros rotulados (c2/c3/c1=ForceLast) p/ consistência com
   // a vista expandida; senão cai nos centros geométricos do SDA.
-  const centros = (sugestao.regioes && sugestao.regioes.length)
-      ? sugestao.regioes.map(r => r.center)
-      : (sugestao.centros || [sugestao.centro]);
+  // Fonte ÚNICA (c2,c3,c1) — idêntica à vista expandida e ao minimizado/heartbeat.
+  const centros = centrosFromSugestao(sugestao);
   const centroDisplay = buildCentroHTML(centros);
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
@@ -858,11 +867,15 @@ function handleStateSync(data) {
       aposta.textContent = data.aposta;
     }
 
-    // Atualizar status se minimizado — v4.0.2: innerHTML + buildCentroHTML
+    // Atualizar status se minimizado — fonte ÚNICA: lastSugestao.regioes (ordem
+    // c2,c3,c1), IDÊNTICA à vista expandida. Antes lia data.pending_prediction.centers
+    // (outra fonte/ordem [C1,C2,C3]) → o minimizado divergia do aberto e só atualizava
+    // ao abrir/fechar. O gale continua vindo do state_sync (dinâmico).
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
-      if (status && data.pending_prediction && data.pending_prediction.centers) {
-        const centroDisplay = buildCentroHTML(data.pending_prediction.centers);
+      const centros = centrosFromSugestao(overlayState.lastSugestao);
+      if (status && centros.length) {
+        const centroDisplay = buildCentroHTML(centros);
         status.innerHTML = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
         status.className = `eb-status g${data.gale_level || 1}`;
       }
