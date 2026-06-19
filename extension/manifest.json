@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Monitor de resultados - v3.3.0 AUTO-START: detecta a roleta sozinha (zero-upload) e inicia a escuta automaticamente via provider_router + manifests empacotados",
   "permissions": [
     "activeTab",
