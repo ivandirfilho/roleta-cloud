@@ -465,7 +465,20 @@ apenas alinham a cobertura do fallback e a renderização ao contrato force17.
 
 ## 21. Deploy
 
-_(preenchido após o deploy — ver §21.1)_
+### 21.1 Resultado (auditoria com servidor real)
+
+| Item | Evidência |
+|---|---|
+| **Fluxo** | PR **#18** → CI verde (py 3.11/3.12/3.13) → merge na `main` (**`246783c`**) → `roleta-deploy.timer` |
+| **Servidor** (`187.45.181.75`) | `git HEAD = 246783c` · container `roleta-cloud Up (healthy)` · `HEALTHCHECK ok (try 1)` · `FRONTEND sync ok` · `NGINX reload ok` · `DEPLOY OK sha=246783c` |
+| **Código no container** | `message_handler.py:712 = _fb_radius = 8 if bet_pair_mode()=="force17" else 10` (versão corrigida) |
+| **Env produção** | `SDA_BET_PAIR=force17` · `SDA_FORCE17_EXACT=0` (inalterado — fix independe da flag) |
+| **Prova determinística (no container)** | `force17 → _fb_radius=8 → N=17` (antes `=10 → 21`) |
+| **Verificação empírica** | pendente da próxima sessão de jogadas (sessão parada ~21h BRT no instante do deploy); as calibrações `N=21` no DB são **todas pré-deploy** (≤ 23:57 UTC 18/06; deploy 00:48 UTC 19/06) |
+
+> **Veredito do deploy:** ✅ correções no ar, servidor `healthy`, 0 erros. A 2ª jogada de cada sentido
+> passará a indicar **17#** (não mais 21#) — corrigindo o **"3 regiões · 21 números"** do front. Fecha o
+> gap da auditoria F (`Manutenabilidade_iso.md`), que validou só apostas normais (12/14/17#), não o fallback.
 
 ---
 

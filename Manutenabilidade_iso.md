@@ -506,6 +506,31 @@ escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection
 
 ---
 
+### G. Atualização 18/06 (noite) — fix do fallback de calibração (17# no front) + auditoria de fluxo (PR #18)
+
+1. **BUG-FRONT #1 (raiz):** o fallback de calibração emitia **21#** em produção (`SDA_FORCE17_EXACT=0`)
+   porque o raio estava **acoplado** à flag `force17_exact` — que rege só o padding da aposta NORMAL,
+   não o fallback. Fix: `server/message_handler.py` → `_fb_radius = 8 if bet_pair_mode()=="force17" else 10`.
+   **Origem:** `b57b62e` (flag default ON) → `0d3c47e` (default OFF p/ união ~15) regrediu o fallback por
+   acoplamento. Era o **"3 regiões · 21 números"** que o operador via no front.
+2. **Front sincronizado (#2/#3):** a cobertura viaja no meta `force17.numeros` (Glass Box `app.js` e
+   extensão lêem da MESMA fonte das regiões, sem `state` stale); header da extensão deriva de
+   `regioes.length` (não hardcode "3"). Aditivo/retrocompatível.
+3. **Auditoria profunda do fluxo (pós-fix):** 2 subagents `explore` (server-side + staking/contratos) +
+   validação manual → **0 bugs novos acionáveis** (candidatos = falsos positivos/by-design;
+   `target_direction` está no `state_sync`, isolamento por sentido = `BUG-AUDIT-006 FIX`, etc.).
+4. **Testabilidade:** `tests/test_audit_cadence_12_06.py::TestFallbackForce17Radius` (force17→17#,
+   c2c3→21# controle) — fecha o gap que mascarava o bug (testes do fallback rodavam em modo default).
+5. **Deploy (auditoria com servidor real):** PR #18 → CI verde (3.11/3.12/3.13) → `main` **`246783c`** →
+   `roleta-deploy.timer`. Servidor `healthy` (try 1), `DEPLOY OK`, código confirmado no container
+   (`message_handler.py:712`), `force17 → N=17` determinístico. Suíte **568 passed**.
+
+> **Nota sobre a auditoria F:** a seção F afirmou "0 bugs" mas validou só as **apostas normais**
+> (N=12/14/17, união ativa); o **fallback de calibração** (2ª jogada/sentido) ficou fora do escopo e era
+> onde vivia o 21#. A seção G cobre esse caminho. Detalhes completos: `resultados_18_junho.md` (PARTES II–III).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 ---
