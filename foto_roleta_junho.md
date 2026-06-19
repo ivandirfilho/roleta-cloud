@@ -608,9 +608,11 @@ O servidor de produção é um **`QEMU Virtual CPU 2.5+`** sem `x86-64-v2`. O **
 ## 38. Evidências de produção
 
 - ✅ `vision_ocr.is_available() = True` no container `roleta-cloud`.
-- ✅ OCR real no container: `extract()` → `ok=True, texts=['Dealer Carlos'], dealer='Carlos', ms=1780`.
+- ✅ **Teste ponta-a-ponta em produção (WebSocket real)**: enviado `foto_frame` com imagem de teste → resposta `foto_resultado` `ok=True, dealer='Mariana', provider='evolution', wheel='Lightning', conf=0.99, ms=2735`.
+- ✅ **Persistência confirmada no DB de produção**: linha em `decisions` com `dealer=Mariana, provider=evolution, wheel_model=Lightning, vision_source=vision, vision_confidence=0.9879`.
+- ✅ **Os 3 campos (dealer + provider + modelo da roleta) vêm da FOTO** (sem DOM): provider por marca direta (evolution/pragmatic/playtech…) **ou** inferido pelo nome da mesa (lightning/immersive→evolution, mega→pragmatic).
 - ✅ `ALEMBIC ok (0009 head)`, container healthy, `/health=ok`.
-- ✅ Suíte local **602 passed** (6 testes de OCR provam foto→dados).
+- ✅ Suíte local **607 passed**.
 
 ## 39. Como usar (operador)
 
