@@ -544,6 +544,7 @@ class SQLiteDecisionRepository(DecisionRepository):
 
     def update_last_vision(self, *, dealer: Optional[str] = None,
                            wheel_model: Optional[str] = None,
+                           provider: Optional[str] = None,
                            confidence: Optional[float] = None,
                            source: str = "vision") -> int:
         """Vision (foto_roleta): grava o resultado do OCR na decisão MAIS RECENTE.
@@ -565,6 +566,9 @@ class SQLiteDecisionRepository(DecisionRepository):
             if wheel_model:
                 sets.append("wheel_model = ?")
                 params.append(str(wheel_model)[:80])
+            if provider:
+                sets.append("provider = ?")
+                params.append(str(provider)[:40])
             if confidence is not None:
                 sets.append("vision_confidence = ?")
                 params.append(float(confidence))

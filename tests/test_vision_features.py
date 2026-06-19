@@ -138,12 +138,13 @@ def test_update_last_vision_persists_on_latest_decision(tmp_db):
     repo.save_decision(Decision(session_id="s_upd", spin_number=1, spin_direction="horario", final_action="APOSTAR"))
     last_id = repo.save_decision(Decision(session_id="s_upd", spin_number=2, spin_direction="horario", final_action="APOSTAR"))
 
-    did = repo.update_last_vision(dealer="Carlos", wheel_model="evo_immersive", confidence=0.91, source="vision")
+    did = repo.update_last_vision(dealer="Carlos", wheel_model="evo_immersive", provider="evolution", confidence=0.91, source="vision")
     assert did == last_id
 
     loaded = repo.get_decision(last_id)
     assert loaded.dealer == "Carlos"
     assert loaded.wheel_model == "evo_immersive"
+    assert loaded.provider == "evolution"
     assert abs(loaded.vision_confidence - 0.91) < 1e-9
     assert loaded.vision_source == "vision"
 

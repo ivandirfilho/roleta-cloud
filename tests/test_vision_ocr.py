@@ -80,6 +80,32 @@ def test_extract_accepts_base64_with_prefix(monkeypatch):
     assert "lightning" in out["full_text"].lower()
     # wheel_model casa keyword conhecida ('lightning'/'roulette')
     assert out["wheel_model"] is not None
+    # provider INFERIDO pelo nome da mesa (lightning -> evolution)
+    assert out["provider"] == "evolution"
+
+
+@ocr_required
+def test_extract_provider_direct_brand(monkeypatch):
+    """Provider DIRETO via OCR: a marca em CAIXA ALTA aparece na foto."""
+    monkeypatch.setenv("SDA_VISION_OCR", "1")
+    out = vision_ocr.extract(_img_with_text("PRAGMATIC"))
+    assert out["ok"] is True
+    assert out["provider"] == "pragmatic"
+
+
+def test_parse_fields_extracts_all_three():
+    """Lógica de parsing (independente do OCR): dealer + wheel_model + provider da foto."""
+    dealer, wheel, provider = vision_ocr._parse_fields(["Dealer Maria", "Pragmatic Play", "Mega Roulette"])
+    assert dealer is not None and "maria" in dealer.lower()
+    assert wheel is not None and "roulette" in wheel.lower()
+    assert provider == "pragmatic"  # marca direta
+
+
+def test_parse_fields_infers_provider_from_wheel():
+    """Provider INFERIDO pelo nome da mesa quando a marca não aparece."""
+    _dealer, wheel, provider = vision_ocr._parse_fields(["Immersive Roulette", "Dealer Joao"])
+    assert provider == "evolution"  # immersive -> evolution
+    assert wheel is not None
 
 
 @ocr_required

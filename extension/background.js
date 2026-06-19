@@ -510,8 +510,8 @@ function connectWebSocket() {
         else if (data.type === 'foto_resultado') {
           // 📸 Vision (foto_roleta): resultado do OCR do frame enviado
           if (data.ok) {
-            console.log('📸 OCR:', { dealer: data.dealer, wheel_model: data.wheel_model, conf: data.confidence, ms: data.ms });
-            addLog('result', `📸 Foto→dados: dealer=${data.dealer || '—'} roleta=${data.wheel_model || '—'} (conf ${Math.round((data.confidence || 0) * 100)}%)`, {
+            console.log('📸 OCR:', { dealer: data.dealer, provider: data.provider, wheel_model: data.wheel_model, conf: data.confidence, ms: data.ms });
+            addLog('result', `📸 Foto→dados: dealer=${data.dealer || '—'} provider=${data.provider || '—'} roleta=${data.wheel_model || '—'} (conf ${Math.round((data.confidence || 0) * 100)}%)`, {
               texts: data.texts, ms: data.ms
             });
           } else {

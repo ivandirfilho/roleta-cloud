@@ -1281,19 +1281,20 @@ class MessageHandler:
         }
         if result.get("ok"):
             logger.info(
-                "[FOTO] dealer=%r wheel=%r conf=%.2f texts=%d ms=%d",
-                result.get("dealer"), result.get("wheel_model"),
+                "[FOTO] dealer=%r wheel=%r provider=%r conf=%.2f texts=%d ms=%d",
+                result.get("dealer"), result.get("wheel_model"), result.get("provider"),
                 result.get("confidence", 0.0), len(result.get("texts", [])),
                 result.get("ms", 0),
             )
             # Persiste o OCR na decisão mais recente (foto->dados->DB). Defensivo:
             # safe_except nunca deixa a persistência derrubar o handler.
-            if result.get("dealer") or result.get("wheel_model"):
+            if result.get("dealer") or result.get("wheel_model") or result.get("provider"):
                 from core.safe_except import safe_except
                 with safe_except("foto_persist", logger):
                     did = db_service.update_last_vision(
                         dealer=result.get("dealer"),
                         wheel_model=result.get("wheel_model"),
+                        provider=result.get("provider"),
                         confidence=result.get("confidence", 0.0),
                         source="vision",
                     )
@@ -1307,6 +1308,7 @@ class MessageHandler:
             "trace_id": trace_id,
             "dealer": result.get("dealer"),
             "wheel_model": result.get("wheel_model"),
+            "provider": result.get("provider"),
             "confidence": result.get("confidence", 0.0),
             "texts": result.get("texts", []),
             "ms": result.get("ms", 0),

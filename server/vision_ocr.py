@@ -33,8 +33,24 @@ _IMPORT_OK = False
 # SDA_VISION_WHEEL_KEYWORDS="immersive,auto,lightning,...".
 _DEFAULT_WHEEL_KEYWORDS = [
     "immersive", "auto", "lightning", "speed", "vip", "classic",
-    "instant", "xxxtreme", "gold", "ruleta", "roulette",
+    "instant", "xxxtreme", "gold", "mega", "ruleta", "roulette", "roleta",
 ]
+
+# Provider: marca/keyword que pode aparecer escrita na tela (logo/rodape) +
+# inferencia pelo nome da mesa (wheel_model) -> provider. So da FOTO (sem DOM).
+_PROVIDER_KEYWORDS = {
+    "evolution": ["evolution", "evo gaming", "evo-games"],
+    "pragmatic": ["pragmatic"],
+    "playtech": ["playtech"],
+    "ezugi": ["ezugi"],
+    "imagine": ["imagine"],
+}
+# Inferencia: keyword no nome da mesa -> provider (quando a marca nao aparece).
+_WHEEL_TO_PROVIDER = {
+    "immersive": "evolution", "lightning": "evolution", "xxxtreme": "evolution",
+    "auto-roulette": "evolution", "speed auto": "evolution", "instant": "evolution",
+    "mega": "pragmatic", "powerup": "pragmatic", "auto mega": "pragmatic",
+}
 
 
 def is_enabled() -> bool:
@@ -113,10 +129,13 @@ def _crop(arr, roi: Optional[dict]):
 
 
 def _parse_fields(texts: list[str]):
-    """Heuristica leve: extrai dealer e wheel_model das linhas reconhecidas."""
+    """Heuristica leve: extrai dealer, wheel_model e provider das linhas do OCR.
+    Tudo vem da FOTO (sem DOM). Retorna (dealer, wheel_model, provider)."""
     dealer = None
     wheel_model = None
+    provider = None
     keywords = _wheel_keywords()
+    full_low = " ".join(texts).lower()
 
     for t in texts:
         low = t.lower()
@@ -124,27 +143,40 @@ def _parse_fields(texts: list[str]):
         m = re.search(r"(?:dealer|crupi[eê]|croupier)\s*[:\-]?\s*(.+)", low)
         if m and not dealer:
             name = m.group(1).strip()
-            # recupera capitalizacao do texto original
             idx = low.find(name)
             dealer = t[idx:idx + len(name)].strip() if idx >= 0 else name.title()
-        # wheel_model: linha que casa keyword conhecida
+        # wheel_model: linha que casa keyword de mesa conhecida
         if not wheel_model:
             for kw in keywords:
                 if kw in low:
                     wheel_model = t.strip()
                     break
-    return dealer, wheel_model
+
+    # provider DIRETO: marca aparece escrita na foto (logo/rodape)
+    for prov, kws in _PROVIDER_KEYWORDS.items():
+        if any(kw in full_low for kw in kws):
+            provider = prov
+            break
+    # provider INFERIDO pelo nome da mesa (quando a marca nao aparece)
+    if not provider and wheel_model:
+        wl = wheel_model.lower()
+        for kw, prov in _WHEEL_TO_PROVIDER.items():
+            if kw in wl:
+                provider = prov
+                break
+
+    return dealer, wheel_model, provider
 
 
 def extract(image: "str | bytes", roi: Optional[dict] = None) -> dict:
     """Foto -> dados. Retorna dict serializavel:
-    {ok, enabled, available, texts, full_text, dealer, wheel_model, confidence, ms}.
+    {ok, enabled, available, texts, full_text, dealer, wheel_model, provider, confidence, ms}.
     Nunca levanta por causa de OCR (degradacao graciosa)."""
     t0 = time.time()
     out = {
         "ok": False, "enabled": is_enabled(), "available": False,
         "texts": [], "full_text": "", "dealer": None, "wheel_model": None,
-        "confidence": 0.0, "ms": 0,
+        "provider": None, "confidence": 0.0, "ms": 0,
     }
     if not is_enabled():
         out["ms"] = int((time.time() - t0) * 1000)
@@ -169,13 +201,14 @@ def extract(image: "str | bytes", roi: Optional[dict] = None) -> dict:
                     confs.append(float(row[2]))
                 except (TypeError, ValueError):
                     pass
-        dealer, wheel_model = _parse_fields(texts)
+        dealer, wheel_model, provider = _parse_fields(texts)
         out.update({
             "ok": True,
             "texts": texts,
             "full_text": " ".join(texts),
             "dealer": dealer,
             "wheel_model": wheel_model,
+            "provider": provider,
             "confidence": round(sum(confs) / len(confs), 4) if confs else 0.0,
         })
     except Exception as e:  # noqa: BLE001
