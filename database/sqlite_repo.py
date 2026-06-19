@@ -542,6 +542,46 @@ class SQLiteDecisionRepository(DecisionRepository):
         finally:
             conn.close()
 
+    def update_last_vision(self, *, dealer: Optional[str] = None,
+                           wheel_model: Optional[str] = None,
+                           confidence: Optional[float] = None,
+                           source: str = "vision") -> int:
+        """Vision (foto_roleta): grava o resultado do OCR na decisão MAIS RECENTE.
+        Só escreve campos não-vazios (não sobrescreve com branco) e NÃO toca o
+        caminho de aposta. Retorna o decision_id atualizado, ou 0 se não houver
+        decisão. O foto_frame chega logo após o novo_resultado, então a última
+        decisão (MAX id) é a do giro corrente."""
+        conn = self._get_connection()
+        try:
+            row = conn.execute("SELECT MAX(id) FROM decisions").fetchone()
+            if not row or row[0] is None:
+                return 0
+            decision_id = int(row[0])
+            sets: list = []
+            params: list = []
+            if dealer:
+                sets.append("dealer = ?")
+                params.append(str(dealer)[:120])
+            if wheel_model:
+                sets.append("wheel_model = ?")
+                params.append(str(wheel_model)[:80])
+            if confidence is not None:
+                sets.append("vision_confidence = ?")
+                params.append(float(confidence))
+            if source:
+                sets.append("vision_source = ?")
+                params.append(str(source)[:20])
+            if not sets:
+                return 0
+            params.append(decision_id)
+            conn.execute(
+                f"UPDATE decisions SET {', '.join(sets)} WHERE id = ?", params
+            )
+            conn.commit()
+            return decision_id
+        finally:
+            conn.close()
+
     def get_session_pnl(self, session_id: str) -> float:
         """B5: P&L acumulado de uma sessão (para stop-loss)."""
         conn = self._get_connection()

@@ -126,3 +126,32 @@ def test_auto_migration_is_idempotent(tmp_db):
     conn.close()
     assert "wheel_model" in cols
 
+
+def test_update_last_vision_persists_on_latest_decision(tmp_db):
+    """Vision (foto->dados->DB): update_last_vision grava o OCR na decisão mais recente."""
+    from database.sqlite_repo import SQLiteDecisionRepository
+    from database.models import Decision
+
+    repo = SQLiteDecisionRepository(db_path=tmp_db)
+    _seed_session(tmp_db, "s_upd")
+    # duas decisões; a foto deve cair na MAIS RECENTE
+    repo.save_decision(Decision(session_id="s_upd", spin_number=1, spin_direction="horario", final_action="APOSTAR"))
+    last_id = repo.save_decision(Decision(session_id="s_upd", spin_number=2, spin_direction="horario", final_action="APOSTAR"))
+
+    did = repo.update_last_vision(dealer="Carlos", wheel_model="evo_immersive", confidence=0.91, source="vision")
+    assert did == last_id
+
+    loaded = repo.get_decision(last_id)
+    assert loaded.dealer == "Carlos"
+    assert loaded.wheel_model == "evo_immersive"
+    assert abs(loaded.vision_confidence - 0.91) < 1e-9
+    assert loaded.vision_source == "vision"
+
+
+def test_update_last_vision_empty_db_returns_zero(tmp_db):
+    """Sem decisões, update_last_vision retorna 0 (não quebra)."""
+    from database.sqlite_repo import SQLiteDecisionRepository
+    repo = SQLiteDecisionRepository(db_path=tmp_db)
+    assert repo.update_last_vision(dealer="X") == 0
+
+

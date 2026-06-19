@@ -1286,6 +1286,19 @@ class MessageHandler:
                 result.get("confidence", 0.0), len(result.get("texts", [])),
                 result.get("ms", 0),
             )
+            # Persiste o OCR na decisão mais recente (foto->dados->DB). Defensivo:
+            # safe_except nunca deixa a persistência derrubar o handler.
+            if result.get("dealer") or result.get("wheel_model"):
+                from core.safe_except import safe_except
+                with safe_except("foto_persist", logger):
+                    did = db_service.update_last_vision(
+                        dealer=result.get("dealer"),
+                        wheel_model=result.get("wheel_model"),
+                        confidence=result.get("confidence", 0.0),
+                        source="vision",
+                    )
+                    if did:
+                        logger.info("[FOTO] persistido na decision %s", did)
         await websocket.send(json.dumps({
             "type": "foto_resultado",
             "ok": result.get("ok", False),

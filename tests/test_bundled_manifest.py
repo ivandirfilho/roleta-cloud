@@ -42,8 +42,9 @@ def test_manifest_json_wiring():
     war = mf.get("web_accessible_resources", [])
     flat = [res for entry in war for res in entry.get("resources", [])]
     assert any("providers/" in r for r in flat)
-    # version bumped to the auto-start release
-    assert mf["version"].startswith("3.3")
+    # version >= 3.3 (auto-start release); 3.4 = vision (foto->dados)
+    _major, _minor = (int(x) for x in mf["version"].split(".")[:2])
+    assert (_major, _minor) >= (3, 3)
 
 
 def test_detection_hosts_match_deal_capture():

@@ -1,6 +1,7 @@
 # Roleta Cloud - Database Service
 
 import logging
+import sqlite3
 from typing import Dict, Optional, Any
 from database import get_repository
 from database.models import GaleWindow, WindowPlay, Decision, Session
@@ -155,6 +156,15 @@ class DatabaseService:
             calibration_error=calibration_error,
             result_region=result_region,
         )
+
+    def update_last_vision(self, **kwargs) -> int:
+        """Vision (foto_roleta): grava o OCR (dealer/wheel_model/confidence) na
+        decisão mais recente. Nunca quebra o fluxo (retorna 0 em erro)."""
+        try:
+            return self.repository.update_last_vision(**kwargs)
+        except sqlite3.Error as e:
+            logger.warning(f"update_last_vision falhou: {e}")
+            return 0
 
     def get_session_pnl(self, session_id: str) -> float:
         """B5: P&L da sessão (stop-loss). Nunca quebra o fluxo de decisão."""
