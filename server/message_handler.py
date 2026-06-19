@@ -1268,8 +1268,23 @@ class MessageHandler:
             }))
             return
 
-        # OCR roda em thread separada (CPU-bound) para nao bloquear o event loop.
-        result = await asyncio.to_thread(vision_ocr.extract, image, roi)
+        # SINGLE-FLIGHT: se já há um OCR em andamento, descarta esta foto na hora
+        # (não enfileira). No CPU QEMU o OCR leva alguns segundos; sem isto, fotos
+        # empilham, saturam o thread-pool e estouram o keepalive do WebSocket
+        # (1011 ping timeout = as "travadas"). Melhor pular 1 giro do que travar.
+        if getattr(self, "_vision_busy", False):
+            await websocket.send(json.dumps({
+                "type": "foto_resultado", "ok": False, "busy": True,
+                "trace_id": trace_id,
+            }))
+            return
+
+        self._vision_busy = True
+        try:
+            # OCR roda em thread separada (CPU-bound) para nao bloquear o event loop.
+            result = await asyncio.to_thread(vision_ocr.extract, image, roi)
+        finally:
+            self._vision_busy = False
 
         # cache do ultimo resultado de visao (para metricas/merge opcional)
         self._last_vision = {

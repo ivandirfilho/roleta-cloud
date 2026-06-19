@@ -263,11 +263,22 @@ async function getFotoCapturePolicy() {
   }
 }
 
+// 📸 Vision (foto_roleta): captura de foto. Estado de throttle/single-flight para
+// não inundar o servidor (cada OCR leva alguns segundos no CPU do servidor).
+let _fotoInFlight = false;
+let _lastFotoTs = 0;
+const FOTO_MIN_INTERVAL_MS = 6000; // no máx 1 foto a cada 6s
+
 // Captura UMA foto da aba visível e envia ao servidor para OCR. Defensivo:
 // nunca lança (o chamador já está em try/catch); só roda se a política for 'on'.
 async function captureAndSendFrame(state) {
   if ((await getFotoCapturePolicy()) === 'off') return;
   if (!state || !state.tabId) return;
+
+  // throttle + single-flight: evita empilhar fotos (causa de travada no WS/OCR)
+  const now = Date.now();
+  if (_fotoInFlight) return;
+  if (now - _lastFotoTs < FOTO_MIN_INTERVAL_MS) return;
 
   // descobre o windowId da aba monitorada (captureVisibleTab é por janela)
   let windowId;
@@ -279,17 +290,22 @@ async function captureAndSendFrame(state) {
   }
   if (windowId == null) return;
 
-  let dataUrl;
+  _fotoInFlight = true;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 });
-  } catch (e) {
-    // captura falha se a aba não estiver visível/ativa (esperado) — silencioso
-    return;
+    let dataUrl;
+    try {
+      dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 55 });
+    } catch (e) {
+      // captura falha se a aba não estiver visível/ativa (esperado) — silencioso
+      return;
+    }
+    if (!dataUrl) return;
+    _lastFotoTs = Date.now();
+    const traceId = `foto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sendToWebSocket({ type: 'foto_frame', trace_id: traceId, image: dataUrl });
+  } finally {
+    _fotoInFlight = false;
   }
-  if (!dataUrl) return;
-
-  const traceId = `foto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  sendToWebSocket({ type: 'foto_frame', trace_id: traceId, image: dataUrl });
 }
 
 

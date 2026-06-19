@@ -104,6 +104,19 @@ def _decode_image(image: "str | bytes"):
         raise TypeError("image deve ser base64 str ou bytes")
 
     pil = Image.open(io.BytesIO(raw)).convert("RGB")
+    # Downscale: OCR de tela cheia no CPU QEMU leva 7-9s. Reduzir a maior
+    # dimensao a SDA_VISION_MAX_DIM (default 1100px) corta o tempo 3-4x e o
+    # ruido, sem perder legibilidade de texto de overlay. Mantem proporcao.
+    try:
+        max_dim = int(os.environ.get("SDA_VISION_MAX_DIM", "1100"))
+    except (TypeError, ValueError):
+        max_dim = 1100
+    if max_dim > 0:
+        w, h = pil.size
+        big = max(w, h)
+        if big > max_dim:
+            scale = max_dim / float(big)
+            pil = pil.resize((max(1, int(w * scale)), max(1, int(h * scale))))
     return np.array(pil)
 
 
