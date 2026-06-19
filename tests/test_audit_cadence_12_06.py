@@ -221,5 +221,58 @@ class TestVetosModulateStakeNotAction(unittest.TestCase):
         )
 
 
+class TestFallbackForce17Radius(unittest.TestCase):
+    """Regressão BUG-FRONT #1 (18/06): com SDA_BET_PAIR=force17 o fallback de
+    calibração (2ª jogada do sentido) deve indicar 17# (raio 8), e NÃO 21# (raio 10),
+    independentemente de SDA_FORCE17_EXACT — que rege só o padding da aposta NORMAL,
+    não o fallback. Antes do fix, EXACT=0 (produção) emitia 21# (geometria antiga)."""
+
+    def setUp(self):
+        self._env = {k: os.environ.get(k) for k in (
+            "SDA_BET_PAIR", "SDA_FORCE17_EXACT", "PROFIT_CUT_V1", "PROFIT_STOP_LOSS_UNITS")}
+        os.environ["SDA_FORCE17_EXACT"] = "0"  # estado real de produção
+        os.environ["PROFIT_CUT_V1"] = "1"
+        os.environ["PROFIT_STOP_LOSS_UNITS"] = "0"
+        self._patches = [
+            patch("server.message_handler.db_service", MagicMock(
+                save_decision=MagicMock(return_value=1),
+                get_session_pnl=MagicMock(return_value=0.0),
+            )),
+            patch("server.message_handler.connection_manager", MagicMock(
+                broadcast=MagicMock(side_effect=lambda *a, **k: _async_none()),
+            )),
+        ]
+        for p in self._patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self._patches:
+            p.stop()
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def _calibration2_numeros(self):
+        handler, gs, _ = _mk_handler()
+        gs.save = lambda *a, **k: None
+        _spin(handler, 10, "horario")        # calibração 1 (PULAR)
+        _spin(handler, 22, "anti-horario")   # calibração 1 do outro sentido (PULAR)
+        d3 = _spin(handler, 5, "horario")    # calibração 2 → fallback indica
+        self.assertEqual(d3["acao"], "APOSTAR")
+        return d3["numeros"]
+
+    def test_force17_fallback_is_17_not_21(self):
+        os.environ["SDA_BET_PAIR"] = "force17"
+        nums = self._calibration2_numeros()
+        self.assertEqual(len(nums), 17, "force17: fallback de calibração deve ser 17#, não 21#")
+
+    def test_non_force17_fallback_keeps_21(self):
+        os.environ["SDA_BET_PAIR"] = "c2c3"  # controle: regime não-force17 mantém histórico
+        nums = self._calibration2_numeros()
+        self.assertEqual(len(nums), 21, "fora de force17, o fallback mantém 21# (raio 10)")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -44,8 +44,12 @@ function buildForce17HTML(sugestao) {
   const numerosHTML = numeros.length
     ? `<div class="eb-numeros" style="margin-top:6px;font-size:12px;line-height:1.6;word-spacing:2px;">${numeros.join(' · ')}</div>`
     : '';
+  // fix BUG-FRONT #3: nº de regiões deriva do payload (não hardcode "3"); no fallback
+  // de calibração (1 centro / sem regiões) rotula como "calibração".
+  const nReg = regioes.length;
+  const regLabel = nReg ? `${nReg} ${nReg > 1 ? 'regiões' : 'região'}` : 'calibração';
   const header = `<div class="eb-regioes-head" style="font-size:10px;opacity:0.75;margin-bottom:3px;">`
-    + `🎯 3 regiões · ${coverageN} números${bias ? ' · ' + bias : ''}</div>`;
+    + `🎯 ${regLabel} · ${coverageN} números${bias ? ' · ' + bias : ''}</div>`;
   return header
     + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}</div>`
     + numerosHTML;
