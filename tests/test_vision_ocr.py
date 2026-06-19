@@ -37,8 +37,15 @@ ocr_required = pytest.mark.skipif(
 
 
 def test_module_api_exists():
-    for name in ("extract", "is_available", "is_enabled"):
+    for name in ("extract", "is_available", "is_enabled", "mark_frame", "mark_persisted"):
         assert hasattr(vision_ocr, name)
+
+
+def test_metrics_increment_does_not_raise():
+    """mark_frame/mark_persisted nunca levantam (no-op se prometheus ausente)."""
+    vision_ocr.mark_frame("ok")
+    vision_ocr.mark_frame("busy")
+    vision_ocr.mark_persisted()
 
 
 def test_disabled_flag_returns_gracefully(monkeypatch):

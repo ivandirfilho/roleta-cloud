@@ -25,6 +25,45 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# Métricas Prometheus (foto_roleta) — observabilidade da cobertura foto->dados.
+# No-op se prometheus_client ausente. Expostas em /metrics (registry default).
+try:
+    from prometheus_client import Counter as _PromCounter
+    _vision_frames = _PromCounter(
+        "vision_frames_total",
+        "Frames de foto recebidos pelo handler, por resultado",
+        ["result"],  # ok|busy|empty|error|disabled
+    )
+    _vision_persisted = _PromCounter(
+        "vision_persisted_total",
+        "Resultados de OCR persistidos em uma decision",
+    )
+except ImportError:
+    class _NoOpMetric:
+        def labels(self, *_a, **_k):
+            return self
+
+        def inc(self, *_a, **_k):
+            pass
+    _vision_frames = _NoOpMetric()
+    _vision_persisted = _NoOpMetric()
+
+
+def mark_frame(result: str) -> None:
+    """Incrementa o contador de frames por resultado (ok/busy/empty/error/disabled)."""
+    try:
+        _vision_frames.labels(result=result).inc()
+    except (ValueError, RuntimeError):
+        pass
+
+
+def mark_persisted() -> None:
+    try:
+        _vision_persisted.inc()
+    except (ValueError, RuntimeError):
+        pass
+
+
 _OCR = None              # singleton RapidOCR
 _OCR_TRIED = False       # ja tentamos importar/instanciar?
 _IMPORT_OK = False

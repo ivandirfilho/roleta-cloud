@@ -1262,6 +1262,7 @@ class MessageHandler:
         roi = data.get("roi")
         trace_id = data.get("trace_id")
         if not image:
+            vision_ocr.mark_frame("empty")
             await websocket.send(json.dumps({
                 "type": "foto_resultado", "ok": False, "error": "sem image",
                 "trace_id": trace_id,
@@ -1273,6 +1274,7 @@ class MessageHandler:
         # empilham, saturam o thread-pool e estouram o keepalive do WebSocket
         # (1011 ping timeout = as "travadas"). Melhor pular 1 giro do que travar.
         if getattr(self, "_vision_busy", False):
+            vision_ocr.mark_frame("busy")
             await websocket.send(json.dumps({
                 "type": "foto_resultado", "ok": False, "busy": True,
                 "trace_id": trace_id,
@@ -1285,6 +1287,7 @@ class MessageHandler:
             result = await asyncio.to_thread(vision_ocr.extract, image, roi)
         finally:
             self._vision_busy = False
+        vision_ocr.mark_frame("ok" if result.get("ok") else "error")
 
         # cache do ultimo resultado de visao (para metricas/merge opcional)
         self._last_vision = {
@@ -1315,6 +1318,7 @@ class MessageHandler:
                     )
                     if did:
                         logger.info("[FOTO] persistido na decision %s", did)
+                        vision_ocr.mark_persisted()
         await websocket.send(json.dumps({
             "type": "foto_resultado",
             "ok": result.get("ok", False),
