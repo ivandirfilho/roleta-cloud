@@ -482,6 +482,93 @@ apenas alinham a cobertura do fallback e a renderização ao contrato force17.
 
 ---
 
+# 🔭 PARTE IV — Auditoria end-to-end do fluxo de dados (simulação + servidor Debian real)
+
+> **Objetivo:** simular o fluxo de uma rodada desde a recepção do número (escuta) até a exibição no
+> front, verificar a integridade de cada vínculo de arquitetura, identificar estruturas que atrapalham e
+> confirmar se a realidade corresponde à **proposta** (`fluxode_dados_13_junho.md`).
+> **Método:** 2 subagents `explore` (entrada/escuta + pipeline servidor) + simulação executável do
+> `MessageHandler` real + auditoria ao vivo do servidor `187.45.181.75` via SSH. Data: 18/06 (noite).
+
+## 22. Mapa do fluxo — proposta × realidade (6 camadas)
+
+| # | Camada | Componentes (arquivo:linha) | Conforme proposta? |
+|---|---|---|:--:|
+| 1 | **Captura (escuta)** | `background.js:1699` `extractResultsFromPage` (seletor `[data-role="recent-number"]`); `provider_router.js` (Evolution ativo); `deal_capture.js`/`session_extractor.js` (dealer/mesa/round) | ✅ |
+| 2 | **Contrato entrada** | `background.js:1551` → `novo_resultado {numero, direcao, trace_id, t_client, dealer, table, provider, round_id, monitoringData{isOpen}}`; dedupe por `hash`; WS `wss://roleta.xma-ia.com/ws`; reconnect 5s; **MASTER/SLAVE guard** (só master envia) | ✅ |
+| 3 | **Conexão** | `connection_manager.py` (MASTER/SLAVE, grace 10s, `MAX_CONNECTIONS=50`, LIFO); `websocket.py` (handler + `state_sync` 1s) | ✅ |
+| 4 | **Core+Estratégia** | `message_handler.py:process_message`→`handle_new_result` (22 passos); `SpinInput` Pydantic (`numero 0-36`, `direcao` Literal); SDA17→Triple Rate→Martingale→Gates INV-3 | ✅ |
+| 5 | **Persistência** | `sqlite_repo.save_decision` (síncrono ~10-50ms, WAL, `busy_timeout=5s`, circuit breaker 5/60s); `state.json` atômico; outbox→CDC→PG **OFF por default** | ✅ |
+| 6 | **Saída/front** | `sugestao`→escuta (overlay) · `trace`+`state_sync`→Glass Box (`app.js`) | ✅ (corrigido PARTES II–III) |
+
+> A realidade **corresponde** ao blueprint de 13/06. Única evolução: a **geometria** migrou de V2+V3 (3+7+7)
+> para **force17** (C1=ForceLast + C2 + C3); o **fluxo de dados e os contratos WS são idênticos** à proposta.
+
+## 23. Pipeline de `handle_new_result` (ordem real verificada)
+
+`SpinInput` (Pydantic) → `state_lock` → `check_prediction` (red/green do anterior) → `martingale.update` →
+`wheel_dist`/calibration → `update_adaptive` → `update_result` (decisão anterior: `pnl_units`, região) →
+`_engine_resolve` (feedback c_selection + block_gale) → `process_spin` (timeline, `target_direction`) →
+`save()` state.json → **`strategy.analyze`** → Triple Rate → **INV-3** (CUT-v1/stop-loss/fallback) →
+`_engine_apply_selection` (force17) → `_ensure_nonempty_coverage` → QW-1/2 stake → `store_prediction` →
+`save_decision` (SQLite) + DNA features → **broadcast `sugestao`+`trace`**. **Caminho quente síncrono;
+PG/telemetria vão para fila+worker** (sem round-trip de rede no spin, conforme a proposta §2).
+
+## 24. 🧪 Simulação executável de uma rodada (recepção → saída)
+
+`MessageHandler`+`GameState`+`SDA17` reais (`SDA_BET_PAIR=force17`), warmup 8 spins, spin alvo
+`numero=14, direcao=horário`. Saídas capturadas e vínculos verificados:
+
+| Saída | Conteúdo |
+|---|---|
+| **Sugestão** (→escuta) | `acao=APOSTAR` · `numeros (N=14)` · `centros=[1,12,36]` · `regioes=[(c2,12),(c3,36),(c1,27)]` · `force17.numeros (N=14)` |
+| **Trace** (→Glass Box) | `result.numeros (N=14)` · `force17.numeros (N=14)` · `regioes=3` |
+| **Decision** (SQLite verdade) | `sda_numbers (N=14)` · `sda_centers=[1,12,36]` · `final_action=APOSTAR` |
+
+**Vínculos de arquitetura — 6/6 OK:**
+- ✅ `sugestao.numeros == Decision.sda_numbers` (o exibido == o salvo/avaliado)
+- ✅ `trace.result.numeros == sugestao.numeros` (escuta e Glass Box coerentes)
+- ✅ `force17.numeros == sugestao.numeros` (**fix BUG #2** — números e regiões da mesma fonte)
+- ✅ `force17` tem **3 regiões** · ✅ `centros == 3` · ✅ **N ≠ 21** (**fix BUG #1** — 17# união, sem 21# legado)
+
+> N=14 (não 17) por **sobreposição real** dos 3 centros (`SDA_FORCE17_EXACT=0` → união ~15, conforme o
+> estudo). O fluxo de dados está **íntegro ponta a ponta**.
+
+## 25. Servidor Debian ao vivo (`187.45.181.75`, v4.4.1)
+
+| Sinal | Valor | Leitura |
+|---|---|---|
+| `/health` · container | `ok` · `Up (healthy)` | ✅ |
+| `roleta_master_present` | **1.0** | escuta eleita MASTER (sem master, spins seriam descartados) |
+| `roleta_ws_connections` | **2.0** | master + slave conectados |
+| Erros/tracebacks (500 logs) | **0** | ✅ |
+| `calibration_fill_rate_1h` | **1.0** | 100% das decisões recentes resolvem red/green |
+| `wheel_dist` p50/p95/p99 | **3 / 8 / 9** | calibração saudável |
+| Decisões/1h | **97** | fluxo ativo ao vivo |
+| **Fix em produção** | calibrações pós-deploy **N=17** (id 8049/8050); dist N (id>7970) sem nenhum **21#** | ✅ empírico |
+
+## 26. ⚠️ Estruturas que atrapalham (achados) — nenhuma crítica
+
+| Achado | Local | Severidade | Natureza |
+|---|---|:--:|---|
+| `dna_realize_lag = 23 dias` (1745 features órfãs, mais antiga 27/05) | métrica/`decision_dna` | 🟡 obs. | **Benigno**: órfãs **terminais** (última predição antes de cada reset/troca de dealer nunca tem "próximo spin"); 24h realiza 92%. A métrica mede a órfã mais antiga → cresce p/ sempre. **Recomendação:** alerta por janela (últimas Nh) ou marcar órfãs terminais. |
+| `update_result` chamado 2× (pré-gate + fallback) | `message_handler.py:519,827` | 🟢 baixa | Redundância **defensiva** (garante ledger mesmo se o 1º falha). Idempotente. |
+| Espelho PG/outbox **OFF** | `feature_flags.dual_write_pg` | 🟢 info | By-design (SQLite sustenta produção; ramo CDC→PG dormente). |
+| `core/engine.py` legado | — | 🟢 info | Fora do fluxo vivo (só docs/teste), conforme proposta §7. |
+| `state_lock` global no pipeline | `message_handler.py:427` | 🟢 info | Serializa spins; OK em runtime single-thread async (sem contenção real). |
+
+## 27. Veredito
+
+✅ **O fluxo de dados está 100% funcional e íntegro ponta a ponta** — da recepção do número na escuta
+(MASTER) → pipeline do servidor Debian → estratégia force17 → persistência SQLite → sugestão/trace de
+volta ao front. A **simulação executável** confirma os 6 vínculos de arquitetura, o **servidor ao vivo**
+está `healthy` com MASTER presente e 0 erros, e o **fix das PARTES II–III está validado empiricamente em
+produção** (N=17, zero 21#). A realidade **corresponde à proposta** (`fluxode_dados_13_junho.md`).
+**Nenhuma estrutura crítica atrapalhando**; os achados são residuais/benignos (DNA lag métrico,
+redundância defensiva, ramos dormentes by-design).
+
+---
+
 ## Apêndice — extração e reprodução
 
 ```bash
