@@ -31,6 +31,10 @@ services:
       # 🎯 ROOT CAUSE HOOK-1: sem essa var, o hook nunca consegue init
       # (lia DSN como None e marcava _publisher_init_attempted=True para sempre)
       - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      # 📸 Vision (foto_roleta): aliases p/ fundir variantes de OCR do nome da mesa
+      # (ex.: 'Roleta aoVivo' e 'Roleta ao Vivo' -> mesmo canonico). Chave normalizada
+      # sem espacos/caixa. Operador adiciona novos pares: "chave=Nome Canonico,...".
+      - SDA_VISION_MODEL_ALIASES=${SDA_VISION_MODEL_ALIASES:-roletaaovivo=Roleta ao Vivo}
       # V4 (14/06): geometria de 3 regiões disjuntas de 7 = 21 números (C1
       # força+shift M5, C2 gravidade circular, C3 zona fria). ON por decisão do
       # operador (sem backtest). Desativar: SDA_REGIONS_V4=0 no host + redeploy,

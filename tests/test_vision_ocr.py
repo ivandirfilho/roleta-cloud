@@ -117,6 +117,27 @@ def test_parse_fields_dealer_in_separate_region():
     assert dealer2 is None
 
 
+def test_dealer_normalized_uppercase():
+    """Dealer canonicalizado em CAIXA ALTA (Levi/levi/LEVI agrupam)."""
+    d1, _, _ = vision_ocr._parse_fields(["Dealer Levi"])
+    d2, _, _ = vision_ocr._parse_fields(["Dealer  levi "])
+    assert d1 == "LEVI" and d2 == "LEVI"
+
+
+def test_model_normalized_title_case_and_whitespace():
+    """Modelo: espaços colapsados + Title Case (variantes de espaço agrupam)."""
+    _d, w1, _ = vision_ocr._parse_fields(["Roleta  ao   Vivo"])
+    assert w1 == "Roleta Ao Vivo"
+
+
+def test_model_alias_merges_ocr_variants(monkeypatch):
+    """Alias funde 'Roleta aoVivo' e 'Roleta ao Vivo' no mesmo canônico."""
+    monkeypatch.setenv("SDA_VISION_MODEL_ALIASES", "roletaaovivo=Roleta ao Vivo")
+    _d1, w1, _ = vision_ocr._parse_fields(["Roleta aoVivo"])
+    _d2, w2, _ = vision_ocr._parse_fields(["Roleta ao Vivo"])
+    assert w1 == "Roleta ao Vivo" and w2 == "Roleta ao Vivo"
+
+
 def test_parse_fields_infers_provider_from_wheel():
     """Provider INFERIDO pelo nome da mesa quando a marca não aparece."""
     _dealer, wheel, provider = vision_ocr._parse_fields(["Immersive Roulette", "Dealer Joao"])

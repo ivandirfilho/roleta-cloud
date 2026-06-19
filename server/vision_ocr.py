@@ -224,7 +224,51 @@ def _parse_fields(texts: list[str]):
                 provider = prov
                 break
 
-    return dealer, wheel_model, provider
+    return _norm_dealer(dealer), _norm_model(wheel_model), provider
+
+
+def _norm_ws(s: str) -> str:
+    """Colapsa espacos repetidos e remove bordas."""
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _norm_dealer(name: Optional[str]) -> Optional[str]:
+    """Canonicaliza o nome do dealer p/ agrupar variantes de OCR
+    (LEVI/Levi/levi -> LEVI). Casas exibem o nome em CAIXA ALTA."""
+    if not name:
+        return name
+    out = _norm_ws(name).upper()
+    return out or None
+
+
+def _model_aliases() -> dict:
+    """Mapa OCR-variante -> nome canonico, via env SDA_VISION_MODEL_ALIASES
+    ('roleta aovivo=Roleta ao Vivo,...'). Chave comparada sem espacos/caixa."""
+    raw = os.environ.get("SDA_VISION_MODEL_ALIASES", "")
+    out = {}
+    for pair in raw.split(","):
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            key = re.sub(r"[^a-z0-9]", "", k.strip().lower())
+            if key:
+                out[key] = v.strip()
+    return out
+
+
+def _norm_model(model: Optional[str]) -> Optional[str]:
+    """Canonicaliza o modelo da roleta p/ agrupar variantes de OCR.
+    1) colapsa espacos + Title Case; 2) aplica alias (chave sem espacos/caixa)
+    p/ fundir 'Roleta ao Vivo' e 'Roleta aoVivo' no mesmo canonico."""
+    if not model:
+        return model
+    cleaned = _norm_ws(model)
+    if not cleaned:
+        return None
+    key = re.sub(r"[^a-z0-9]", "", cleaned.lower())
+    aliases = _model_aliases()
+    if key in aliases:
+        return aliases[key]
+    return cleaned.title()
 
 
 def extract(image: "str | bytes", roi: Optional[dict] = None) -> dict:
