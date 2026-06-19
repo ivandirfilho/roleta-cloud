@@ -531,6 +531,65 @@ escolhido nem **veredito red/green** por aposta, e os campos novos (`c_selection
 
 ---
 
+### H. Atualização 18/06 (madrugada) — minimizado unificado, rotinas saneadas, métrica `dna_realize_lag`, fluxo 100% + auditoria (PRs #19, #20)
+
+> Ciclo "documentar o fluxo + implantar rotinas p/ 100% funcional + auditoria + graphify".
+> Detalhes completos do fluxo e da auditoria end-to-end em `resultados_18_junho.md` (PARTES II–IV).
+
+**Fluxo de uma rodada (recepção → saída), verificado por simulação executável do `MessageHandler`:**
+`escuta (MASTER) → novo_resultado {numero,direcao,dealer,...} → connection_manager (role) → SpinInput
+(Pydantic) → check_prediction (red/green) → martingale → wheel_dist → update_adaptive → update_result
+(pnl, região) → process_spin → save state.json → strategy.analyze → Triple Rate → INV-3 →
+_engine_apply_selection (force17 17#) → _ensure_nonempty → QW stake → store_prediction → save_decision
+(SQLite) + DNA → broadcast sugestao(→escuta) + trace(→Glass Box) · state_sync 1Hz`. Caminho quente
+síncrono; PG/telemetria em fila+worker. **6/6 vínculos de dados OK** (sugestao==trace==Decision;
+force17.numeros==numeros; N≠21; 3 regiões).
+
+**1. Front da escuta — minimizado unificado (PR #19 + follow-up):** o quadro minimizado divergia do
+aberto e só atualizava ao abrir/fechar — o heartbeat lia `pending_prediction.centers` ([C1,C2,C3])
+enquanto o aberto usa `sugestao.regioes` (c2,c3,c1, `c_selection.py:448`). Helper único
+`centrosFromSugestao(s)` nos 3 pontos. **Code-review** pegou 1 regressão (cold-start: após reload com
+overlay minimizado, `lastSugestao` null → minimizado vazio); corrigida com fallback a
+`pending_prediction.centers` **só** no cold-start. `manifest` 3.3.0→3.3.2 (extensão exige reload no browser).
+
+**2. Rotina saneada — serviço systemd legado:** `roleta-cloud.service` (`python3 main.py` direto no
+host) estava **failed** desde 17/06 (conflito de porta com o container). Produção roda via
+**docker-compose** (`restart: unless-stopped`) + `roleta-deploy.timer`. Desabilitado
+(`systemctl disable --now` + `reset-failed`) → **0 failed units**; container segue healthy.
+
+**3. Observabilidade — `dna_realize_lag` corrigido:** o alerta `RoletaDnaRealizeLagHigh` estava
+**firing** (falso-positivo, com `calibration_fill_rate_1h=1.0`): a métrica media TODAS as features DNA
+sem realize, incluindo **órfãs terminais** (última predição antes de cada reset/troca de dealer, que
+nunca realiza) → lag ~23 dias. Agora mede só as features "na ponta" (`id > MAX(id) já realizado`);
+órfãs terminais ficam atrás e são excluídas; se o realize travar de fato, as da ponta acumulam e o lag
+sobe (sinal preservado). +2 testes (`database/dna_logger.py`, `test_sp29`).
+
+**4. Fluxo 100% funcional (servidor real):** healthy v4.4.1, `master_present=1`, 2 conexões WS, **0
+erros**, `calibration_fill_rate=1.0`, wheel_dist p50=3, **fix N=17 confirmado empiricamente** (calib.
+pós-deploy id 8049/8050 = 17#; zero 21#). **8 containers healthy** (cloud, cdc-worker, pg, prometheus,
+grafana, alertmanager, node/pg-exporter); targets Prometheus 2/2 up.
+
+**5. Auditoria de bugs:** suíte **570 passed** (+4 testes de regressão na sessão); **code-review** das
+mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; lint = 11 avisos
+**cosméticos pré-existentes** (F401/F541/E402, não-bugs, CI verde).
+
+**6. Grafo:** `graphify update .` → `built_at_commit == HEAD`.
+
+> **Veredito:** **100% funcional** — 0 failed units, 0 alertas falsos firing, fluxo íntegro ponta a
+> ponta, suíte verde, correções deployadas.
+
+**Scorecard ISO/IEC 25010 — delta:**
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Operabilidade** | ⚠️ 1 serviço systemd failed | ✅ 0 failed units | serviço legado desabilitado |
+| **Analisabilidade** (obs.) | ⚠️ alerta dna_lag falso firing | ✅ métrica fiel | exclui órfãs terminais |
+| **Adequação funcional** (UI) | ⚠️ minimizado divergia/vazio | ✅ fonte única c2,c3,c1 + cold-start | `centrosFromSugestao` + fallback |
+| **Testabilidade** | — | ✅ +4 testes | force17 fallback, dna terminal cobertos |
+| **Confiabilidade** | ✅ | ✅ | lógica de aposta inalterada; suíte 570 verde |
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 ---

@@ -867,13 +867,17 @@ function handleStateSync(data) {
       aposta.textContent = data.aposta;
     }
 
-    // Atualizar status se minimizado — fonte ÚNICA: lastSugestao.regioes (ordem
-    // c2,c3,c1), IDÊNTICA à vista expandida. Antes lia data.pending_prediction.centers
-    // (outra fonte/ordem [C1,C2,C3]) → o minimizado divergia do aberto e só atualizava
-    // ao abrir/fechar. O gale continua vindo do state_sync (dinâmico).
+    // Atualizar status se minimizado — fonte PRIMÁRIA: lastSugestao.regioes (ordem
+    // c2,c3,c1), IDÊNTICA à vista expandida (resolve a divergência aberto×minimizado).
+    // Fallback de COLD-START: após reload de página com overlay minimizado, lastSugestao
+    // ainda é null em memória; usa os centros do pending_prediction do próprio state_sync
+    // p/ não deixar o minimizado vazio até a 1ª sugestão. O gale vem do state_sync.
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
-      const centros = centrosFromSugestao(overlayState.lastSugestao);
+      let centros = centrosFromSugestao(overlayState.lastSugestao);
+      if (!centros.length && data.pending_prediction && data.pending_prediction.centers) {
+        centros = data.pending_prediction.centers;
+      }
       if (status && centros.length) {
         const centroDisplay = buildCentroHTML(centros);
         status.innerHTML = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
