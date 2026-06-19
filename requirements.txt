@@ -10,6 +10,10 @@ websockets>=12.0
 # Logging estruturado
 structlog>=24.0
 
+# Vision OCR (foto_roleta_junho.md): foto -> dados. PaddleOCR-ONNX self-contained,
+# CPU, sem binario externo. Opcional em runtime (degradacao graciosa se ausente).
+rapidocr-onnxruntime>=1.2,<2
+
 # Observability / debugging (Sprint VF-0)
 prometheus-client>=0.20.0
 py-spy>=0.4.0

@@ -6,8 +6,12 @@ LABEL version="4.4.1"
 WORKDIR /app
 
 # Dependências de sistema (VF-0: sqlite3 CLI + jq + strace para debug em produção)
+# + libs de runtime do opencv (dep do rapidocr-onnxruntime / vision OCR): libgl1,
+#   libglib2.0-0 (core) + libsm6/libxext6/libxrender1 (defensivo). Se faltar, o OCR
+#   apenas degrada (is_available=False) sem derrubar o server.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl sqlite3 jq strace && \
+    apt-get install -y --no-install-recommends curl sqlite3 jq strace \
+        libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências Python primeiro (cache layer)

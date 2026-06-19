@@ -251,6 +251,48 @@ async function getAutoStartPolicy() {
   }
 }
 
+// 📸 Vision (foto_roleta): política de captura de foto. 'on' (default) | 'off'.
+// Quando 'on', a cada novo número a Escuta tira 1 screenshot da aba visível e
+// envia ao servidor (msg foto_frame) para OCR. Desligar: storage.local fotoCapturePolicy='off'.
+async function getFotoCapturePolicy() {
+  try {
+    const data = await chrome.storage.local.get(['fotoCapturePolicy']);
+    return data.fotoCapturePolicy === 'off' ? 'off' : 'on';
+  } catch (e) {
+    return 'on';
+  }
+}
+
+// Captura UMA foto da aba visível e envia ao servidor para OCR. Defensivo:
+// nunca lança (o chamador já está em try/catch); só roda se a política for 'on'.
+async function captureAndSendFrame(state) {
+  if ((await getFotoCapturePolicy()) === 'off') return;
+  if (!state || !state.tabId) return;
+
+  // descobre o windowId da aba monitorada (captureVisibleTab é por janela)
+  let windowId;
+  try {
+    const tab = await chrome.tabs.get(state.tabId);
+    windowId = tab && tab.windowId;
+  } catch (e) {
+    return; // aba sumiu
+  }
+  if (windowId == null) return;
+
+  let dataUrl;
+  try {
+    dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 });
+  } catch (e) {
+    // captura falha se a aba não estiver visível/ativa (esperado) — silencioso
+    return;
+  }
+  if (!dataUrl) return;
+
+  const traceId = `foto-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  sendToWebSocket({ type: 'foto_frame', trace_id: traceId, image: dataUrl });
+}
+
+
 // Carrega manifest empacotado via fetch(getURL) — zero-upload.
 async function loadBundledManifest(providerId) {
   const path = (typeof manifestPathFor === 'function')
@@ -464,6 +506,17 @@ function connectWebSocket() {
 
         if (data.type === 'ack') {
           console.log('✅ Servidor confirmou recebimento:', data.received);
+        }
+        else if (data.type === 'foto_resultado') {
+          // 📸 Vision (foto_roleta): resultado do OCR do frame enviado
+          if (data.ok) {
+            console.log('📸 OCR:', { dealer: data.dealer, wheel_model: data.wheel_model, conf: data.confidence, ms: data.ms });
+            addLog('result', `📸 Foto→dados: dealer=${data.dealer || '—'} roleta=${data.wheel_model || '—'} (conf ${Math.round((data.confidence || 0) * 100)}%)`, {
+              texts: data.texts, ms: data.ms
+            });
+          } else {
+            console.log('📸 OCR sem resultado:', { enabled: data.enabled, available: data.available });
+          }
         }
         else if (data.type === 'sugestao') {
           // 🆕 v3.0: Recebeu sugestão do servidor - enviar para content script
@@ -1501,7 +1554,7 @@ async function readResults() {
           const sessionResults = await chrome.scripting.executeScript({
             target: { tabId: state.tabId, allFrames: true },
             func: extractSessionData,
-            args: [sessionConfig]
+            args: [sessionConfig, { collectCandidates: (readCount % 5 === 1) }]
           });
 
           const combinedSession = (typeof combineSessionFrames === 'function')
@@ -1530,6 +1583,16 @@ async function readResults() {
             if (readCount % 10 === 1) {
               addLog('monitoring', 'Sessão capturada (data-driven)', state.sessionData);
             }
+          }
+          // DEAL-AUDIT 15/06: se o dealer NAO casou nenhum seletor, logar os candidatos
+          // do DOM (coletados sob demanda) para afinar evolution.json > data.session.dealer
+          // sem chute. Aparece nos logs da Escuta (popup) a cada ~5 leituras.
+          if (!combinedSession.dealer && Array.isArray(combinedSession.dealerCandidates)
+              && combinedSession.dealerCandidates.length && readCount % 5 === 1) {
+            addLog('monitoring', 'Dealer NAO capturado — candidatos no DOM (afinar seletores)', {
+              frameUrl: combinedSession.frameUrl,
+              candidates: combinedSession.dealerCandidates
+            });
           }
         } catch (sessionError) {
           // Erro na coleta de sessão nao quebra a funcionalidade principal
@@ -1591,6 +1654,15 @@ async function readResults() {
         if (sent) {
           const dirLabel = currentDirection === 'horario' ? '⬅️' : '➡️';
           addLog('result', `Enviado: ${newNumber} ${dirLabel}`, { wsConnected: true, direcao: currentDirection });
+        }
+
+        // 📸 Vision (foto_roleta): apos enviar o numero, tira UMA foto da tela e
+        // envia ao servidor para OCR (foto->dados). Gated por flag, defensivo
+        // (try/catch nunca quebra o read-loop). 1 frame por giro.
+        try {
+          await captureAndSendFrame(state);
+        } catch (e) {
+          console.warn('📸 captura de frame falhou (ignorado):', e && e.message);
         }
 
         // 🆕 v2.8: Auto-alternar direção após cada jogada

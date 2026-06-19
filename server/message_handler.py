@@ -357,6 +357,8 @@ class MessageHandler:
                 await self.handle_listar_mesas(websocket)
             elif msg_type == "obter_config_mesa":
                 await self.handle_get_mesa_config(websocket, data)
+            elif msg_type == "foto_frame":
+                await self.handle_foto_frame(websocket, data)
             elif msg_type.startswith("get_analytics") or msg_type in (
                 "get_sessions_list", "get_gale_history",
                 "get_performance_timeline", "get_decision_log"
@@ -1247,6 +1249,55 @@ class MessageHandler:
         await websocket.send(json.dumps(response))
         if trace:
             trace.step("mesa_extraida", {"mesa_id": result.get("mesa_id")})
+
+    async def handle_foto_frame(self, websocket: WebSocketServerProtocol, data: Dict):
+        """Vision (foto_roleta): recebe um frame capturado pela extensao e extrai
+        dados via OCR (server/vision_ocr.py). Responde foto_resultado com
+        dealer/wheel_model/confidence. NAO toca o caminho de aposta; o cliente
+        funde o resultado no proximo novo_resultado (campos vision_* ja persistidos).
+        """
+        from server import vision_ocr
+
+        image = data.get("image") or data.get("image_b64")
+        roi = data.get("roi")
+        trace_id = data.get("trace_id")
+        if not image:
+            await websocket.send(json.dumps({
+                "type": "foto_resultado", "ok": False, "error": "sem image",
+                "trace_id": trace_id,
+            }))
+            return
+
+        # OCR roda em thread separada (CPU-bound) para nao bloquear o event loop.
+        result = await asyncio.to_thread(vision_ocr.extract, image, roi)
+
+        # cache do ultimo resultado de visao (para metricas/merge opcional)
+        self._last_vision = {
+            "dealer": result.get("dealer"),
+            "wheel_model": result.get("wheel_model"),
+            "confidence": result.get("confidence", 0.0),
+            "source": "vision",
+            "ts": now_ms(),
+        }
+        if result.get("ok"):
+            logger.info(
+                "[FOTO] dealer=%r wheel=%r conf=%.2f texts=%d ms=%d",
+                result.get("dealer"), result.get("wheel_model"),
+                result.get("confidence", 0.0), len(result.get("texts", [])),
+                result.get("ms", 0),
+            )
+        await websocket.send(json.dumps({
+            "type": "foto_resultado",
+            "ok": result.get("ok", False),
+            "enabled": result.get("enabled", False),
+            "available": result.get("available", False),
+            "trace_id": trace_id,
+            "dealer": result.get("dealer"),
+            "wheel_model": result.get("wheel_model"),
+            "confidence": result.get("confidence", 0.0),
+            "texts": result.get("texts", []),
+            "ms": result.get("ms", 0),
+        }))
 
     async def handle_listar_mesas(self, websocket: WebSocketServerProtocol):
         """Retorna lista de mesas configuradas."""

@@ -1,0 +1,91 @@
+"""Tests Vision OCR (foto_roleta_junho.md): foto -> dados, de verdade.
+
+Gera uma imagem com texto conhecido (PIL) e prova que server/vision_ocr.py
+extrai o texto via RapidOCR (PaddleOCR-ONNX). Skip gracioso se a lib não estiver
+instalada (ex.: ambiente sem rapidocr) — em produção o Dockerfile a instala.
+"""
+import base64
+import io
+import os
+
+import pytest
+
+from server import vision_ocr
+
+
+def _img_with_text(text: str, size=(440, 90)) -> bytes:
+    from PIL import Image, ImageDraw, ImageFont
+    img = Image.new("RGB", size, (15, 15, 20))
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("arial.ttf", 34)
+    except Exception:
+        try:
+            font = ImageFont.truetype("DejaVuSans.ttf", 34)
+        except Exception:
+            font = ImageFont.load_default()
+    d.text((12, 26), text, fill=(240, 240, 240), font=font)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+ocr_required = pytest.mark.skipif(
+    not vision_ocr.is_available(),
+    reason="rapidocr-onnxruntime não instalado (instalado no container de produção)",
+)
+
+
+def test_module_api_exists():
+    for name in ("extract", "is_available", "is_enabled"):
+        assert hasattr(vision_ocr, name)
+
+
+def test_disabled_flag_returns_gracefully(monkeypatch):
+    """SDA_VISION_OCR=0 → extract não processa, retorna enabled=False sem quebrar."""
+    monkeypatch.setenv("SDA_VISION_OCR", "0")
+    out = vision_ocr.extract(_img_with_text("Dealer Maria"))
+    assert out["ok"] is False
+    assert out["enabled"] is False
+
+
+def test_invalid_image_does_not_raise(monkeypatch):
+    """Entrada inválida nunca derruba o server (degradação graciosa)."""
+    monkeypatch.setenv("SDA_VISION_OCR", "1")
+    out = vision_ocr.extract("não é base64 válido @@@")
+    assert out["ok"] is False  # erro tratado, sem exceção
+
+
+@ocr_required
+def test_extract_reads_dealer_name(monkeypatch):
+    """PROVA foto->dados: imagem 'Dealer Maria' → OCR extrai o texto e o dealer."""
+    monkeypatch.setenv("SDA_VISION_OCR", "1")
+    png = _img_with_text("Dealer Maria")
+    out = vision_ocr.extract(png)
+    assert out["ok"] is True
+    full = out["full_text"].lower()
+    assert "maria" in full
+    assert out["dealer"] is not None and "maria" in out["dealer"].lower()
+    assert out["confidence"] > 0.3
+
+
+@ocr_required
+def test_extract_accepts_base64_with_prefix(monkeypatch):
+    """Aceita data:image/png;base64,... (formato do captureVisibleTab)."""
+    monkeypatch.setenv("SDA_VISION_OCR", "1")
+    png = _img_with_text("Lightning Roulette")
+    b64 = "data:image/png;base64," + base64.b64encode(png).decode()
+    out = vision_ocr.extract(b64)
+    assert out["ok"] is True
+    assert "lightning" in out["full_text"].lower()
+    # wheel_model casa keyword conhecida ('lightning'/'roulette')
+    assert out["wheel_model"] is not None
+
+
+@ocr_required
+def test_roi_crop_runs(monkeypatch):
+    """ROI fracionária recorta sem quebrar e ainda extrai."""
+    monkeypatch.setenv("SDA_VISION_OCR", "1")
+    png = _img_with_text("Dealer Joao")
+    out = vision_ocr.extract(png, roi={"x": 0.0, "y": 0.0, "w": 1.0, "h": 1.0})
+    assert out["ok"] is True
