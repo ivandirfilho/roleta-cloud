@@ -39,6 +39,24 @@ class TestDnaRealizeStats(unittest.TestCase):
         self.assertEqual(s["unrealized"], 0)
         self.assertEqual(s["lag_seconds"], 0)
 
+    def test_terminal_orphan_excluded(self):
+        """Feature órfã terminal (atrás de uma já realizada) NÃO infla o lag."""
+        dna_logger.dna_log_feature(1, "f", {"raw": 1, "bucket": "x"})  # id 1 — terminal
+        dna_logger.dna_log_feature(2, "f", {"raw": 2, "bucket": "y"})  # id 2
+        dna_logger.dna_update_realized(2, hit=True, wheel_dist=3)       # id 2 realiza
+        s = dna_logger.dna_realize_stats()
+        # a feature 1 ficou ATRÁS da última realizada (id 2) → órfã terminal → excluída
+        self.assertEqual(s["unrealized"], 0)
+        self.assertEqual(s["lag_seconds"], 0)
+
+    def test_pending_ahead_counts(self):
+        """Feature pendente NA FRENTE da última realizada conta (aguarda legítima)."""
+        dna_logger.dna_log_feature(1, "f", {"raw": 1, "bucket": "x"})  # id 1
+        dna_logger.dna_update_realized(1, hit=True, wheel_dist=3)       # id 1 realiza
+        dna_logger.dna_log_feature(2, "f", {"raw": 2, "bucket": "y"})  # id 2 — aguardando
+        s = dna_logger.dna_realize_stats()
+        self.assertEqual(s["unrealized"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

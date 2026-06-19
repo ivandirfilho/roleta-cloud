@@ -316,13 +316,18 @@ def dna_summary() -> list[dict]:
 
 
 def dna_realize_stats() -> dict:
-    """SP-29 OBS-01: lag em segundos desde a ultima decision_id que ainda
-    nao recebeu realized_lift_pp/hit. Indica regressao no caminho
-    update_result -> dna_update_realized (vide SP-07 hook).
+    """SP-29 OBS-01: lag em segundos das features DNA que ainda AGUARDAM realize.
+
+    Mede apenas as features "na ponta" — id maior que o da última feature já
+    realizada (hit NOT NULL). Features não-realizadas que ficaram ATRÁS de uma já
+    realizada são ÓRFÃS TERMINAIS (a última predição antes de um reset/troca de
+    dealer, cujo "próximo spin" nunca veio) e são EXCLUÍDAS: elas nunca realizam e
+    inflavam o lag para dias (falso-positivo do alerta RoletaDnaRealizeLagHigh). Se o
+    pipeline update_result -> dna_update_realized travar de fato, nenhuma feature nova
+    realiza, as da ponta acumulam e o lag sobe legitimamente (sinal preservado).
 
     Returns:
-        dict {"unrealized": int, "lag_seconds": int}. Se zero unrealized
-        (tudo realized), lag_seconds=0.
+        dict {"unrealized": int, "lag_seconds": int}. Se nada aguardando, lag=0.
     """
     if not _DB_PATH:
         return {"unrealized": 0, "lag_seconds": 0}
@@ -331,10 +336,14 @@ def dna_realize_stats() -> dict:
         try:
             row = conn.execute(
                 """
+                WITH last_realized AS (
+                    SELECT COALESCE(MAX(id), -1) AS mx
+                    FROM decision_dna WHERE hit IS NOT NULL
+                )
                 SELECT COUNT(*) AS n,
-                       COALESCE(CAST((julianday('now') - julianday(MIN(ts))) * 86400 AS INTEGER), 0) AS lag_s
-                FROM decision_dna
-                WHERE realized_lift_pp IS NULL AND hit IS NULL
+                       COALESCE(CAST((julianday('now') - julianday(MIN(d.ts))) * 86400 AS INTEGER), 0) AS lag_s
+                FROM decision_dna d, last_realized lr
+                WHERE d.realized_lift_pp IS NULL AND d.hit IS NULL AND d.id > lr.mx
                 """
             ).fetchone()
             return {"unrealized": int(row[0] or 0), "lag_seconds": int(row[1] or 0)}
