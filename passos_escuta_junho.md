@@ -1479,3 +1479,37 @@ A decisão de *qual* incremento implantar passou por um debate estruturado (prop
 - ❌ **Multi-mesa (Sprint 4)** — viola "Engine Python intacta"; exige Sprint 3 (catálogo) + shadow/canary.
 - ❌ **OTA Ed25519 (Sprint 5)** — depende da telemetria de drift estar *wired* e observada primeiro.
 
+---
+
+## 14. Deploy em produção — caminho de dados foto→dados (19/06)
+
+> Status: **DEPLOYADO E SAUDÁVEL** (commit `a02131e`, servidor `187.45.181.75`).
+
+### 14.1 O que foi ao ar (server-side, ativado pelo docker rebuild)
+
+`wheel_model` / `vision_confidence` / `vision_source` end-to-end (foto→dados, ver `foto_roleta_junho.md` Parte 4), seguindo o **padrão SP-13** (aditivo, backward-compat):
+
+| Camada | Mudança | Arquivo |
+|---|---|---|
+| Payload | `SpinInput` aceita os 3 campos (opcionais, validados) | `models/input.py` |
+| Modelo | `Decision` +3 campos (defaults seguros) | `database/models.py` |
+| SoT (SQLite) | auto-migração idempotente + INSERT + leitura defensiva | `database/sqlite_repo.py` |
+| Engine | `message_handler` propaga do payload → `Decision` | `server/message_handler.py` |
+| Feature store (PG) | migration `0009`: `cw/ccw.spin_features` ADD COLUMN IF NOT EXISTS | `migrations/versions/0009_vision_features.py` |
+| Parity | snapshot + manifest atualizados | `database/schema_*` |
+| Testes | 7 novos (round-trip, bounds, backward-compat, auto-migração) | `tests/test_vision_features.py` |
+
+### 14.2 Evidências do deploy
+
+- ✅ Push `3858764..a02131e` → `main`.
+- ✅ `roleta-deploy.timer`: **`ALEMBIC ok (0009_vision_features (head))`** + **`HEALTHCHECK ok (try 1)`** + **`DEPLOY OK`**.
+- ✅ Servidor `HEAD=a02131e`; container `roleta-cloud Up (healthy)`; `/health` = `{status: ok, v4.4.1}`.
+- ✅ PG verificado: `wheel_model`, `vision_confidence`, `vision_source` presentes em `cw.spin_features`.
+- ✅ Suíte local **596 passed**, 9 skipped.
+
+### 14.3 Estado / como usar
+
+- **Pronto para receber** dados de visão: assim que a extensão enviar `wheel_model`/`vision_*` no `novo_resultado`, a Engine persiste e os consumidores (estilo `dealer_offset`) podem ler. Hoje vem `null`/vazio (retrocompatível) até o **motor de visão** (design, Partes 1-3 de `foto_roleta_junho.md`) ser implementado.
+- **`selector_health.js`** (self-heal NB-07) foi para o repo, mas **client-side**: precisa **recarregar a extensão** no Chrome (`chrome://extensions` → recarregar "Escuta Beat") e **não** está *wired* (promoção default OFF; aguarda E2E).
+- **Não deployado** (inalterado, por segurança): wiring do self-heal, multi-mesa, declarativeContent, OTA — ver §13.8.
+
