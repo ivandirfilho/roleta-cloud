@@ -574,3 +574,55 @@ O padrão **`decision_dna`** (estimated vs realized lift + `confidence_n`, migra
 - **Próximo passo concreto:** (1) **probe DRM** (Parte 3, F0); (2) **migração aditiva** `wheel_model`/`vision_confidence` (mesmo padrão SP-13); (3) **consumidor `wheel_offset`** análogo ao `dealer_offset`, gated por `confidence`.
 
 > **Resumo de 1 linha:** a infra de dados **já está alinhada e pronta para receber a visão como enriquecedora do produtor**, reusando SQLite(SoT)+PG(feature store) — sem banco novo; falta só a **migração aditiva de `wheel_model`/`confidence`** e o **consumidor por modelo**, pois o motor de visão em si ainda é design (Partes 1-3).
+
+---
+---
+
+# ✅ Parte 5 — MVP de visão IMPLEMENTADO e DEPLOYADO (foto→dados funcionando)
+
+> Status: **VIVO EM PRODUÇÃO** (commit `dce10af`). OCR provado no container de produção:
+> extraiu `'Dealer Carlos'` de uma imagem real em ~1.8s. `vision_ocr.is_available()=True`.
+
+## 36. O que foi entregue (pipeline real, não design)
+
+```
+[Extensão] novo número (DOM) → captureVisibleTab (1 frame jpeg) ──WS foto_frame──▶
+[Servidor] handle_foto_frame → vision_ocr.extract (RapidOCR / PaddleOCR-ONNX)
+           → {dealer, wheel_model, confidence, texts} ──WS foto_resultado──▶
+[Extensão] loga "📸 Foto→dados: dealer=… roleta=… (conf %)"
+```
+
+| Camada | Implementação | Arquivo |
+|---|---|---|
+| Captura | `captureAndSendFrame`: `chrome.tabs.captureVisibleTab` (jpeg q60), 1/giro, flag `fotoCapturePolicy` (default on), defensivo | `extension/background.js` |
+| Transporte | msg `foto_frame {trace_id, image}`; resposta `foto_resultado` | `extension/background.js` |
+| **Motor OCR** | `RapidOCR` (PaddleOCR-ONNX, CPU, self-contained) → decode base64 + ROI + extrai dealer/wheel/confidence; singleton lazy; degradação graciosa; flag `SDA_VISION_OCR` | `server/vision_ocr.py` |
+| Handler | `handle_foto_frame`: OCR em `asyncio.to_thread` (não bloqueia loop) → responde | `server/message_handler.py` |
+| Deps | `rapidocr-onnxruntime` + `numpy<2`; Dockerfile: libs de runtime do opencv | `requirements.txt`, `Dockerfile` |
+| Testes | 6 (gera imagem PIL → OCR extrai 'Maria'/'Lightning' + ROI + flags) | `tests/test_vision_ocr.py` |
+
+## 37. ⚠️ Gotcha crítico resolvido — NumPy 2.x × CPU QEMU antigo
+
+O servidor de produção é um **`QEMU Virtual CPU 2.5+`** sem `x86-64-v2`. O **NumPy 2.x exige v2** → `RuntimeError` no import, derrubando opencv+onnxruntime (OCR caía em `is_available()=False`, mas o server **não quebrou** graças à degradação graciosa). **Fix: `numpy>=1.26,<2`** (baseline SSE2). Validado em `python:3.12-slim` antes do deploy. **Lição durável:** qualquer dep nativa pesada neste servidor precisa de wheels baseline (sem v2).
+
+## 38. Evidências de produção
+
+- ✅ `vision_ocr.is_available() = True` no container `roleta-cloud`.
+- ✅ OCR real no container: `extract()` → `ok=True, texts=['Dealer Carlos'], dealer='Carlos', ms=1780`.
+- ✅ `ALEMBIC ok (0009 head)`, container healthy, `/health=ok`.
+- ✅ Suíte local **602 passed** (6 testes de OCR provam foto→dados).
+
+## 39. Como usar (operador)
+
+1. **Servidor**: já no ar (OCR habilitado por default; `SDA_VISION_OCR=0` desliga).
+2. **Extensão**: recarregar **"Escuta Beat" v3.4.0** em `chrome://extensions` (client-side não vai por docker).
+3. Abrir a mesa e escutar normalmente. A cada giro, a Escuta tira 1 foto e o servidor faz OCR; o resultado aparece nos **logs da Escuta** (`📸 Foto→dados: dealer=… roleta=…`).
+4. Desligar a captura: `chrome.storage.local` → `fotoCapturePolicy='off'`.
+
+## 40. Limites honestos (MVP) e evolução
+
+- **DRM**: se a área do vídeo for protegida (Widevine), vem preta — o **dealer/mesa** (overlay HTML) tende a aparecer; o **modelo físico da roleta** depende do vídeo (probe DRM da Parte 3 ainda vale).
+- **captureVisibleTab**: só captura a aba **ativa/visível** (não cobre minimizado — esse é o caminho `tabCapture`+offscreen das Partes 1-3, evolução futura).
+- **Latência**: ~1.8s/foto no CPU QEMU (sem AVX); ok para 1 giro/min. A arquitetura ideal client-side (ONNX/WebGPU no offscreen, Partes 1-3) elimina o transporte de imagem — evolução.
+- **Parsing**: heurística leve (regex dealer + keywords de modelo); afinar com ROIs por provider (`SDA_VISION_WHEEL_KEYWORDS`).
+- **Persistência**: os campos `vision_*` já existem (Parte 4); o passo seguinte é o cliente **dobrar** o resultado do OCR no `novo_resultado` para gravar no DB e criar um consumidor `wheel_offset`.
