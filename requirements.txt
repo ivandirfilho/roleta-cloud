@@ -12,6 +12,9 @@ structlog>=24.0
 
 # Vision OCR (foto_roleta_junho.md): foto -> dados. PaddleOCR-ONNX self-contained,
 # CPU, sem binario externo. Opcional em runtime (degradacao graciosa se ausente).
+# numpy<2: o NumPy 2.x exige CPU x86-64-v2; o servidor de producao e um QEMU Virtual
+# CPU antigo (sem v2) — numpy 1.26 (baseline SSE2) roda nele. Validado em python:3.12-slim.
+numpy>=1.26,<2
 rapidocr-onnxruntime>=1.2,<2
 
 # Observability / debugging (Sprint VF-0)
