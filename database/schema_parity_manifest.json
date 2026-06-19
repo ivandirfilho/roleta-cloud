@@ -29,7 +29,10 @@
     "provider",
     "round_id",
     "result_region",
-    "pnl_units"
+  "pnl_units",
+  "wheel_model",
+  "vision_confidence",
+  "vision_source"
   ],
   "pg_only_allowed": [
     "last_20_hits",

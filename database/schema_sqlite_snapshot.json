@@ -151,6 +151,18 @@
     {
       "name": "tr_should_bet",
       "type": "BOOLEAN"
+    },
+    {
+      "name": "vision_confidence",
+      "type": "REAL"
+    },
+    {
+      "name": "vision_source",
+      "type": "TEXT"
+    },
+    {
+      "name": "wheel_model",
+      "type": "TEXT"
     }
   ],
   "gale_windows": [

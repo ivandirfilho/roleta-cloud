@@ -56,6 +56,12 @@ class Decision:
     dealer_table: str = ""
     provider: str = ""
     round_id: str = ""
+    # Vision (foto_roleta_junho.md Parte 4): foto->dados. wheel_model = modelo da
+    # roleta; vision_confidence (0..1) e vision_source (vision|dom|fused) permitem
+    # a estrategia gatear confianca. Default vazio = retrocompativel.
+    wheel_model: str = ""
+    vision_confidence: float = 0.0
+    vision_source: str = ""
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"

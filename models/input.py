@@ -19,6 +19,12 @@ class SpinInput(BaseModel):
     table: str | None = Field(default=None, max_length=80, description="Identificador da mesa")
     provider: str | None = Field(default=None, max_length=40, description="Provider: evolution|playtech|imagine|...")
     round_id: str | None = Field(default=None, max_length=80, description="ID do round (deduplicacao)")
+    # Vision (foto_roleta_junho.md Parte 4): metadata opcional vindo do motor de visao
+    # (foto->dados). Fundido DOM-first na extensao. Backwards-compatible: payloads
+    # sem esses campos seguem validos. wheel_model = modelo fisico da roleta.
+    wheel_model: str | None = Field(default=None, max_length=80, description="Modelo da roleta (visao)")
+    vision_confidence: float | None = Field(default=None, ge=0.0, le=1.0, description="Confianca do motor de visao (0..1)")
+    vision_source: str | None = Field(default=None, max_length=20, description="Origem do dado: vision|dom|fused")
     
     @field_validator('numero')
     @classmethod

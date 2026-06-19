@@ -354,6 +354,18 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
                 logger.info("Migration B2/B5 12/06: added result_region, pnl_units to decisions")
 
+            # Vision (foto_roleta_junho.md Parte 4): wheel_model/vision_confidence/
+            # vision_source — foto->dados. Aditivo idempotente (mesmo padrao SP-13).
+            try:
+                conn.execute("SELECT wheel_model FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN wheel_model TEXT DEFAULT ''")
+                conn.execute("ALTER TABLE decisions ADD COLUMN vision_confidence REAL DEFAULT 0.0")
+                conn.execute("ALTER TABLE decisions ADD COLUMN vision_source TEXT DEFAULT ''")
+                conn.execute("CREATE INDEX IF NOT EXISTS ix_decisions_wheel_model ON decisions(wheel_model)")
+                conn.commit()
+                logger.info("Migration Vision (foto_roleta): added wheel_model/vision_confidence/vision_source to decisions")
+
             # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
             # Enum oficial observado em prod: 'streak', 'reset', 'info'.
             # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
@@ -392,8 +404,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                     result_hit, result_actual,
                     calibration_offset, calibration_error,
                     performance_snapshot,
-                    dealer, dealer_table, provider, round_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    dealer, dealer_table, provider, round_id,
+                    wheel_model, vision_confidence, vision_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -430,6 +443,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                 getattr(decision, "dealer_table", "") or "",
                 getattr(decision, "provider", "") or "",
                 getattr(decision, "round_id", "") or "",
+                getattr(decision, "wheel_model", "") or "",
+                float(getattr(decision, "vision_confidence", 0.0) or 0.0),
+                getattr(decision, "vision_source", "") or "",
             ))
             conn.commit()
             decision_id = cursor.lastrowid
@@ -802,6 +818,10 @@ class SQLiteDecisionRepository(DecisionRepository):
             dealer_table=(row["dealer_table"] if "dealer_table" in row.keys() else "") or "",
             provider=(row["provider"] if "provider" in row.keys() else "") or "",
             round_id=(row["round_id"] if "round_id" in row.keys() else "") or "",
+            # Vision (foto_roleta Parte 4, defensivo: colunas podem nao existir em snapshots antigos)
+            wheel_model=(row["wheel_model"] if "wheel_model" in row.keys() else "") or "",
+            vision_confidence=(row["vision_confidence"] if "vision_confidence" in row.keys() else 0.0) or 0.0,
+            vision_source=(row["vision_source"] if "vision_source" in row.keys() else "") or "",
         )
     
     # =========================================================================

@@ -406,6 +406,10 @@ class MessageHandler:
                 table=(data.get("table") or None),
                 provider=(data.get("provider") or None),
                 round_id=(data.get("round_id") or None),
+                # Vision (foto_roleta Parte 4): foto->dados, opcional/backward-compat.
+                wheel_model=(data.get("wheel_model") or None),
+                vision_confidence=(data.get("vision_confidence") if data.get("vision_confidence") is not None else None),
+                vision_source=(data.get("vision_source") or None),
             )
             numero = spin.numero
             direcao = spin.direcao
@@ -874,6 +878,10 @@ class MessageHandler:
                 dealer_table=(getattr(spin, "table", None) or ""),
                 provider=(getattr(spin, "provider", None) or ""),
                 round_id=(getattr(spin, "round_id", None) or ""),
+                # Vision (foto_roleta Parte 4): propaga metadata de visao se presente.
+                wheel_model=(getattr(spin, "wheel_model", None) or ""),
+                vision_confidence=(getattr(spin, "vision_confidence", None) or 0.0),
+                vision_source=(getattr(spin, "vision_source", None) or ""),
             )
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
