@@ -104,13 +104,14 @@ def _decode_image(image: "str | bytes"):
         raise TypeError("image deve ser base64 str ou bytes")
 
     pil = Image.open(io.BytesIO(raw)).convert("RGB")
-    # Downscale: OCR de tela cheia no CPU QEMU leva 7-9s. Reduzir a maior
-    # dimensao a SDA_VISION_MAX_DIM (default 1100px) corta o tempo 3-4x e o
-    # ruido, sem perder legibilidade de texto de overlay. Mantem proporcao.
+    # Downscale: OCR de tela cheia (1920px) no CPU QEMU leva ~8s. Reduzir a maior
+    # dimensao a SDA_VISION_MAX_DIM (default 1500px) acelera ~2x e mantem legivel o
+    # texto pequeno do nome do dealer (1100px perdia o dealer). O single-flight no
+    # handler ja evita o empilhamento que causava travada, entao priorizamos leitura.
     try:
-        max_dim = int(os.environ.get("SDA_VISION_MAX_DIM", "1100"))
+        max_dim = int(os.environ.get("SDA_VISION_MAX_DIM", "1500"))
     except (TypeError, ValueError):
-        max_dim = 1100
+        max_dim = 1500
     if max_dim > 0:
         w, h = pil.size
         big = max(w, h)
@@ -149,15 +150,21 @@ def _parse_fields(texts: list[str]):
     provider = None
     keywords = _wheel_keywords()
     full_low = " ".join(texts).lower()
+    _DEALER_RE = re.compile(r"(?:dealer|crupi[eê]|croupier)\s*[:\-]?\s*(.*)", re.IGNORECASE)
 
-    for t in texts:
+    for i, t in enumerate(texts):
         low = t.lower()
-        # dealer: linha que contem 'dealer'/'crupie' -> pega o resto
-        m = re.search(r"(?:dealer|crupi[eê]|croupier)\s*[:\-]?\s*(.+)", low)
-        if m and not dealer:
-            name = m.group(1).strip()
-            idx = low.find(name)
-            dealer = t[idx:idx + len(name)].strip() if idx >= 0 else name.title()
+        # dealer: 'dealer'/'crupie' + nome. O OCR pode quebrar em regioes
+        # separadas ("Dealer" numa, "LEVI" na seguinte) — tratamos os dois casos.
+        if not dealer:
+            m = _DEALER_RE.search(t)
+            if m:
+                name = m.group(1).strip(" :-\t")
+                if not name and i + 1 < len(texts):
+                    name = texts[i + 1].strip(" :-\t")  # nome na proxima regiao
+                # ignora se o "nome" for so um rotulo/numero
+                if name and not name.isdigit() and len(name) >= 2:
+                    dealer = name[:120]
         # wheel_model: linha que casa keyword de mesa conhecida
         if not wheel_model:
             for kw in keywords:

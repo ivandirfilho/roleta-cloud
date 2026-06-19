@@ -101,6 +101,15 @@ def test_parse_fields_extracts_all_three():
     assert provider == "pragmatic"  # marca direta
 
 
+def test_parse_fields_dealer_in_separate_region():
+    """OCR quebra 'Dealer' e o nome em regiões separadas → ainda extrai o dealer."""
+    dealer, _w, _p = vision_ocr._parse_fields(["Dealer", "LEVI", "Roleta ao Vivo"])
+    assert dealer == "LEVI"
+    # rótulo seguido de número não vira dealer
+    dealer2, _w2, _p2 = vision_ocr._parse_fields(["Dealer", "12345"])
+    assert dealer2 is None
+
+
 def test_parse_fields_infers_provider_from_wheel():
     """Provider INFERIDO pelo nome da mesa quando a marca não aparece."""
     _dealer, wheel, provider = vision_ocr._parse_fields(["Immersive Roulette", "Dealer Joao"])
