@@ -139,6 +139,9 @@ class MessageHandler:
                     "c1_force": sel.scoreboard.get("c1_force"),
                     "coverage_n": sel.scoreboard.get("coverage_n", len(sel.numbers)),
                     "centros": list(sel.centers),
+                    # fix BUG-FRONT #2: a cobertura viaja no meta force17 p/ o front
+                    # render números e regiões da MESMA fonte (sem ler state stale).
+                    "numeros": list(sel.numbers),
                 }
             # Fonte única p/ os canais que o dashboard consome (trace/state_sync):
             # stasha no game_state (transiente, recomputado a cada spin, não persiste).
@@ -269,6 +272,7 @@ class MessageHandler:
                         "regioes": f17.get("regioes", []),
                         "c1_force": f17.get("c1_force"),
                         "coverage_n": f17.get("coverage_n"),
+                        "numeros": f17.get("numeros", []),
                         "dir_bias": "favoravel" if self._engine_dk() == "ccw" else "desfavoravel",
                     }
                     # Espelha as 3 regiões rotuladas no topo (consumo direto pelo overlay).
@@ -698,11 +702,14 @@ class MessageHandler:
                 mg = self.game_state.target_martingale
                 mg.level = 1
                 center = self.game_state.last_number
-                # force17-exato: o fallback de calibração também respeita "sempre 17"
-                # (raio 8 = 17#); senão mantém o histórico N=21 (raio 10).
+                # force17: o fallback de calibração respeita a geometria 17# (raio 8 =
+                # 17#) SEMPRE que a aposta é force17 — independe de SDA_FORCE17_EXACT,
+                # que rege só o padding da aposta NORMAL (união ~15), não o fallback.
+                # Fora de force17, mantém o histórico N=21 (raio 10). [fix BUG-FRONT #1,
+                # 18/06: desacopla do exact — antes 21# em prod com EXACT=0].
                 try:
-                    from app_config.settings import bet_pair_mode, force17_exact_enabled
-                    _fb_radius = 8 if (bet_pair_mode() == "force17" and force17_exact_enabled()) else 10
+                    from app_config.settings import bet_pair_mode
+                    _fb_radius = 8 if bet_pair_mode() == "force17" else 10
                 except Exception:  # noqa: BLE001
                     _fb_radius = 10
                 fallback_nums = sorted(

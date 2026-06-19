@@ -411,7 +411,11 @@ function updateForce17(f17, regioes) {
             + `<span style="font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.8;">${r.label}</span>`
             + `</div>`;
     }).join('');
-    const nums = (state.lastResult && state.lastResult.numeros) || [];
+    // fix BUG-FRONT #2: preferir os números do próprio meta force17 (mesma fonte das
+    // regiões) — só cai no state.lastResult quando o meta não trouxer cobertura.
+    const nums = (f17 && f17.numeros && f17.numeros.length
+        ? f17.numeros
+        : (state.lastResult && state.lastResult.numeros)) || [];
     const numsHTML = nums.length
         ? `<div style="margin-top:8px;font-size:12px;opacity:0.85;line-height:1.6;">${nums.join(' · ')}</div>`
         : '';

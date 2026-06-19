@@ -984,6 +984,7 @@ class GameState:
                 "regioes": f17.get("regioes", []),
                 "c1_force": f17.get("c1_force"),
                 "coverage_n": f17.get("coverage_n"),
+                "numeros": f17.get("numeros", []),
                 "dir_bias": _bias,
             }
             out["regioes"] = f17.get("regioes", [])
