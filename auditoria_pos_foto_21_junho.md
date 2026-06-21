@@ -152,3 +152,89 @@ Itens fora do escopo "bug estrutural seguro" — exigem deploy/aprovação ou s�
 **Pendências gated por aprovação (NÃO executadas):** deploy no Debian, reload da extensão v3.4.1 no Chrome, `backfill --apply` em produção (~62 linhas), e publicação no GitHub (a PR #21 foi mergeada vazia).
 
 > **Resumo de 1 linha:** os **3 tiers estão estruturados** — extensão limpa na origem, servidor com fill-forward + hardening + consumidor dormante, dados com tool + flags versionadas — **flags OFF, suíte 640 verde, comportamento de aposta intacto**; só restam ações de publicação/deploy gated por aprovação.
+
+---
+
+## 11. Deploy executado — GitHub + Docker no Debian (21/06 ~22:58Z)
+
+> Autorizado pelo dono ("faça deploy git e suba o docker novo"). Publicado no GitHub e deployado no servidor Debian de produção via o pipeline pull-based padrão (`tools/deploy_pull.sh`), com **rollback automático** e healthcheck.
+
+### 11.1 Git (publicação)
+- Commit `950c761` (17 arquivos: 3 tiers + testes + docs) com trailer `Co-authored-by: Copilot`.
+- Reconciliação **sem reescrever história**: `git merge origin/main` (os 2 commits remotos da PR #21 eram vazios) → merge commit `c57c853`.
+- `git push origin main`: **`b035133..c57c853`** ✅. A PR #21 vazia deixou de ser o topo; `origin/main` agora tem todo o código.
+
+### 11.2 Docker (servidor Debian 187.45.181.75)
+O `deploy_pull.sh` (systemd timer) detectou `origin/main` novo e executou:
+`git reset --hard origin/main` → `docker compose build` → `up -d` → healthcheck.
+
+| Verificação | Evidência |
+|---|---|
+| HEAD do servidor | `c57c853` (== origin/main) ✅ |
+| Migrações | `ALEMBIC ok (0009_vision_features head)` ✅ |
+| Container | `roleta-cloud Up (healthy)` ✅ |
+| Health | `/health` → `{"status":"ok","version":"4.4.1"}` ✅ |
+| Deploy log | `HEALTHCHECK ok (try 1)` + `DEPLOY OK sha=c57c853` + `NGINX reload ok` ✅ |
+| Flags novas no container | `SDA_DEALER_FILL_FORWARD=0`, `SDA_DEALER_FORCE_PROFILE=0`, `SDA_VISION_ATTACH_MAX_AGE_S=0` (todas **OFF**) ✅ |
+| Módulos novos | `import core.dealer_fill, strategies.dealer_force_profile, tools.backfill_wheel_model` → OK ✅ |
+| Visão | `vision_ocr.is_available()=True` ✅ |
+| Erros | 0 no log do container; MASTER assumiu (device conectado) ✅ |
+
+> **Resultado:** produção rodando o código novo, **comportamento idêntico ao anterior** (todas as capacidades novas OFF), visão viva, 0 erros. Rollback automático ficou armado (não foi necessário).
+
+### 11.3 Pendências remanescentes (opt-in, NÃO executadas)
+- **Extensão v3.4.1:** client-side — **não** vai por Docker. O operador recarrega "Escuta Beat" em `chrome://extensions` para o fix de `provider` valer na origem (o guard server-side já protege o DB).
+- **Ligar as flags:** quando quiser, no host + redeploy (ex.: `SDA_DEALER_FILL_FORWARD=1`). Recomendado só após validar cobertura.
+- **`backfill_wheel_model.py --apply`** no DB de produção (~62 linhas legado): prod-write, rodar sob supervisão (dry-run primeiro).
+
+---
+
+## 12. Resumo da infraestrutura — como vai funcionar
+
+### 12.1 Topologia (3 tiers)
+```
+[EXTENSÃO Chrome "Escuta Beat" v3.4.1]  (cliente, NÃO vai por Docker)
+   • lê o DOM da roleta (número, sentido, dealer, mesa)
+   • provider normalizado na ORIGEM: marca|unknown (nunca host:*)  ← fix 21/06
+   • 1 foto/giro (captureVisibleTab) p/ OCR
+        │  WebSocket  wss://roleta.xma-ia.com/ws
+        ▼
+[NGINX do host Debian]  proxy WS + serve o dashboard estático (/var/www/roleta)
+        │
+        ▼
+┌──────────────────── Docker Compose (Debian 187.45.181.75) ────────────────────┐
+│ roleta-cloud      Engine Python (escritor ÚNICO) — WS :8765, health/metrics :8766│
+│   • handle_new_result → SpinInput(Pydantic: sanitize_provider) → GameState      │
+│   • fill-forward do dealer por sessão (SDA_DEALER_FILL_FORWARD, OFF)  ← novo     │
+│   • handle_foto_frame → vision_ocr (RapidOCR) → update_last_vision (time-bound   │
+│     opcional SDA_VISION_ATTACH_MAX_AGE_S, OFF)                        ← novo     │
+│   • save_decision → SQLite (Source of Truth, volume roleta-data)                │
+│ roleta-pg         Postgres (feature store analítico: cw/ccw.spin_features, DNA) │
+│ roleta-cdc-worker outbox/CDC SQLite→PG (dual_write opt-in)                       │
+│ prometheus/grafana/alertmanager/exporters  observabilidade                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+[CONSUMIDORES de decisão]  dealer_offset · bet_advisor · dna_summary ·
+   dealer_force_profile (DORMANTE, SDA_DEALER_FORCE_PROFILE OFF)        ← novo
+```
+
+### 12.2 Fluxo de uma jogada (caminho quente, inalterado)
+`escuta(MASTER) → novo_resultado → SpinInput(Pydantic) → check_prediction → martingale → strategy.analyze (force17 17#) → INV-3 → save_decision (SQLite) + DNA → broadcast sugestão`. A foto/OCR é **assíncrona e lateral** — enriquece `dealer/wheel_model/provider` sem tocar o caminho de aposta.
+
+### 12.3 O que mudou nesta entrega (e como liga)
+| Capacidade | Onde roda | Flag (default) | Como ativar |
+|---|---|---|---|
+| Provider limpo na origem | Extensão | sempre on | recarregar extensão v3.4.1 |
+| Fill-forward do dealer | Engine | `SDA_DEALER_FILL_FORWARD` (OFF) | env no compose + redeploy |
+| Hardening attach foto→decisão | Engine | `SDA_VISION_ATTACH_MAX_AGE_S` (0=off) | env >0 + redeploy |
+| Perfil de força por dealer | Engine (dormante) | `SDA_DEALER_FORCE_PROFILE` (OFF) | env=1 + wire futuro |
+| Canonização `wheel_model` legado | Tool CLI | — | `python tools/backfill_wheel_model.py --apply` |
+
+### 12.4 Operação & segurança
+- **Deploy:** pull-based — `git push origin main` → o `deploy_pull.sh` (timer) aplica sozinho com **healthcheck + rollback automático** para o último SHA bom se `/health` falhar.
+- **Rollback manual:** `SDA_*=...` no host + redeploy, ou `git revert` (flags vivem no `docker-compose.yml` versionado — ISO obrig. #4).
+- **Source of Truth:** SQLite `decisions.db` (volume `roleta-data`); Engine é o **único escritor**. PG é réplica analítica desacoplada (CDC).
+- **Garantia desta entrega:** todas as capacidades novas entraram **OFF** → produção é **byte-equivalente** ao comportamento anterior até o operador decidir ligar cada uma; **lógica de aposta intacta**; suíte **640 verde**.
+
+> **Resumo de 1 linha:** o código novo está **em produção e 100% funcional** (servidor `c57c853`, healthy, visão viva, 0 erros), com todas as novas capacidades **desligadas por padrão** — a infra continua idêntica e o operador liga cada feature quando quiser, com rollback trivial.
