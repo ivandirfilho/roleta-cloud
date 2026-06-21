@@ -1,7 +1,7 @@
 {
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\main.py": {
-    "mtime": 1779658106.965372,
-    "ast_hash": "66de0b6d81693b5947f074776f09b4fe",
+    "mtime": 1781408187.1919403,
+    "ast_hash": "69868de806f39f2e8d2a48b5f511a1ec",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\state.json": {
@@ -35,13 +35,13 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\message_handler.py": {
-    "mtime": 1781289164.4670508,
-    "ast_hash": "17f5ff05772e3f7ce79fc9c9db093779",
+    "mtime": 1781830007.312044,
+    "ast_hash": "5c027fa9fadf1c0e23b45724746f9e72",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\websocket.py": {
-    "mtime": 1781289260.379261,
-    "ast_hash": "5a569a869d834a0775c2332c5993513b",
+    "mtime": 1781764914.6479359,
+    "ast_hash": "7015bafb3f359e0fdd4b7df8aaaed842",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server\\__init__.py": {
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\sda17.py": {
-    "mtime": 1781289231.7549381,
-    "ast_hash": "c87a46a306266d6f3951468b82e8155e",
+    "mtime": 1781473823.600989,
+    "ast_hash": "f317235a9dd4f480020a1c1cfe9d4fc4",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\strategies\\__init__.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\Manutenabilidade_iso.md": {
-    "mtime": 1781288576.0918033,
-    "ast_hash": "22075be6028c0307e337b1b10f9637e3",
+    "mtime": 1781835808.4675412,
+    "ast_hash": "43795f2552d3f0f55909ac7d184b397d",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\SECURITY.md": {
@@ -200,8 +200,8 @@
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\.silent_except_baseline.json": {
-    "mtime": 1781295388.873056,
-    "ast_hash": "126598272ef6a3d49edec591ee3c32e5",
+    "mtime": 1781788493.982937,
+    "ast_hash": "d2d6b70e2b3fd5ca620aec884bd9f0cf",
     "semantic_hash": ""
   },
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\migrations\\versions\\0007_deal_dealer_table.py": {
@@ -277,6 +277,66 @@
   "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\08_seguranca.md": {
     "mtime": 1781117513.1613455,
     "ast_hash": "2ec1d62747660963d25a23808aa2d0f1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\scripts\\universal_model_sim.py": {
+    "mtime": 1781310204.6863286,
+    "ast_hash": "f831223f4f9bab5682d4d919f6724dbe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\sprints_validas_12_06.md": {
+    "mtime": 1781311303.2658427,
+    "ast_hash": "0512c538bb08124277d5166bce379204",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\09_arvore_completa_12_06.txt": {
+    "mtime": 1781310079.6934628,
+    "ast_hash": "a84e45e40fa2c4bb96f2d1689c7e4ab4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\server_snapshot\\10_inventario_12_06.md": {
+    "mtime": 1781310116.6290426,
+    "ast_hash": "91315143c8389994ec4122ad16a04588",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\staking\\policy.py": {
+    "mtime": 1781473808.380037,
+    "ast_hash": "3edb1d34ea9e07080dbe070e8bdc0a54",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\staking\\__init__.py": {
+    "mtime": 1781473773.1375387,
+    "ast_hash": "2c39b55e107e0f7b5a1a2684bb9ded3e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\flat_kelly_junho.md": {
+    "mtime": 1781474609.0462844,
+    "ast_hash": "199236b67ce3fc318a732ac40575228b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\flat_kelly_proximos_passos.md": {
+    "mtime": 1781478571.3956563,
+    "ast_hash": "969f5136367f14753ee7a256161fe174",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\fluxode_dados_13_junho.md": {
+    "mtime": 1781395443.362891,
+    "ast_hash": "b99bc5d96fe20ebcb8a37493b21c4282",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\fluxo_mermaid_vscode.md": {
+    "mtime": 1781396868.883144,
+    "ast_hash": "41ad11a9f67d3c91f8999f0b5874faad",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\passos_escuta_junho.md": {
+    "mtime": 1781581767.0225167,
+    "ast_hash": "99248eaff9001a9c45188972e5843b7c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\Windows\\Desktop\\Roleta Cloud\\proposta_atualiza\u00e7\u00e3o_front_c1_variavel.md": {
+    "mtime": 1781764914.6439316,
+    "ast_hash": "850c0a6e1c4a70c9fa7fa2ca07db071f",
     "semantic_hash": ""
   }
 }

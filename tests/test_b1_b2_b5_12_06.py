@@ -123,6 +123,21 @@ class TestB2HitRegionAttribution(unittest.TestCase):
         attr = GameState._attribute_hit_region([c1], numbers, actual, True)
         self.assertEqual(attr["slot"], "C1")
 
+    def test_satellite_hit_beyond_legacy_radius(self):
+        # FIX 13/06: geometria viva fat-SAT (C1 raio 1; satélites raio 3, ou 4
+        # no V3). Antes, acerto de satélite a 3-4 casas caía em 'unattributed'
+        # (raio legado fixo 2), subcontando C2/C3. Agora o centro mais próximo
+        # classifica corretamente — nunca 'unattributed' com hit válido.
+        c1, c2, c3 = self._centers()
+        nums = set(roulette.get_neighbors(c1, 1))
+        nums |= set(roulette.get_neighbors(c2, 3))
+        nums |= set(roulette.get_neighbors(c3, 3))
+        numbers = sorted(nums)
+        actual = _at(c2, 3)  # coberto (raio 3) mas fora do raio legado 2
+        self.assertIn(actual, numbers)
+        attr = GameState._attribute_hit_region([c1, c2, c3], numbers, actual, True)
+        self.assertEqual(attr["slot"], "C2")
+
     def test_check_prediction_populates_attribution(self):
         gs = GameState()
         c1, c2, c3 = self._centers()

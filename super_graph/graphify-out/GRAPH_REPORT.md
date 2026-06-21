@@ -1,0 +1,1828 @@
+# Graph Report - C:\Users\Windows\Desktop\Roleta Cloud\super_graph  (2026-06-14)
+
+## Corpus Check
+- cluster-only mode — file stats not available
+
+## Summary
+- 4475 nodes · 5292 edges · 388 communities (345 shown, 43 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 338 edges (avg confidence: 0.86)
+- Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `95cf5520`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
+## Community Hubs (Navigation)
+- [[_COMMUNITY_Community 0|Community 0]]
+- [[_COMMUNITY_Community 1|Community 1]]
+- [[_COMMUNITY_Community 2|Community 2]]
+- [[_COMMUNITY_Community 3|Community 3]]
+- [[_COMMUNITY_Community 4|Community 4]]
+- [[_COMMUNITY_Community 5|Community 5]]
+- [[_COMMUNITY_Community 6|Community 6]]
+- [[_COMMUNITY_Community 7|Community 7]]
+- [[_COMMUNITY_Community 8|Community 8]]
+- [[_COMMUNITY_Community 9|Community 9]]
+- [[_COMMUNITY_Community 10|Community 10]]
+- [[_COMMUNITY_Community 11|Community 11]]
+- [[_COMMUNITY_Community 12|Community 12]]
+- [[_COMMUNITY_Community 13|Community 13]]
+- [[_COMMUNITY_Community 14|Community 14]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 23|Community 23]]
+- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 29|Community 29]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 33|Community 33]]
+- [[_COMMUNITY_Community 34|Community 34]]
+- [[_COMMUNITY_Community 35|Community 35]]
+- [[_COMMUNITY_Community 36|Community 36]]
+- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 38|Community 38]]
+- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
+- [[_COMMUNITY_Community 50|Community 50]]
+- [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 59|Community 59]]
+- [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 65|Community 65]]
+- [[_COMMUNITY_Community 66|Community 66]]
+- [[_COMMUNITY_Community 67|Community 67]]
+- [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 71|Community 71]]
+- [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
+- [[_COMMUNITY_Community 81|Community 81]]
+- [[_COMMUNITY_Community 82|Community 82]]
+- [[_COMMUNITY_Community 83|Community 83]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 86|Community 86]]
+- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_Community 88|Community 88]]
+- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 90|Community 90]]
+- [[_COMMUNITY_Community 91|Community 91]]
+- [[_COMMUNITY_Community 92|Community 92]]
+- [[_COMMUNITY_Community 93|Community 93]]
+- [[_COMMUNITY_Community 94|Community 94]]
+- [[_COMMUNITY_Community 95|Community 95]]
+- [[_COMMUNITY_Community 96|Community 96]]
+- [[_COMMUNITY_Community 97|Community 97]]
+- [[_COMMUNITY_Community 98|Community 98]]
+- [[_COMMUNITY_Community 99|Community 99]]
+- [[_COMMUNITY_Community 100|Community 100]]
+- [[_COMMUNITY_Community 101|Community 101]]
+- [[_COMMUNITY_Community 102|Community 102]]
+- [[_COMMUNITY_Community 103|Community 103]]
+- [[_COMMUNITY_Community 104|Community 104]]
+- [[_COMMUNITY_Community 105|Community 105]]
+- [[_COMMUNITY_Community 106|Community 106]]
+- [[_COMMUNITY_Community 107|Community 107]]
+- [[_COMMUNITY_Community 108|Community 108]]
+- [[_COMMUNITY_Community 109|Community 109]]
+- [[_COMMUNITY_Community 110|Community 110]]
+- [[_COMMUNITY_Community 111|Community 111]]
+- [[_COMMUNITY_Community 112|Community 112]]
+- [[_COMMUNITY_Community 113|Community 113]]
+- [[_COMMUNITY_Community 114|Community 114]]
+- [[_COMMUNITY_Community 115|Community 115]]
+- [[_COMMUNITY_Community 116|Community 116]]
+- [[_COMMUNITY_Community 117|Community 117]]
+- [[_COMMUNITY_Community 118|Community 118]]
+- [[_COMMUNITY_Community 119|Community 119]]
+- [[_COMMUNITY_Community 120|Community 120]]
+- [[_COMMUNITY_Community 121|Community 121]]
+- [[_COMMUNITY_Community 122|Community 122]]
+- [[_COMMUNITY_Community 123|Community 123]]
+- [[_COMMUNITY_Community 124|Community 124]]
+- [[_COMMUNITY_Community 125|Community 125]]
+- [[_COMMUNITY_Community 126|Community 126]]
+- [[_COMMUNITY_Community 127|Community 127]]
+- [[_COMMUNITY_Community 128|Community 128]]
+- [[_COMMUNITY_Community 129|Community 129]]
+- [[_COMMUNITY_Community 130|Community 130]]
+- [[_COMMUNITY_Community 131|Community 131]]
+- [[_COMMUNITY_Community 132|Community 132]]
+- [[_COMMUNITY_Community 133|Community 133]]
+- [[_COMMUNITY_Community 134|Community 134]]
+- [[_COMMUNITY_Community 135|Community 135]]
+- [[_COMMUNITY_Community 136|Community 136]]
+- [[_COMMUNITY_Community 137|Community 137]]
+- [[_COMMUNITY_Community 138|Community 138]]
+- [[_COMMUNITY_Community 139|Community 139]]
+- [[_COMMUNITY_Community 140|Community 140]]
+- [[_COMMUNITY_Community 141|Community 141]]
+- [[_COMMUNITY_Community 142|Community 142]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 144|Community 144]]
+- [[_COMMUNITY_Community 145|Community 145]]
+- [[_COMMUNITY_Community 146|Community 146]]
+- [[_COMMUNITY_Community 147|Community 147]]
+- [[_COMMUNITY_Community 148|Community 148]]
+- [[_COMMUNITY_Community 149|Community 149]]
+- [[_COMMUNITY_Community 150|Community 150]]
+- [[_COMMUNITY_Community 151|Community 151]]
+- [[_COMMUNITY_Community 152|Community 152]]
+- [[_COMMUNITY_Community 153|Community 153]]
+- [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
+- [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 160|Community 160]]
+- [[_COMMUNITY_Community 161|Community 161]]
+- [[_COMMUNITY_Community 162|Community 162]]
+- [[_COMMUNITY_Community 163|Community 163]]
+- [[_COMMUNITY_Community 164|Community 164]]
+- [[_COMMUNITY_Community 165|Community 165]]
+- [[_COMMUNITY_Community 166|Community 166]]
+- [[_COMMUNITY_Community 167|Community 167]]
+- [[_COMMUNITY_Community 168|Community 168]]
+- [[_COMMUNITY_Community 169|Community 169]]
+- [[_COMMUNITY_Community 170|Community 170]]
+- [[_COMMUNITY_Community 171|Community 171]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
+- [[_COMMUNITY_Community 175|Community 175]]
+- [[_COMMUNITY_Community 176|Community 176]]
+- [[_COMMUNITY_Community 177|Community 177]]
+- [[_COMMUNITY_Community 178|Community 178]]
+- [[_COMMUNITY_Community 179|Community 179]]
+- [[_COMMUNITY_Community 180|Community 180]]
+- [[_COMMUNITY_Community 181|Community 181]]
+- [[_COMMUNITY_Community 182|Community 182]]
+- [[_COMMUNITY_Community 183|Community 183]]
+- [[_COMMUNITY_Community 184|Community 184]]
+- [[_COMMUNITY_Community 185|Community 185]]
+- [[_COMMUNITY_Community 186|Community 186]]
+- [[_COMMUNITY_Community 187|Community 187]]
+- [[_COMMUNITY_Community 188|Community 188]]
+- [[_COMMUNITY_Community 189|Community 189]]
+- [[_COMMUNITY_Community 190|Community 190]]
+- [[_COMMUNITY_Community 191|Community 191]]
+- [[_COMMUNITY_Community 192|Community 192]]
+- [[_COMMUNITY_Community 193|Community 193]]
+- [[_COMMUNITY_Community 194|Community 194]]
+- [[_COMMUNITY_Community 195|Community 195]]
+- [[_COMMUNITY_Community 196|Community 196]]
+- [[_COMMUNITY_Community 197|Community 197]]
+- [[_COMMUNITY_Community 198|Community 198]]
+- [[_COMMUNITY_Community 199|Community 199]]
+- [[_COMMUNITY_Community 200|Community 200]]
+- [[_COMMUNITY_Community 201|Community 201]]
+- [[_COMMUNITY_Community 202|Community 202]]
+- [[_COMMUNITY_Community 203|Community 203]]
+- [[_COMMUNITY_Community 204|Community 204]]
+- [[_COMMUNITY_Community 205|Community 205]]
+- [[_COMMUNITY_Community 206|Community 206]]
+- [[_COMMUNITY_Community 207|Community 207]]
+- [[_COMMUNITY_Community 208|Community 208]]
+- [[_COMMUNITY_Community 209|Community 209]]
+- [[_COMMUNITY_Community 210|Community 210]]
+- [[_COMMUNITY_Community 211|Community 211]]
+- [[_COMMUNITY_Community 212|Community 212]]
+- [[_COMMUNITY_Community 213|Community 213]]
+- [[_COMMUNITY_Community 214|Community 214]]
+- [[_COMMUNITY_Community 215|Community 215]]
+- [[_COMMUNITY_Community 216|Community 216]]
+- [[_COMMUNITY_Community 217|Community 217]]
+- [[_COMMUNITY_Community 218|Community 218]]
+- [[_COMMUNITY_Community 219|Community 219]]
+- [[_COMMUNITY_Community 220|Community 220]]
+- [[_COMMUNITY_Community 221|Community 221]]
+- [[_COMMUNITY_Community 222|Community 222]]
+- [[_COMMUNITY_Community 223|Community 223]]
+- [[_COMMUNITY_Community 224|Community 224]]
+- [[_COMMUNITY_Community 225|Community 225]]
+- [[_COMMUNITY_Community 226|Community 226]]
+- [[_COMMUNITY_Community 227|Community 227]]
+- [[_COMMUNITY_Community 228|Community 228]]
+- [[_COMMUNITY_Community 229|Community 229]]
+- [[_COMMUNITY_Community 230|Community 230]]
+- [[_COMMUNITY_Community 231|Community 231]]
+- [[_COMMUNITY_Community 232|Community 232]]
+- [[_COMMUNITY_Community 233|Community 233]]
+- [[_COMMUNITY_Community 234|Community 234]]
+- [[_COMMUNITY_Community 235|Community 235]]
+- [[_COMMUNITY_Community 236|Community 236]]
+- [[_COMMUNITY_Community 237|Community 237]]
+- [[_COMMUNITY_Community 238|Community 238]]
+- [[_COMMUNITY_Community 239|Community 239]]
+- [[_COMMUNITY_Community 240|Community 240]]
+- [[_COMMUNITY_Community 241|Community 241]]
+- [[_COMMUNITY_Community 242|Community 242]]
+- [[_COMMUNITY_Community 243|Community 243]]
+- [[_COMMUNITY_Community 244|Community 244]]
+- [[_COMMUNITY_Community 245|Community 245]]
+- [[_COMMUNITY_Community 246|Community 246]]
+- [[_COMMUNITY_Community 247|Community 247]]
+- [[_COMMUNITY_Community 248|Community 248]]
+- [[_COMMUNITY_Community 249|Community 249]]
+- [[_COMMUNITY_Community 250|Community 250]]
+- [[_COMMUNITY_Community 251|Community 251]]
+- [[_COMMUNITY_Community 252|Community 252]]
+- [[_COMMUNITY_Community 253|Community 253]]
+- [[_COMMUNITY_Community 254|Community 254]]
+- [[_COMMUNITY_Community 255|Community 255]]
+- [[_COMMUNITY_Community 256|Community 256]]
+- [[_COMMUNITY_Community 257|Community 257]]
+- [[_COMMUNITY_Community 258|Community 258]]
+- [[_COMMUNITY_Community 259|Community 259]]
+- [[_COMMUNITY_Community 260|Community 260]]
+- [[_COMMUNITY_Community 261|Community 261]]
+- [[_COMMUNITY_Community 262|Community 262]]
+- [[_COMMUNITY_Community 263|Community 263]]
+- [[_COMMUNITY_Community 264|Community 264]]
+- [[_COMMUNITY_Community 265|Community 265]]
+- [[_COMMUNITY_Community 266|Community 266]]
+- [[_COMMUNITY_Community 267|Community 267]]
+- [[_COMMUNITY_Community 268|Community 268]]
+- [[_COMMUNITY_Community 269|Community 269]]
+- [[_COMMUNITY_Community 270|Community 270]]
+- [[_COMMUNITY_Community 271|Community 271]]
+- [[_COMMUNITY_Community 272|Community 272]]
+- [[_COMMUNITY_Community 273|Community 273]]
+- [[_COMMUNITY_Community 274|Community 274]]
+- [[_COMMUNITY_Community 275|Community 275]]
+- [[_COMMUNITY_Community 276|Community 276]]
+- [[_COMMUNITY_Community 277|Community 277]]
+- [[_COMMUNITY_Community 278|Community 278]]
+- [[_COMMUNITY_Community 279|Community 279]]
+- [[_COMMUNITY_Community 280|Community 280]]
+- [[_COMMUNITY_Community 281|Community 281]]
+- [[_COMMUNITY_Community 282|Community 282]]
+- [[_COMMUNITY_Community 283|Community 283]]
+- [[_COMMUNITY_Community 284|Community 284]]
+- [[_COMMUNITY_Community 285|Community 285]]
+- [[_COMMUNITY_Community 286|Community 286]]
+- [[_COMMUNITY_Community 287|Community 287]]
+- [[_COMMUNITY_Community 288|Community 288]]
+- [[_COMMUNITY_Community 289|Community 289]]
+- [[_COMMUNITY_Community 290|Community 290]]
+- [[_COMMUNITY_Community 291|Community 291]]
+- [[_COMMUNITY_Community 292|Community 292]]
+- [[_COMMUNITY_Community 293|Community 293]]
+- [[_COMMUNITY_Community 294|Community 294]]
+- [[_COMMUNITY_Community 295|Community 295]]
+- [[_COMMUNITY_Community 296|Community 296]]
+- [[_COMMUNITY_Community 297|Community 297]]
+- [[_COMMUNITY_Community 298|Community 298]]
+- [[_COMMUNITY_Community 299|Community 299]]
+- [[_COMMUNITY_Community 300|Community 300]]
+- [[_COMMUNITY_Community 301|Community 301]]
+- [[_COMMUNITY_Community 302|Community 302]]
+- [[_COMMUNITY_Community 303|Community 303]]
+- [[_COMMUNITY_Community 304|Community 304]]
+- [[_COMMUNITY_Community 305|Community 305]]
+- [[_COMMUNITY_Community 306|Community 306]]
+- [[_COMMUNITY_Community 307|Community 307]]
+- [[_COMMUNITY_Community 308|Community 308]]
+- [[_COMMUNITY_Community 309|Community 309]]
+- [[_COMMUNITY_Community 310|Community 310]]
+- [[_COMMUNITY_Community 311|Community 311]]
+- [[_COMMUNITY_Community 312|Community 312]]
+- [[_COMMUNITY_Community 313|Community 313]]
+- [[_COMMUNITY_Community 314|Community 314]]
+- [[_COMMUNITY_Community 315|Community 315]]
+- [[_COMMUNITY_Community 316|Community 316]]
+- [[_COMMUNITY_Community 317|Community 317]]
+- [[_COMMUNITY_Community 318|Community 318]]
+- [[_COMMUNITY_Community 319|Community 319]]
+- [[_COMMUNITY_Community 320|Community 320]]
+- [[_COMMUNITY_Community 321|Community 321]]
+- [[_COMMUNITY_Community 322|Community 322]]
+- [[_COMMUNITY_Community 323|Community 323]]
+- [[_COMMUNITY_Community 324|Community 324]]
+- [[_COMMUNITY_Community 325|Community 325]]
+- [[_COMMUNITY_Community 326|Community 326]]
+- [[_COMMUNITY_Community 327|Community 327]]
+- [[_COMMUNITY_Community 328|Community 328]]
+- [[_COMMUNITY_Community 329|Community 329]]
+- [[_COMMUNITY_Community 330|Community 330]]
+- [[_COMMUNITY_Community 331|Community 331]]
+- [[_COMMUNITY_Community 332|Community 332]]
+- [[_COMMUNITY_Community 333|Community 333]]
+- [[_COMMUNITY_Community 334|Community 334]]
+- [[_COMMUNITY_Community 335|Community 335]]
+- [[_COMMUNITY_Community 336|Community 336]]
+- [[_COMMUNITY_Community 337|Community 337]]
+- [[_COMMUNITY_Community 338|Community 338]]
+- [[_COMMUNITY_Community 339|Community 339]]
+- [[_COMMUNITY_Community 340|Community 340]]
+- [[_COMMUNITY_Community 341|Community 341]]
+- [[_COMMUNITY_Community 342|Community 342]]
+- [[_COMMUNITY_Community 343|Community 343]]
+- [[_COMMUNITY_Community 344|Community 344]]
+- [[_COMMUNITY_Community 345|Community 345]]
+- [[_COMMUNITY_Community 346|Community 346]]
+- [[_COMMUNITY_Community 347|Community 347]]
+- [[_COMMUNITY_Community 348|Community 348]]
+- [[_COMMUNITY_Community 349|Community 349]]
+- [[_COMMUNITY_Community 351|Community 351]]
+- [[_COMMUNITY_Community 352|Community 352]]
+- [[_COMMUNITY_Community 353|Community 353]]
+- [[_COMMUNITY_Community 354|Community 354]]
+- [[_COMMUNITY_Community 355|Community 355]]
+- [[_COMMUNITY_Community 356|Community 356]]
+- [[_COMMUNITY_Community 357|Community 357]]
+- [[_COMMUNITY_Community 358|Community 358]]
+- [[_COMMUNITY_Community 359|Community 359]]
+- [[_COMMUNITY_Community 360|Community 360]]
+- [[_COMMUNITY_Community 361|Community 361]]
+- [[_COMMUNITY_Community 362|Community 362]]
+- [[_COMMUNITY_Community 363|Community 363]]
+- [[_COMMUNITY_Community 364|Community 364]]
+- [[_COMMUNITY_Community 365|Community 365]]
+- [[_COMMUNITY_Community 366|Community 366]]
+- [[_COMMUNITY_Community 367|Community 367]]
+- [[_COMMUNITY_Community 368|Community 368]]
+- [[_COMMUNITY_Community 369|Community 369]]
+- [[_COMMUNITY_Community 370|Community 370]]
+- [[_COMMUNITY_Community 371|Community 371]]
+- [[_COMMUNITY_Community 372|Community 372]]
+- [[_COMMUNITY_Community 373|Community 373]]
+- [[_COMMUNITY_Community 374|Community 374]]
+- [[_COMMUNITY_Community 375|Community 375]]
+- [[_COMMUNITY_Community 376|Community 376]]
+- [[_COMMUNITY_Community 377|Community 377]]
+- [[_COMMUNITY_Community 378|Community 378]]
+- [[_COMMUNITY_Community 379|Community 379]]
+- [[_COMMUNITY_Community 380|Community 380]]
+- [[_COMMUNITY_Community 381|Community 381]]
+- [[_COMMUNITY_Community 382|Community 382]]
+- [[_COMMUNITY_Community 383|Community 383]]
+- [[_COMMUNITY_Community 384|Community 384]]
+- [[_COMMUNITY_Community 385|Community 385]]
+- [[_COMMUNITY_Community 386|Community 386]]
+- [[_COMMUNITY_Community 387|Community 387]]
+
+## God Nodes (most connected - your core abstractions)
+1. `SDA17Strategy` - 57 edges
+2. `🧬 Sprint Evolução — Blueprint 26/05 (DNA Estratégico)` - 28 edges
+3. `AWSAdapter` - 28 edges
+4. `🔎 Sprint 26/05 — Estratégia: Auditoria Profunda das 41 Sprints do `sprint_evolucao_25_05.md`` - 25 edges
+5. `AwsConnector` - 25 edges
+6. `VF.2 Detalhamento de cada sprint (template uniforme)` - 24 edges
+7. `BaseModel` - 22 edges
+8. `V2.1 Sprints corrigidas` - 22 edges
+9. `§2. Achados gerais (transversais a múltiplas sprints)` - 21 edges
+10. `start_server()` - 20 edges
+
+## Surprising Connections (you probably didn't know these)
+- `get_ssl_context()` --rationale_for--> `Envia estado atual para todos os clientes a cada 1 segundo.`  [EXTRACTED]
+  C:/Users/Windows/Desktop/Roleta Cloud/server/websocket.py → server/websocket.py
+- `start_server()` --rationale_for--> `Cria contexto SSL se habilitado.`  [EXTRACTED]
+  C:/Users/Windows/Desktop/Roleta Cloud/server/websocket.py → server/websocket.py
+- `start_server()` --rationale_for--> `Cria contexto SSL se habilitado.`  [EXTRACTED]
+  C:/Users/Windows/Desktop/Roleta Cloud/server/websocket.py → server/websocket.py
+- `flush()` --calls--> `cmd_delete_pushed()`  [INFERRED]
+  docs/consolidation/drain_existing.py → hotmail-clean/onedrive_audit.py
+- `Get-State()` --calls--> `adb()`  [INFERRED]
+  scripts/chrome-notif.ps1 → tools/device_snapshot.py
+
+## Communities (388 total, 43 thin omitted)
+
+### Community 0 - "Community 0"
+Cohesion: 0.02
+Nodes (28): bindings, scriptFile, check_eviction.sh script, eviction_monitor.sh script, fix_xrdp_security.sh script, install_eviction_monitor.sh script, jump_nc_test.sh script, jump_test.sh script (+20 more)
+
+### Community 1 - "Community 1"
+Cohesion: 0.05
+Nodes (42): BaseModel, circ_dir(), circ_dist(), clamp(), coverage_set(), error_pct(), M01_PercentualLinear, M02_PercentualSigmoid (+34 more)
+
+### Community 2 - "Community 2"
+Cohesion: 0.03
+Nodes (6): Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases., Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases., Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases., Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases., Normaliza direção para chave interna ('cw' | 'ccw'). Aceita aliases., 💻 Roleta Cloud — App (LOCAL dev + legado Extrator)
+
+### Community 3 - "Community 3"
+Cohesion: 0.04
+Nodes (47): 0.10.0 — 2026-05-31 (auditoria OneDrive via Graph API), 0.1.0 — 2026-05-30 (setup inicial), 0.2.0 — 2026-05-30 (auditoria + correções), 0.3.0 — 2026-05-30 (auditoria técnica rodada 2 — crítica rubber-duck), 0.4.0 — 2026-05-30 (validação no hardware real + automação), 0.5.0 — 2026-05-30 (execução das Skills 2/3/5/6 no device + correções de campo), 0.6.0 — 2026-05-30 (anti-phishing Chrome + triagem de contas), 0.7.0 — 2026-05-30 (identidade unificada + tentativa de backup Photos + GMS) (+39 more)
+
+### Community 4 - "Community 4"
+Cohesion: 0.04
+Nodes (45): §5. As 35 Sprints — drenar uma de cada vez, 🕸️ AGE (2 sprints), 🐛 BUG / Dívidas (5 sprints), ⚙️ CI / Manutenibilidade (4 sprints), 🎰 Dealer / Provedor (5 sprints), 🧬 DNA Estrutural (5 sprints), 🤖 ML / Estratégia (4 sprints), 📊 Observabilidade (4 sprints) (+37 more)
+
+### Community 5 - "Community 5"
+Cohesion: 0.13
+Nodes (17): AwsConnector, AwsConnectorError, AwsResource, CircuitBreakerState, classify_aws_resource_type(), default_purpose_for_category(), ec2_tags_to_map(), is_circuit_open() (+9 more)
+
+### Community 6 - "Community 6"
+Cohesion: 0.05
+Nodes (42): 0. TL;DR para o agente provisionador, 10. 🔗 Referências cruzadas, 1. 🔎 Auditoria da solicitação v2.0 (bugs + melhorias), 2. 🎯 Arquitetura alvo v3.0, 3. 📋 Nomenclatura obrigatória (use EXATAMENTE), 4.10 — Backup automático do `state.json` + `pg_dump` semanal, 4.11 — Sync de modelos ML (AZ-BUG-13), 4.1 — Bootstrap (RG + VNet + NSG + DNS) (+34 more)
+
+### Community 7 - "Community 7"
+Cohesion: 0.05
+Nodes (43): 0. Perguntas que estamos respondendo, 10. TL;DR, 1. Agentes em background — sim, em 3 níveis, 2.1 Agent / ambiente, 2.2 Modelos e sub-agentes, 2.3 Código, 2.4 Permissões, 2.5 Sessão (+35 more)
+
+### Community 8 - "Community 8"
+Cohesion: 0.05
+Nodes (43): args, command, env, _role, args, command, _role, args (+35 more)
+
+### Community 9 - "Community 9"
+Cohesion: 0.05
+Nodes (42): 1. RESUMO DO PROBLEMA, 2.1 Fluxo de dados do overlay, 2.2 Sequência temporal do bug, 2.3 Bug no modo expandido, 2. ANÁLISE DE CAUSA RAIZ, 3. BUGS IDENTIFICADOS, 4.1 Abordagem: Helper function DRY, 4.2 CSS: Visibilidade no modo expandido (+34 more)
+
+### Community 10 - "Community 10"
+Cohesion: 0.05
+Nodes (39): §0 Snapshot Live (fonte da verdade), §1 Estrutura estratégica — como cada decisão é tomada, §2 Engenharia reversa — janela live disponível, §3 Ciclo 1 — auditoria + correção (outbox observabilidade), §4 Ciclo 2 — `incumbent_shadow` rampup tardio, §5 Ciclo 3 — `shadow_ema = None` aparentemente travado, §6 Ciclo 4 — Gale level inconsistente em logs vs PG, §7 Ciclo 5 — KILL v4 thresholds dinâmicos: documentação ausente (+31 more)
+
+### Community 11 - "Community 11"
+Cohesion: 0.06
+Nodes (38): A1 · Ferramentas de runtime debug a instalar, A2 · Skills/estruturas Copilot a adicionar/atualizar, A3 · Pacotes Debian a confirmar/instalar no host, A4 · Pacotes pip a adicionar no container roleta-cloud, 🚨 BUG-GAP-1 · CRITICAL · Gap de 2h33 sem novas decisões no DB, 🟢 BUG-SQLITE-1 · LOW · Container roleta-cloud sem `sqlite3` CLI, 🟡 BUG-WS-1 · HIGH · Healthcheck do compose poluindo logs com `InvalidMessage`, C1 · Bugs descobertos durante essa nova auditoria (+30 more)
+
+### Community 12 - "Community 12"
+Cohesion: 0.13
+Nodes (13): main(), CloudProvider, AWSAdapter, _normalize_ec2_state(), _normalize_lambda_state(), _normalize_rds_state(), _normalize_state_text(), _parse_arn() (+5 more)
+
+### Community 13 - "Community 13"
+Cohesion: 0.07
+Nodes (25): Analisa timeline e prediz próxima força usando pipeline robusto., B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).          Prem, Analisa timeline e prediz próxima força usando pipeline robusto., Analisa timeline e prediz próxima força usando pipeline robusto., B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).          Prem, Estratégia M15-ADA v4.3: M02-PctSigmoid — Triple Focus 17 números.          Pi, Analisa timeline e prediz próxima força usando pipeline robusto., B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).          Prem (+17 more)
+
+### Community 14 - "Community 14"
+Cohesion: 0.05
+Nodes (37): 1.1 `ANALISE_GRAPHIFY.md` — o que está certo, 1.2 `ANALISE_GRAPHIFY.md` — defeitos a corrigir, 1.3 `pensamentos.md` — o que está certo, 1.4 `pensamentos.md` — defeitos a corrigir, 1.5 Resumo da auditoria, 6.1 `mcp-radar` — `~/.copilot/skills/mcp-radar/SKILL.md`, 6.2 `parallel-deep-dive` — `~/.copilot/skills/parallel-deep-dive/SKILL.md`, 6.3 `graphify-first` — `~/.copilot/skills/graphify-first/SKILL.md` (+29 more)
+
+### Community 15 - "Community 15"
+Cohesion: 0.05
+Nodes (37): 1. Sumário executivo, 2. O que foi feito (ordem cronológica), 3.1 Por que um `AGENTS.md` global em `~/.copilot/`, 3.2 Por que a persona `yolo-orchestrator`, 3.3 Por que 3 skills custom + 1 nativa, 3.4 Por que registrar Graphify como MCP, 3. Por que foi feito, 4. Como funcionava antes vs. como funciona agora (+29 more)
+
+### Community 16 - "Community 16"
+Cohesion: 0.13
+Nodes (34): circ_dir(), circ_dist(), cov(), cov_sym(), model_01_symmetric_bayesian(), model_02_asymmetric_bayesian(), model_03_momentum_shift(), model_04_error_vector() (+26 more)
+
+### Community 17 - "Community 17"
+Cohesion: 0.06
+Nodes (36): 1. Objetivo e escopo, 2.1 P&L realizado: o Gale perde; flat ganha nas MESMAS apostas, 2.2 Por sentido (a pedido) — o Gale perde nos DOIS, 2.3 Por que NÃO existe staking "inteligente" por streak (base estatística), 2.4 Bug adicional: os valores do Gale são da era "17 números", 2. Evidência — por que flat/Kelly > Gale (a "lógica encontrada"), 3. Como o staking funciona HOJE (mapa do código), 4. Regras de negócio — Flat/Kelly por sentido (o "como implantar") (+28 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.11
+Nodes (33): _adb_path(), _cache(), cmd_auth(), cmd_auth_write(), cmd_by_ext(), cmd_by_folder(), cmd_delete_pushed(), cmd_download() (+25 more)
+
+### Community 19 - "Community 19"
+Cohesion: 0.06
+Nodes (33): adaptive_state, last_direction, last_number, martingale_ccw, consecutive_hits, current_bet, gale_display, global_consecutive_hits (+25 more)
+
+### Community 20 - "Community 20"
+Cohesion: 0.06
+Nodes (33): 0. Stack real disponível nesta sessão, 1. O que é o Graphify (resumo objetivo), 2.1 Graphify **vs. `memory` MCP** — o confronto mais importante, 2.2 Graphify **vs. `filesystem` MCP**, 2.3 Graphify **vs. `github` MCP / `github-mcp-server`**, 2.4 Graphify **vs. `context7` MCP**, 2.5 Graphify **vs. `sequential-thinking` MCP**, 2.6 Graphify **vs. `brave-search` MCP** (+25 more)
+
+### Community 21 - "Community 21"
+Cohesion: 0.08
+Nodes (14): circ(), hit_for(), load(), M0, M1, M2, M3, M4 (+6 more)
+
+### Community 22 - "Community 22"
+Cohesion: 0.12
+Nodes (25): flush(), drain_existing.py - empurra o onedrive-media ja baixado para o celular, registr, _cache(), cmd_auth(), cmd_empty_deleted(), cmd_folders(), cmd_preview(), cmd_purge() (+17 more)
+
+### Community 23 - "Community 23"
+Cohesion: 0.06
+Nodes (30): code:sql (LOAD 'age'; SET search_path TO ag_catalog, public;), code:python (@circuit_breaker(threshold=5, window=60, recovery=300)), code:python (import hashlib, datetime), code:bash (gh pr checks 5  # confirmar green), code:bash (pip install alembic), code:yaml (jobs:), code:bash (az postgres flexible-server create \), S0 — Deploy QWs v4.4 (+22 more)
+
+### Community 24 - "Community 24"
+Cohesion: 0.09
+Nodes (31): FIRING: RoletaDnaRealizeLagHigh (pos-downtime), Alertmanager webhook -> health_server, RISCO: 118 pacotes atualizaveis, container roleta-alertmanager v0.27.0, container roleta-grafana 10.4.2, container node-exporter v1.8.2, container roleta-pg (pg15 + AGE + pgvector), container pg-exporter v0.15.0 (+23 more)
+
+### Community 25 - "Community 25"
+Cohesion: 0.07
+Nodes (30): 2.2 Impacto, 2.3 Correcao Necessaria, 3.1 CW (Predicoes feitas em spins AH → alvo Horario), 3.2 CCW (Predicoes feitas em spins H → alvo Anti-Horario), 3.3 Comparacao entre Direcoes, 3. Analise por Direcao — Ultimas 15 Jogadas de Cada Sentido, 4.1 Distribuicao de Distancias, 4.2 Hits Distantes do Centro C1 mas Dentro dos Numeros (+22 more)
+
+### Community 26 - "Community 26"
+Cohesion: 0.07
+Nodes (3): 📱 Extensão Android/Chrome — Captura de spins, media-scan.sh script, _comment
+
+### Community 27 - "Community 27"
+Cohesion: 0.12
+Nodes (6): IRepository, CacheRepository, get_repository(), SnapshotRepository, test_repository_factory_singleton(), test_resource_repository_find_many()
+
+### Community 28 - "Community 28"
+Cohesion: 0.07
+Nodes (29): 22.1 O que Azure entrega para o caso Roleta Cloud, 22.2 Onde Azure dói (riscos honestos), 22.3 Veredito final sobre "Azure como casa", 22. Azure como casa principal — auditoria honesta, 23.1 Extensões a habilitar no `azure.extensions` allowlist, 23.2 Schema Postgres-first proposto, 23.3 A jogada-chave: **pgmq como broker**, 23.4 Materialized views úteis (refresh via pg_cron) (+21 more)
+
+### Community 29 - "Community 29"
+Cohesion: 0.07
+Nodes (29): 1. Verificacao de Tarefas (TAsk_audit_pos.md), 2. Verificacao Git & Deploy, 3. Verificacao Servidor de Producao, 4. Auditoria Completa de Bugs, 5. Bugs NAO Corrigidos (Risco Aceitavel), 6. Resultados dos Testes Pos-Fix, 7. Resumo de Arquivos Modificados (v4.3.1), 8. Conclusao (+21 more)
+
+### Community 30 - "Community 30"
+Cohesion: 0.14
+Nodes (20): CloudSelector(), CloudSelectorProps, ProviderItem, PROVIDERS, currencyFormatter, ResourceDetail(), ResourceDetailProps, CATEGORIES (+12 more)
+
+### Community 31 - "Community 31"
+Cohesion: 0.15
+Nodes (14): AzureConnector, AzureConnectorError, default_purpose_for_category(), extract_resource_graph_rows(), find_column_index(), normalize_graph_row(), normalize_resource_state(), normalize_tags() (+6 more)
+
+### Community 32 - "Community 32"
+Cohesion: 0.11
+Nodes (14): isDryRun, isRollback, migrateResources(), isDryRun, isRollback, runAllMigrations(), CreateResourceDTO, ResourceQueryFilters (+6 more)
+
+### Community 33 - "Community 33"
+Cohesion: 0.09
+Nodes (18): Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., Retorna o índice de um número na sequência da roda., QW-1 — decisão de minimizer (stake mínimo + force level=1).         Retorna (mi (+10 more)
+
+### Community 34 - "Community 34"
+Cohesion: 0.08
+Nodes (23): analyzers, charFilters, corsOptions, defaultScoringProfile, encryptionKey, fields, name, @odata.context (+15 more)
+
+### Community 35 - "Community 35"
+Cohesion: 0.08
+Nodes (23): analyzers, charFilters, corsOptions, defaultScoringProfile, encryptionKey, fields, name, scoringProfiles (+15 more)
+
+### Community 36 - "Community 36"
+Cohesion: 0.08
+Nodes (23): analyzers, charFilters, corsOptions, defaultScoringProfile, encryptionKey, fields, name, @odata.context (+15 more)
+
+### Community 37 - "Community 37"
+Cohesion: 0.08
+Nodes (23): 0 · Resumo Executivo, 1.1 · SQLite — `data/decisions.db` · tabela `decisions`, 1.2 · Postgres (réplica analítica) — estado real, 1.3 · Root cause — porque o hook não disparou, 1.4 · Mitigações aplicadas nesta auditoria, 1.5 · Recomendação para próximo sprint, 1 · Engenharia Reversa das Últimas 6 Jogadas, 2 · Auditoria Item-a-Item · Plano `plano_implentacao_pos_sessao_24_05.md` (+15 more)
+
+### Community 38 - "Community 38"
+Cohesion: 0.08
+Nodes (24): 0. Premissas do owner (12/06) — governam todo o resto, 1. Auditoria 12/06 — premissas × código real, §2.1 — VEREDITO A1–A3 (12/06, n=4131 de produção) — `analise_regioes_12_06.md`, 2. Trilha A — Responder à pergunta central com os dados ATUAIS (offline, começa hoje), 3. Trilha B — Execução da estratégia (mudanças cirúrgicas, flag-guarded), 4. Trilha C — Fluxo de dados mínimo para sustentar A e B (lente P3), 5. Sequência executiva, 6. O que explicitamente NÃO fazer (+16 more)
+
+### Community 39 - "Community 39"
+Cohesion: 0.09
+Nodes (23): code:yaml (services:), S0 — Deploy Quick Wins v4.4 (REVISADO), S10 — Cold regions opt-in com warning (mantido), S11 — Shadow com timeout + circuit breaker (REVISADO B11), S12 — Métricas com significância estatística (REVISADO B12), S13 — Canário por spin_id (REVISADO B13), S14 — Adoption com changelog (REVISADO B14), S1 — DecisionRepo + paridade testada (REVISADO B02) (+15 more)
+
+### Community 40 - "Community 40"
+Cohesion: 0.09
+Nodes (23): 10. Bibliotecas novas + versões pinadas, 11. Compromisso de qualidade (KPIs pós-v5.0), 12. Veredito final do orquestrador, 13. Memórias persistidas nesta sessão (memory MCP), 4. Matriz consolidada RISCO × RETORNO × ESFORÇO, 5. Tabela "Antes × Depois v5.0", 6. Gates de promoção (qualquer Fase 2+ exige), 7. Estrutura de diretórios v5.0 (resultado da refatoração) (+15 more)
+
+### Community 41 - "Community 41"
+Cohesion: 0.09
+Nodes (19): MELHORIA-G (12/06): EMA do erro assinado até CADA centro proposto.          Si, M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened., QW-7 — drift detector simples (diff de hit_rate metade1 vs metade2)., M02-PctSigmoid: Atualiza offsets C2/C3 com feedback sigmoid dampened. (+11 more)
+
+### Community 42 - "Community 42"
+Cohesion: 0.12
+Nodes (17): SkeletonTable(), SkeletonTableProps, useCloudCosts(), buildDateRange(), buildSeriesData(), CostSeriesPoint, CostsPage(), createHistoryMap() (+9 more)
+
+### Community 43 - "Community 43"
+Cohesion: 0.15
+Nodes (13): _history_days(), _json_response(), _load_provider_history(), main(), _prepare_daily_costs(), _provider_overview(), get_provider(), list_configured_providers() (+5 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.12
+Nodes (18): has_config_value(), is_valid_subscription_id(), main(), destroy_all_vms(), main(), Genesis Cockpit - Sleep VM Function Destrói todas as VMs para dormir o sistema, POST /vm/sleep     Destrói todas as VMs para dormir o sistema, Destrói todas as VMs do resource group e limpa discos órfãos (+10 more)
+
+### Community 45 - "Community 45"
+Cohesion: 0.11
+Nodes (22): 1. Alto nível (sempre funciona), 2. Per-package via diskstats (sem root — método validado), 3. Mídia visível (`/sdcard`, legível sem root), 4. Lixeiras / caches visíveis (best-effort, suprimir erro), 5. Snapshot consolidado, ARQUIVOS PESSOAIS (manter, sugerir backup), ARQUIVOS PESSOAIS (manter, sugerir backup antes), code:block1 (adb shell df -h /data /storage/emulated/0) (+14 more)
+
+### Community 46 - "Community 46"
+Cohesion: 0.10
+Nodes (20): 1. Resumo executivo, 2.1 Seletor de modo (flag) — `app_config/settings.py`, 2.2 Configuração — `config/strategy.toml [sda17.staking]`, 2.3 Módulo de políticas — `staking/policy.py` (novo), 2.4 Dispatcher — `state/game.py :: get_effective_bet(direction, strategy, n_numbers)`, 2.5 Guard do Gale — `server/message_handler.py` (e `core/engine.py` dormente), 2.6 Telemetria, 2.7 Testes — `tests/test_staking_flat_kelly_14_06.py` (17 testes) (+12 more)
+
+### Community 47 - "Community 47"
+Cohesion: 0.10
+Nodes (21): §2. Achados gerais (transversais a múltiplas sprints), G-01 🐛 CRÍTICO — DNA-01 NÃO é declarada pré-requisito para todas as sprints que escrevem em `decision_attribution`, G-02 🚧 ALTO — Numeração e total de sprints inconsistentes, G-03 🐛 CRÍTICO — DP-01..DP-06 inteiramente dependentes do ExtractorBeat (escopo de outro agente), G-04 🚧 ALTO — V-01 (vector 14-d) e V-04 (centroids por dealer) dependem implicitamente do bloco dealer, G-05 ➕ MELHORIA — Falta sprint de **versionamento explícito de modelo** (`model_version` referenciada em DNA-01 mas não criada), G-06 ➕ MELHORIA — Falta sprint de **golden-set** de spins para testes de regressão, G-07 🔗 DEPENDÊNCIA OCULTA — DNA-02 SHAP/LightGBM exige dataset estável; depende de B-02 (`force=0` bug) e B-08 (`calibration_error`) (+13 more)
+
+### Community 48 - "Community 48"
+Cohesion: 0.10
+Nodes (19): Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência., Carrega estado adaptativo de persistência com validação.         Compatível com, Retorna estado adaptativo para persistência (v1.7 — Quick Wins INV-3). (+11 more)
+
+### Community 49 - "Community 49"
+Cohesion: 0.10
+Nodes (18): Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off, QW-4 — Hot Center Substitution. Se slot está em cooldown, troca por         off, Retorna offsets adaptativos ASSIMÉTRICOS (off_c2, off_c3).         v4.3: M02-Pc (+10 more)
+
+### Community 50 - "Community 50"
+Cohesion: 0.10
+Nodes (17): S-STRAT-7 — snapshot leve para /api/batch_tune., S-STRAT-7 — snapshot leve para /api/batch_tune., Distância circular entre dois números na roda., Distância circular entre dois números na roda., Aplica força ao número, retorna número resultado., S-STRAT-7 — snapshot leve para /api/batch_tune., S-STRAT-7 — Auto-tune em LOTE de 4 spins por sentido (isolado).          Cada, S-STRAT-7 — snapshot leve para /api/batch_tune. (+9 more)
+
+### Community 51 - "Community 51"
+Cohesion: 0.19
+Nodes (8): AzureAdapter, _extract_resource_graph_rows(), _extract_resource_group_from_id(), _fetch_retail_prices_map(), _index_of(), _normalize_resource_state(), _normalize_tags(), Busca custos reais usando Azure Retail Prices (fallback dinâmico)
+
+### Community 52 - "Community 52"
+Cohesion: 0.11
+Nodes (17): Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, QW-2 — peso direcional contínuo para stake quando level=1.         Retorna 1.0, Rolling hit rate da janela mais recente (config: sda17.minimizer.window)., QW-6 — warmup adaptativo (ganhando=2, perdendo=5)., QW-6 — warmup adaptativo (ganhando=2, perdendo=5). (+9 more)
+
+### Community 53 - "Community 53"
+Cohesion: 0.10
+Nodes (19): accounts, captured_at, device, android_release, brand, build_id, knox, model (+11 more)
+
+### Community 54 - "Community 54"
+Cohesion: 0.12
+Nodes (12): BrainApiResponse, BrainChatAction, BrainChatMessage, brainChatReducer(), BrainChatState, BrainRole, createMessage(), INITIAL_MESSAGES (+4 more)
+
+### Community 55 - "Community 55"
+Cohesion: 0.11
+Nodes (19): §30 — SP-16 ENTREGUE ✅ (REGION-01 sda_regions JSON), §31 — SP-27 ENTREGUE ✅ (ML-03 errdriven desligado), §32 — SP-30 ENTREGUE ✅ (OBS-02 wheel_dist p50/p95/p99 1h), §33 — SP-31 ENTREGUE ✅ (OBS-03 alerta wheel_dist p50>3.5), §34 — SP-29 ENTREGUE ✅ (OBS-01 alerta DNA realize lag), §35 — SP-08/SP-09/SP-10 ENTREGUES ✅ (DNA-03/04/05), §36 — SP-17 ENTREGUE ✅ (REGION-02 lift por regiao C1/C2/C3), §37 — SP-33/SP-34/SP-35 ENTREGUES ✅ (CI-01/02/03) (+11 more)
+
+### Community 56 - "Community 56"
+Cohesion: 0.11
+Nodes (19): Agente: Engenheiro de Sistemas Mobile N3 — Samsung A52, Autonomia, Bootstrap do ambiente, Chain of Thought, code:powershell (New-Item -ItemType SymbolicLink `), code:powershell (cd C:\Users\Windows\Desktop\android), code:powershell (.\bootstrap.ps1            # instala adb, node, uv e valida ), ⚠ Como ativar este AGENTS.md (+11 more)
+
+### Community 57 - "Community 57"
+Cohesion: 0.17
+Nodes (14): Get-State(), Dump-UI(), Find-Node(), Shot(), Show-Clickables(), Tap-Node(), Tap-Text(), adb() (+6 more)
+
+### Community 58 - "Community 58"
+Cohesion: 0.12
+Nodes (19): container roleta-cloud (302MB, healthy, 512MB lim), Cert Let's Encrypt (expira 2026-07-06), certbot.timer (renovacao diaria), BUG: dealer/table/round=None em producao pos-PR#6, CRITICO: dealer='unknown' em 5352/5352 decisoes (DEAL morto), roleta.xma-ia.com (+ www), Extensao Chrome (cliente, captura spins+dealMeta), nginx (host) :80/:443 (+11 more)
+
+### Community 59 - "Community 59"
+Cohesion: 0.16
+Nodes (12): buildLegacyViolations(), clampScore(), extractScoreFromPayload(), GovernancePage(), GovernanceViolation, isRecord(), JsonRecord, normalizeGovernanceViolations() (+4 more)
+
+### Community 60 - "Community 60"
+Cohesion: 0.11
+Nodes (18): A. Mapa de alinhamento QW ↔ v5.0 (compatibilidade temporal), 🔍 AUDITORIA PROFUNDA vs `final_refatoracao_proposta.md` v5.0, B. Findings da auditoria (20 itens classificados por severidade), C. Gates de promoção dos QW (subset do v5.0 Gates 1-8), code:python (def get_adaptive_state(self):), code:python (from pydantic import BaseModel, Field), code:python (def analyze(self, ...):), code:python (# adicionar em strategies/sda17.py e state/game.py:) (+10 more)
+
+### Community 61 - "Community 61"
+Cohesion: 0.11
+Nodes (18): 3.1 FIX: BUG-TASK-001 — `update_adaptive()` em `engine.py`, 3.2 FIX: BUG-TASK-003 — EMA Clamp Imediato, 3.3 FIX: BUG-TASK-004 — `_wheel` Inicializado Cedo, 3.4 FIX: BUG-TASK-005 — Validação de Bounds no Load, 3.5 FIX: BUG-TASK-006 + BUG-NEW-007 — Offset Real no DB, 3.6 FIX: BUG-NEW-002 — Validação de Cobertura, 3.7 FIX: BUG-NEW-003 + BUG-NEW-004 — Logging de Fallbacks, 3.8 Tabela Consolidada de Correções (+10 more)
+
+### Community 62 - "Community 62"
+Cohesion: 0.15
+Nodes (9): ChatMessage(), ChatMessageProps, formatTimestamp(), useBrainChat(), createQueryClient(), BrainPage(), OverviewPage(), ThemePreference (+1 more)
+
+### Community 63 - "Community 63"
+Cohesion: 0.12
+Nodes (17): 6.1 Obter Token OAuth, 6.2 Listar todos os recursos da subscription, 6.3 Listar recursos por Resource Group, 6.4 Ver status da VM, 6.5 Iniciar/Parar/Reiniciar VM, 6.6 Consultar custos (último mês), 6.7 Redimensionar VM (mudar SKU), 6.8 Consultar Azure AI Search (+9 more)
+
+### Community 64 - "Community 64"
+Cohesion: 0.12
+Nodes (17): A3.0 TL;DR (3 bullets + 1 decisão), A3.1 Análise comparativa (Azure-first VF atual vs Local-first proposto), A3.2 Achado crítico **B32** — AGE não está na allowlist Azure PG Flexible, A3.3 Outros achados A3, A3.4 Sprints NOVAS / REESCRITAS, A3.5 Lista mestre atualizada (delta vs VF), A3.6 Self-audit da auditoria (sanity check), A3.7 Recomendação final (+9 more)
+
+### Community 65 - "Community 65"
+Cohesion: 0.12
+Nodes (16): S0 — Deploy Quick Wins v4.4 em produção, S10 — Cold regions feature (default OFF), S11 — Shadow predictor, S12 — Métricas shadow + dashboard, S13 — Canário 10% → 50%, S14 — Adoption full, S1 — DecisionRepo interface, S2 — Alembic migrations (+8 more)
+
+### Community 66 - "Community 66"
+Cohesion: 0.12
+Nodes (17): 0. Stack tecnológica por camada, 1. Diagrama macro — grupos estilo microserviços, 2. Ciclo de uma rodada (sequência + contratos), 3. Camada de persistência (fonte-da-verdade vs espelho), 4.1 Extensão (captura + conexão client-side), 4.2 Conexão / Core, 4.3 Estratégia, 4.4 Observabilidade (+9 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.12
+Nodes (17): code:python (def _detect_drift(self, direction: str) -> bool:), 📝 Decisões pendentes para o usuário, ✅ Definition of Done, Dia 1 (manhã, 4h) — base infraestrutural, Dia 1 (tarde, 4h) — quick wins críticos (modulação de stake), Dia 2 (manhã, 4h) — risk control, Dia 2 (tarde, 4h) — adaptive control, Dia 3 (4h) — ativação gradual em PROD (+9 more)
+
+### Community 68 - "Community 68"
+Cohesion: 0.12
+Nodes (17): 4.1.1 Mudanças nas Constantes (linhas 24-32), 4.1.2 Novo Método: `_get_adaptive_offset(direction)`, 4.1.3 Novo Método: `update_adaptive(direction, c1, actual_result)`, 4.1.4 Mudanças no `analyze()` (linhas 117-175), 4.1.5 Atualização do `details` no Retorno, 4.1.6 Métodos a REMOVER, 4.1.7 Novo Método: Serialização do Estado Adaptativo, 4.1.8 Atualização da Assinatura de `analyze()` (+9 more)
+
+### Community 69 - "Community 69"
+Cohesion: 0.12
+Nodes (17): 10. CHECKLIST PRÉ-IMPLANTAÇÃO, 14. VERSÃO DO DOCUMENTO, 1.1 Objetivo, 1.2 Motivação (Resultados do Estudo), 1.3 Princípio Fundamental, 1. RESUMO EXECUTIVO, 5.1 Componentes que NÃO Mudam, 5.2 Verificação de Compatibilidade (+9 more)
+
+### Community 70 - "Community 70"
+Cohesion: 0.12
+Nodes (17): 13.1 Alterações na PARTE I — Arquitetura, code:block50 (aplica análise estatística com a estratégia proprietária SDA), code:block51 (aplica análise estatística com a estratégia proprietária M15), code:block52 (│   └── sda17.py                     # SDA-19 (IQR + Weighte), code:block53 (│   └── sda17.py                     # M15-ADA (IQR + Weight), code:block54 (│  strategies/    │  │  ├── game.py (GameState)     │), code:block55 (│  strategies/    │  │  ├── game.py (GameState)     │), code:block56 (6.                                   SDA-19 analyze(target_t) (+9 more)
+
+### Community 71 - "Community 71"
+Cohesion: 0.20
+Nodes (15): Pacote de políticas de staking (flat/kelly) — spec flat_kelly_junho.md §6.  De, _cfg_get(), compute_staking(), flat_stake(), kelly_stake(), Políticas de staking flat / kelly por sentido (spec flat_kelly_junho.md §6)., Dispatcher flat/kelly. Lê parâmetros de ``strategy._cfg`` (``[sda17.staking]``)., Lê ``cfg.get(section, key, default)`` de forma tolerante a falhas. (+7 more)
+
+### Community 72 - "Community 72"
+Cohesion: 0.12
+Nodes (17): 1. Conta registrada como SyncAdapter, 2. Auto-upload em curso (multiplas filas), 3. Galeria Samsung integrada com OneDrive, 4. Quota cheia (logs do app), 5. Notificação ativa "Memória..." (cheia), Auditoria OneDrive — venturamarcia@hotmail.com, code:block1 (Account venturamarcia@hotmail.com u0 com.microsoft.skydrive), code:block2 (com.microsoft.skydrive.content.autoupload/sync_queue (3 obse) (+9 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.12
+Nodes (15): A1.1 — Bugs e erros lógicos, A1.2 — Gaps de cobertura, A1.3 — Conflitos com decisões prévias, A2.1 — Bugs/gaps remanescentes, A2.2 — Conflitos detectados em V2, A2.3 — Riscos identificados em V2, 🔍 AUDITORIA 1 — Bugs, gaps, conflitos detectados em V1, 🔎 AUDITORIA 2 — Segunda passada crítica em V2 (+7 more)
+
+### Community 74 - "Community 74"
+Cohesion: 0.12
+Nodes (16): 1. Visão Geral, 2. Estrutura de Diretórios, 3. Diagrama de Componentes e Dependências, 4. Fluxo de Dados Principal, 5. Modelo de Dados (SQLite), 6. Sistema de Decisão (Pipeline M15-ADA v4.3 + Kill Switch), 7. Protocolo WebSocket — Tipos de Mensagem, 8. Modelo de Conexão (Master/Slave) (+8 more)
+
+### Community 75 - "Community 75"
+Cohesion: 0.12
+Nodes (16): 4. Ordem de execução recomendada, 5. Resumo executivo — o que vale a pena, 6. Riscos consolidados, 7. Bibliotecas a adicionar (footprint total), 8. Decisão pendente do usuário, 9. Mapa final — Antes vs Depois (visual), 📦 ADIAR (sem perda de PnL imediato):, code:block13 (SEMANA 1 (T1 inteiro)               SEMANA 2 (T2.1 + T2.3 + ) (+8 more)
+
+### Community 76 - "Community 76"
+Cohesion: 0.12
+Nodes (15): §0. PROMPT ESTRATÉGICO MESTRE (cole isso ao iniciar cada sprint), §10. Próximo passo recomendado, §1. Auditoria de `Visualizacao_da_evolucao_25_05.md` (bugs e lacunas no PRÓPRIO doc), §2. DNA Estrutural — a coluna vertebral que falta, §4. Mapa de dependências (Mermaid), §5. Ordem de execução recomendada (waves), §6. Princípios anti-regressão (LEIA antes de cada sprint), §7. Memory MCP — entidades a registrar ao executar (+7 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.17
+Nodes (8): _build_sda_regions(), MessageHandler, Manipulador de mensagens WebSocket., SP-16 REGION-01: monta lista enriquecida de regioes [C1, C2, C3].      Hoje SD, Processa uma mensagem recebida., Processa uma mensagem recebida., Manipulador de mensagens WebSocket., Processa uma mensagem recebida.
+
+### Community 78 - "Community 78"
+Cohesion: 0.13
+Nodes (16): 4.1 Cache global (mais seguro), 4.2 Limpar dados de app malicioso/spam, 4.3 Desinstalar bloatware (bypass One UI), 4.4 Verificação, 4.4 Verificação (obrigatório), code:block1 (adb shell pm trim-caches 200000000000), code:block2 (adb shell pm clear <pkg>), code:block3 (adb shell pm uninstall -k --user 0 <pkg>) (+8 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.15
+Nodes (16): container roleta-cdc-worker (healthy), CI main VERMELHO desde 27/05 (cdc tests: cw.spins_vectors inexistente), server/configs/mesas/ (runtime, untracked), /usr/local/bin/roleta-deploy-pull.sh, roleta-deploy.timer (pull-deploy main a cada 2min), extensao Apache AGE (cw_graph/ccw_graph VAZIOS), extensao pgvector (embeddings), RISCO: models/spin_autoencoder.joblib untracked no servidor (+8 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.13
+Nodes (14): devDependencies, @types/react, @types/react-dom, typescript, vite, @vitejs/plugin-react, name, private (+6 more)
+
+### Community 81 - "Community 81"
+Cohesion: 0.13
+Nodes (15): 2.3.1 Estratégia SDA-21 (`strategies/sda17.py`), 2.3.2 Base da Estratégia (`strategies/base.py`), 2.3.3 Estado do Jogo (`state/game.py`), 2.3.4 Handler de Mensagens (`server/message_handler.py`), 2.3.5 Banco de Dados (`database/models.py`), 2.3.6 Frontend Dashboard (`frontend/`), 2.3.7 Extensão/Overlay (`extension/content.js`), 2.3 Descrição Detalhada dos Componentes Atuais (+7 more)
+
+### Community 82 - "Community 82"
+Cohesion: 0.13
+Nodes (15): 6.6 Detalhamento das Tasks, code:python (# Extrair números de C1 (raio 3) para destaque no frontend), code:python ("c1_numbers": c1_nums,), code:javascript (regiao.textContent = sugestao.regiao ||), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:javascript (const centros = sugestao.centros || [sugestao.centro];), code:css (/* M15-ADA: Destaque visual do centro C1 */) (+7 more)
+
+### Community 83 - "Community 83"
+Cohesion: 0.13
+Nodes (15): 14. Onde a Parte 1 envelheceu mal (e o que muda), 15.1 MCPs — nova lista prioritária, 15.2 MCPs que descartei depois da auditoria, 15.3 Skills do Copilot CLI — refinamento da lista, 15. Stack tecnológica revisada (foco em "o que funciona"), 16.1 Critérios objetivos, 16.2 Veredito, 16.3 Recomendação prática (+7 more)
+
+### Community 84 - "Community 84"
+Cohesion: 0.14
+Nodes (13): M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, M04+M10 Hybrid: Error-Vector com Prior Gaussiano.                  M04 calcula, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh, Bayesiano brute-force: testa todos offsets contra janela recente, retorna o melh (+5 more)
+
+### Community 85 - "Community 85"
+Cohesion: 0.13
+Nodes (14): B2.1 — Off-site backup geográfico (disaster recovery), B2.2 — (NÃO crítico) Email transacional para alertas, B2.3 — O que **ABANDONAMOS** do plano A3 anterior, 📊 Baseline atual do Debian HostDime (medido agora), 🟠 BLOCO 2 — O que **realmente** precisa sair do Debian, code:block1 (CPU:    2 vCPU), 🎯 Conclusão, 🗂️ Mapeamento Sprint → Bloco (+6 more)
+
+### Community 86 - "Community 86"
+Cohesion: 0.13
+Nodes (15): Camera, Facebook, OneDrive-Restored, PhotosEditor, Pictures, Screenshots, WallPaper, WhatsApp (+7 more)
+
+### Community 87 - "Community 87"
+Cohesion: 0.14
+Nodes (13): A. Gaps de 02/04 RESOLVIDOS (verificados no código em 12/06), ADENDO 12/06/2026 — Estado de conformidade após o ciclo 24/05→12/06, B. Capacidades NOVAS com impacto ISO (não existiam em 02/04), Bugs Identificados na Auditoria do Filesystem, C. Scorecard revisado (12/06), code:block14 (Legenda: 🟢 ≥ 8.0 (Bom)  |  🟡 6.0-7.9 (Adequado, melhorias re), D. Gaps REAIS remanescentes (manutenibilidade — ordenados por impacto), Matriz Característica × Evidência (+5 more)
+
+### Community 88 - "Community 88"
+Cohesion: 0.14
+Nodes (14): A.1 — Cardinalidade & comparativo histórico, A.2 — Distribuição de Gale Anti-Martingale (hoje), A.3 — Skip / Aposta, A.4 — Streaks (sobreviventes do dia), A.5 — Drift retroativo por bloco de 20 jogadas, A.6 — Distância roda (predito → real), por direção, A.7 — Hit-rate por bucket de força (sweet spots por direção), A.8 — Cobertura física do dia (+6 more)
+
+### Community 89 - "Community 89"
+Cohesion: 0.14
+Nodes (14): code:mermaid (flowchart TD), D.1 — Mea culpa: o que faltou na Parte C, D.2.1 — Capacidades por stack (auditoria honesta), D.2.2 — Por que pgvector vira a escolha estratégica, D.2 — PostgreSQL + pgvector: por que merece ser a opção ⭐ recomendada, D.3 — Self-audit da tabela D.2.1, D.4 — Refactor da estrutura ATUAL antes do vector (pré-vector), D.5 — Sprints reordenados pós-auditoria (+6 more)
+
+### Community 90 - "Community 90"
+Cohesion: 0.14
+Nodes (11): Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Aplica força ao número, retorna número resultado., Distância circular ASSINADA frm→to (+ no sentido da sequência)., Aplica força ao número, retorna número resultado. (+3 more)
+
+### Community 91 - "Community 91"
+Cohesion: 0.14
+Nodes (10): _dk(), Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his (+2 more)
+
+### Community 92 - "Community 92"
+Cohesion: 0.15
+Nodes (13): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+5 more)
+
+### Community 93 - "Community 93"
+Cohesion: 0.15
+Nodes (13): 🔑 Acesso Remoto Linux (Segurança Reforçada), code:bash (ssh -i "C:\Users\Windows\Desktop\Genesis azure\genesis_rsa" ), code:bash (# Atualizar as camadas de Kernel do sistema via Debian packa), code:bash (lsblk), code:bash (sudo mkfs -t xfs /dev/sdX  # Substituir 'sdX' pelo disco cor), code:bash (sudo mkdir /data), 🌐 Endpoints Acessíveis (Subida Concluída):, 🚀 Estrutura Atual Contratada - Projeto Genesis (MCP Preview) (+5 more)
+
+### Community 94 - "Community 94"
+Cohesion: 0.28
+Nodes (10): BaseModel, Enum, classify_resource(), _enrich_purpose(), _normalize_tags(), Genesis core unified models package., CloudCategory, Cloud-agnostic resource model used across providers. (+2 more)
+
+### Community 95 - "Community 95"
+Cohesion: 0.24
+Nodes (6): _json_response(), main(), _json_response(), main(), _row_key(), TableStorageCache
+
+### Community 96 - "Community 96"
+Cohesion: 0.15
+Nodes (13): 0. TL;DR — em 10 linhas, 1. Mapa visual — Arquitetura alvo v5.0, 2.1 Conformidade com invariante de isolamento — código verificado linha-a-linha, 2.2 Performance produção 23/05 (132 decisões, 118 finalizadas, DB `/app/data/decisions.db` no container), 2.3 Score ISO 25010 baseline → target v5.0, 2. Estado atual auditado (snapshot 23/05), 3. PLANO DE EXECUÇÃO — 5 FASES, 30 DIAS ÚTEIS, code:block1 (┌───────────────────────────────────────────────────────────) (+5 more)
+
+### Community 97 - "Community 97"
+Cohesion: 0.15
+Nodes (13): 13.3 Alterações na PARTE IV — Bugs, 13.4 Alterações na PARTE III — Scorecard, 13.5 Alterações na PARTE V — Mapa de Conformidade, 13.6 Alterações na PARTE VI — Conclusão, 13.7 Atualização do Rodapé, 13. ANOTAÇÕES PÓS-IMPLANTAÇÃO PARA `Manutenabilidade_iso.md`, code:block67 (| BUG-MAIN-001 | `main.py` | 🟡 Média | `signal.SIGTERM` não ), code:block68 (| BUG-MAIN-002 | `main.py` | ~~🟡 Média~~ ✅ CORRIGIDO | Flag ) (+5 more)
+
+### Community 98 - "Community 98"
+Cohesion: 0.15
+Nodes (13): B1.0 Pré-requisito: upgrade do Debian, B1.10 — S8: Apache AGE grafos por sentido, B1.11 — S9+S10+S11+S12+S13+S14: O resto, B1.1 — S0: Deploy Quick Wins v4.4, B1.2 — S0.5: Stack Docker-Compose unificada, B1.3 — S1+S2+S3: Refactor de persistência, B1.4 — Sx-CI: PostgreSQL no CI, B1.5 — Sx-SEC: Secrets sem Azure Key Vault (+5 more)
+
+### Community 99 - "Community 99"
+Cohesion: 0.15
+Nodes (13): §0. Resumo executivo (TL;DR para aprovação), §11. Próximos passos sugeridos (após aprovação), §12. Memory MCP — entidades a registrar no início, §17. MEL-ISO-004 ✅ DONE — Circuit Breaker SQLite (Wave 3), §1. Metodologia da auditoria, §20. Resumo final desta sequência (Wave 3 + Hotfix + NEW-12), §6. Mapa de dependências revisto (sem extractor), §7. Novo plano de waves (sem extractor) — `~22 dias úteis` (+5 more)
+
+### Community 100 - "Community 100"
+Cohesion: 0.15
+Nodes (13): code:block1 (NAMES                 IMAGE                                 ), code:block2 (REPOSITORY                                      TAG         ), code:block3 (VOLUME NAME                      DRIVER), code:block4 (NAME                   DRIVER), code:block5 (roleta-cloud              restart=unless-stopped  health=hea), code:block6 (NAME                  CPU %     MEM USAGE / LIMIT), Containers, Docker — Containers e Infraestrutura (+5 more)
+
+### Community 101 - "Community 101"
+Cohesion: 0.15
+Nodes (13): Alembic version, code:block1 (shared.outbox = 5), code:block2 (processed = 2706), code:block3 (nenhum), code:block4 (2026-06-10 18:51:09.081719+00), code:block5 (0006_spin_features), code:block6 (spins_total = tabela inexistente), Estatisticas de dominio (+5 more)
+
+### Community 102 - "Community 102"
+Cohesion: 0.15
+Nodes (13): Aplicação Roleta Cloud — Runtime, Arquivos não versionados relevantes, code:block1 (e7461a7 Merge pull request #6 from ivandirfilho/copilot/fix-), code:block2 (?? models/spin_autoencoder.joblib), code:block3 (ROLETA_PG_DSN), code:block4 (.), code:block5 ({"status": "ok", "uptime_sec": 619, "version": "4.4.0", "ts"), code:block6 (total 8) (+5 more)
+
+### Community 103 - "Community 103"
+Cohesion: 0.15
+Nodes (13): broadcast_heartbeat(), Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo., Envia estado atual para todos os clientes a cada 1 segundo. (+5 more)
+
+### Community 104 - "Community 104"
+Cohesion: 0.15
+Nodes (13): handler(), Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Cria contexto SSL se habilitado., Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     - (+5 more)
+
+### Community 105 - "Community 105"
+Cohesion: 0.15
+Nodes (12): 📊 Baseline — dados de produção 23/05/2026, code:block1 (┌───────────────────────────────────────────────────────────), code:python (# __init__:), 🚦 Escopo deste documento, Implementação (~30 LoC), 🚦 INVARIANTES INEGOCIÁVEIS APLICADOS NESTE DOC, Métrica de validação, O quê (+4 more)
+
+### Community 106 - "Community 106"
+Cohesion: 0.15
+Nodes (4): 🖥️ Servidor Debian — PRODUÇÃO (187.45.181.75), code:block1 (reboot   system boot  6.1.0-13-amd64   Wed Jun 10 18:40   st), Historico de boots (wtmp), Servidor Debian — Sistema
+
+### Community 107 - "Community 107"
+Cohesion: 0.15
+Nodes (13): code:block1 (NAMES                 IMAGE                                 ), code:block2 (REPOSITORY                                      TAG         ), code:block3 (VOLUME NAME                      DRIVER), code:block4 (NAME                   DRIVER), code:block5 (roleta-cloud              restart=unless-stopped  health=hea), code:block6 (NAME                  CPU %     MEM USAGE / LIMIT), Containers, Docker — Containers e Infraestrutura (+5 more)
+
+### Community 108 - "Community 108"
+Cohesion: 0.15
+Nodes (13): Alembic version, code:block1 (shared.outbox = 5), code:block2 (processed = 2706), code:block3 (nenhum), code:block4 (2026-06-10 18:51:09.081719+00), code:block5 (0006_spin_features), code:block6 (spins_total = tabela inexistente), Estatisticas de dominio (+5 more)
+
+### Community 109 - "Community 109"
+Cohesion: 0.15
+Nodes (13): Aplicação Roleta Cloud — Runtime, Arquivos não versionados relevantes, code:block1 (e7461a7 Merge pull request #6 from ivandirfilho/copilot/fix-), code:block2 (?? models/spin_autoencoder.joblib), code:block3 (ROLETA_PG_DSN), code:block4 (.), code:block5 ({"status": "ok", "uptime_sec": 619, "version": "4.4.0", "ts"), code:block6 (total 8) (+5 more)
+
+### Community 110 - "Community 110"
+Cohesion: 0.17
+Nodes (3): CloudCategory, ResourceState, UnifiedResource
+
+### Community 111 - "Community 111"
+Cohesion: 0.21
+Nodes (7): VmActionErrorPayload, VmActions(), VmActionToast, useVmActions(), VmActionResponse, VmPriority, WakePayload
+
+### Community 112 - "Community 112"
+Cohesion: 0.17
+Nodes (12): code:block4 (.github/workflows/ci.yml           # pytest + ruff + mypy + ), code:yaml (name: CI), code:block6 (alembic.ini), code:powershell (alembic revision -m "v1.7 add fallback_used and direction_au), code:yaml (version: "3.8"), code:python (decisions_total = Counter("roleta_decisions_total", "...", [), ETAPA 0.1 — Git Workflow + Branch Protection (LOCAL + GitHub) — 0.5d, ETAPA 0.2 — CI/CD GitHub Actions (LOCAL) — 1d (+4 more)
+
+### Community 113 - "Community 113"
+Cohesion: 0.17
+Nodes (12): 1.1 Completude Funcional, 1.2 Correção Funcional, 1.3 Pertinência Funcional, 1. ADEQUAÇÃO FUNCIONAL (Functional Suitability), 3.1 Coexistência, 3.2 Interoperabilidade, 3. COMPATIBILIDADE (Compatibility), 8.1 Adaptabilidade (+4 more)
+
+### Community 114 - "Community 114"
+Cohesion: 0.17
+Nodes (12): 13.2 Alterações na PARTE II — Análise ISO, code:block61 (| Offset adaptativo por direção | ✅ Completo | M15-ADA: CW=E), code:block62 (| Offset CW converge para 6-8 | ✅ | Simulação 52 jogadas: EM), code:block63 (| Overhead M15-ADA (Bayesian) | < 0.1ms | 11 offsets × 12 jo), code:block64 (strategies/sda17.py  ──► strategies.base, state.timeline    ), code:block65 (strategies/sda17.py  ──► strategies.base, state.timeline    ), code:block66 (| `strategies/sda17.py` | 280+ | `test_sda17.py` (56+) + `te), Seção 1.1 — Completude Funcional (tabela, linha ~601) (+4 more)
+
+### Community 115 - "Community 115"
+Cohesion: 0.17
+Nodes (12): 6.1 Motivação, 6.2 Especificação, 6.3 Display Atual vs Proposto, 6.4 Análise de Impacto, 6.5 Tarefas de Implantação, 6.7 Dependências, 6.8 Estimativa de Impacto, 6. FEATURE: DESTAQUE BOLD DO CENTRO C1 NO FRONTEND (+4 more)
+
+### Community 116 - "Community 116"
+Cohesion: 0.17
+Nodes (12): 14. Em caso de dúvida, FALE COM O ORQUESTRADOR, 15. Histórico de revisões deste documento, 20. Resource Locks (proteção anti-acidente), 23. Cost Management Alert, 25. Particionamento pg_partman operacional (detalhes para §4), 27. Testes ADICIONAIS v2.0 (T32-T48), 28. Atualizações ao template de entrega §11, code:bash (for r in rg-roleta-prod; do) (+4 more)
+
+### Community 117 - "Community 117"
+Cohesion: 0.17
+Nodes (12): 0. Sumário executivo, code:block1 (Semana 1: S-B (2d) + S-A (1d) + S-G em paralelo (0,5d)), I.1 Pontos verificados live e CONFIRMADOS, I.2 Achados NOVOS desta auditoria, II.1 Riscos identificados nos próprios sprints, II.2 Reordenação aplicada após auto-crítica, PARTE I — Auditoria do `organizacao_de_arquivos.md`, PARTE II — Auditoria do Sprint Plan (auto-crítica) (+4 more)
+
+### Community 118 - "Community 118"
+Cohesion: 0.17
+Nodes (11): Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config., Processa extração de mesa e salva config. (+3 more)
+
+### Community 119 - "Community 119"
+Cohesion: 0.17
+Nodes (11): Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica., Retorna config de uma mesa específica. (+3 more)
+
+### Community 120 - "Community 120"
+Cohesion: 0.17
+Nodes (11): Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas., Retorna lista de mesas configuradas. (+3 more)
+
+### Community 121 - "Community 121"
+Cohesion: 0.17
+Nodes (12): get_ssl_context(), Cria contexto SSL se habilitado., Cria contexto SSL se habilitado., Cria contexto SSL se habilitado., Cria contexto SSL se habilitado., Cria contexto SSL se habilitado., Cria contexto SSL se habilitado., Cria contexto SSL se habilitado. (+4 more)
+
+### Community 122 - "Community 122"
+Cohesion: 0.17
+Nodes (12): Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket., Inicia o servidor WebSocket. (+4 more)
+
+### Community 123 - "Community 123"
+Cohesion: 0.23
+Nodes (8): load(), S7 — Autoencoder/PCA 6→4→6 para reduzir features de spin.  Estrategia: comecar, Wrapper carregavel via joblib. PCA(n_components=4) por default.      API estav, 6d -> 4d. Retorna None se modelo nao carregado., Treina PCA simples. X deve ser array (n_samples, 6)., save_encoder(), SpinEncoder, train_pca()
+
+### Community 124 - "Community 124"
+Cohesion: 0.24
+Nodes (8): compare_and_log(), NoopShadowPredictor, S12 — Shadow Predictor.  Roda em paralelo ao predictor principal sem afetar de, Interface estavel. Cada implementacao concreta plugavel., Implementacao default — nao prediz nada. Usado quando S7 nao treinado., Loga divergencia primary vs shadow para auditoria offline., ShadowPrediction, ShadowPredictor
+
+### Community 125 - "Community 125"
+Cohesion: 0.17
+Nodes (12): 0) ⚠ ATENÇÃO — Decisão de conta antes de subir, 1) Status atual, 2) Subir para Google Fotos — duas frentes em paralelo, 3) Como conferir que terminou, 4) DEPOIS de confirmado — o que pode ser apagado do celular, 5) Pasta `backup-marcia\` no PC, Antes de executar §2A ou §2B, decidir:, Cópia local (PC) — feita via cabo USB ✅ (+4 more)
+
+### Community 126 - "Community 126"
+Cohesion: 0.17
+Nodes (11): android, battery, csc, device, df_data, df_sdcard, model, pda (+3 more)
+
+### Community 127 - "Community 127"
+Cohesion: 0.18
+Nodes (10): §0. TL;DR — 1 página decisional, §10. Comandos prontos para validar, §11. Memória — entidades a adicionar, §1. O payload exato que entra hoje (verificado live), §8. Comparativo "estamos no caminho certo?", §9. Comparativo vs `estrutura_noite_25_audit.md`, code:javascript (sendToWebSocket({), code:bash (# 1) Hit rate breakdown por feature (em qualquer momento)) (+2 more)
+
+### Community 128 - "Community 128"
+Cohesion: 0.18
+Nodes (11): 3.10 Sumário ranking — **decisões com impacto real**, 3.1 `tr_confidence` (Kill Switch grade) — **paradoxo**, 3.2 `sda_score` (sinal puro do SDA17) — **sweet spot em 4**, 3.3 `sda_offset_type` (tipo de calibração aplicada) — **errdriven está sabotando**, 3.4 `calibration_offset` — efeito altamente assimétrico, 3.5 `gale_level × tr_confidence` (interação) — **G2+media é diamante**, 3.6 `sda_predicted_force` (força prevista) — sinal **muito forte**, 3.7 Kill Switch é **estatisticamente nulo** hoje (+3 more)
+
+### Community 129 - "Community 129"
+Cohesion: 0.18
+Nodes (10): 6.1 Por que faz sentido (literatura + experiência), 6.2 O que captar (e de onde), 6.3 Schema proposto, 6.4 Como a estratégia melhora com dealer/provider, §6. Dealer + Provedor — vale a pena? **SIM, alto ROI.**, code:sql (ALTER TABLE sessions ADD COLUMN provider TEXT;), code:block9 ([centro, c4, m6, l12, sda_score, force,), Mudanças mínimas (SQLite write-side) (+2 more)
+
+### Community 130 - "Community 130"
+Cohesion: 0.18
+Nodes (11): code:python (class DirectionalBayesianGate:), code:python (from river.drift import ADWIN), code:block12 (server/handlers/), code:python (@dataclass(frozen=True)), ETAPA 1.1 — Constantes em TOML (T1.1) — 0.5d, ETAPA 1.2 — Backtest vectorbt (T1.2) — 1d, ETAPA 1.3 — Logging granular + bug fix fallback (T1.3) — 0.5d, ETAPA 1.4 — Bayesian Gate per-direction (T1.4) — 0.5d (+3 more)
+
+### Community 131 - "Community 131"
+Cohesion: 0.18
+Nodes (11): 4.2.1 MartingaleState.BET_VALUES (linha 39), 4.2.2 Estado Adaptativo no GameState, 4.2.3 Migração de Versão do state.json, 4.2.4 Docstrings da Classe MartingaleState, 4.2 `state/game.py` — ALTERAÇÃO MÉDIA, code:python (BET_VALUES: ClassVar[Dict[int, int]] = {1: 21, 2: 42, 3: 63}), code:python (BET_VALUES: ClassVar[Dict[int, int]] = {1: 17, 2: 34, 3: 51}), code:python (# No save() — adicionar ao dict 'data':) (+3 more)
+
+### Community 132 - "Community 132"
+Cohesion: 0.18
+Nodes (11): 1. RESUMO EXECUTIVO, 5.1 Status do Deploy (29/03/2026 00:07 UTC), 5.2 Logs de Processamento (Primeiros 11 spins), 5.3 Erros em Produção, 5.4 Verificação WSS Externo, 5. VALIDAÇÃO EM PRODUÇÃO, 7. ANOTAÇÕES PÓS-IMPLANTAÇÃO PARA `Manutenabilidade_iso.md`, 8. PRIORIDADES DE PRÓXIMOS PASSOS (+3 more)
+
+### Community 133 - "Community 133"
+Cohesion: 0.18
+Nodes (11): C.1 — Por que grafo-vetorial e não SQL+features?, C.2 — Modelo de dados proposto (Cypher-like, **isolado por sentido**), C.4 — Decisão recomendada (multi-cenário), C.5 — Pipeline conceitual (isolado por sentido), C.6 — Outlier removal — fórmula proposta, C.7 — Regiões não-visitadas — formalização, C.8 — Sprints para implementar (high-level, sem datas), code:block6 (// Universo CW totalmente isolado) (+3 more)
+
+### Community 134 - "Community 134"
+Cohesion: 0.18
+Nodes (11): 4.1 Provisionamento (comando `az` esperado), 4.2 Extensions OBRIGATÓRIAS habilitadas, 4.3 Parâmetros de servidor (`az postgres flexible-server parameter set`), 4.4 Firewall + Rede, 4.5 Backup, 4.6 Roles e usuários a criar (após server up), 4. PostgreSQL — especificação detalhada, code:bash (az postgres flexible-server create \) (+3 more)
+
+### Community 135 - "Community 135"
+Cohesion: 0.18
+Nodes (11): 5.1 Adequação Funcional (Functional Suitability), 5.2 Confiabilidade (Reliability), 5.3 Manutenibilidade (Maintainability), 5.4 Eficiência de Desempenho (Performance Efficiency), 5.5 Compatibilidade (Compatibility), 5.6 Usabilidade (Usability), 5.7 Segurança (Security), 5.8 Portabilidade (Portability) (+3 more)
+
+### Community 136 - "Community 136"
+Cohesion: 0.18
+Nodes (11): code:block1 (port 22), code:block2 (0), code:block3 (fail2ban NAO instalado), code:block4 (Chain INPUT (policy ACCEPT)), code:block5 (118 pacotes atualizáveis), fail2ban, Segurança, SSHD config efetiva (itens chave) (+3 more)
+
+### Community 137 - "Community 137"
+Cohesion: 0.24
+Nodes (4): _batch_tune_snapshot(), _shadow_snapshot(), _state_snapshot(), _strategy_snapshot()
+
+### Community 138 - "Community 138"
+Cohesion: 0.18
+Nodes (10): server/analytics_handler.py, server/connection_manager.py, server/extractor_service.py, server/health_server.py, server/message_handler.py, server/websocket.py, state/bet_advisor.py, state/game.py (+2 more)
+
+### Community 139 - "Community 139"
+Cohesion: 0.18
+Nodes (11): Allowlist preservada (NUNCA tocada), Arquivos do projeto, Como reverter, Considerações de segurança, Hotmail Cleanup Report — venturamarcia@hotmail.com, Opcional — limpezas adicionais, Pendências e próximos passos, Recomendação de longo prazo (+3 more)
+
+### Community 140 - "Community 140"
+Cohesion: 0.18
+Nodes (11): code:block1 (/autopilot), Fase 0 — RADAR (sempre, antes de qualquer coisa), Fase 1 — MEMÓRIA, Fase 2 — DECOMPOSIÇÃO E TOPOLOGIA, Fase 3 — EXECUÇÃO YOLO, Fase 4 — CHECKPOINT DE MEMÓRIA, Fase 5 — RELATÓRIO MÍNIMO, Loops temporais (rodar manualmente no início de sessões longas) (+3 more)
+
+### Community 141 - "Community 141"
+Cohesion: 0.18
+Nodes (11): code:block1 (port 22), code:block2 (0), code:block3 (fail2ban NAO instalado), code:block4 (Chain INPUT (policy ACCEPT)), code:block5 (118 pacotes atualizáveis), fail2ban, Segurança, SSHD config efetiva (itens chave) (+3 more)
+
+### Community 142 - "Community 142"
+Cohesion: 0.20
+Nodes (9): samplingSettings, extensionBundle, id, version, logging, applicationInsights, excludedTypes, isEnabled (+1 more)
+
+### Community 143 - "Community 143"
+Cohesion: 0.20
+Nodes (10): 0.1 Fluxo Completo (copiar e executar), 0.2 Por que `unset` dos tokens antes?, 0.3 Por que `gh auth setup-git`?, 0.4 Verificar se a autenticação está correta, 0.5 Modo totalmente automatizado (script), 0. BOOTSTRAP — Como Autenticar e Clonar Este Repositório, code:bash (# PASSO 1 — Limpar tokens de ambientes anteriores (Codespace), code:block2 (git config --global credential.helper "gh auth git-credentia) (+2 more)
+
+### Community 144 - "Community 144"
+Cohesion: 0.20
+Nodes (10): 4.3.1 Chamar `update_adaptive()` após verificação de resultado, 4.3.2 Persistir Estado Adaptativo, 4.3.3 Restaurar Estado Adaptativo no Startup, 4.3.4 Incluir Offset Info no Trace Broadcast, 4.3 `server/message_handler.py` — ALTERAÇÃO MÉDIA, code:python (# ★ M15-ADA: Atualizar estado adaptativo com resultado real), code:python (# Após game_state.save()), code:python (import json) (+2 more)
+
+### Community 145 - "Community 145"
+Cohesion: 0.20
+Nodes (10): 11.1 Bugs Encontrados, 11.2 Análise Detalhada dos Bugs Críticos, 11.3 Classificação por Prioridade para M15-ADA, 11.4 Impacto dos Bugs no M15-ADA, 11. AUDITORIA DE BUGS — `main.py`, BUG-MAIN-002: Double Shutdown (Race Condition), BUG-MAIN-005: sys.exit() em asyncio, code:python (# FLUXO ATUAL (com bug):) (+2 more)
+
+### Community 146 - "Community 146"
+Cohesion: 0.20
+Nodes (10): Apêndice — o que JÁ FOI entregue em 12/06 (não refazer), code:block1 (D0 (hoje/amanhã):  0.1 walk-forward INV-3 · 1.2 orphans · 3.), Descartados / fora de escopo (decisões já tomadas — não reabrir sem novo dado), P0 — Validação pendente (único elo do dia sem número), P1 — Lucro com dados atuais (offline, sem esperar tráfego), P2 — Estratégia (gated — só entram com critério batido), P3 — Fluxo de dados (gaps confirmados na validação E2E), P4 — Higiene ISO (de `Manutenabilidade_iso.md` ADENDO §D) (+2 more)
+
+### Community 147 - "Community 147"
+Cohesion: 0.20
+Nodes (10): B.1 — QW-1 Stake Minimizer (cooldown pós-3 misses), B.2 — QW-2 Stake Weight (level=1 only), B.3 — QW-3 MG Cap métrica, B.4 — QW-4 Hot Center Substitution, B.5 — QW-5 TOML config + reload on-the-fly, B.6 — QW-6 Warmup Adaptativo, B.7 — QW-7 Drift Freeze, B.8 — Resumo do contrafactual (+2 more)
+
+### Community 148 - "Community 148"
+Cohesion: 0.20
+Nodes (10): 16.1 Provisionamento via docker-compose, 16.2 Arquivos de config que o agente DEVE criar (estrutura pronta, sem secrets concretos), 16.3 Caddy routes para observability (apenas IP whitelist Ivandir), 16. Observability Stack na VM — Prometheus + Loki + Grafana + Alertmanager, code:yaml (version: "3.8"), code:yaml (global:), code:yaml (groups:), code:yaml (route:) (+2 more)
+
+### Community 149 - "Community 149"
+Cohesion: 0.20
+Nodes (9): 1.1 O conceito, 1.2 Estrutura proposta: `decision_dna`, 1.3 Como cada nova estratégia nasce já com DNA, 1.4 As **3 regiões** (C1, C2, C3) — DNA por região, 1.5 Invariante: backfill é OK, edit não, §1. A visão nuclear — **DNA estrutural por decisão**, code:block1 (spin → Force → AdaptiveState → Cooldown → DriftFreeze →), code:sql (CREATE MATERIALIZED VIEW shared.dna_summary AS) (+1 more)
+
+### Community 150 - "Community 150"
+Cohesion: 0.20
+Nodes (10): code:block3 (p50    | p95     | p99), code:block4 (Dia 0 (HOJE - parcial): ✅ v2 plan + auditoria 30min + descob), XII.1 B-7 (TS-FMT) — REPRIORIZADO, XII.2 A-4 (imbalance ccw/cw) — DIAGNÓSTICO CORRIGIDO, XII.3 🆕 BUG-OUTBOX-SILENT-SKIP (🟥 P0) — descoberto via FULL JOIN, XII.4 B-1 (CDC lag) — métrica de fato (p50/p95/p99), XII.5 Decisões tomadas, XII.6 Cronograma v2.1 (re-revisado) (+2 more)
+
+### Community 151 - "Community 151"
+Cohesion: 0.20
+Nodes (10): 6.1 Checklist de Validação Local (conforme `deployci_cd.md` §2), 6.2 Arquivos Modificados (para commit), 6.3 Commit Sugerido, 6.4 Migração de Dados, 6.5 Rollback Plan, code:block16 (core/engine.py           +11 linhas  (BUG-TASK-001)), code:block17 (fix(v4.0.3): correções auditoria Bayesiana — 9 bugs), code:block18 (Migração automática no startup:) (+2 more)
+
+### Community 152 - "Community 152"
+Cohesion: 0.20
+Nodes (8): B5 CUT-POLICY v1 (12/06): raio do fallback de 1 centro.          N=19 (raio 9), Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, B5 CUT-POLICY v1 (12/06): raio do fallback de 1 centro.          N=19 (raio 9), Atualiza estado adaptativo após resultado conhecido.         v4.3: Atualiza his, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h, Direção circular de a para b na roda.         Retorna +1 se b está no sentido h
+
+### Community 153 - "Community 153"
+Cohesion: 0.20
+Nodes (9): 12. Cronograma esperado de execução do agente provisionador, 13. Definition of Done — checklist final, 1. Criar RG, 2. Criar VNet, code:block19, code:block20, code:block21, code:block22 (+1 more)
+
+### Community 154 - "Community 154"
+Cohesion: 0.20
+Nodes (10): A) "Ajude-nos a proteger sua conta" / pede código, B) "Conta temporariamente suspensa/bloqueada", C) "Detectamos atividade incomum", Caminho por cenário (escolha conforme a mensagem na tela), Causa provável, Conta Microsoft congelada — guia de desbloqueio, D) Sem acesso à senha (esqueceu), E) Nada funciona (+2 more)
+
+### Community 155 - "Community 155"
+Cohesion: 0.22
+Nodes (8): globalHeaders, Referrer-Policy, X-Content-Type-Options, X-Frame-Options, navigationFallback, exclude, rewrite, routes
+
+### Community 156 - "Community 156"
+Cohesion: 0.22
+Nodes (8): 10. CHECKLIST DE ONBOARDING DO AGENTE, 11. ENDPOINTS E URLs IMPORTANTES, 1. IDENTIDADE E CONTEXTO DO PROJETO, 8.1 Levantamento completo de recursos (Python rápido), 8.2 Levantamento de custos por resource group, 8. COMO FAZER LEVANTAMENTOS, AGENT_SETUP — Genesis Cockpit: Guia Operacional Completo para Agentes IA, code:python (import requests)
+
+### Community 157 - "Community 157"
+Cohesion: 0.22
+Nodes (9): 5.1 Pré-requisitos, 5.2 Fluxo Terraform completo, 5.3 Recursos gerenciados pelo Terraform, 5.4 Recursos pré-existentes (NÃO gerenciados — só lidos como data sources), 5. GERENCIAR INFRAESTRUTURA COM TERRAFORM, code:bash (# Na raiz do repositório (onde está main.tf)), code:block11 (azurerm_resource_group.rg_mcp              → rg-xmaia-mcp-pr), code:block12 (data.azurerm_virtual_network.vnet_genesis    → vnet-genesis ) (+1 more)
+
+### Community 158 - "Community 158"
+Cohesion: 0.22
+Nodes (9): code:mermaid (flowchart TB), 🏁 VERSÃO FINAL — Plano definitivo consolidado, VF.0 Premissas finais, VF.1 Lista mestre de sprints (ordenada, com dependências), VF.3 Mudanças no servidor Debian (consolidado), VF.4 Mudanças no GitHub (consolidado), VF.5 Self-audit final da Versão Final, VF.6 Mapa visual final (+1 more)
+
+### Community 159 - "Community 159"
+Cohesion: 0.22
+Nodes (9): code:python (# Adicionar no __init__:), code:python (def get_stake(self, direction: str, mg_level: int) -> float:), Implementação (snippet ~40 LoC), Métrica de validação (24h shadow), O quê, Por que é o ganho #1, QW-1 — Per-Direction Stake Minimizer ⭐⭐⭐⭐⭐, Reversão (+1 more)
+
+### Community 160 - "Community 160"
+Cohesion: 0.22
+Nodes (9): 12.1 Impacto por Característica ISO, 12.2.1 Adequação Funcional, 12.2.2 Eficiência de Desempenho, 12.2.3 Confiabilidade, 12.2.4 Manutenibilidade, 12.2 Requisitos de Conformidade para Cada Mudança, 12.3 Checklist ISO/IEC 25010 Pré-Deploy, 12. DIRETRIZES ISO/IEC 25010 PARA O M15-ADA (+1 more)
+
+### Community 161 - "Community 161"
+Cohesion: 0.22
+Nodes (9): 4.1 Resumo, 4.3 Bugs Altos, 4.4 Bugs Médios, 4.5 Bugs Baixos / Info, 4. BUGS ENCONTRADOS — VARREDURA PÓS-IMPLANTAÇÃO, BUG-POST-005 — `_adaptive_state` dinâmico no dataclass `GameState`, BUG-POST-006 — Restauração adaptativa sem error handling, code:python (@dataclass) (+1 more)
+
+### Community 162 - "Community 162"
+Cohesion: 0.22
+Nodes (9): code:python (from typing import Protocol), code:python (for stage in self.pipeline:), code:python (class AdamSigmoidUpdater:), code:python (def run(self, ctx):), T2.1 — Refactor SDA17 em Stage Protocol, T2.2 — Shadow mode infrastructure, T2.3 — Adam-Sigmoid updater (substitui PCT-Sigmoid), T2.4 — Stage Hot Center Filter (+1 more)
+
+### Community 163 - "Community 163"
+Cohesion: 0.22
+Nodes (9): 0. Como ler este documento, 1. Premissa estratégica — para onde a Roleta Cloud está indo, 3. Arquitetura-alvo (target architecture), 4. Skills/MCPs do ambiente de desenvolvimento, 9. Plataformas low-code (Power Apps, AppSheet, Retool…), code:block1 (┌───────────────────────────────────────────────────────────), MCPs que NÃO valem o esforço agora, 🛠️ Skills & Melhoras — Plano de Evolução Roleta Cloud (+1 more)
+
+### Community 164 - "Community 164"
+Cohesion: 0.22
+Nodes (9): 0. Resumo executivo (para o agente provisionador), 10. Informações que VOCÊ (agente provisionador) deve solicitar ao usuário ANTES de começar, 2. Visão alvo da infra (o que você vai entregar), 3. Convenções de nomenclatura (use EXATAMENTE estes nomes), 6. Key Vault — secrets que você DEVE criar, 🆕 CHANGELOG v1.0 → v2.0 (mudanças após auditoria cruzada com 4 documentos), code:block2 (┌───────────────────────────────────────────────────────────), code:block3 (project = roleta-cloud) (+1 more)
+
+### Community 165 - "Community 165"
+Cohesion: 0.22
+Nodes (9): 5.1 Provisionamento (`az vm create` esperado), 5.2 Cloud-init / Script de inicialização (executar no first-boot), 5.3 Managed Identity + permissões no Key Vault, 5.4 Validação pós-boot (script `check-vm.sh` que o agente roda via SSH), 5. VM substituta — especificação detalhada, code:bash (# Pega principal ID da identidade do sistema da VM), code:bash (#!/bin/bash), code:bash (az vm create \) (+1 more)
+
+### Community 166 - "Community 166"
+Cohesion: 0.22
+Nodes (9): B-01 — Desligar `errdriven`, B-02 — `_calculate_force` com `from==to`, B-03 — `gale_windows.result` NULL, B-04 — Autoencoder bind mount, B-05 — Bandit persist, B-06 — `/api/regime` distance=0, B-07 — `errdriven_v2` refatorado, B-08 — `calibration_error` NULL (+1 more)
+
+### Community 167 - "Community 167"
+Cohesion: 0.22
+Nodes (9): §15. EXECUÇÃO 26/05 — Wave 2 (priorizada por ISO/IEC 25010), ISO-S1 ✅ DONE — Schema symmetry CI (NEW-03 + MEL-ISO-002 ext.), ISO-S2 ✅ DONE — Sanitize ErrorOutput (BUG-POST-004 + MEL-ISO-001), ISO-S3 ⏭️ SKIPPED — BUG-POST-007 já resolvido, ISO-S4 ✅ DONE — structlog `decision_created` event (O-03), ISO-S5 ✅ DONE — Fix colunas em prompts mestres (L-05), ISO-S6 ✅ DONE — gale_windows.result enum backfill (B-03 reescopado), Próxima wave (sugerida — aguarda aprovação) (+1 more)
+
+### Community 168 - "Community 168"
+Cohesion: 0.22
+Nodes (9): §3. Lista de Sprints (≥ 30 profundas + 8 de bugs), 🧪 BACKTEST / SHADOW / CANARY (3 sprints), BT-01 — Completar backtest harness (S-STRAT-9 desbloqueado), BT-02 — Shadow mode v3 (paralelo per-feature), BT-03 — Canary rollout (10 % → 50 % → 100 %) + auto-rollback, O-01 — Painel Grafana "Estratégia 360º" (DNA + dealer + dist), O-02 — Alert `hit_rate_per_dealer < 44 %` (degradação), O-03 — Log estruturado `decision_id` correlation (E2E) (+1 more)
+
+### Community 169 - "Community 169"
+Cohesion: 0.22
+Nodes (9): B-01 — Desligar `sda_offset_type=errdriven` via feature_flag (QUICK WIN 5 min), B-02 — `_calculate_force` retorna 0 quando `from_num == to_num` (N25-01), B-03 — `gale_windows.result` NULL em 100 % (N25-02), B-04 — Autoencoder `/app/models` sem bind mount (N25-03), B-05 — Bandit ε-greedy não persiste em `state.json` (N25-05), B-06 — `/api/regime` retorna distance=0 em 9/10 (N25-07), B-07 — Refatorar `errdriven` (depois de B-01 garantir off, voltar com lógica boa), B-08 — `calibration_error` 100 % NULL (N25-04 ressuscitado) (+1 more)
+
+### Community 170 - "Community 170"
+Cohesion: 0.22
+Nodes (8): 2.1 Migrações Alembic propostas (0007 → 0011), 2.2 Vector ampliado — porquê e como, 2.3 AGE com queries reais, §2. Estruturação PG + Vector + AGE — destrava as 3 regiões, code:sql (ALTER TABLE cw.spin_features  ADD COLUMN sda_regions JSONB D), code:sql (ALTER TABLE cw.spins_vectors  ALTER COLUMN raw_features TYPE), code:cypher (SELECT create_graph('dealer_graph');), code:cypher (MATCH (d:Dealer)-[:PLAYED]->(s:Spin))
+
+### Community 171 - "Community 171"
+Cohesion: 0.22
+Nodes (9): 1.1 Ciclo de Vida de uma Jogada, 1.2 Mapeamento Critico de Direcoes, 1.3 Pipeline de Predicao de Forca, 1.4 Pipeline de Offset Bayesiano (M04+M10), 1. ENGENHARIA REVERSA - FLUXO COMPLETO DE DADOS, code:block1 (SPIN CHEGA (numero, direcao)), code:block2 (Forcas recentes [f0, f1, f2, ..., f6]  (f0 = mais recente)), code:block3 (historico = [(c1_0, res_0), ..., (c1_n, res_n)]  (ultimas 24) (+1 more)
+
+### Community 172 - "Community 172"
+Cohesion: 0.22
+Nodes (8): DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, Retorna lista de mesas configuradas., DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast, DEPRECATED (S-CLEAN-1): caminho legacy sem kill-switch nem gale.          Mast
+
+### Community 173 - "Community 173"
+Cohesion: 0.22
+Nodes (9): code:block1 (containerd.service), code:block2 (roleta-deploy.service Wed 2026-06-10 18:51:15), code:block3 (* * * * * /usr/local/bin/roleta-gap-check.sh), code:block4 (0.0.0.0:22 "sshd"), Crontab root, Portas escutando, Services rodando, Serviços do Host (fora do Docker) (+1 more)
+
+### Community 174 - "Community 174"
+Cohesion: 0.22
+Nodes (9): Alertas ativos agora, code:block1 (prometheus http://localhost:9090/metrics up), code:block2 (RoletaAdaptiveStateLost inactive), code:block3 (1 alertas), code:block4 (active), Grafana-agent (cloud remoto), Observabilidade — Prometheus / Grafana / Alertmanager, Regras de alerta carregadas (+1 more)
+
+### Community 175 - "Community 175"
+Cohesion: 0.25
+Nodes (6): QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., §3 — C2 por gravidade circular das forças residuais.          Filtra as forças, QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES)., QW-3 — cap máximo por direção (informativo; cap real já é 3 no BET_VALUES).
+
+### Community 176 - "Community 176"
+Cohesion: 0.22
+Nodes (9): code:block1 (containerd.service), code:block2 (roleta-deploy.service Wed 2026-06-10 18:51:15), code:block3 (* * * * * /usr/local/bin/roleta-gap-check.sh), code:block4 (0.0.0.0:22 "sshd"), Crontab root, Portas escutando, Services rodando, Serviços do Host (fora do Docker) (+1 more)
+
+### Community 177 - "Community 177"
+Cohesion: 0.22
+Nodes (9): Alertas ativos agora, code:block1 (prometheus http://localhost:9090/metrics up), code:block2 (RoletaAdaptiveStateLost inactive), code:block3 (1 alertas), code:block4 (active), Grafana-agent (cloud remoto), Observabilidade — Prometheus / Grafana / Alertmanager, Regras de alerta carregadas (+1 more)
+
+### Community 178 - "Community 178"
+Cohesion: 0.25
+Nodes (8): 1. Experiência de Usuário (UX) e Engenharia Front-End, 2. Padrão BFF (Backend-For-Frontend), 3. O Fluxo de Dados: De Time-Series a Cache Efêmero, 4. Diagrama de Arquitetura Core e Ação de Inicialização (Engine), code:mermaid (graph TD), Como o UX dispara/ativa o software (Resumo Funcional Prático), Ferramentas de UX Críticas Implementadas:, Genesis Cockpit: Arquitetura, UX e Fluxo de Dados (God Mode)
+
+### Community 179 - "Community 179"
+Cohesion: 0.25
+Nodes (8): 1. Finalidade do Sistema, 2.1 Connectors (Conectores), 2.2 Engines (Core / Processamento), 2.3 Database e Cache, 2. Fluxo de Dados e Arquitetura Back-end, 3. Front-end: Blocos de Interação e Validação, 4. Conclusão da Auditoria, Auditoria Avançada e Mapeamento - Genesis Azure
+
+### Community 181 - "Community 181"
+Cohesion: 0.32
+Nodes (7): _check_storage_status(), get_real_status(), main(), Genesis Cockpit - Status Function Retorna status real do sistema, Verifica status da Storage Account com tratamento específico de erros., GET /vm/status — Retorna status real do sistema., Obtém status real do Azure usando o Repository.
+
+### Community 182 - "Community 182"
+Cohesion: 0.25
+Nodes (8): code:python (class Stage(Protocol):), code:sql (ALTER TABLE decisions ADD COLUMN shadow_strategy_id TEXT;), code:python (class AdamSigmoidUpdater:), ETAPA 2.1 — Stage Protocol pipeline (T2.1) — 2d, ETAPA 2.2 — Shadow Mode infra (T2.2) — 2d, ETAPA 2.3 — Adam-Sigmoid substitui PCT-Sigmoid (T2.3) — 1.5d, ETAPA 2.4 — Hot Center Filter dual (T2.4) — 0.5d, FASE 2 — Estrutural (6 dias) — 🟡 amarelo (mudança de algoritmo — shadow obrigatório)
+
+### Community 183 - "Community 183"
+Cohesion: 0.25
+Nodes (8): code:python (class DirectionalThompson:), code:python (class DirectionalCalibrator:), code:python (class FractionalKellySizer:), ETAPA 3.1' — Thompson Bernoulli DUAL (T3.1 CORRIGIDO) — 2d, ETAPA 3.2' — Calibrator 2-MODELOS (T3.2 CORRIGIDO) — 1.5d, ETAPA 3.3 — PID auto-calibration dual (T3.3) — 1d, ETAPA 3.4 — ¼-Kelly bet sizing (T3.4) — 2d, FASE 3 — Profundo (7 dias) — 🟡 amarelo+ (shadow obrigatório, métrica gate)
+
+### Community 184 - "Community 184"
+Cohesion: 0.25
+Nodes (8): 9.1 Bancos de Produção Ativos, 9.2 Bancos Legado (somente leitura/referência), 9.3 Schema do Banco de Produção (SQLite), 9.4 Fluxo de Dados Completo, 9.5 Ciclo de Vida da Sessão, 9. Banco de Dados — Inventário e Fluxo Completo, code:sql (-- sessions: metadados de cada sessão de jogo), code:block12 (Chrome Extension (chrome.storage))
+
+### Community 185 - "Community 185"
+Cohesion: 0.25
+Nodes (8): code:block6 (mg_max_dir = 3 se rolling_hit < 0.50), code:python (def get_mg_max(self, direction: str) -> int:), Implementação (snippet ~15 LoC), Métrica de validação, O quê, Por quê, QW-3 — Martingale Cap por Direção com **Reset (não pula aposta)** ⭐⭐⭐⭐, Risco
+
+### Community 186 - "Community 186"
+Cohesion: 0.25
+Nodes (8): code:block11 (warmup_dir = 2 se rolling_hit_dir > BE), code:python (def _get_warmup(self, direction: str) -> int:), Implementação (~5 LoC), Métrica, O quê, Por quê, QW-6 — Per-Direction Warmup Adaptativo ⭐⭐, Risco
+
+### Community 187 - "Community 187"
+Cohesion: 0.25
+Nodes (8): code:python (import tomllib, time, threading), code:toml (# config/strategy.toml), Implementação (~40 LoC + dep `tomli` ou Py3.11+ `tomllib` nativo), Métrica de validação, O quê, Por quê, QW-5 — Constantes em TOML hot-reload ⭐⭐⭐, Risco
+
+### Community 188 - "Community 188"
+Cohesion: 0.25
+Nodes (8): code:block4 (stake_dir = base_stake × min(1.5, max(0.3, rolling_hit_dir /), code:python (def get_stake(self, direction: str, mg_level: int) -> float:), Implementação (snippet ~15 LoC), Métrica de validação, O quê, Por quê, QW-2 — Per-Direction Stake Weight ⭐⭐⭐⭐⭐, Risco
+
+### Community 189 - "Community 189"
+Cohesion: 0.25
+Nodes (8): 4.6 `frontend/index.html` — SEM ALTERAÇÃO OBRIGATÓRIA, 4.8 `app_config/settings.py` — ALTERAÇÃO OPCIONAL, 4.9 `state.json` — MIGRAÇÃO AUTOMÁTICA, 4. INVENTÁRIO DETALHADO DE ALTERAÇÕES POR ARQUIVO, code:html (<div class="detail"><span>Offset:</span><span id="result-off), code:python (class AdaptiveSettings(BaseSettings):), code:json ({), code:json ({)
+
+### Community 190 - "Community 190"
+Cohesion: 0.25
+Nodes (8): 2.1 Fase 1: CORE (`strategies/sda17.py`), 2.2 Fase 2: ESTADO (`state/game.py`), 2.3 Fase 3: SERVIDOR (`server/`), 2.4 Fase 4: FRONTEND (Opcional), 2.5 Fase 5: TESTES, 2.6 Fase 6: VALIDAÇÃO, 2.7 Tarefas Extras (Não Planejadas), 2. CHECKLIST DE TAREFAS — PLANO vs EXECUÇÃO
+
+### Community 191 - "Community 191"
+Cohesion: 0.25
+Nodes (8): 3.1 Adequação Funcional, 3.2 Eficiência de Desempenho, 3.3 Confiabilidade, 3.4 Segurança, 3.5 Manutenibilidade, 3.6 Portabilidade, 3.7 Pontuação ISO Atualizada, 3. CONFORMIDADE ISO/IEC 25010
+
+### Community 192 - "Community 192"
+Cohesion: 0.25
+Nodes (8): 0. TL;DR — A página única, 1. Mapa visual — quem é cada tier, 2. Matriz Risco × Retorno (decisão visual), 3. Risco do código ATUAL (se NADA for feito), code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (┌───────────────────────────────────────────────────────────), code:block3 (┌─────────────────────────────────────────────────────────┐), 🛠️ Proposta de Refatoração — Estratégia Roleta Cloud (23/05/2026)
+
+### Community 193 - "Community 193"
+Cohesion: 0.25
+Nodes (8): code:python (def is_anomaly_significant(hits: int, total: int, h0: float ), code:python (from river.drift import ADWIN), T1.1 — Externalização de constantes para TOML, T1.2 — Backtest com vectorbt sobre 3.574 decisões históricas, T1.3 — Logging granular + correção do bug de fallback v4.0.3, T1.4 — Bayesian gating para scores raros (anti-prematura inversão), T1.5 — ADWIN drift detector por direção, T1 — CIRÚRGICO (3.8 dias-dev, 🟢 baixo risco, ⭐⭐⭐ alto retorno)
+
+### Community 194 - "Community 194"
+Cohesion: 0.25
+Nodes (8): code:python (alpha = {n: 1.0 for n in range(37)}  # prior Beta(1,1)), code:python (class PIDCalibrator:), code:python (def quarter_kelly(p_hit: float, k: int, bankroll: float, pay), T3.1 — Stage Thompson Bernoulli per região, T3.2 — Platt LR calibration + Brier/ECE metrics, T3.3 — Auto-calibration PID controller, T3.4 — ¼-Kelly bet sizing (substitui Martingale puro), T3 — PROFUNDO (6.5 dias-dev, 🟡 médio risco, ⭐⭐ retorno médio-alto)
+
+### Community 195 - "Community 195"
+Cohesion: 0.25
+Nodes (8): 19.1 Criar SP federado SEM senha, 19.2 Federated credentials (3 trusts: branch main + tags v* + pull_request), 19.3 GitHub Actions secrets necessários (o agente fornece valores no doc de entrega — Ivandir adiciona em `Settings → Secrets`):, 19.4 Workflow exemplar (`.github/workflows/deploy.yml`), 19. GitHub OIDC Federation (substitui SP_CI long-lived), code:bash (az ad app create --display-name sp-roleta-gh-deploy), code:bash (for sub in \), code:yaml (permissions:)
+
+### Community 196 - "Community 196"
+Cohesion: 0.25
+Nodes (8): 7.1 Verificações que o agente DEVE fazer ANTES de tocar em DNS, 7.2 Estratégia recomendada (apresentar opções ao usuário), 7.3 Records finais alvo, 7.4 Caddyfile final (agente preenche após confirmar domínio), 7. DNS — verificação e configuração, code:bash (dig +short SEU-DOMINIO ANY @8.8.8.8), code:block13 (roleta    IN  A      <IP estático VM>      TTL 3600), code:block14 ({)
+
+### Community 197 - "Community 197"
+Cohesion: 0.25
+Nodes (8): §16.1 — Confirmação da regressão (multi-janela), §16.2 — Smoking gun: `⚡ AGRESSIVO` mode, §16.3 — Correlação com commits, §16.4 — Outros achados, §16.5 — Recomendações (sprints derivadas), §16. NEW-06 — Investigação regressão hit_rate 26/05 (Wave 3), code:block4 (HIT_RATE POR DIA (final_action=APOSTAR, n=APOSTAR validos):), code:block5 (⚡ AGRESSIVO (25% < 33%, mas apostando)        n=111  hr=36.9)
+
+### Community 198 - "Community 198"
+Cohesion: 0.25
+Nodes (8): §14. EXECUÇÃO 26/05 — sprints completadas nesta sessão, B-08 ✅ DONE — `calibration_error` populado em produção, code:bash (# após 1h de produção com fix:), Próxima wave (aguardando aprovação), Testes (`tests/test_wheel_dist.py` — NOVO), Validação pós-deploy (executar quando subir no Debian), W-01 ✅ DONE — `compute_wheel_dist` helper canônico, W-02 ✅ DONE — `update_result(..., calibration_error=)`
+
+### Community 199 - "Community 199"
+Cohesion: 0.25
+Nodes (8): code:sql (CREATE TABLE shared.providers (id SERIAL PK, code TEXT UNIQU), 🎰 DEALER / PROVIDER / MESA / ROUND_ID (6 sprints), DP-01 — Anexar `mesa_id` no payload `novo_resultado` (QUICK WIN), DP-02 — `MutationObserver` no `content.js` para nome do dealer, DP-03 — Detecção de `provider` via URL pattern, DP-04 — Captura de `round_id` (Evolution `game_id`), DP-05 — Schema `shared.dealers` + `shared.tables` + `shared.dealer_shifts`, DP-06 — Worker `dealer_stats` com EMA hit-rate por (dealer, direção, hora)
+
+### Community 200 - "Community 200"
+Cohesion: 0.25
+Nodes (8): code:block4 ((Spin {id, num, dir, ts}) -[:NEXT_IN_DIR]-> (Spin)), 🗄️ PG / AGE / VECTOR (6 sprints), V-01 — Ampliar `raw_features` 6-d → 14-d, V-02 — Ativar AGE com grafo `spin_chain`, V-03 — pgvector HNSW index em `raw_features_v2`, V-04 — Materialized view `mv_regime_centroids` por (dealer, direção), V-05 — Retenção tiered (hot 7d, warm 30d, cold 365d), V-06 — Backup `wal-g` Azure-ready
+
+### Community 201 - "Community 201"
+Cohesion: 0.25
+Nodes (8): PARTE III — Sprints detalhados (o quê / como / porquê), 🟥 S-A — Estabilidade P0 (1 dia), 🟦 S-B — Observabilidade Completa (2 dias) — *começar primeiro*, 🟧 S-C — Hardening Operacional (1 dia), 🟨 S-D — Performance & Idempotência (2 dias), 🟩 S-E — Testes Automatizados (2 dias), 🟪 S-F — Evolução ML/IA (S7–S14 do plano-mestre) (5 dias), ⬜ S-G — Documentação ISO 25010 v4.5 (0,5 dia)
+
+### Community 202 - "Community 202"
+Cohesion: 0.25
+Nodes (8): code:block6 (HOJE (Dia 0+):  S-H (regressão) ← obrigatório antes de qualq), 🔬 VERSÃO 4 — Auditoria de tudo que foi feito + auditoria das propostas (24/05 20:35 BRT), XVIII.A Bugs em código já deployado, XVIII. Auto-audit do trabalho v1 → v3 (bugs e melhorias), XVIII.B Bugs em M-1 (gap detector), XVIII.C Bugs no backfill de 3698, XVIII.D Audit das propostas §XVII.6 (próximas sprints), XX. DAG de execução v4
+
+### Community 203 - "Community 203"
+Cohesion: 0.25
+Nodes (7): 4.1 Testes Automatizados, 4.2 Verificação de Imports, 4.3 Verificação de Integridade, 4.4 Teste Manual de Cenários Críticos, code:block12 (======================= 105 passed, 4 warnings in 0.48s ====), code:block14 (============================================================), FASE 4 — VALIDAÇÃO PÓS-CORREÇÃO
+
+### Community 204 - "Community 204"
+Cohesion: 0.25
+Nodes (7): Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:, Pipeline robusto: IQR → Weighted Median → Drift.                  Args:
+
+### Community 205 - "Community 205"
+Cohesion: 0.25
+Nodes (8): code:powershell (# Desabilita o app temporariamente (reversível):), Handoff — Vincular mídia ao Google Fotos (conta certa), ⚠️ O que FALTA — exige a tela do celular (3 toques), ✅ O que já está pronto (verificado), Passo a passo (na tela do A52), 🧹 Pendência antiga (depois do upload confirmado), 🛡️ Proteção opcional (se quiser garantir 0% de upload na conta errada), Sobre o upload pesado (9+ GB)
+
+### Community 206 - "Community 206"
+Cohesion: 0.25
+Nodes (8): Arquivos, code:powershell (cd C:\Users\Windows\Desktop\android\hotmail-clean), Como funciona, Fluxo passo-a-passo, hotmail-clean — limpeza supervisionada do Outlook/Hotmail, Ordem segura sugerida, Regras prontas, Reversão
+
+### Community 207 - "Community 207"
+Cohesion: 0.25
+Nodes (8): Bloatware Samsung One UI — Catálogo de Referência, Categoria A — Seguro remover (sem impacto funcional), Categoria B — Remover só se não usa o recurso, Categoria C — NUNCA remover (sistema), code:block1 (adb shell pm uninstall -k --user 0 <pacote>), code:block2 (adb shell cmd package install-existing <pacote>), Comando padrão, Reverter (se arrepender)
+
+### Community 208 - "Community 208"
+Cohesion: 0.29
+Nodes (7): dependencies, axios, react, react-dom, react-router-dom, recharts, @tanstack/react-query
+
+### Community 209 - "Community 209"
+Cohesion: 0.33
+Nodes (6): CostSummary(), CostSummaryProps, currencyFormatter(), TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE, CostHistoryPoint
+
+### Community 210 - "Community 210"
+Cohesion: 0.29
+Nodes (7): 2.1 Service Principal (usado pelo backend Rust e Terraform), 2.2 Azure AI Search — Chaves de API (`keys.json`), 2.3 IoT Hub — Chaves de Acesso (do `terraform.tfstate`), 2.4 Azure AI Search — Chaves do Serviço (do `terraform.tfstate`), 2. CREDENCIAIS DE ACESSO AZURE, code:bash (AZURE_TENANT_ID=984d2c28-3df0-4f15-a833-9c6c8a8c9004), code:json ({)
+
+### Community 211 - "Community 211"
+Cohesion: 0.29
+Nodes (7): 7.1 Estrutura de Diretórios, 7.2 Backend Rust — Rotas da API, 7.3 Azure Functions Python — Rotas, 7.4 Variáveis de Ambiente do Backend, 7. ARQUITETURA DO CÓDIGO-FONTE, code:block21 (genesis-cockpit/), code:bash (# Servidor)
+
+### Community 212 - "Community 212"
+Cohesion: 0.29
+Nodes (7): 9.1 Via Terraform (recomendado — versionado e reversível), 9.2 Via Azure CLI (operações rápidas), 9.3 Via Azure MCP (se disponível no agente), 9. COMO MODIFICAR ESTRUTURAS AZURE, code:bash (# Fluxo padrão de modificação), code:bash (# Configurar Service Principal), code:block27 (AZURE_TENANT_ID=984d2c28-3df0-4f15-a833-9c6c8a8c9004)
+
+### Community 214 - "Community 214"
+Cohesion: 0.29
+Nodes (7): 5.1 PG `cw` / `ccw` schemas (vector store + features), 5.2 AGE (Apache Graph Extension) — **instalada e ociosa**, 5.3 SQLite write-side (`decisions`, `gale_windows`, `sessions`), §5. Estruturação atual das tabelas (PG + AGE + vector) — auditoria, code:block4 (cw.spins_vectors           (286 rows)   ← embeddings 6-d cos), code:block5 (ag_catalog.ag_graph: 2 grafos criados (cw_graph, ccw_graph)), code:block6 ((Spin {numero, direcao}) -[NEXT]-> (Spin {…}))
+
+### Community 215 - "Community 215"
+Cohesion: 0.29
+Nodes (7): 7.1 Modularidade, 7.2 Reusabilidade, 7.3 Analisabilidade, 7.4 Modificabilidade, 7.5 Testabilidade, 7. MANUTENIBILIDADE (Maintainability), code:block13 (Acoplamento entre Módulos (Grau 1-5, menor = melhor):)
+
+### Community 216 - "Community 216"
+Cohesion: 0.29
+Nodes (6): 📎 Anexos — dados brutos da auditoria, code:mermaid (mindmap), 🧠 Mapa Mental Final (síntese), ✅ Recomendações priorizadas (atualizadas pós-auditoria D), 🔬 Sessão 24-05 — Auditoria Pós-Implementação & Engenharia Reversa Estratégica, ⛔ TL;DR — O achado que muda tudo
+
+### Community 217 - "Community 217"
+Cohesion: 0.29
+Nodes (7): 13. Como você (Ivandir) deve responder este documento, Bloco A — Skills imediatas, Bloco B — Wave 0 (estabilização), Bloco C — Direção arquitetural, Bloco D — Cloud, Bloco E — Extrator e auto-bet, Bloco F — Prioridade pessoal
+
+### Community 218 - "Community 218"
+Cohesion: 0.29
+Nodes (7): 17.1 Provisionamento, 17.2 Containers a criar, 17.3 Lifecycle policy (JSON), 17.4 SAS tokens / Managed Identity, 17. Azure Storage Account — `stroletaprod`, code:bash (az storage account create \), code:json ({)
+
+### Community 219 - "Community 219"
+Cohesion: 0.29
+Nodes (7): 24.1 Pre-cutover smoke test (OBRIGATÓRIO antes do D-0 da migração), 24.2 RTO / RPO targets, 24.3 Runbook em 1 página (entregar como anexo no doc final), 24.4 Bicep IaC (entrega como anexo), 24. Disaster Recovery Plan (RTO/RPO + runbook), code:bash (# 1. WSS handshake (após app deploy — fora do agente; mas es), code:bash (az deployment group create -g rg-roleta-dr -f main.bicep --p)
+
+### Community 220 - "Community 220"
+Cohesion: 0.29
+Nodes (7): 21.1 Script `/opt/roleta/backup/state_backup.sh` (criar via cloud-init ou pós-boot), 21.2 Crontab (root), 21.3 Test do agente, 21. Backup automático de `state.json` (cron daily → Blob), code:bash (#!/bin/bash), code:cron (0 3 * * *  /opt/roleta/backup/state_backup.sh >> /var/log/ro), code:bash (ssh root@<VM> "touch /opt/roleta/app/state.json && /opt/role)
+
+### Community 221 - "Community 221"
+Cohesion: 0.29
+Nodes (7): 🎰 Bloco DEALER/PROVIDER — TODOS DEFERIDOS, DP-01 — Anexar `mesa_id` no payload, DP-02 — MutationObserver dealer, DP-03 — Detect provider via URL, DP-04 — Round_id, DP-05 — Schema `shared.dealers/tables/dealer_shifts`, DP-06 — Worker `dealer_stats`
+
+### Community 222 - "Community 222"
+Cohesion: 0.29
+Nodes (7): 🧬 Bloco DNA, DNA-01 — Schema `decision_attribution`, DNA-02 — SHAP pipeline, DNA-03 — MV `mv_decision_contribution_rolling`, DNA-04 — Shadow ablation, DNA-05 — Grafana dashboard, DNA-06 — Contrato feature_registry
+
+### Community 223 - "Community 223"
+Cohesion: 0.29
+Nodes (7): 🗄️ Bloco PG/AGE/VECTOR, V-01 — Vector 6-d → 14-d, V-02 — AGE grafo, V-03 — HNSW, V-04 — Centroids, V-05 — Retenção tiered, V-06 — wal-g Azure
+
+### Community 224 - "Community 224"
+Cohesion: 0.29
+Nodes (7): §21.1 — Backtest counterfactual (48h prod, n=1282 APOSTAR), §21.2 — NEW-07: blacklist defensiva (commit f65801d), §21.3 — NEW-08: piso configurável sda_thr (commit aplicado junto), §21.4 — Deploy & ativação, §21.5 — Resumo final desta sequência completa, §21. NEW-07 + NEW-08 ✅ DONE — Blacklist defensiva + piso sda_thr (opt-in), code:block9 (TR_REASON                              n     hr)
+
+### Community 225 - "Community 225"
+Cohesion: 0.29
+Nodes (7): §22 — B-10 hotfix: DatabaseService.update_result kwarg engolido (26/05, ~21h28), Causa raiz, Fix (commit `cf3570d`), Lição, Sintoma, Suite, Validação live
+
+### Community 226 - "Community 226"
+Cohesion: 0.29
+Nodes (7): §18. B-09 ✅ DONE — Pending key mismatch (Hotfix pos-deploy a41210c), Blindagem, Causa raiz, code:python (# Antes), Deploy, Fix (commit d6935b5), Lição aprendida (ISO 5.2 Disponibilidade)
+
+### Community 227 - "Community 227"
+Cohesion: 0.29
+Nodes (7): DNA-01 — Schema `decision_attribution` + outbox handler, DNA-02 — Pipeline SHAP / permutation importance offline, DNA-03 — Materialized view `mv_decision_contribution_rolling`, DNA-04 — Shadow logging "with vs without feature", DNA-05 — Dashboard Grafana "DNA estratégico", DNA-06 — Contrato "toda feature nova precisa attribution_id", 🧬 DNA — atribuição estrutural por decisão (6 sprints)
+
+### Community 228 - "Community 228"
+Cohesion: 0.29
+Nodes (7): code:block2 (Dia 0 (HOJE): B-7 (fix TS-FMT — 30min) + B-1 (lag) + B-2 (la), 🔄 VERSÃO 2 — Auditoria com janela de 30 minutos (24/05 20:15 BRT), VI. Snapshot live (janela 30 min, coletado 23:14 UTC = 20:14 BRT), VII. Bugs NOVOS descobertos nesta auditoria, VIII. Auditoria estrutural do v1, X. Cronograma v2, XI. Execução iniciada
+
+### Community 229 - "Community 229"
+Cohesion: 0.29
+Nodes (6): code:block5 ([B-7 RESOLVIDO] → guideline), 🔍 VERSÃO 3 — Auditoria do v2 + execução (24/05 20:25 BRT), XIII. Bugs/incoerencias do PRÓPRIO v2 (auto-audit), XIV. Melhorias estruturais propostas, XV. Snapshot live v3 (20:25 BRT, janela 30min real), XVI. Cronograma v3 único (dependência DAG)
+
+### Community 230 - "Community 230"
+Cohesion: 0.29
+Nodes (7): XVII.1 ✅ A-backfill-3698 (one-off), XVII.2 ✅ M-1 — Gap Detector implementado, XVII.3 ⚠ B-1/B-8/D-1 — reagendados (decisão consciente), XVII.4 ✅ V2 incoerências — endereçadas, XVII.5 Snapshot pós-execução (20:30 BRT), XVII.6 Próxima sessão (curtas, focadas), XVII. Execução v3 — ações desta sessão
+
+### Community 231 - "Community 231"
+Cohesion: 0.29
+Nodes (7): 🟥 S-H — Correções de regressão do próprio trabalho v3 (HOJE, 30min), 🟦 S-I — D-1 redesenhado (LISTEN/NOTIFY aditivo) — sessão dedicada, 🟧 S-J — Backfill robusto (ferramental), 🟨 S-K — C-1 pg_cron com janela de manutenção, 🟪 S-L — Atomicidade real (substitui A-1b impossível), ⬜ S-M — Observability v2 (Loki + Promtail + Grafana rules), XIX. Próximas sprints v4 (pós-auditoria)
+
+### Community 232 - "Community 232"
+Cohesion: 0.29
+Nodes (7): 4.2 Bugs de Performance, BUG-PERF-001: Drift de Offset para Valores Altos [SEVERIDADE: CRITICA], BUG-PERF-002: Assimetria Excessiva do Error-Vector [SEVERIDADE: ALTA], BUG-PERF-003: Prior Gaussiano Insuficiente [SEVERIDADE: ALTA], BUG-PERF-004: ERROR_THRESHOLD Muito Baixo [SEVERIDADE: MEDIA], BUG-PERF-005: Ausencia de Limitador de Variacao [SEVERIDADE: MEDIA], code:python (last_off = self._last_offset.get(direction, BAYESIAN_DEFAULT)
+
+### Community 233 - "Community 233"
+Cohesion: 0.29
+Nodes (7): Certificados (certbot), code:block1 (roleta), code:block2 (server_name roleta.xma-ia.com www.roleta.xma-ia.com;), code:block3 (Certificate Name: roleta.xma-ia.com), Nginx + TLS, server_name + proxy_pass por site, Sites habilitados
+
+### Community 234 - "Community 234"
+Cohesion: 0.33
+Nodes (6): handle_shutdown(), main(), Handler para shutdown graceful., Handler para shutdown graceful., Ponto de entrada principal., Ponto de entrada principal.
+
+### Community 235 - "Community 235"
+Cohesion: 0.29
+Nodes (7): 🧠 1 · Mapa mental — setor · objetivo · tecnologia, 🔗 2 · Caixas vinculativas — fluxo de dados ponta a ponta, 🧱 3 · Tecnologia estruturada por setor, code:mermaid (mindmap), code:mermaid (flowchart TB), Notas-chave, Roleta Cloud — Mapa Mental do Fluxo de Dados
+
+### Community 236 - "Community 236"
+Cohesion: 0.29
+Nodes (7): Auditoria pré-implantação (10 pontos, ver memória/sequential-thinking), Critérios de aceitação (pós-deploy), Sprints Válidas — 12/06/2026 (implantação do Modelo Universal M5), SV-01 — Atuador M5: `REGION_SHIFT_V1` (default ON em prod), SV-02 — Aposentar sigmoid dos satélites (default OFF em prod), SV-03 — Regime de viés visível, SV-04 — Ciclo completo
+
+### Community 237 - "Community 237"
+Cohesion: 0.29
+Nodes (7): code:powershell (# 1. Pré-requisitos), code:block2 (android/), CVE a vigiar, Instalação rápida (PowerShell), Layout do projeto, Por que múltiplos servidores ADB?, Stack MCP — Projeto Android USB (Samsung A52)
+
+### Community 238 - "Community 238"
+Cohesion: 0.29
+Nodes (7): code:block1 (📶 Rede ativa: Wi-Fi (CASA-5G)   Móvel: 4G (Vivo)), Detecção de anomalias, Não fazer, Objetivo, Passos, Saída, Skill 6 — Auditoria de Rede & Consumo de Dados
+
+### Community 239 - "Community 239"
+Cohesion: 0.29
+Nodes (7): Knox / MDM / Enterprise (Samsung) — tratar entradas como REGEX, não literal, Knox (Samsung), Lista Negra Central — Pacotes que NUNCA devem ser tocados, Regra de ouro, Samsung — núcleo do One UI, Sistema Android (qualquer fabricante), Telefonia / rede / acessibilidade
+
+### Community 241 - "Community 241"
+Cohesion: 0.29
+Nodes (7): Certificados (certbot), code:block1 (roleta), code:block2 (server_name roleta.xma-ia.com www.roleta.xma-ia.com;), code:block3 (Certificate Name: roleta.xma-ia.com), Nginx + TLS, server_name + proxy_pass por site, Sites habilitados
+
+### Community 243 - "Community 243"
+Cohesion: 0.60
+Nodes (5): bootstrap.sh script, error(), info(), success(), warn()
+
+### Community 244 - "Community 244"
+Cohesion: 0.33
+Nodes (5): ⚙️ Conector Industrial e Telemetria (Gateway), 🏛️ Estrutura Azure Genesis - MCP Cloud Runtime, 🧠 Microsoft Cognitive AI Search, 💾 O Cérebro da Operação (Máquina Virtual Principal), 💰 Resumo dos Custos (Run Rate)
+
+### Community 246 - "Community 246"
+Cohesion: 0.33
+Nodes (6): 1. Análise de Mapeamento, 2. Ordem de Execução, 3. Procedimento de Rollback, 4. Checklist Pós-Migração, Entidade: Resource, Plano de Migração de Dados (V1 to Modular)
+
+### Community 247 - "Community 247"
+Cohesion: 0.33
+Nodes (6): 1. Tabela de Priorização, 2. Engine Piloto: `analyze_costs.py`, 3. Próximos Passos (Workflow), 🔍 Legenda dos Critérios:, Planejamento de Prioridade de Refatoração, Por que refatorar primeiro?
+
+### Community 248 - "Community 248"
+Cohesion: 0.33
+Nodes (6): compilerOptions, allowSyntheticDefaultImports, composite, module, moduleResolution, skipLibCheck
+
+### Community 249 - "Community 249"
+Cohesion: 0.33
+Nodes (6): 3.1 Resource Groups, 3.2 VM Linux — Servidor RAG (Principal), 3.3 Rede, 3.4 Serviços de IA, 3.5 Disco de Alta Performance, 3. INFRAESTRUTURA AZURE — MAPA COMPLETO
+
+### Community 250 - "Community 250"
+Cohesion: 0.33
+Nodes (6): 4.1 Chaves SSH disponíveis no repositório, 4.2 Conectar via SSH, 4.3 O que fazer após conectar, 4. ACESSO SSH À VM, code:bash (# Clonar o repo e entrar na pasta), code:bash (# Ver discos montados (o disco Premium SSD v2 deve estar em )
+
+### Community 251 - "Community 251"
+Cohesion: 0.33
+Nodes (6): 1. Entrando na Caverna (Remote SSH - Plug And Play), 2. A Mente de Dados Fica na Borda (`/data`), 3. Escrevendo Agentes do Zero!, 4. Plugando MCPs Existentes na sua Nuvem O.S., code:javascript (// ex: index.js usando DefaultAzureCredential!), 🚀 Manual Antigravity: Como dominar o seu Ambiente
+
+### Community 252 - "Community 252"
+Cohesion: 0.33
+Nodes (6): 4.1 Resposta direta, 4.2 Por que isso é central para a estratégia, 4.3 Como melhorar (fix sugerido), 4.4 Backtest harness (S-STRAT-9) — encaixe perfeito, §4. A pergunta de ouro — **"sabemos a distância da bola até cada região prevista?"**, code:python (# server/message_handler.py — no handler de result)
+
+### Community 253 - "Community 253"
+Cohesion: 0.33
+Nodes (6): 6.1 Confidencialidade, 6.2 Integridade, 6.3 Não-repúdio, 6.4 Responsabilidade (Accountability), 6.5 Autenticidade, 6. SEGURANÇA (Security)
+
+### Community 254 - "Community 254"
+Cohesion: 0.33
+Nodes (6): 4.5.1 Atualizar Display de Números (updateResultDisplay), 4.5.2 Evolução Futura: Agrupar C1/C2/C3, 4.5 `frontend/app.js` — ALTERAÇÃO BAIXA, code:javascript (el.resultRegion.textContent = result.numeros?.join(', ') || ), code:javascript (// Números agora são 17 em vez de 21 — display funciona igua), code:javascript (if (result.centros && result.centros.length >= 3) {)
+
+### Community 255 - "Community 255"
+Cohesion: 0.33
+Nodes (6): 3.1 Descrição da Estratégia M15-ADA, 3.2 Diferenças Chave SDA-21 → M15-ADA, 3.3 Fluxo de Dados Proposto, 3. ARQUITETURA PROPOSTA — M15-ADA, code:block10 (┌───────────────────────────────────────────────────────────), code:block11 (┌───────────────────────────────────────────────────────────)
+
+### Community 256 - "Community 256"
+Cohesion: 0.33
+Nodes (6): 7.1 Lista de Tarefas (Ordem de Execução), 7.2 Dependências entre Tarefas, 7.3 Estimativa de Impacto por Arquivo, 7. TAREFAS DE IMPLANTAÇÃO, code:block42 (FASE 1: CORE (Estratégia)), code:block43 (T01 ──→ T02 ──→ T06)
+
+### Community 257 - "Community 257"
+Cohesion: 0.33
+Nodes (6): 4.2 Bugs Críticos (Correção Imediata), BUG-POST-001 — `self._wheel` não inicializado, BUG-POST-002 — Serialização JSON de tuplas em `ccw_history`, code:python (# Em __init__(), adicionar após linha 54:), code:python (self.ccw_history = [tuple(x) if isinstance(x, list) else x), code:python (def load_adaptive_state(self, state: Dict[str, Any]) -> None)
+
+### Community 258 - "Community 258"
+Cohesion: 0.33
+Nodes (6): 10. Roadmap em ondas (Wave 0 → Wave 4), 🌊 Wave 0 — Estabilizar (1-2 dias), 🌊 Wave 1 — Modularizar e portabilizar (1-2 semanas), 🌊 Wave 2 — Extrator Universal (2-4 semanas), 🌊 Wave 3 — Auto-bet (3-6 semanas), 🌊 Wave 4 — Observability + Multi-tenant (opcional)
+
+### Community 259 - "Community 259"
+Cohesion: 0.33
+Nodes (6): 6.1 Estratégias de atuação, 6.2 Camada de "layout de mesa" (declarativa, igual ao extrator), 6.3 Bibliotecas recomendadas, 6.4 Camada de **segurança obrigatória**, 6. Skills/Bibliotecas para o Auto-Bet (visão B), code:yaml (layout:)
+
+### Community 260 - "Community 260"
+Cohesion: 0.33
+Nodes (6): 18.1 Provisionamento, 18.2 Instrumentação esperada (o app Python vai consumir — fora do escopo do agente, apenas garantir o secret), 18.3 Test de smoke do agente, 18. Application Insights wiring real, code:bash (az monitor app-insights component create \), code:bash (# Envia 1 trace dummy via REST API para validar pipeline)
+
+### Community 261 - "Community 261"
+Cohesion: 0.33
+Nodes (6): 8.1 Criação, 8.2 Permissões, 8.3 Como o YOLO Orchestrator vai usar (instruções para README de entrega), 8. Service Principal `sp-roleta-orch` (acesso do YOLO Orchestrator), code:bash (az ad sp create-for-rbac \), code:bash (# Login não-interativo no PC do Ivandir:)
+
+### Community 262 - "Community 262"
+Cohesion: 0.33
+Nodes (6): 🎰 Bloco BANDIT, BS-01 — Bandit obs, BS-02 — LinUCB, BS-03 — Thompson, BS-04 — feature_store sinal, BS-05 — regime sinal
+
+### Community 263 - "Community 263"
+Cohesion: 0.33
+Nodes (6): §19. NEW-12 ✅ DONE — Alerta Prometheus calibration_error fill-rate (ISO 5.2 Disponibilidade), code:sql (SELECT COUNT(*), COUNT(calibration_error)), code:yaml (- alert: RoletaCalibrationFillRateLow), Implementação, Testes (tests/test_calibration_fill_stats.py), Validação live (deploy fb94675)
+
+### Community 264 - "Community 264"
+Cohesion: 0.33
+Nodes (6): §4. Sprints NOVAS propostas (resultado da auditoria), NEW-01 — Schema `shared.model_registry` + helper `register_model`, NEW-02 — Golden-set + testes de regressão, NEW-03 — CI check `schema_symmetry.py` cw vs ccw, NEW-04 — Métricas Prometheus de outbox lag, NEW-05 — Telemetria de `errdriven_disabled_count` + outras flags
+
+### Community 265 - "Community 265"
+Cohesion: 0.33
+Nodes (6): 🎰 BANDIT + BET_ADVISOR (5 sprints), BS-01 — Bandit persist (já em B-05 como bug; aqui é o passo seguinte), BS-02 — Substituir ε-greedy por LinUCB contextual, BS-03 — Thompson sampling como challenger, BS-04 — `bet_advisor` consumir `feature_store` quando ≥ 50 rows/direção, BS-05 — Regime similarity como sinal (após B-06 + V-04)
+
+### Community 266 - "Community 266"
+Cohesion: 0.33
+Nodes (6): 0.1 O que foi entregue HOJE, 0.2 O que está em prod mas OFF (feature flags defensivas), 0.3 Distribuição calibration_error (n=31 pós-fix), 0.4 PG/Vector hoje, 0.5 Bugs/Dívidas remanescentes, §0. Estado atual (snapshot 26/05 20:30 BRT)
+
+### Community 267 - "Community 267"
+Cohesion: 0.33
+Nodes (6): IX. Sprints v2 (reordenados pela auditoria 30min), 🟥 S-A v2 — Estabilidade P0 (1 dia), 🟦 S-B v2 — Observabilidade (1,5 dia, começar AGORA), 🟧 S-C v2, 🟩 S-E v2, ⬜ S-G v2 — sem mudança estrutural, 🟨 S-D v2 — Performance (PROMOVIDO para semana 1), 🟪 S-F v2 — ML (SAI DO PARKING LOT, vira semana 2)
+
+### Community 268 - "Community 268"
+Cohesion: 0.33
+Nodes (6): 8.2 Resultado do Deploy v4.0.3, code:block20 (tasks_resultados_30_03.md (estudo)), CONSOLIDAÇÃO FINAL, Métricas Finais, Próximos Passos, Rastreabilidade Completa
+
+### Community 269 - "Community 269"
+Cohesion: 0.33
+Nodes (6): 1.1 Escopo do `tasks_resultados_30_03.md`, 1.2 Validação dos Resultados da Simulação, code:block1 (╔══════╦══════════════════════════╦════════╦══════════╗), FASE 1 — VALIDAÇÃO DO TASK DOCUMENT, 🔍 Validação de Tasks & Resultados — Roleta Cloud v4.0.3, ÍNDICE
+
+### Community 270 - "Community 270"
+Cohesion: 0.33
+Nodes (6): code:bash (az login), ETAPA 4.1 — Provisionar Azure DB for PostgreSQL (CLOUD) — 1d, ETAPA 4.2 — Migração de schema + dados (LOCAL + CLOUD) — 1d, ETAPA 4.3 — Trocar driver no app (LOCAL) — 1d, ETAPA 4.4 — pgmq + pg_cron + pgvector setup (CLOUD) — 1d, FASE 4 — Migração para Postgres (4 dias) — 🟡 amarelo
+
+### Community 271 - "Community 271"
+Cohesion: 0.47
+Nodes (5): check_file_symmetry(), check_pg_symmetry(), main(), Verifica simetria de arquivos SQL entre cw/ccw., Verifica simetria de schemas reais em PG.
+
+### Community 272 - "Community 272"
+Cohesion: 0.47
+Nodes (4): load(), main(), P0.1 (12/06 noite) — Walk-forward da política INV-3 real vs CUT puro vs baseline, simulate()
+
+### Community 273 - "Community 273"
+Cohesion: 0.33
+Nodes (6): Automação do host, Backups, Containers (8, todos healthy), Deltas funcionais de 12/06 (resumo), Servidor Debian 187.45.181.75 — Inventário 12/06/2026 23:20 UTC, Volumes
+
+### Community 274 - "Community 274"
+Cohesion: 0.33
+Nodes (6): code:block1 (🔋 Bateria 78% — 31°C — Descarregando), Não fazer, Objetivo, Passos, Saída, Skill 5 — Auditoria de Bateria & Wakelocks
+
+### Community 275 - "Community 275"
+Cohesion: 0.33
+Nodes (6): code:block1 (✅ Conectado: SM-A525F (A52) — Android 13 / SDK 33 — CSC ZTO ), Notas de robustez, Objetivo, Passos, Saída esperada, Skill 1 — Handshake & Reconhecimento
+
+### Community 276 - "Community 276"
+Cohesion: 0.33
+Nodes (6): code:block1 (PKG                                INSTALLER             NOT), Estratégia por SDK, Não fazer, Objetivo, Passos, Skill 2 — Auditoria Ativa de Notificações
+
+### Community 277 - "Community 277"
+Cohesion: 0.33
+Nodes (6): Automação do host, Backups, Containers (8, todos healthy), Deltas funcionais de 12/06 (resumo), Servidor Debian 187.45.181.75 — Inventário 12/06/2026 23:20 UTC, Volumes
+
+### Community 279 - "Community 279"
+Cohesion: 0.40
+Nodes (4): error, code, message, requestid
+
+### Community 280 - "Community 280"
+Cohesion: 0.40
+Nodes (4): error, code, message, requestid
+
+### Community 281 - "Community 281"
+Cohesion: 0.40
+Nodes (4): Run migrations in 'offline' mode., Run migrations in 'online' mode., run_migrations_offline(), run_migrations_online()
+
+### Community 282 - "Community 282"
+Cohesion: 0.40
+Nodes (4): data_sources, max_tokens, messages, temperature
+
+### Community 283 - "Community 283"
+Cohesion: 0.40
+Nodes (4): data_sources, max_tokens, messages, temperature
+
+### Community 284 - "Community 284"
+Cohesion: 0.40
+Nodes (5): §7. Roadmap de evolução — 3 alavancas, 3 sprints, Alavanca A — **Capturar wheel_dist** (3 dias) — ROI mais alto, Alavanca B — **Capturar dealer + provider** (5 dias), Alavanca C — **Desligar errdriven + remediar sda_score extremos** (1 dia), Sequência recomendada
+
+### Community 285 - "Community 285"
+Cohesion: 0.40
+Nodes (5): 5.1 Maturidade, 5.2 Disponibilidade, 5.3 Tolerância a Falhas, 5.4 Recuperabilidade, 5. CONFIABILIDADE (Reliability)
+
+### Community 286 - "Community 286"
+Cohesion: 0.40
+Nodes (5): 9. Containerização e Deploy, ⚠️ Acesso ao Banco de Dados de Produção, code:bash (docker exec roleta-cloud cp /app/data/decisions.db /app/data), code:yaml (# Docker Compose - Produção), code:bash (# ✅ CORRETO — via docker exec)
+
+### Community 287 - "Community 287"
+Cohesion: 0.40
+Nodes (5): Changelog de Versões, Conformidade ISO/IEC 25010, PARTE VI — CONCLUSÃO E RECOMENDAÇÕES, Pontos Fortes, Áreas Prioritárias de Melhoria (Ordenadas por Impacto)
+
+### Community 288 - "Community 288"
+Cohesion: 0.40
+Nodes (5): 4.4.1 Decision.gale_bet_value Default, 4.4.2 Novo Campo Opcional (para análise), 4.4 `database/models.py` — ALTERAÇÃO MÍNIMA, code:python (gale_bet_value: int = 17), code:python (sda_offset: int = 0              # Offset usado nesta jogada)
+
+### Community 289 - "Community 289"
+Cohesion: 0.40
+Nodes (5): 4.7.1 Aposta Default (linha 72), 4.7.2 Região Display (linha 466), 4.7 `extension/content.js` — ALTERAÇÃO MÍNIMA, code:javascript (R$ <span id="eb-aposta">17</span>), code:javascript (regiao.textContent = sugestao.regiao || `Centros: ${(sugesta)
+
+### Community 290 - "Community 290"
+Cohesion: 0.40
+Nodes (5): 2.1 Fluxo de Dados Completo (Estado Atual), 2.2 Mapa de Arquivos do Sistema, 2. ARQUITETURA ATUAL DO SISTEMA, code:block1 (┌───────────────────────────────────────────────────────────), code:block2 (Roleta Cloud/)
+
+### Community 291 - "Community 291"
+Cohesion: 0.40
+Nodes (5): 8.1 Estratégia de Rollback, 8.2 Feature Flag (Recomendado), 8. ROLLBACK PLAN, code:python (# app_config/settings.py), code:python (# strategies/sda17.py)
+
+### Community 292 - "Community 292"
+Cohesion: 0.40
+Nodes (5): C.3 — Avaliação técnica: qual stack?, Opção 1 — **Milvus** (vetorial puro), Opção 2 — **Neo4j 5.13+** (grafo + vector index nativo), Opção 3 — **Memgraph** (in-memory, drop-in Neo4j), Opção 4 — **Pragmática: SQLite + sqlite-vss + grafo-em-VIEW** ⭐ **RECOMENDADA**
+
+### Community 293 - "Community 293"
+Cohesion: 0.40
+Nodes (5): 7.1 Princípios para refatorar **sem quebrar o que funciona hoje**, 7.2 Reorganização proposta (monorepo Python, sem mudar linguagem), 7.3 Sequência de refatoração (cada passo PR-able isoladamente), 7. Refatoração do código atual — caminho por blocos isolados, code:block4 (roleta-cloud/)
+
+### Community 294 - "Community 294"
+Cohesion: 0.40
+Nodes (5): 8.1 Resposta direta às plataformas que você citou, 8.2 Comparativo prático (custos mensais para seu perfil de carga), 8.3 Minha recomendação por fase, 8.4 O que **não** vale a pena testar agora, 8. Cloud & Infra — comparativo objetivo
+
+### Community 295 - "Community 295"
+Cohesion: 0.40
+Nodes (5): Apêndice — Resumo das skills/MCPs/libs propostos, Bibliotecas Python (substituir/adicionar), MCPs, Plataformas Cloud (curto/médio prazo), Skills CLI (instalar em `~/.copilot/`)
+
+### Community 296 - "Community 296"
+Cohesion: 0.40
+Nodes (5): 5.1 Estratégia de coleta — onde executar o scraping, 5.2 Camada declarativa — o "extrator", 5.3 O que **NÃO** vale a pena aqui, 5. Skills/Bibliotecas para o Extrator Universal (visão A), code:yaml (extractor:)
+
+### Community 297 - "Community 297"
+Cohesion: 0.40
+Nodes (5): 22.1 Azure Backup Vault, 22.2 Test do agente, 22. Snapshot Policy diária da VM, code:bash (az backup vault create -g rg-roleta-prod -n bv-roleta-prod -), code:bash (az backup item list -g rg-roleta-prod -v bv-roleta-prod \)
+
+### Community 298 - "Community 298"
+Cohesion: 0.40
+Nodes (5): 26.1 VM NIC, 26.2 Postgres, 26. Accelerated Networking + Performance recommendations Postgres, code:bash (NIC=$(az vm show -g rg-roleta-prod -n vm-roleta-app-01 --que), code:bash (az postgres flexible-server parameter set \)
+
+### Community 299 - "Community 299"
+Cohesion: 0.40
+Nodes (5): 1.1 Servidor a ser substituído, 1.2 Stack atual em execução, 1.3 Repositório código, 1. Inventário atual (o que existe hoje — para você comparar), code:yaml (# docker-compose.yml atual (do projeto):)
+
+### Community 300 - "Community 300"
+Cohesion: 0.40
+Nodes (5): 9.1 Testes Azure, 9.2 Testes na VM, 9.3 Testes DNS (somente após aprovação Opção A ou B), 9.4 Testes de segurança mínimos, 9. Testes obrigatórios que o agente DEVE executar
+
+### Community 301 - "Community 301"
+Cohesion: 0.40
+Nodes (5): §3. Auditoria sprint-por-sprint (achados específicos), 🧪 Bloco BACKTEST, BT-01 — Harness, BT-02 — Shadow v3, BT-03 — Canary rollout
+
+### Community 302 - "Community 302"
+Cohesion: 0.40
+Nodes (5): 🎯 Bloco WHEEL, W-01 — `compute_wheel_dist`, W-02 — Popular `calibration_error`, W-03 — Retrain sigmoid v2, W-04 — Backtest sigmoid
+
+### Community 303 - "Community 303"
+Cohesion: 0.40
+Nodes (5): 10.1 Bugs, 10.2 DNA + W + V + BS + BT + O (executáveis), 10.3 NEW (5 sprints), 10.4 Bloco DEFERIDO (aguardando ExtractorBeat v19 ou Azure), §10. Matriz de APROVAÇÃO (preencher antes de execução)
+
+### Community 304 - "Community 304"
+Cohesion: 0.40
+Nodes (5): §13.1 — Achados que **invalidam ou reescopam** sprints aprovadas, §13.2 — Reclassificação consolidada, §13.3 — Snapshot 24h (evidência audit), §13. Auditoria LIVE 26/05 — descobertas pós-audit servidor + SQLite, code:block2 (spins_total=1232  APOSTAR=1085 (88%)  PULAR=147 (12%))
+
+### Community 305 - "Community 305"
+Cohesion: 0.40
+Nodes (5): 5.1 Esforço/risco ajustados, 5.2 Sprints divididas em variantes a/b, 5.3 Sprints DEFERIDAS (aguardam ExtractorBeat v19), 5.4 Sprints DEFERIDAS (aguardam Azure), §5. Reclassificação de sprints (resumo)
+
+### Community 306 - "Community 306"
+Cohesion: 0.40
+Nodes (5): §23 — Validação pós B-10 + refutação NEW-11 (26/05, ~22h00 UTC), Distribuição hits × distância (n=31, pós-B-10), Estado da sprint 26/05, Fill-rate calibration_error pós-deploy `cf3570d`, NEW-11 (skew direção) — **REFUTADO**
+
+### Community 307 - "Community 307"
+Cohesion: 0.40
+Nodes (5): W-01 — Helper `_compute_wheel_dist` em `core/roulette.py`, W-02 — Popular `decisions.calibration_error` com `wheel_dist`, W-03 — Retrain `sigmoid_off` com dist-loss (não só hit/miss), W-04 — Backtest A/B harness sigmoid_off v1 vs v2, 🎯 WHEEL DISTANCE (4 sprints — alta prioridade)
+
+### Community 308 - "Community 308"
+Cohesion: 0.40
+Nodes (5): §29 — SP-07 ENTREGUE ✅, Entregas, Latencia, Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — alta prioridade., Suite: 305 -> **307 passing** (+2; +1 baseline rebaseline).
+
+### Community 309 - "Community 309"
+Cohesion: 0.40
+Nodes (5): §28 — SP-06 ENTREGUE ✅, Decisao de design, Entregas, Proximo: SP-11 (DEAL-01 captura DOM dealer/table) — sem deps; alta prioridade do usuario., Suite: 296 -> **305 passing** (+9, schema parity tambem revalidou).
+
+### Community 310 - "Community 310"
+Cohesion: 0.40
+Nodes (5): XXI.1 ✅ S-H executado integralmente, XXI.2 ✅ S-J (backfill tool) executado, XXI.3 Snapshot pós-S-H/S-J (20:38 BRT), XXI.4 Conscientemente reagendado, XXI. Execução v4 — ações desta sessão
+
+### Community 311 - "Community 311"
+Cohesion: 0.40
+Nodes (5): XXII.1 ✅ S-M0 (observability stack), XXII.2 ✅ S-I (LISTEN/NOTIFY aditivo), XXII.3 Pendente (próxima sessão), XXII.4 Bonus: bugs latentes corrigidos colateralmente, XXII. Execução v4.1 — S-M0 + S-I em produção
+
+### Community 312 - "Community 312"
+Cohesion: 0.40
+Nodes (5): 6.1 Proposta v4.2.0 - Parametros, 6.2 Simulacao Retroativa CW (10 misses), 6.3 Simulacao Retroativa CCW (12 misses), 6.4 Projecao Global v4.2.0, 6. SIMULACAO: IMPACTO DAS MELHORIAS PROPOSTAS
+
+### Community 313 - "Community 313"
+Cohesion: 0.40
+Nodes (5): 3.1 Dados Brutos, 3.2 Performance por Offset (CCW), 3.3 Analise de Erros CCW (12 misses + 6 fallback), 3. ANALISE DAS ULTIMAS 25 JOGADAS - SENTIDO ANTI-HORARIO (CCW), code:block4 (7 -> 7 -> 10 -> 10 -> 10 -> 10 -> 11 -> 10 -> 10 -> 11 -> 12)
+
+### Community 314 - "Community 314"
+Cohesion: 0.40
+Nodes (5): 2.1 Bugs Conhecidos (do task document) — Verificação no Código, 2.2 Bugs Novos Descobertos (auditoria aprofundada), 2.3 Análise de Impacto, code:block2 (BUG-TASK-001 (engine.py) ────► Parcial: já corrigido em mess), FASE 2 — AUDITORIA PROFUNDA DE BUGS
+
+### Community 315 - "Community 315"
+Cohesion: 0.70
+Nodes (3): downgrade(), _spin_features_ddl(), upgrade()
+
+### Community 316 - "Community 316"
+Cohesion: 0.40
+Nodes (4): Arquivos Protegidos, Política de Segurança, Regras de Credenciais, Reporte de Vulnerabilidades
+
+### Community 317 - "Community 317"
+Cohesion: 0.70
+Nodes (3): downgrade(), _spins_vectors_ddl(), upgrade()
+
+### Community 318 - "Community 318"
+Cohesion: 0.50
+Nodes (3): IPs, Resources, VMs
+
+### Community 320 - "Community 320"
+Cohesion: 0.50
+Nodes (3): navigationFallback, exclude, rewrite
+
+### Community 321 - "Community 321"
+Cohesion: 0.50
+Nodes (3): code:text (Olá Copilot, preciso de ajuda avançada com arquitetura Serve), code:block2, Prompt para o GitHub Copilot
+
+### Community 322 - "Community 322"
+Cohesion: 0.83
+Nodes (3): deploy.sh script, require_terraform(), terraform_init_with_optional_backend()
+
+### Community 323 - "Community 323"
+Cohesion: 0.50
+Nodes (4): 2.1 Comportamento Temporal, 2.2 Utilização de Recursos, 2.3 Capacidade, 2. EFICIÊNCIA DE DESEMPENHO (Performance Efficiency)
+
+### Community 324 - "Community 324"
+Cohesion: 0.50
+Nodes (4): 4.1 Reconhecibilidade de Adequação, 4.2 Apreensibilidade, 4.3 Proteção contra Erros, 4. USABILIDADE (Usability)
+
+### Community 325 - "Community 325"
+Cohesion: 0.50
+Nodes (4): 11. O que vale manter intacto e o que vale jogar fora, 🗑️ Jogo fora (deprecio com `git rm` quando o substituto estiver verde), ✅ Mantenho (não-negociáveis), 🔁 Refatoro (mantenho o **comportamento**, troco a **forma**)
+
+### Community 326 - "Community 326"
+Cohesion: 0.50
+Nodes (4): 12.1 Riscos técnicos, 12.2 Armadilhas de processo, 12.3 Dependências circulares já identificadas, 12. Riscos, dependências circulares e armadilhas conhecidas
+
+### Community 327 - "Community 327"
+Cohesion: 0.50
+Nodes (4): 2.1 O que MANTENHO sem dúvida, 2.2 O que RECALIBRO (com base na sua nova visão), 2.3 O que ABANDONO (errei na priorização), 2. Auditoria honesta das minhas sugestões anteriores
+
+### Community 328 - "Community 328"
+Cohesion: 0.50
+Nodes (4): 📊 Bloco OBSERVABILITY, O-01 — Strategy 360, O-02 — Alert hit_rate por dealer, O-03 — Log estruturado decision_id
+
+### Community 329 - "Community 329"
+Cohesion: 0.50
+Nodes (4): §24 — SP-05 ENTREGUE (26/05 23:40 UTC) ✅, Como pegaria B-10 hoje, Entregas concretas, Proximo: SP-04 (schema parity SQLite<->PG) — sem deps, manutenibilidade ISO.
+
+### Community 330 - "Community 330"
+Cohesion: 0.50
+Nodes (4): §25 — SP-04 ENTREGUE ✅, Entregas, Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2., Suite: 289 -> **293 passing** (+4, 1 skipped sem PG).
+
+### Community 331 - "Community 331"
+Cohesion: 0.50
+Nodes (4): §27 — SP-03 ENTREGUE ✅, Entregas, Proximo: SP-06 (DNA-01 tabela decision_dna) — abre Onda 2., Verificacao
+
+### Community 332 - "Community 332"
+Cohesion: 0.50
+Nodes (4): 3.1 Cadeia atual (verificada hoje), 3.2 Decisão: 3-pé de implantação, 3.3 Por que vale ROI (lembrete do doc 25/05), §3. Dealer + Provedor — captura completa
+
+### Community 333 - "Community 333"
+Cohesion: 0.50
+Nodes (4): 2.1 Dados Brutos, 2.2 Performance por Offset (CW), 2.3 Analise de Erros CW (10 misses), 2. ANALISE DAS ULTIMAS 25 JOGADAS - SENTIDO HORARIO (CW)
+
+### Community 334 - "Community 334"
+Cohesion: 0.50
+Nodes (4): 4.1 Bugs Funcionais, 4. BUGS IDENTIFICADOS, BUG-FUNC-001: DB Nao Armazena off_c3 [SEVERIDADE: MEDIA], BUG-FUNC-002: Fallback SDA-19 com Offset Zero [SEVERIDADE: BAIXA]
+
+### Community 335 - "Community 335"
+Cohesion: 0.50
+Nodes (4): 5.1 CW - Jogadas Detalhadas (excluindo fallback), 5.2 CCW - Jogadas Detalhadas (excluindo fallback), 5.3 Resumo da Engenharia Reversa, 5. ANALISE DE DESEMPENHO POR JOGADA (ENGENHARIA REVERSA)
+
+### Community 336 - "Community 336"
+Cohesion: 0.50
+Nodes (4): 7.1 tasks_resultados_30_03.md, 7.2 tasks_final_melhoria_pos.md, 7.3 Taskk_final_pos_implantacao_30_03_final_da_manha.md, 7. VERIFICACAO CONTRA DOCUMENTOS DE REFERENCIA
+
+### Community 337 - "Community 337"
+Cohesion: 0.50
+Nodes (4): 8.1 Acoes Imediatas (v4.2.0), 8.2 Acoes de Medio Prazo (v4.3.0), 8.3 Investigacao Futura, 8. RECOMENDACOES PRIORIZADAS
+
+### Community 338 - "Community 338"
+Cohesion: 0.50
+Nodes (4): 9. CONCLUSAO, O sistema v4.1.0 esta funcionando conforme projetado?, Performance real vs projetada, Veredicto Final
+
+### Community 339 - "Community 339"
+Cohesion: 0.50
+Nodes (3): Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Verifica se é um spin duplicado (mesmo número no mesmo segundo)., Verifica se é um spin duplicado (mesmo número no mesmo segundo).
+
+### Community 340 - "Community 340"
+Cohesion: 0.50
+Nodes (4): _calibration_snapshot(), Cache de 30s — evita query a cada scrape /metrics (~5s)., Cache de 30s — evita query a cada scrape /metrics (~5s)., Cache de 30s — evita query a cada scrape /metrics (~5s).
+
+### Community 341 - "Community 341"
+Cohesion: 0.50
+Nodes (4): _pnl_snapshot(), Handler principal de conexões WebSocket.          Sistema MASTER/SLAVE:     -, Cache de 30s — evita query a cada scrape /metrics., Cache de 30s — evita query a cada scrape /metrics.
+
+### Community 343 - "Community 343"
+Cohesion: 0.50
+Nodes (3): Snapshot da EMA de erro por região + nº de amostras (telemetria).          Aud, Snapshot da EMA de erro por região + nº de amostras (telemetria).          Aud, Snapshot da EMA de erro por região + nº de amostras (telemetria).          Aud
+
+### Community 347 - "Community 347"
+Cohesion: 0.50
+Nodes (4): 1. Resumo das Sessoes Pos-Deploy SmartGale v5, 2.1 O Problema, 2. BUG CRITICO ENCONTRADO: get_gale() Nunca e Chamado em Producao, Sessao 13:50 - Analise de Resultados 28/03/2026
+
+### Community 375 - "Community 375"
+Cohesion: 0.67
+Nodes (3): code:bash (az keyvault create --name roleta-kv --location brazilsouth), code:python (from azure.identity import DefaultAzureCredential), Sx-SEC — Azure Key Vault
+
+### Community 376 - "Community 376"
+Cohesion: 0.67
+Nodes (3): §2. As 8 decisões tomadas a cada jogada (engenharia reversa), code:block2 (spin chega ({numero, direcao})), Mapa das 8 decisões e onde elas vivem
+
+### Community 377 - "Community 377"
+Cohesion: 0.67
+Nodes (3): code:javascript (el.resultCenter.textContent = result.centro;), code:javascript (el.resultCenter.innerHTML = `<b>${result.centro}</b> <small>), F04 — Dashboard: Bold no campo centro
+
+### Community 378 - "Community 378"
+Cohesion: 0.67
+Nodes (3): code:javascript (el.resultRegion.textContent = result.numeros?.join(', ') || ), code:javascript (const c1Set = new Set(result.c1_numbers || []);), F05 — Dashboard: Bold nos números de C1
+
+### Community 379 - "Community 379"
+Cohesion: 0.67
+Nodes (3): 11. ⭐ FORMATO OBRIGATÓRIO DO DOCUMENTO DE ENTREGA, code:markdown (# 🚀 Entrega — Infraestrutura Azure Roleta Cloud v5.0), code:block18
+
+### Community 380 - "Community 380"
+Cohesion: 0.67
+Nodes (3): §26 — SP-02 ENTREGUE ✅, Entregas, Proximo: SP-03 (CI/CD pull automatizado prod).
+
+### Community 381 - "Community 381"
+Cohesion: 0.67
+Nodes (3): code:block1 (reboot   system boot  6.1.0-13-amd64   Wed Jun 10 18:40   st), Historico de boots (wtmp), Servidor Debian — Sistema
+
+## Knowledge Gaps
+- **2114 isolated node(s):** `server/analytics_handler.py`, `server/connection_manager.py`, `server/extractor_service.py`, `server/health_server.py`, `server/message_handler.py` (+2109 more)
+  These have ≤1 connection - possible missing edges or undocumented components.
+- **43 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+
+## Suggested Questions
+_Questions this graph is uniquely positioned to answer:_
+
+- **Why does `start_server()` connect `Community 122` to `Community 2`, `Community 103`, `Community 137`, `Community 234`, `Community 121`?**
+  _High betweenness centrality (0.185) - this node is a cross-community bridge._
+- **Why does `SDA17Strategy` connect `Community 13` to `Community 33`, `Community 137`, `Community 41`, `Community 204`, `Community 175`, `Community 48`, `Community 49`, `Community 50`, `Community 84`, `Community 52`, `Community 342`, `Community 343`, `Community 152`, `Community 90`, `Community 91`?**
+  _High betweenness centrality (0.120) - this node is a cross-community bridge._
+- **Why does `Plano de Implantação — M15-ADA (C1/C2/C3 Melhorado)` connect `Community 69` to `Community 256`, `Community 160`, `Community 2`, `Community 290`, `Community 291`, `Community 97`, `Community 145`, `Community 189`, `Community 255`?**
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
+- **Are the 124 inferred relationships involving `☁️ Genesis Azure — Deploy alternativo (cloud)` (e.g. with `🌐 INFRAESTRUTURA ROLETA — Super-Grafo (toda a stack)` and `💻 Roleta Cloud — App (LOCAL dev + legado Extrator)`) actually correct?**
+  _`☁️ Genesis Azure — Deploy alternativo (cloud)` has 124 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 83 inferred relationships involving `💻 Roleta Cloud — App (LOCAL dev + legado Extrator)` (e.g. with `🌐 INFRAESTRUTURA ROLETA — Super-Grafo (toda a stack)` and `🖥️ Servidor Debian — PRODUÇÃO (187.45.181.75)`) actually correct?**
+  _`💻 Roleta Cloud — App (LOCAL dev + legado Extrator)` has 83 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 35 inferred relationships involving `str` (e.g. with `main()` and `main()`) actually correct?**
+  _`str` has 35 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 30 inferred relationships involving `📱 Extensão Android/Chrome — Captura de spins` (e.g. with `🌐 INFRAESTRUTURA ROLETA — Super-Grafo (toda a stack)` and `🖥️ Servidor Debian — PRODUÇÃO (187.45.181.75)`) actually correct?**
+  _`📱 Extensão Android/Chrome — Captura de spins` has 30 INFERRED edges - model-reasoned connections that need verification._

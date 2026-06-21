@@ -4,6 +4,20 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 
 
+# BUG-FIX 21/06 (auditoria pos-foto): a extensao (deal_capture.js) usa fallback
+# `host:<dominio>` quando nao reconhece a marca do provider. Frames de analytics
+# (googletagmanager/doubleclick/youtube) vazavam como 'provider' e poluiam o
+# agrupamento. Mapa marca<-keyword de dominio: recupera a marca real
+# (ex.: evo-games -> evolution) e descarta o resto.
+_PROVIDER_BRAND_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "evolution": ("evolution", "evo-games", "evogames", "evo gaming"),
+    "pragmatic": ("pragmatic",),
+    "playtech": ("playtech",),
+    "ezugi": ("ezugi",),
+    "imagine": ("imagine",),
+}
+
+
 class SpinInput(BaseModel):
     """
     Dados que chegam da extensão Escuta Beat.
@@ -32,7 +46,29 @@ class SpinInput(BaseModel):
         if not 0 <= v <= 36:
             raise ValueError('Número deve estar entre 0 e 36')
         return v
-    
+
+    @field_validator('provider')
+    @classmethod
+    def sanitize_provider(cls, v: str | None) -> str | None:
+        """BUG-FIX 21/06 (auditoria pos-foto): higieniza o provider.
+
+        A extensao envia `host:<dominio>` como fallback quando nao reconhece a
+        marca; frames de analytics (doubleclick/googletagmanager/youtube) vazavam
+        como provider e poluiam o agrupamento. Recupera a marca pelo dominio
+        quando possivel (evo-games -> evolution); senao descarta (None) para nao
+        contaminar perfis por provider. Marcas limpas passam intactas.
+        """
+        if not v:
+            return v
+        s = v.strip()
+        if not s.lower().startswith("host:"):
+            return s
+        host = s.lower()[len("host:"):]
+        for brand, kws in _PROVIDER_BRAND_KEYWORDS.items():
+            if any(kw in host for kw in kws):
+                return brand
+        return None
+
     model_config = {
         "json_schema_extra": {
             "examples": [

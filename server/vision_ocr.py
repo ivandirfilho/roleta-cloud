@@ -181,6 +181,20 @@ def _crop(arr, roi: Optional[dict]):
     return arr[y:y2, x:x2]
 
 
+# BUG-FIX 21/06 (auditoria pos-foto): identidade do PROPRIO produto/dashboard.
+# O OCR as vezes pega a aba do dashboard ('Roleta Cloud' / 'roleta.xma-ia.com')
+# em vez da mesa do cassino -> falso-positivo de wheel_model/dealer. Rejeitamos.
+_SELF_TOKENS = ("roleta cloud", "xma-ia", "xma ia", "escuta beat")
+
+
+def _is_self(text: Optional[str]) -> bool:
+    """True se o texto e' a identidade do proprio app (nao uma mesa/dealer real)."""
+    if not text:
+        return False
+    low = text.lower()
+    return any(tok in low for tok in _SELF_TOKENS)
+
+
 def _parse_fields(texts: list[str]):
     """Heuristica leve: extrai dealer, wheel_model e provider das linhas do OCR.
     Tudo vem da FOTO (sem DOM). Retorna (dealer, wheel_model, provider)."""
@@ -210,6 +224,14 @@ def _parse_fields(texts: list[str]):
                 if kw in low:
                     wheel_model = t.strip()
                     break
+
+    # BUG-FIX 21/06: rejeita captura do PROPRIO dashboard (falso-positivo). Se o
+    # OCR pegou a aba 'Roleta Cloud'/'xma-ia' em vez da mesa do cassino, descarta
+    # antes de inferir provider (evita propagar o lixo para provider tambem).
+    if _is_self(wheel_model):
+        wheel_model = None
+    if _is_self(dealer):
+        dealer = None
 
     # provider DIRETO: marca aparece escrita na foto (logo/rodape)
     for prov, kws in _PROVIDER_KEYWORDS.items():
@@ -241,11 +263,22 @@ def _norm_dealer(name: Optional[str]) -> Optional[str]:
     return out or None
 
 
+# BUG-FIX 21/06 (auditoria pos-foto): defaults EMBUTIDOS p/ canonizar variantes de
+# OCR mesmo SEM SDA_VISION_MODEL_ALIASES setado. Antes, sem o env, o fallback
+# .title() era sensivel a espaco e fragmentava o mesmo rotulo em 3 ('Roleta Aovivo'
+# /'Roleta Ao Vivo'/'Roletaaovivo'). Chave = label sem espacos/caixa. O env tem
+# prioridade (override), entao operadores ainda customizam.
+_DEFAULT_MODEL_ALIASES = {
+    "roletaaovivo": "Roleta ao Vivo",
+}
+
+
 def _model_aliases() -> dict:
-    """Mapa OCR-variante -> nome canonico, via env SDA_VISION_MODEL_ALIASES
-    ('roleta aovivo=Roleta ao Vivo,...'). Chave comparada sem espacos/caixa."""
+    """Mapa OCR-variante -> nome canonico: defaults embutidos + env
+    SDA_VISION_MODEL_ALIASES ('roleta aovivo=Roleta ao Vivo,...'), env sobrepoe.
+    Chave comparada sem espacos/caixa."""
+    out = dict(_DEFAULT_MODEL_ALIASES)
     raw = os.environ.get("SDA_VISION_MODEL_ALIASES", "")
-    out = {}
     for pair in raw.split(","):
         if "=" in pair:
             k, v = pair.split("=", 1)

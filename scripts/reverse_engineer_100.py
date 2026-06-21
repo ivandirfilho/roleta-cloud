@@ -24,7 +24,6 @@ N_PER_DIR = 100
 WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
          10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
 POS = {n: i for i, n in enumerate(WHEEL)}
-RADII = (3, 2, 2)
 
 
 def dir_force(frm: int, to: int, target: str) -> int:
@@ -45,13 +44,20 @@ def circ_err(real: int, pred: int) -> int:
 
 
 def slot_of(centers, actual, hit):
+    """Centro mais próximo (geometria-agnóstico, espelha _attribute_hit_region
+    pós-fix 13/06). Empate → C1>C2>C3. Antes usava raios fixos (3,2,2) e podia
+    devolver 'unattributed' — errado sob a geometria viva fat-SAT (C1 raio 1;
+    satélites raio 3, ou 4/2 no V3)."""
     if not hit:
         return "miss"
+    best_i, best = 0, None
     for i, c in enumerate(centers[:3]):
         sd = signed(c, actual)
-        if sd is not None and abs(sd) <= RADII[i]:
-            return f"C{i+1}"
-    return "C1" if len(centers) == 1 else "unattributed"
+        if sd is None:
+            continue
+        if best is None or abs(sd) < best:
+            best, best_i = abs(sd), i
+    return f"C{best_i + 1}"
 
 
 def load():

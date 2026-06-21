@@ -57,6 +57,25 @@ def test_spininput_confidence_bounds():
         SpinInput(numero=1, direcao="horario", trace_id="t1234", t_client=1, vision_confidence=1.5)
 
 
+def test_spininput_sanitizes_provider_host_fallback():
+    """BUG-FIX 21/06 (auditoria pos-foto): provider 'host:<dominio>' da extensão é
+    higienizado — recupera a marca quando dá (evo-games -> evolution) e descarta
+    analytics/dashboard próprio, em vez de poluir o agrupamento por provider."""
+    from models.input import SpinInput
+
+    def prov(p):
+        return SpinInput(numero=1, direcao="horario", trace_id="t1234", t_client=1, provider=p).provider
+
+    # marca recuperada pelo domínio do iframe do jogo
+    assert prov("host:7k-bet-br.evo-games.com") == "evolution"
+    # analytics / domínio do próprio dashboard -> descartado (None)
+    assert prov("host:www.googletagmanager.com") is None
+    assert prov("host:www.roleta.xma-ia.com") is None
+    # marca limpa passa intacta; vazio/None seguem como estão
+    assert prov("evolution") == "evolution"
+    assert prov(None) is None
+
+
 def test_decision_defaults_vision_fields():
     """Decision tem defaults seguros (retrocompatível)."""
     from database.models import Decision

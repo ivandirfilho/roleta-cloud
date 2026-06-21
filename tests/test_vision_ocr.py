@@ -125,9 +125,9 @@ def test_dealer_normalized_uppercase():
 
 
 def test_model_normalized_title_case_and_whitespace():
-    """Modelo: espaços colapsados + Title Case (variantes de espaço agrupam)."""
-    _d, w1, _ = vision_ocr._parse_fields(["Roleta  ao   Vivo"])
-    assert w1 == "Roleta Ao Vivo"
+    """Modelo desconhecido: espaços colapsados + Title Case (variantes de espaço agrupam)."""
+    _d, w1, _ = vision_ocr._parse_fields(["Speed  Auto   Roulette"])
+    assert w1 == "Speed Auto Roulette"
 
 
 def test_model_alias_merges_ocr_variants(monkeypatch):
@@ -136,6 +136,27 @@ def test_model_alias_merges_ocr_variants(monkeypatch):
     _d1, w1, _ = vision_ocr._parse_fields(["Roleta aoVivo"])
     _d2, w2, _ = vision_ocr._parse_fields(["Roleta ao Vivo"])
     assert w1 == "Roleta ao Vivo" and w2 == "Roleta ao Vivo"
+
+
+def test_model_merges_variants_without_env(monkeypatch):
+    """BUG-FIX 21/06: default embutido funde as variantes do label conhecido MESMO
+    sem SDA_VISION_MODEL_ALIASES (antes fragmentava em 3: 'Roleta Aovivo' etc.)."""
+    monkeypatch.delenv("SDA_VISION_MODEL_ALIASES", raising=False)
+    outs = {
+        vision_ocr._parse_fields([v])[1]
+        for v in ("Roleta aoVivo", "Roleta ao Vivo", "RoletaaoVivo", "ROLETA AOVIVO")
+    }
+    assert outs == {"Roleta ao Vivo"}
+
+
+def test_parse_fields_rejects_self_dashboard():
+    """BUG-FIX 21/06: OCR da PRÓPRIA aba do dashboard ('Roleta Cloud'/'xma-ia') não
+    vira mesa nem dealer (falso-positivo) — mas dealers reais na mesma foto ficam."""
+    _d, wheel, _p = vision_ocr._parse_fields(["Roleta Cloud", "Dealer LEVI"])
+    assert wheel is None and _d == "LEVI"
+    # dealer == identidade própria também é rejeitado
+    dealer2, _w2, _p2 = vision_ocr._parse_fields(["Dealer Roleta Cloud"])
+    assert dealer2 is None
 
 
 def test_parse_fields_infers_provider_from_wheel():

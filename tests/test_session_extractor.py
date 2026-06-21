@@ -229,3 +229,122 @@ def test_extrator_completo_json_session_works_against_synthetic_dom():
     assert out["dealer"] == "Carla"
     assert out["round_id"] == "#999"
     assert out["table"] == "Speed Roulette"
+
+
+def test_extract_session_is_self_contained_under_mv3_injection():
+    """DEAL-AUDIT 15/06 (regression): background.js injeta a função via
+    chrome.scripting.executeScript({func: extractSessionData}), o que serializa
+    APENAS o corpo (Function.prototype.toString) e o executa no contexto da pagina,
+    SEM o closure do modulo. Se a funcao referenciar um helper externo
+    (probeSelectors/cleanText), a pagina lanca ReferenceError e o dealer volta null
+    para sempre. Este teste reconstroi a funcao a partir do toString e a executa
+    isolada, usando o `document` GLOBAL (como em producao), sem passar opts."""
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const fn = helper.extractSessionData;
+      // Reconstroi a funcao a partir do texto serializado (== o que o Chrome injeta).
+      const injected = new Function('return (' + fn.toString() + ')')();
+      // document GLOBAL da "pagina" (a injecao real NAO passa opts.document).
+      global.document = {{
+        querySelector(sel) {{
+          if (sel === "[data-role='dealer-name']") return {{ innerText: 'Maria Croupier' }};
+          return null;
+        }}
+      }};
+      global.location = {{ href: 'https://a8-latam.evo-games.com/x' }};
+      const cfg = {{ dealer: {{ name: {{ selector: "[data-role='dealer-name']" }} }} }};
+      let result;
+      try {{ result = {{ ok: true, out: injected(cfg) }}; }}
+      catch (e) {{ result = {{ ok: false, err: e.constructor.name + ': ' + e.message }}; }}
+      process.stdout.write(JSON.stringify(result));
+    """
+    out = _run_node(script)
+    assert out["ok"], f"injecao MV3 lancou erro (funcao nao self-contained): {out.get('err')}"
+    assert out["out"]["dealer"] == "Maria Croupier"
+
+
+def test_collect_dealer_candidates_when_selectors_miss():
+    """DEAL-AUDIT 15/06: quando nenhum seletor de dealer casa, options.collectCandidates
+    varre o DOM e devolve candidatos {cls,role,txt} (evidencia p/ afinar evolution.json
+    sem chutar). Sem a flag, NAO coleta (custo zero no tick normal)."""
+    el = "(cls, role, txt) => ({ children: [], className: cls, innerText: txt, getAttribute: (a) => (a === 'data-role' ? (role||'') : '') })"
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const el = {el};
+      const nodes = [ el('header-title', '', 'Lobby'),
+                      el('app_dealerName_x9', '', 'Maria Croupier'),
+                      el('numbers-value', '', '17') ];
+      const fakeDoc = {{ querySelector(s) {{ return null; }}, querySelectorAll(s) {{ return nodes; }} }};
+      const cfg = {{ dealer: {{ name: {{ selector: "[data-role='dealer-name']" }} }} }};
+      const withFlag = helper.extractSessionData(cfg, {{ document: fakeDoc, collectCandidates: true }});
+      const noFlag   = helper.extractSessionData(cfg, {{ document: fakeDoc }});
+      process.stdout.write(JSON.stringify({{ withFlag, noFlag }}));
+    """
+    out = _run_node(script)
+    assert out["withFlag"]["dealer"] is None
+    cands = out["withFlag"].get("dealerCandidates")
+    assert isinstance(cands, list) and len(cands) >= 1
+    assert "Maria Croupier" in [c["txt"] for c in cands]
+    # 'numbers-value' nao casa a keyword de dealer/host/presenter -> nao deve entrar
+    assert all("17" != c["txt"] for c in cands)
+    # sem a flag, nao paga o custo de varrer o DOM
+    assert "dealerCandidates" not in out["noFlag"]
+
+
+def test_collect_candidates_is_self_contained_under_mv3_injection():
+    """A varredura de candidatos tambem roda no contexto da pagina (injecao MV3);
+    garante que usa apenas APIs nativas (sem helper de closure)."""
+    el = "(cls, txt) => ({ children: [], className: cls, innerText: txt, getAttribute: () => '' })"
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const injected = new Function('return (' + helper.extractSessionData.toString() + ')')();
+      const el = {el};
+      global.document = {{ querySelector: () => null,
+        querySelectorAll: () => [ el('chat-hostName', 'Joao Host') ] }};
+      global.location = {{ href: 'https://a8-latam.evo-games.com/x' }};
+      const cfg = {{ dealer: {{ name: {{ selector: "[data-role='dealer-name']" }} }} }};
+      let result;
+      try {{ result = {{ ok: true, out: injected(cfg, {{ collectCandidates: true }}) }}; }}
+      catch (e) {{ result = {{ ok: false, err: e.constructor.name + ': ' + e.message }}; }}
+      process.stdout.write(JSON.stringify(result));
+    """
+    out = _run_node(script)
+    assert out["ok"], f"coleta nao self-contained sob injecao: {out.get('err')}"
+    assert out["out"]["dealerCandidates"][0]["txt"] == "Joao Host"
+
+
+def test_extract_session_marks_game_frame():
+    """DEAL-AUDIT 15/06: o frame que contem os numeros da roleta
+    ([data-role='recent-number']) deve ser marcado isGameFrame=true; um frame de
+    lobby (sem numeros) deve ser false."""
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const gameDoc  = {{ querySelector(sel) {{ return sel === '[data-role="recent-number"]' ? {{}} : null; }} }};
+      const lobbyDoc = {{ querySelector(sel) {{ return null; }} }};
+      process.stdout.write(JSON.stringify({{
+        game:  helper.extractSessionData({{}}, {{ document: gameDoc  }}).isGameFrame,
+        lobby: helper.extractSessionData({{}}, {{ document: lobbyDoc }}).isGameFrame
+      }}));
+    """
+    out = _run_node(script)
+    assert out["game"] is True
+    assert out["lobby"] is False
+
+
+def test_combine_prioritizes_game_frame_over_lobby():
+    """DEAL-AUDIT 15/06 (bug do table): o frame do jogo (isGameFrame=true) tem
+    prioridade — evita capturar table/round/dealer de um frame de lobby/cross-sell
+    (caso real em prod: table='Blackjack Silver D' numa sessao de roleta 'PorROU')."""
+    script = f"""
+      const helper = require({json.dumps(str(HELPER))});
+      const frames = [
+        {{ result: {{ table: 'Blackjack Silver D', round_id: 'LOBBY-1', dealer: null,    frameUrl: 'https://lobby',     isGameFrame: false }} }},
+        {{ result: {{ table: 'Roleta ao Vivo',     round_id: 'R-77',    dealer: 'Carla', frameUrl: 'https://evo-games', isGameFrame: true  }} }}
+      ];
+      process.stdout.write(JSON.stringify(helper.combineSessionFrames(frames)));
+    """
+    out = _run_node(script)
+    assert out["table"] == "Roleta ao Vivo"
+    assert out["round_id"] == "R-77"
+    assert out["dealer"] == "Carla"
+    assert out["frameUrl"] == "https://evo-games"

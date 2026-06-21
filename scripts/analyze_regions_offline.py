@@ -33,9 +33,9 @@ WHEEL = list(roulette.WHEEL_SEQUENCE)
 SIZE = len(WHEEL)
 POS = {n: i for i, n in enumerate(WHEEL)}
 
-# Geometria SDA17 (premissa P4): C1 raio 3 (7 nºs) + C2/C3 raio 2 (5+5) = 17.
-RADII = (3, 2, 2)
-SLOT_COVER = {"C1": 7, "C2": 5, "C3": 5}
+# Atribuição de slot e cobertura por slot derivam da GEOMETRIA REAL gravada em
+# sda_numbers (centro mais próximo), não de raios fixos — evita o viés legado
+# 7+5+5 sobre dados fat-SAT (V2/V3). Espelha state.game._attribute_hit_region.
 
 
 def signed_dist(frm: int, to: int) -> int | None:
@@ -45,16 +45,43 @@ def signed_dist(frm: int, to: int) -> int | None:
     return d - SIZE if d > SIZE // 2 else d
 
 
-def attribute(centers: list[int], actual: int) -> tuple[str, int | None]:
-    """Retorna (slot, dist_c1). Prioridade C1 > C2 > C3 (regra do sigmoid)."""
+def attribute(centers: list[int], actual: int, hit: bool) -> tuple[str, int | None]:
+    """Retorna (slot, dist_c1). hit=False → 'miss'; senão CENTRO MAIS PRÓXIMO
+    (geometria-agnóstico, espelha state.game._attribute_hit_region pós-fix
+    13/06; empate → C1>C2>C3). Antes usava raios fixos (3,2,2) e subcontava
+    satélites sob a geometria viva fat-SAT (C1 raio 1; satélites 3, ou 4/2)."""
     if not centers:
         return "?", None
     d1 = signed_dist(centers[0], actual)
+    if not hit:
+        return "miss", d1
+    best_idx, best = 0, None
     for idx, c in enumerate(centers[:3]):
         sd = signed_dist(c, actual)
-        if sd is not None and abs(sd) <= RADII[idx]:
-            return f"C{idx + 1}", d1
-    return "miss", d1
+        if sd is None:
+            continue
+        if best is None or abs(sd) < best:
+            best, best_idx = abs(sd), idx
+    return f"C{best_idx + 1}", d1
+
+
+def cluster_sizes(centers: list[int], numbers: list[int]) -> dict[str, int]:
+    """Quantos números apostados pertencem a cada cluster (centro mais próximo)
+    — cobertura real por slot na geometria gravada, sem assumir raios legados."""
+    sizes = {"C1": 0, "C2": 0, "C3": 0}
+    cs = centers[:3]
+    if not cs:
+        return sizes
+    for num in numbers:
+        best_idx, best = 0, None
+        for idx, c in enumerate(cs):
+            sd = signed_dist(c, num)
+            if sd is None:
+                continue
+            if best is None or abs(sd) < best:
+                best, best_idx = abs(sd), idx
+        sizes[f"C{best_idx + 1}"] += 1
+    return sizes
 
 
 def offsets_practiced(centers: list[int]) -> tuple[int | None, int | None]:
@@ -95,6 +122,7 @@ def load_rows(db: Path) -> list[dict]:
             "dir": "cw" if (r["spin_direction"] or "") in ("horario", "cw") else "ccw",
             "centers": [int(c) for c in centers],
             "n": len(numbers),
+            "numbers": [int(x) for x in numbers],
             "score": int(r["sda_score"] or 0),
             "action": r["final_action"] or "",
             "bet": float(r["gale_bet_value"] or 0),
@@ -139,21 +167,28 @@ def analyze(rows: list[dict]) -> str:
         if n_total == 0:
             continue
         slots = Counter()
+        cov_acc = {"C1": 0, "C2": 0, "C3": 0}
         for r in rs:
-            slot, _ = attribute(r["centers"], r["actual"])
+            slot, _ = attribute(r["centers"], r["actual"], r["hit"])
             slots[slot] += 1
-        a1_summary[d] = {"n": n_total, "slots": dict(slots)}
+            cs = cluster_sizes(r["centers"], r["numbers"])
+            for kk in cov_acc:
+                cov_acc[kk] += cs[kk]
+        # cobertura média por slot na geometria REAL do dataset (não constante)
+        cov_avg = {kk: cov_acc[kk] / n_total for kk in cov_acc}
+        miss_cov = max(0.0, 37.0 - sum(cov_avg.values()))
+        a1_summary[d] = {"n": n_total, "slots": dict(slots), "cov_avg": cov_avg}
         for slot in ("C1", "C2", "C3"):
             k = slots.get(slot, 0)
             rate = k / n_total
-            base = SLOT_COVER[slot] / 37.0
+            base = cov_avg[slot] / 37.0
             out.append(
                 f"| {d} | {slot} | {k}/{n_total} | {fmt_pct(rate)} | "
                 f"{fmt_pct(base)} | {100 * (rate - base):+.1f} |"
             )
         miss = slots.get("miss", 0)
         out.append(f"| {d} | miss | {miss}/{n_total} | {fmt_pct(miss / n_total)} | "
-                   f"{fmt_pct(20 / 37)} | — |")
+                   f"{fmt_pct(miss_cov / 37)} | — |")
 
     out.append("\n**Leitura:** lift > 0 = a região captura mais que o acaso. "
                "Se C2 ou C3 tiver lift ≈ 0 num sentido, a '3ª melhor região' "
@@ -178,15 +213,11 @@ def analyze(rows: list[dict]) -> str:
                 off3_used[o3] += 1
 
         n = sum(hist.values())
-        # Posições apostadas (relativas a C1): C1±3 e offsets medianos C2/C3 ±2.
         med_o2 = off2_used.most_common(1)[0][0] if off2_used else 10
         med_o3 = off3_used.most_common(1)[0][0] if off3_used else 10
-        bet_pos = set(range(-3, 4))
-        bet_pos |= {(med_o2 + k) for k in range(-2, 3)}
-        bet_pos |= {(-med_o3 + k) for k in range(-2, 3)}
-        bet_pos = {((p + 18) % 37) - 18 for p in bet_pos}
-
-        captured = sum(hist.get(p, 0) for p in bet_pos)
+        # Densidade REALMENTE capturada = acertos (result ∈ sda_numbers gravado);
+        # geometria-agnóstico, sem reconstruir o footprint por raios legados.
+        captured = sum(1 for r in rs if r["hit"])
         best17 = sum(c for _, c in hist.most_common(17))
         eff = captured / best17 if best17 else 0.0
 
