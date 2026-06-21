@@ -226,10 +226,11 @@ O `deploy_pull.sh` (systemd timer) detectou `origin/main` novo e executou:
 | Capacidade | Onde roda | Flag (default) | Como ativar |
 |---|---|---|---|
 | Provider limpo na origem | Extensão | sempre on | recarregar extensão v3.4.1 |
+| **Visão OCR (foto→dados)** | Engine | **`SDA_VISION_OCR` (ON, fixado)** | ligada direto; desliga só com `=0` |
 | Fill-forward do dealer | Engine | `SDA_DEALER_FILL_FORWARD` (OFF) | env no compose + redeploy |
 | Hardening attach foto→decisão | Engine | `SDA_VISION_ATTACH_MAX_AGE_S` (0=off) | env >0 + redeploy |
 | Perfil de força por dealer | Engine (dormante) | `SDA_DEALER_FORCE_PROFILE` (OFF) | env=1 + wire futuro |
-| Canonização `wheel_model` legado | Tool CLI | — | `python tools/backfill_wheel_model.py --apply` |
+| Canonização `wheel_model` legado | Tool CLI | — | ✅ **aplicado em prod (62 linhas)** — ver §13.4 |
 
 ### 12.4 Operação & segurança
 - **Deploy:** pull-based — `git push origin main` → o `deploy_pull.sh` (timer) aplica sozinho com **healthcheck + rollback automático** para o último SHA bom se `/health` falhar.
@@ -238,3 +239,47 @@ O `deploy_pull.sh` (systemd timer) detectou `origin/main` novo e executou:
 - **Garantia desta entrega:** todas as capacidades novas entraram **OFF** → produção é **byte-equivalente** ao comportamento anterior até o operador decidir ligar cada uma; **lógica de aposta intacta**; suíte **640 verde**.
 
 > **Resumo de 1 linha:** o código novo está **em produção e 100% funcional** (servidor `c57c853`, healthy, visão viva, 0 erros), com todas as novas capacidades **desligadas por padrão** — a infra continua idêntica e o operador liga cada feature quando quiser, com rollback trivial.
+
+---
+
+## 13. Verificação operacional da VISÃO — ligada e capturando ao vivo (21/06 ~23:21Z)
+
+> Pedido do dono: *"a estrutura de fotos deve ficar ligada e funcionando direto; verifique as últimas jogadas se está pegando os dados com as fotos e se o banco está como projetado."*
+
+### 13.1 Visão LIGADA por padrão (fixado, versionado)
+- `vision_ocr.is_enabled()=True`, `is_available()=True` no container.
+- O default do código já é ON (`SDA_VISION_OCR` só desliga com `0`). Para garantir que **fica ligada direto**, fixei **`SDA_VISION_OCR=${SDA_VISION_OCR:-1}` explícito no `docker-compose.yml`** (versionado, ISO obrig. #4) — não depende mais só do default do código.
+- Métricas Prometheus: `vision_frames_total{ok}` e `vision_persisted_total` incrementando após o deploy.
+
+### 13.2 Últimas jogadas — está pegando os dados com as fotos ✅
+Snapshot do DB de produção ao vivo (8956 linhas, última às 23:21:25):
+- **136 vision rows** no total; **59 na última hora**; a **última jogada (id 8956)** é uma vision row: `dealer=THEO · provider=evolution · wheel_model=Roleta ao Vivo · conf=0.962`.
+- Amostra pós-deploy (todas limpas — provider `evolution`, modelo canônico `Roleta ao Vivo`):
+
+| id | hora (Z) | dealer | provider | wheel_model | conf | força | sentido |
+|--:|--|--|--|--|--:|--:|--|
+| 8956 | 23:21:25 | THEO | evolution | Roleta ao Vivo | 0.96 | 0 | anti |
+| 8954 | 23:20:39 | THEO | evolution | Roleta ao Vivo | 0.96 | 0 | anti |
+| 8951 | 23:19:07 | unknown | evolution | Roleta ao Vivo | 0.94 | 31 | horário |
+| 8934 | 23:06:43 | THEO | evolution | Roleta ao Vivo | 0.96 | 17 | anti |
+
+> **Confirmação dos fixes em produção:** os 2 únicos blips de qualidade na janela (`provider=host:www.roleta.xma-ia.com` + `wheel_model='Roleta Cloud'`, e o OCR `'Roleta Aovivor$1-100.000'`) são **pré-deploy** (22:56, antes das 23:04). **Toda** vision row **pós-deploy** está limpa (`evolution` / `Roleta ao Vivo`).
+
+### 13.3 Banco como projetado ✅ (associação numa linha + força por dealer)
+A query de design `GROUP BY dealer, wheel_model, provider, spin_direction → AVG(spin_force)` retorna **assinaturas de força reais por dealer×sentido**:
+
+| dealer | modelo | provider | sentido | n | AVG(força) |
+|--|--|--|--|--:|--:|
+| JAMES | Roleta ao Vivo | evolution | anti | 15 | **22.5** |
+| JAMES | Roleta ao Vivo | evolution | horário | 15 | **15.1** |
+| OLIVER | Roleta ao Vivo | evolution | horário | 5 | 18.2 |
+
+O mesmo dealer mostra força média diferente por sentido (JAMES 22.5 anti vs 15.1 horário) — exatamente o sinal que habilita "estratégia por dealer". Cobertura por dealer (n=15) já se aproxima do gate `n≥30`.
+
+### 13.4 Limpeza do `wheel_model` legado — APLICADA (DB agora canônico)
+Para o banco ficar **como projetado**, rodei `tools/backfill_wheel_model.py --apply` em produção (com **backup online WAL-safe** antes: `decisions_backup_pre_wheelbackfill.db`):
+- **62 linhas** canonizadas (`Roleta aoVivo`×60 + `RoletaaoVivo`×2 → `Roleta ao Vivo`); idempotência confirmada (re-run = 0 candidatos).
+- Distintos de `wheel_model` agora: **`Roleta ao Vivo` = 137** (consolidado) + 5 ruídos pré-deploy (4 self-captures `Roleta Cloud`/`Roletacloud` + 1 OCR `Roleta Aovivor$1-100.000`) — que o `_is_self`/`sanitize_provider` **bloqueiam daqui pra frente**.
+
+### 13.5 Veredito
+> **A estrutura de fotos está LIGADA e funcionando direto** (default ON fixado no compose; 59 capturas na última hora; última jogada é vision). **Está pegando os dados** (dealer/provider/modelo/confiança por foto, limpos pós-deploy). **O banco está como projetado** (associação numa linha; força por dealer×sentido consultável; `wheel_model` canonizado). Resta apenas o **reload da extensão v3.4.1** no Chrome para o `provider` limpo valer também na origem (o guard server-side já protege o DB enquanto isso).

@@ -31,6 +31,10 @@ services:
       # 🎯 ROOT CAUSE HOOK-1: sem essa var, o hook nunca consegue init
       # (lia DSN como None e marcava _publisher_init_attempted=True para sempre)
       - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      # 📸 Vision (foto_roleta): OCR foto->dados LIGADO por padrão (deve ficar
+      # ligado e funcionando direto). Fixado explícito aqui (versionado) p/ não
+      # depender só do default do código. Desliga só com SDA_VISION_OCR=0.
+      - SDA_VISION_OCR=${SDA_VISION_OCR:-1}
       # 📸 Vision (foto_roleta): aliases p/ fundir variantes de OCR do nome da mesa
       # (ex.: 'Roleta aoVivo' e 'Roleta ao Vivo' -> mesmo canonico). Chave normalizada
       # sem espacos/caixa. Operador adiciona novos pares: "chave=Nome Canonico,...".
