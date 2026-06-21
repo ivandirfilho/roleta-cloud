@@ -170,7 +170,7 @@ O `deploy_pull.sh` (systemd timer) detectou `origin/main` novo e executou:
 
 | Verificação | Evidência |
 |---|---|
-| HEAD do servidor | `c57c853` (== origin/main) ✅ |
+| HEAD do servidor | rastreia `origin/main` (código entrou em `c57c853`; commits de doc subsequentes não alteram comportamento) ✅ |
 | Migrações | `ALEMBIC ok (0009_vision_features head)` ✅ |
 | Container | `roleta-cloud Up (healthy)` ✅ |
 | Health | `/health` → `{"status":"ok","version":"4.4.1"}` ✅ |
