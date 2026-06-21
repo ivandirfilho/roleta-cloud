@@ -99,3 +99,23 @@ def test_clean_brand_passes_through_and_host_prefix_rejected():
     assert out["clean"] == "evolution"
     # rawProvider 'host:*' e' ignorado e cai no dominio (analytics -> unknown)
     assert out["hostRaw"] == "unknown"
+
+
+def test_has_useful_signal_blocks_analytics_frames():
+    """BUG-5 (auditoria pos-reload): frame sem sinal real (provider unknown e sem
+    dealer/table/round) NAO publica — evita sobrescrever o provider do jogo."""
+    out = _run_node(_load_expr() + """
+      const J = (m) => r.hasUsefulSignal(m);
+      process.stdout.write(JSON.stringify({
+        analytics: J({ provider: 'unknown', dealer: null, table: null, round_id: null }),
+        knownProvider: J({ provider: 'evolution', dealer: null, table: null, round_id: null }),
+        onlyDealer: J({ provider: 'unknown', dealer: 'LEVI', table: null, round_id: null }),
+        onlyTable: J({ provider: 'unknown', dealer: null, table: 'PorROU1', round_id: null }),
+        empty: J(null),
+      }));
+    """)
+    assert out["analytics"] is False     # bloqueado
+    assert out["knownProvider"] is True  # marca real publica
+    assert out["onlyDealer"] is True     # dealer real publica
+    assert out["onlyTable"] is True      # mesa real publica
+    assert out["empty"] is False

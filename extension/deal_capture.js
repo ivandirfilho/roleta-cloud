@@ -44,7 +44,17 @@
     }
     return matchHostBrand(host) || 'unknown';
   }
-  return { PROVIDER_DOMAIN_KEYWORDS: PROVIDER_DOMAIN_KEYWORDS, matchHostBrand: matchHostBrand, normalizeProvider: normalizeProvider };
+  // BUG-5 FIX 21/06 (auditoria pos-reload): um frame so deve publicar dealMeta se
+  // carrega SINAL REAL — marca de provider reconhecida OU dealer/table/round. Frames
+  // de analytics (doubleclick/youtube/instagram/fls) e o proprio dashboard tem
+  // provider='unknown' e nada mais: NAO podem publicar (senao vencem a corrida do
+  // chrome.storage.local.dealMeta e sobrescrevem o 'evolution' do frame do jogo).
+  function hasUsefulSignal(meta) {
+    if (!meta) return false;
+    var known = meta.provider && String(meta.provider).toLowerCase() !== 'unknown';
+    return !!(known || meta.dealer || meta.table || meta.round_id);
+  }
+  return { PROVIDER_DOMAIN_KEYWORDS: PROVIDER_DOMAIN_KEYWORDS, matchHostBrand: matchHostBrand, normalizeProvider: normalizeProvider, hasUsefulSignal: hasUsefulSignal };
 });
 
 (function () {
@@ -127,6 +137,9 @@
   function publish() {
     const meta = snapshot();
     if (!meta) return;
+    // BUG-5 FIX 21/06: frame sem sinal real (analytics/dashboard) nao publica —
+    // evita sobrescrever o provider do frame do jogo na corrida do dealMeta.
+    if (_DP && !_DP.hasUsefulSignal(meta)) return;
     const j = JSON.stringify(meta);
     if (j === lastJson) return;
     lastJson = j;

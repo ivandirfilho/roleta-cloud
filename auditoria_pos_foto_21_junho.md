@@ -283,3 +283,27 @@ Para o banco ficar **como projetado**, rodei `tools/backfill_wheel_model.py --ap
 
 ### 13.5 Veredito
 > **A estrutura de fotos está LIGADA e funcionando direto** (default ON fixado no compose; 59 capturas na última hora; última jogada é vision). **Está pegando os dados** (dealer/provider/modelo/confiança por foto, limpos pós-deploy). **O banco está como projetado** (associação numa linha; força por dealer×sentido consultável; `wheel_model` canonizado). Resta apenas o **reload da extensão v3.4.1** no Chrome para o `provider` limpo valer também na origem (o guard server-side já protege o DB enquanto isso).
+
+---
+
+## 14. Bug-hunt PÓS-RELOAD da extensão (21/06 ~23:50Z)
+
+> Após o reload da extensão v3.4.1, auditei as jogadas novas à procura de regressões/bugs. Método: snapshot do DB de produção ao vivo por `id`+`timestamp` + teste direto do `SpinInput` no container.
+
+### 14.1 Falso-alarme investigado e descartado — `sanitize_provider` FUNCIONA
+- Uma 1ª query por janela de tempo (`-30 min`) sugeriu `host:*` recente. **Era artefato de relógio** (o `datetime('now')` do SQLite no host estava atrasado ~22 min, alargando a janela e capturando linhas pré-deploy).
+- **Verificação autoritativa por `id`:** o **último `host:*` é o id 8920 às 22:56:10 — PRÉ-deploy** (deploy do `sanitize_provider` às 23:04). As ~86 jogadas seguintes (ids 8921→9006, 54 min pós-deploy) têm **zero `host:*`**.
+- **Teste direto no container:** `SpinInput(provider='host:16089813.fls.doubleclick.net').provider → None`; `'host:7k-bet-br.evo-games.com' → 'evolution'`; `'evolution' → 'evolution'`. ✅ Guard server-side ativo e correto.
+
+### 14.2 🐞 BUG-5 ENCONTRADO e CORRIGIDO — frame de analytics sobrescrevia o provider
+- **Sintoma (pós-reload):** ~12 jogadas/30min com `provider='unknown'` (vs 191 `evolution`). Não é `host:*` (o v3.4.1 já troca por `unknown`), mas ainda **errado** — deveria ser `evolution`.
+- **Causa-raiz:** `deal_capture.js` roda em **todos os frames** (`manifest.json all_frames:true`) e o `snapshot()` *"sempre publica"*. Um frame de analytics (doubleclick/youtube/instagram/fls — **fora** do denylist `IS_IRRELEVANT_FRAME`) publica `dealMeta={provider:'unknown'}` e **vence a corrida** do `chrome.storage.local.dealMeta`, sobrescrevendo o `evolution` do frame do jogo. (O server depois só dropa `host:*`, não `unknown` → vaza pro DB.)
+- **Correção (`deal_capture.js`, v3.4.2):** guard `hasUsefulSignal(meta)` no `publish()` — um frame só publica se carrega **sinal real** (marca de provider reconhecida **ou** dealer/table/round). Frames de analytics e o próprio dashboard (`provider='unknown'`, sem dealer/mesa) **não publicam** → não poluem mais a corrida. Denylist-independente (robusto a domínios novos). +1 teste (`hasUsefulSignal`); manifest **3.4.1→3.4.2**.
+
+### 14.3 Sem regressões do reload
+- Jogadas fluindo normalmente (último id 9006 às 23:50; ~1 giro/40s); `spin_force`/`spin_direction` 100%; visão viva (rows `ELINE`/`Roleta ao Vivo`/conf~0.96 intercaladas).
+- `dealer='unknown'` na maioria dos giros não-vision é **esperado** (o dealer vem da foto/OCR; os seletores DOM da Evolution raramente casam) — é a cobertura em ramp-up, não regressão. O `SDA_DEALER_FILL_FORWARD` (OFF) mitiga quando ligado.
+- Suíte local: **passes** (5 no teste da extensão, incl. o novo guard).
+
+### 14.4 Veredito
+> **Nenhuma regressão do reload.** O `host:*` está **eliminado pós-deploy** (server `sanitize_provider` confirmado). Achei e corrigi o **BUG-5** (frame de analytics sobrescrevendo o provider com `unknown`) com um guard de sinal real em `deal_capture.js` (**v3.4.2**) — após o **reload da v3.4.2**, o `provider` fica consistentemente `evolution` na origem. Server-side já protege o DB enquanto isso.
