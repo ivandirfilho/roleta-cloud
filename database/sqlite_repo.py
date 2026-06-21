@@ -554,10 +554,29 @@ class SQLiteDecisionRepository(DecisionRepository):
         decisão (MAX id) é a do giro corrente."""
         conn = self._get_connection()
         try:
-            row = conn.execute("SELECT MAX(id) FROM decisions").fetchone()
+            row = conn.execute(
+                "SELECT id, timestamp FROM decisions ORDER BY id DESC LIMIT 1"
+            ).fetchone()
             if not row or row[0] is None:
                 return 0
             decision_id = int(row[0])
+            # Hardening (auditoria_pos_foto 21/06 §7.4): janela máxima opcional p/
+            # a foto colar na última decisão. Se SDA_VISION_ATTACH_MAX_AGE_S>0 e a
+            # decisão é mais velha que isso, NÃO sobrescreve (evita contaminar o
+            # giro seguinte quando o OCR atrasa). Default 0 = sem limite (byte-
+            # idêntico ao comportamento anterior). Defensivo: nunca derruba o fluxo.
+            try:
+                from app_config.settings import vision_attach_max_age_s
+                max_age = vision_attach_max_age_s()
+                if max_age > 0 and row[1] is not None:
+                    age_row = conn.execute(
+                        "SELECT (julianday('now') - julianday(?)) * 86400.0",
+                        (row[1],),
+                    ).fetchone()
+                    if age_row and age_row[0] is not None and float(age_row[0]) > max_age:
+                        return 0
+            except Exception:
+                pass
             sets: list = []
             params: list = []
             if dealer:

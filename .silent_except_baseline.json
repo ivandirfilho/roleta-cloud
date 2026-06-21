@@ -8,6 +8,7 @@
   "server/websocket.py": 22,
   "state/bet_advisor.py": 3,
   "state/game.py": 16,
+  "strategies/dealer_force_profile.py": 1,
   "strategies/dealer_offset.py": 1,
   "strategies/sda17.py": 9
 }

@@ -6,22 +6,62 @@
 // NOTA: Este script roda em paginas alvo. Adicionar match patterns em
 // manifest.json (futuro). Por ora, importavel em content.js via <script>.
 
+// BUG-1 FIX 21/06 (auditoria_pos_foto): provider normalization PURA e testável.
+// Antes, o fallback emitia `host:<dominio>` para frames sem marca conhecida —
+// frames de analytics (googletagmanager/doubleclick/youtube) e o proprio
+// dashboard (roleta.xma-ia.com) vazavam como "provider" e poluiam
+// decisions.provider (~2100 linhas). Agora: recupera a marca pelo dominio do
+// iframe (evo-games -> evolution) e, se nao reconhecer, emite 'unknown' (nunca
+// host:*). Espelha o guard server-side (models/input.py sanitize_provider) na
+// ORIGEM. UMD: usavel no content script (self.DealProvider) e testavel via node.
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root) root.DealProvider = api;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  // marca canonica <- keywords de dominio (inclui o dominio real do iframe).
+  const PROVIDER_DOMAIN_KEYWORDS = [
+    ['evolution', ['evolution', 'evo-games']],
+    ['playtech', ['playtech', 'iconic21']],
+    ['pragmatic', ['pragmatic']],
+    ['imagine', ['imagine']],
+    ['ezugi', ['ezugi']],
+  ];
+  function matchHostBrand(host) {
+    const h = (host || '').toLowerCase();
+    if (!h) return null;
+    for (const pair of PROVIDER_DOMAIN_KEYWORDS) {
+      const brand = pair[0], kws = pair[1];
+      if (kws.some(function (k) { return h.indexOf(k) !== -1; })) return brand;
+    }
+    return null;
+  }
+  function normalizeProvider(host, rawProvider) {
+    // marca limpa ja informada passa intacta; host:* nunca passa.
+    if (rawProvider && String(rawProvider).toLowerCase().indexOf('host:') !== 0) {
+      return rawProvider;
+    }
+    return matchHostBrand(host) || 'unknown';
+  }
+  return { PROVIDER_DOMAIN_KEYWORDS: PROVIDER_DOMAIN_KEYWORDS, matchHostBrand: matchHostBrand, normalizeProvider: normalizeProvider };
+});
+
 (function () {
   'use strict';
 
-  // Detecta provider pela URL/host.
-  // FIX 14/06 (DEAL-AUDIT C1): incluir 'evo-games' (dominio real do iframe
-  // Evolution, e.g. a8-latam.evo-games.com). Sem isso, o provider ficava
-  // 'null' dentro do iframe do jogo e dealer nunca era capturado.
+  // Guard de ambiente: este IIFE e' content-script (depende de location/document).
+  // Sob node/require (testes do helper UMD acima) ele NAO deve rodar.
+  if (typeof location === 'undefined' || typeof document === 'undefined') return;
+
+  // Detecta provider pela URL/host via helper compartilhado (BUG-1 fix 21/06).
   const HOST = (location.host || '').toLowerCase();
-  let provider = null;
-  if (HOST.includes('evolution') || HOST.includes('evo-games')) provider = 'evolution';
-  else if (HOST.includes('playtech') || HOST.includes('iconic21')) provider = 'playtech';
-  else if (HOST.includes('imagine')) provider = 'imagine';
-  else if (HOST.includes('pragmatic')) provider = 'pragmatic';
-  // Fallback: usa host como provider para permitir rastreio mesmo em
-  // dominios novos (operador pode adicionar regra depois). DEAL audit 27/05.
-  const PROVIDER_FALLBACK = provider || (HOST ? `host:${HOST}` : 'unknown');
+  const _DP = (typeof self !== 'undefined' && self.DealProvider) ||
+    (typeof DealProvider !== 'undefined' ? DealProvider : null);
+  // marca reconhecida (ou null) — usada p/ selectors + deteccao de frame irrelevante.
+  const provider = _DP ? _DP.matchHostBrand(HOST) : null;
+  // valor enviado ao server: marca|unknown, NUNCA host:* (BUG-1 fix 21/06).
+  const PROVIDER_FALLBACK = _DP ? _DP.normalizeProvider(HOST, null) : (provider || 'unknown');
 
   // FIX 14/06 (DEAL-AUDIT A1/A5): nao instalar observer/interval em frames
   // que claramente nao tem dealer (analytics, sw_iframe, about:blank).

@@ -73,6 +73,33 @@ class MessageHandler:
         # IMPL C1/C2 variável + Block-Gale (17/06): metadados por spin (gated por flag).
         self._cs_meta = None
         self._bg_meta = None
+        # Vision fill-forward (auditoria_pos_foto 21/06): último dealer REAL por
+        # sessão, p/ propagar quando o giro chega sem dealer. Flag-gated, metadata
+        # (não toca aposta). Ver core/dealer_fill.py + SDA_DEALER_FILL_FORWARD.
+        self._ff_dealer: Optional[str] = None
+        self._ff_session: Optional[str] = None
+
+    def _resolve_spin_dealer(self, raw_dealer: Optional[str]) -> Optional[str]:
+        """Vision fill-forward (21/06): resolve o dealer do giro e atualiza o
+        último conhecido da sessão. Flag SDA_DEALER_FILL_FORWARD (default OFF);
+        metadata pura, nunca altera decisão de aposta. Corta na troca de sessão."""
+        from core.dealer_fill import resolve_dealer
+        from app_config.settings import dealer_fill_forward_enabled
+        if self._ff_session != self.current_session_id:
+            self._ff_dealer = None
+            self._ff_session = self.current_session_id
+        used, self._ff_dealer = resolve_dealer(
+            raw_dealer, self._ff_dealer, dealer_fill_forward_enabled()
+        )
+        return used
+
+    def _remember_dealer(self, dealer: Optional[str]) -> None:
+        """Vision fill-forward (21/06): registra um dealer real (ex.: vindo do OCR
+        em handle_foto_frame) como último conhecido da sessão atual."""
+        from core.dealer_fill import is_real_dealer
+        if is_real_dealer(dealer):
+            self._ff_dealer = str(dealer).strip()
+            self._ff_session = self.current_session_id
 
     def is_duplicate_spin(self, numero: int, timestamp: int) -> bool:
         """Verifica se é um spin duplicado (mesmo número no mesmo segundo)."""
@@ -876,7 +903,10 @@ class MessageHandler:
                 calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12],
                 # SP-13 DEAL-03 (27/05): propaga metadata DOM se presente.
-                dealer=(getattr(spin, "dealer", None) or "unknown"),
+                # Vision fill-forward (21/06): _resolve_spin_dealer propaga o
+                # último dealer real da sessão quando o giro vem sem dealer
+                # (flag SDA_DEALER_FILL_FORWARD; metadata, não toca aposta).
+                dealer=(self._resolve_spin_dealer(getattr(spin, "dealer", None)) or "unknown"),
                 dealer_table=(getattr(spin, "table", None) or ""),
                 provider=(getattr(spin, "provider", None) or ""),
                 round_id=(getattr(spin, "round_id", None) or ""),
@@ -1186,6 +1216,10 @@ class MessageHandler:
             new_session_id = uuid.uuid4().hex[:8]  # S-MIG-2: UUID em vez de session_<epoch_ms>
             db_service.create_session(new_session_id)
             self.current_session_id = new_session_id
+            # Vision fill-forward (21/06): nova sessão (troca de dealer/mesa)
+            # invalida o último dealer conhecido — refila do zero na sessão nova.
+            self._ff_dealer = None
+            self._ff_session = new_session_id
 
         # Resposta de confirmação
         response = {
@@ -1304,6 +1338,10 @@ class MessageHandler:
                 result.get("confidence", 0.0), len(result.get("texts", [])),
                 result.get("ms", 0),
             )
+            # Vision fill-forward (21/06): um dealer real do OCR vira o "último
+            # conhecido" da sessão, p/ os próximos giros sem dealer herdarem
+            # (flag SDA_DEALER_FILL_FORWARD; metadata, não toca aposta).
+            self._remember_dealer(result.get("dealer"))
             # Persiste o OCR na decisão mais recente (foto->dados->DB). Defensivo:
             # safe_except nunca deixa a persistência derrubar o handler.
             if result.get("dealer") or result.get("wheel_model") or result.get("provider"):

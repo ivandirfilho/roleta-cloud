@@ -212,3 +212,44 @@ def c_selection_auto_promote_enabled() -> bool:
     """
     import os
     return os.environ.get("C_SELECTION_AUTO_PROMOTE", "0").strip().lower() in ("1", "true", "on")
+
+
+def dealer_fill_forward_enabled() -> bool:
+    """Vision (auditoria_pos_foto 21/06) — fill-forward do dealer por sessão.
+
+    Quando o giro chega sem dealer (DOM não casou e a foto ainda não aterrissou),
+    propaga o ÚLTIMO dealer real conhecido da MESMA sessão. Corta na troca (um
+    dealer real novo substitui o anterior) e na troca de sessão. É METADATA — não
+    altera nenhuma decisão de aposta. Default **OFF**; ligar com
+    SDA_DEALER_FILL_FORWARD=1. Auditoria: auditoria_pos_foto_21_junho.md §7.2.
+    """
+    import os
+    return os.environ.get("SDA_DEALER_FILL_FORWARD", "0").strip().lower() in ("1", "true", "on")
+
+
+def dealer_force_profile_enabled() -> bool:
+    """Vision (auditoria_pos_foto 21/06) — consumidor dormante de perfil de força
+    por dealer×sentido (strategies/dealer_force_profile.py).
+
+    Default **OFF** e ainda NÃO wired no caminho quente (como region_bandit): só
+    lê features quando explicitamente chamado. Ligar com
+    SDA_DEALER_FORCE_PROFILE=1 só após n≥30 por dealer (ramp-up). Auditoria §7.5.
+    """
+    import os
+    return os.environ.get("SDA_DEALER_FORCE_PROFILE", "0").strip().lower() in ("1", "true", "on")
+
+
+def vision_attach_max_age_s() -> float:
+    """Vision (auditoria_pos_foto 21/06) — janela máxima (s) para a foto/OCR colar
+    na decisão mais recente (update_last_vision).
+
+    Hardening da associação racy: se >0, o OCR só sobrescreve a última decisão se
+    ela foi criada há menos de N segundos (evita contaminar o giro seguinte quando
+    o OCR atrasa). Default **0 = sem limite** (preserva o comportamento atual,
+    byte-idêntico). Opt-in via SDA_VISION_ATTACH_MAX_AGE_S. Auditoria §7.4.
+    """
+    import os
+    try:
+        return max(0.0, float(os.environ.get("SDA_VISION_ATTACH_MAX_AGE_S", "0")))
+    except (TypeError, ValueError):
+        return 0.0

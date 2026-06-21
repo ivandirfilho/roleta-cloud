@@ -82,7 +82,9 @@ Confirmado no **código** e no **DB de produção ao vivo**:
 
 ---
 
-## 7. Recomendações remanescentes (documentadas, **não** aplicadas)
+## 7. Recomendações remanescentes (documentadas) — ✅ **RESOLVIDAS em §10**
+
+> **Status (21/06 noite):** os itens 1-5 abaixo foram **implementados** no ciclo de estruturação dos 3 tiers — ver **§10** e o ADENDO 21/06 em `Manutenabilidade_iso.md`. Itens de aposta-relevante ficam **flag OFF** até validação.
 
 Itens fora do escopo "bug estrutural seguro" — exigem deploy/aprovação ou são client-side:
 
@@ -103,3 +105,50 @@ Itens fora do escopo "bug estrutural seguro" — exigem deploy/aprovação ou s�
 - 🚀 **Deploy** das correções (não executado — é prod-write): subir `58d5528+correções` pelo fluxo de deploy padrão; o guard de provider e o reject de auto-captura passam a valer no próximo giro; a canonização fica robusta a env ausente.
 
 > **Resumo de 1 linha:** estruturalmente o pipeline `foto→dados` está **íntegro e provado em produção**; os 3 problemas eram de **higiene de dado** (provider sujo, auto-captura, canonização frágil) — **corrigidos e testados** — e a baixa cobertura é apenas **ramp-up** de um sistema recém-implantado.
+
+---
+
+## 9. Verificação 100% + estado de PRs/código (21/06 ~19:05, pós-fix)
+
+### 9.1 Testes — ✅ 100%
+- `python -m pytest -q` → **615 passed, 9 skipped, 1 xfailed, 0 failed** (re-rodado nesta verificação).
+- Suíte focada de visão (`test_vision_ocr` + `test_vision_features`): **26 passed**, incluindo os 4 testes novos/ajustados das correções.
+
+### 9.2 Código local — ✅ correções commitadas
+- As 3 correções + este documento estão **commitados localmente** no checkpoint `9a08c3f` ("Checkpoint from Copilot CLI"): `models/input.py` (+38), `server/vision_ocr.py` (+39), `tests/test_vision_ocr.py` (+27), `tests/test_vision_features.py` (+19), `auditoria_pos_foto_21_junho.md` (+105).
+- ⚠️ Esse checkpoint **mistura** as 5 mudanças intencionais com alterações pré-existentes da árvore de trabalho (deleções de `.md` antigos, `extension/session_extractor.js`, rebuild de `graphify-out/`) que **já estavam** uncommitted antes da sessão.
+
+### 9.3 Pull requests — ⚠️ a PR #21 foi mergeada VAZIA
+| PR | Título | Estado | Conteúdo real |
+|---|---|---|---|
+| **#21** | *[WIP] Perform audit for bugs and improvements in code architecture* (`copilot/auditoria-bugs-melhoria`) | **MERGED** (b035133, ~21:54Z) | **VAZIO** — só `6b2d058 Initial plan` (0 mudanças de arquivo) + merge. **Não contém** os fixes nem este doc. Checkboxes do corpo todos desmarcados. Criada por agente de nuvem via `copilot` delegate. |
+| #7 | *Revise `proximos_passos_10_06`…* | DRAFT (10/06) | Antigo, não relacionado. |
+
+### 9.4 Está atualizado? — ❌ remoto/produção NÃO; local SIM
+- `origin/main` (b035133) é **byte-idêntico a `58d5528`** em conteúdo (`git diff 58d5528 origin/main` = vazio) → **não tem** `sanitize_provider`, `_is_self`, `_DEFAULT_MODEL_ALIASES` nem o doc.
+- **Produção** (187.45.181.75) está em `58d5528` → também **sem** as correções.
+- `local main` **divergiu**: **ahead 1** (`9a08c3f`, com os fixes) / **behind 2** (`6b2d058`+`b035133`, ambos sem conteúdo).
+
+### 9.5 Conclusão da verificação
+> **Os fixes estão 100% prontos e verdes, porém vivem APENAS no local.** A PR #21 foi mergeada como `[WIP]` **sem entregar nada** — portanto `origin/main` e a produção **continuam sem as correções**. Para "atualizar o código" é preciso **publicar os fixes** (PR limpa só com os 5 arquivos, recomendado) e depois **deployar** — ambos são *writes* no GitHub/produção e aguardam aprovação explícita.
+
+---
+
+## 10. Resolução — estruturação dos 3 tiers (21/06 noite)
+
+> Ciclo de implementação dos itens §7, seguindo as convenções de `Manutenabilidade_iso.md` (flags default OFF, testes, retro-compat). **Sem alterar comportamento de aposta.** Detalhes e scorecard ISO no **ADENDO 21/06** do `Manutenabilidade_iso.md`.
+
+| Item §7 | Tier | Resolução | Flag (default) | Arquivos |
+|---|---|---|---|---|
+| 1. BUG-1 raiz (provider `host:*`) | Extensão | `normalizeProvider`/`matchHostBrand` (UMD, testável): recupera marca do domínio ou `unknown`, nunca `host:*`. Manifest 3.4.1. | — (sempre on) | `extension/deal_capture.js`, `extension/manifest.json` |
+| 2. Dealer fill-forward (maior ROI) | Servidor | Lógica pura `resolve_dealer` + wiring por sessão (corta na troca/sessão; aprende do OCR). | `SDA_DEALER_FILL_FORWARD` (OFF) | `core/dealer_fill.py`, `server/message_handler.py`, `app_config/settings.py` |
+| 3. Backfill `wheel_model` legado | Dados | Tool dry-run/`--apply` usando `_norm_model` de runtime. Idempotente. | — (CLI) | `tools/backfill_wheel_model.py` |
+| 4. Associação atômica (hardening) | Servidor | `update_last_vision` com janela máx opt-in (anti cross-spin). | `SDA_VISION_ATTACH_MAX_AGE_S` (0=off) | `database/sqlite_repo.py`, `app_config/settings.py` |
+| 5. Consumidor por dealer | Servidor | `dealer_force_profile` dormante (n≥30), espelha `dealer_offset`. Não-wired. | `SDA_DEALER_FORCE_PROFILE` (OFF) | `strategies/dealer_force_profile.py`, `app_config/settings.py` |
+| — Rollback (ISO #4) | Debian | 3 flags novas versionadas no compose (default OFF). | — | `docker-compose.yml` |
+
+**Testes:** +25 casos em 5 arquivos novos (`test_deal_capture_provider`, `test_dealer_fill_forward`, `test_dealer_force_profile`, `test_backfill_wheel_model`, `test_vision_attach_age`). Suíte **640 passed, 9 skipped, 1 xfailed**. Lint silent-except baseline atualizado (`dealer_force_profile.py`).
+
+**Pendências gated por aprovação (NÃO executadas):** deploy no Debian, reload da extensão v3.4.1 no Chrome, `backfill --apply` em produção (~62 linhas), e publicação no GitHub (a PR #21 foi mergeada vazia).
+
+> **Resumo de 1 linha:** os **3 tiers estão estruturados** — extensão limpa na origem, servidor com fill-forward + hardening + consumidor dormante, dados com tool + flags versionadas — **flags OFF, suíte 640 verde, comportamento de aposta intacto**; só restam ações de publicação/deploy gated por aprovação.

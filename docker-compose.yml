@@ -75,6 +75,16 @@ services:
       - GALE_ONLY_AFTER_GREEN=${GALE_ONLY_AFTER_GREEN:-0}
       # Promoção automática de regra do CSelectionEngine: OFF (só sugere; humano aplica).
       - C_SELECTION_AUTO_PROMOTE=${C_SELECTION_AUTO_PROMOTE:-0}
+      # 📸 Vision (auditoria_pos_foto 21/06) — 3 flags de higiene/cobertura, todas
+      # DEFAULT OFF (rollback trivial, ISO obrig. #4: flags vivem no compose).
+      # Fill-forward do dealer por sessão (propaga o último dealer real p/ giros
+      # sem dealer; metadata, NÃO toca aposta). Ligar após validar cobertura.
+      - SDA_DEALER_FILL_FORWARD=${SDA_DEALER_FILL_FORWARD:-0}
+      # Consumidor dormante de perfil de força por dealer (n≥30). Só após ramp-up.
+      - SDA_DEALER_FORCE_PROFILE=${SDA_DEALER_FORCE_PROFILE:-0}
+      # Janela máx (s) p/ a foto/OCR colar na última decisão. 0 = sem limite
+      # (comportamento atual). >0 = hardening anti cross-spin quando o OCR atrasa.
+      - SDA_VISION_ATTACH_MAX_AGE_S=${SDA_VISION_ATTACH_MAX_AGE_S:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

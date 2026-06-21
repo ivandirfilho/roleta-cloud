@@ -590,7 +590,58 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 21/06/2026 — Estruturação pós-auditoria de visão (3 tiers: extensão + servidor Debian + dados)
+
+> Ciclo "resolver os itens remanescentes da `auditoria_pos_foto_21_junho.md` §7 segundo as convenções deste documento, deixando **os 3 tiers estruturados**" — extensão (cliente), servidor Debian (engine Python) e dados/backfill. **Tudo atrás de flags default OFF (rollback trivial), testado, retro-compatível, sem alterar comportamento de aposta.**
+> Veredito da auditoria: o encanamento `foto→dados` está **íntegro**; o que faltava era **higiene + cobertura**, não arquitetura.
+
+### A. Capacidades NOVAS com impacto ISO (todas flag-gated, default OFF)
+
+1. **Extensão — provider sem `host:*` na ORIGEM (BUG-1 raiz, v3.4.1):** `extension/deal_capture.js` ganhou o helper PURO/UMD `normalizeProvider(host, raw)` (`matchHostBrand`) que recupera a marca pelo domínio do iframe (`evo-games → evolution`) e, se não reconhece, emite `'unknown'` — **nunca** `host:<domínio>`. Mata na fonte a poluição de `decisions.provider` por frames de analytics (googletagmanager/doubleclick/youtube) e pelo próprio dashboard. Espelha o guard server-side (`models/input.py sanitize_provider`, ciclo anterior). Manifest **3.4.0→3.4.1** (extensão exige reload no browser). IIFE com guard de ambiente (no-op sob node → testável).
+2. **Servidor — dealer fill-forward por sessão (maior ROI de cobertura):** `core/dealer_fill.py` (lógica pura `resolve_dealer`) + wiring no `MessageHandler` (`_resolve_spin_dealer`/`_remember_dealer`). Propaga o ÚLTIMO dealer real da MESMA sessão para os giros que chegam sem dealer; **corta na troca** de dealer (real novo substitui) e de sessão (reset zera). Também aprende o dealer do **OCR** (`handle_foto_frame`). Flag `SDA_DEALER_FILL_FORWARD` (OFF). É **metadata** — não toca aposta.
+3. **Servidor — hardening da associação foto→decisão:** `update_last_vision` aceita janela máxima opcional `SDA_VISION_ATTACH_MAX_AGE_S` (default **0 = sem limite**, byte-idêntico). Se >0, a foto/OCR só cola na última decisão se ela é recente (anti contaminação do giro seguinte quando o OCR atrasa).
+4. **Servidor — consumidor DORMANTE `dealer_force_profile`:** `strategies/dealer_force_profile.py` (espelha `dealer_offset.py`), devolve perfil de força por `dealer×sentido(×modelo)` com gate `n≥30`. **Não wired** no caminho quente (como `region_bandit`); fundação para "estratégias futuras organizadas por dealer". Flag `SDA_DEALER_FORCE_PROFILE` (OFF).
+5. **Dados — tool de canonização `tools/backfill_wheel_model.py`:** recanoniza variantes legado de `wheel_model` (`Roleta aoVivo`/`RoletaaoVivo` → `Roleta ao Vivo`) usando a MESMA função de runtime (`vision_ocr._norm_model`). Dry-run default; `--apply` é prod-write (aprovação). Idempotente.
+6. **Debian — flags versionadas no compose:** as 3 flags novas entram em `docker-compose.yml` com default OFF (ISO obrig. #4: flags persistentes vivem no compose versionado, rollback sem `.env`).
+
+### B. Bugs/correções e validação
+
+- **Lint silent-except (ISO obrig. #7):** `dealer_force_profile.py` adicionou 1 `except Exception` defensivo (idêntico ao `dealer_offset.py`) → baseline `.silent_except_baseline.json` atualizado via `tools/lint_silent_except.py --update` (12 arquivos, lint OK).
+- **Teste de regressão (auto-captura):** o time-bound provou via teste que uma decisão antiga NÃO é sobrescrita (mantém `dealer='unknown'` default) quando `SDA_VISION_ATTACH_MAX_AGE_S>0`.
+- **Suíte:** **640 passed**, 9 skipped, 1 xfailed (+25 testes nesta entrega, em 5 arquivos novos). Backfill validado em dry-run no DB local (0 candidatos — o legado vive em produção, esperado).
+
+### C. Impacto ISO por característica
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (dados) | ⚠️ `provider` poluído com `host:*` na origem | ✅ marca\|unknown na origem (extensão) + guard server | BUG-1 fechado nos 2 lados |
+| **Confiabilidade** (associação) | ⚠️ foto cola sempre na `MAX(id)` (racy) | ✅ janela opt-in anti cross-spin | `SDA_VISION_ATTACH_MAX_AGE_S` |
+| **Manutenibilidade** (cobertura) | ⚠️ dealer só nos giros com foto (~1%) | ✅ fill-forward por sessão (opt-in) | `core/dealer_fill.py` puro + wiring |
+| **Manutenibilidade** (analytics) | — | ✅ fundação `dealer_force_profile` (dormante) | consumidor testado, gate n≥30 |
+| **Testabilidade** | — | ✅ +25 testes (pura+DB+node) | 5 arquivos novos |
+| **Portabilidade/Operabilidade** | — | ✅ flags no compose (rollback) | ISO obrig. #4 |
+| **Confiabilidade** (aposta) | ✅ | ✅ | **lógica de aposta inalterada**; suíte 640 verde |
+
+### D. Obrigações de manutenção (deltas deste ciclo)
+
+1. **Flags default OFF** — `SDA_DEALER_FILL_FORWARD`, `SDA_DEALER_FORCE_PROFILE`, `SDA_VISION_ATTACH_MAX_AGE_S` seguem o padrão por-chamada de `settings.py` (não cachear; rollback sem restart). Ligar só após validar cobertura/ramp-up.
+2. **Fill-forward é metadata** — `_resolve_spin_dealer` nunca pode influenciar predição/stake (só preenche `decisions.dealer`). Se um dia o dealer virar input de aposta, re-auditar este caminho.
+3. **`dealer_force_profile` dormante** — ativá-lo (wire no caminho quente) muda apostas; exige decisão explícita + `n≥30` real, medido pelo template `decision_dna` (lift estimado vs realizado) antes de confiar.
+4. **Extensão exige reload** — qualquer mudança em `extension/` requer bump de `manifest.version` (feito: 3.4.1) + reload no Chrome (client-side não vai por docker).
+5. **Backfill `--apply` é prod-write** — rodar `tools/backfill_wheel_model.py --apply` em produção exige aprovação (mesma classe do backfill SP-02).
+
+### E. Pendências gated por aprovação (NÃO executadas)
+
+- **Deploy no servidor Debian** (subir os fixes do tier servidor) e **reload da extensão v3.4.1** — prod/client writes.
+- **`backfill_wheel_model.py --apply`** no DB de produção (~62 linhas legado) — prod-write.
+- **Publicar no GitHub** (a PR #21 foi mergeada vazia; os fixes vivem no local) — write no remoto.
+
+> **Veredito:** os **3 tiers ficam estruturados** (extensão limpa na origem, servidor com fill-forward + hardening + consumidor dormante, dados com tool de canonização + flags versionadas), **sem mudar comportamento de aposta** e com suíte **640 verde**. Restam apenas ações de publicação/deploy gated por aprovação.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
+
 
 ---
 
