@@ -640,6 +640,56 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 22/06/2026 — Pipeline de visão "foto→dados" 100% acoplado, limpo e autoritativo (deployado)
+
+> Ciclo de auditorias + sprints que **deployou** a visão como fonte **autoritativa** de `dealer`/`mesa`/`provider` por jogada, **acoplada a 100%** e **higienizada**. Premissa do dono: *"o DOM nunca extraiu dealer/provider/modelo; a foto extrai a cada jogada — organize tudo acoplado para dados 100% auditáveis para estratégia."* Detalhes em `auditoria_pos_foto_21_junho.md` (§11-15) e `resultados_bancos_junho.md` (§1-10). **Tudo deployado e verificado em produção** (HEAD `45d0779`).
+
+### A. Capacidades NOVAS com impacto ISO
+
+1. **Extensão v3.4.1→v3.4.2 — provider limpo na ORIGEM:** `deal_capture.js` ganhou `normalizeProvider`/`matchHostBrand` (recupera a marca do domínio ou `unknown`, **nunca** `host:*`) e `hasUsefulSignal` (frame de analytics, sem sinal real, **não publica** `dealMeta` → não vence a corrida e não sobrescreve `evolution`). Helpers PUROS/UMD testáveis; IIFE com guard de ambiente (no-op sob node).
+2. **Vision-context fill-forward UNIFICADO (dealer+modelo+provider) — LIGADO em produção:** `_apply_vision_context`/`_remember_vision` (server) + `core/dealer_fill.resolve_value` (puro) propagam o ÚLTIMO OCR da sessão a **TODA** jogada. Cobertura de `dealer`/`modelo` de **~12% → ~100%/sessão**. Flag `SDA_DEALER_FILL_FORWARD=1` no compose (metadata — **não toca aposta**). `vision_source='vision'` segue marcando foto fresca (medido vs herdado → usar `vision_confidence`).
+3. **MESA pela FOTO:** `dealer_table` agora vem do **OCR** (= `wheel_model`) com fill-forward; o DOM (que trazia `'Blackjack Silver D'` errado numa roleta) foi **descartado**. `update_last_vision` também carimba `dealer_table`.
+4. **Phantom dedup (`SDA_DEDUP_PHANTOM`, default OFF):** `is_duplicate_spin` rejeita re-envio do **mesmo número+sentido** dentro de uma **janela** (`SDA_DEDUP_PHANTOM_WINDOW_MS`, 20s) — a extensão re-detecta o DOM estático e reenvia (1-7s; ciclo real ~42-48s), o que o engine processaria como giro real **corrompendo a cadeia de predição/aposta** (~17% dos giros). Discriminador = **TEMPO** (não a força — `força=0` é só a distância na roda de nº repetido).
+
+### B. Bugs corrigidos na auditoria (pós-reload da extensão + auditoria reversa)
+
+| # | Bug | Correção |
+|---|---|---|
+| BUG-1 | `provider=host:*` (analytics/dashboard) na origem | `normalizeProvider` (extensão v3.4.1) + `sanitize_provider` (server, ciclo 21/06) |
+| BUG-5 | frame de analytics sobrescrevia `provider` com `unknown` | `hasUsefulSignal` (extensão v3.4.2): sem sinal real não publica `dealMeta` |
+| BUG-6 | self-capture `'Roletacloud'` (sem espaço) escapava | `_is_self` normaliza (remove não-alfanumérico) antes do match |
+| BUG-A | **mesa** do DOM errada (`'Blackjack Silver D'`) | `dealer_table` = mesa do OCR (fill-forward); DOM descartado |
+| BUG-B | **dealer-lixo** de OCR (`'/CROUPIEREEXPERIMENTE(E)'`) propagado | `_clean_dealer`: valida plausibilidade (1-2 palavras de letras, 2-16 chars, sem rótulos) → `None` se lixo |
+| (cobertura) | `dealer`/`modelo` só em ~12-17% das jogadas | vision-context fill-forward unificado → ~100%/sessão |
+
+### C. Impacto ISO por característica
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (dados) | ⚠️ mesa errada (DOM), dealer-lixo, host:*, cobertura ~12% | ✅ mesa da foto, dealer limpo, provider limpo, ~100%/sessão | BUG-A/B/1/5/6 + fill-forward |
+| **Confiabilidade** (cadeia de predição) | ⚠️ ~17% giros fantasma corrompiam | ✅ dedup por janela (opt-in) | `SDA_DEDUP_PHANTOM` (flag OFF) |
+| **Manutenibilidade/Analisabilidade** | ⚠️ não auditável por dealer/mesa na maioria | ✅ 4 dimensões por jogada (dealer/mesa/provider/força) | acoplamento 100%/sessão |
+| **Testabilidade** | — | ✅ +~20 testes (fill-forward, dedup, mesa, plausibilidade, deal_capture) | suíte **651** |
+| **Confiabilidade** (aposta) | ✅ | ✅ | **lógica de aposta inalterada** (visão é metadata; dedup é flag OFF) |
+
+### D. Evidência de produção (verificada)
+- **Deploys** (deploy_pull.sh, rollback automático): `c57c853` → … → **`45d0779`**, container healthy, `/health=ok`, `ALEMBIC 0009 head`, 0 erros.
+- **Mesa pela foto:** jogadas 9237-9240 = `dealer_table='Roleta ao Vivo'` (4/4), **0** `Blackjack`.
+- **Fill-forward provado:** log da decisão 9194 = `[FOTO] dealer=None`, mas a linha gravou `dealer='THEO'` (herdado) → propagação funcionando; corte na troca de sessão confirmado.
+- **Verificação operacional (`resultados_bancos_junho.md` §10):** últimas 40 jogadas → `dealer` 40/40, `mesa` 40/40 (`Roleta ao Vivo`, 0 Blackjack), `provider` 40/40 `evolution`, **0 dealer-lixo**; **últimas 20 rodadas 100% OCR fresco**, o resto coberto por fill-forward.
+
+### E. Obrigações de manutenção (deltas deste ciclo)
+1. **`SDA_DEDUP_PHANTOM` é flag OFF a validar** — toca o caminho de aposta. Os dados mostram que ligar é seguro (ciclos reais ≥42s ≫ janela 20s); decisão do operador.
+2. **`SDA_DEALER_FILL_FORWARD=1` é metadata** — preenche `dealer`/`mesa`/`provider`, **nunca** influencia predição/stake. Se um dia o dealer virar input de aposta, re-auditar este caminho.
+3. **`vision_source='vision'` = foto fresca** (≥1 campo medido); campos individuais podem ser **medidos ou herdados** (fill-forward) → usar `vision_confidence` para confiança por-jogada.
+4. **Mesa = `wheel_model` (OCR)** — para Evolution a mesa e o modelo coincidem; se entrar provider com mesa ≠ modelo, separar os campos.
+5. **Feature store PG (gap não-bloqueante):** `cw/ccw.spin_features` tem as colunas de visão (migração 0009) mas o publisher não as preenche e `DUAL_WRITE_PG` está OFF — o **SoT SQLite basta** para análise. Se migrar a análise para o PG, ligar `DUAL_WRITE_PG=1` + mapear `dealer/dealer_table/wheel_model/vision_*` no publisher do outbox.
+6. **Dealer plausibilidade** — `_clean_dealer` rejeita nomes >2 palavras / com não-letras / rótulos. Se aparecer um nome real legítimo rejeitado, afinar a regra (hoje o risco é baixo e o fill-forward cobre).
+
+> **Veredito:** a visão **foto→dados** está **deployada, acoplada a 100%/sessão e limpa** — cada jogada identifica `dealer`+`mesa`+`provider`+`força` (auditável para estratégia), **sem alterar a lógica de aposta**, suíte **651 verde**. O dedup de fantasmas e o dual-write do PG ficam como itens opt-in documentados.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
