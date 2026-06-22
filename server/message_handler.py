@@ -68,6 +68,12 @@ class MessageHandler:
         self.last_decision_id: Optional[int] = None
         self.last_spin_hash: str = ""
         self.last_spin_ts: Optional[float] = None  # S-OBS-6: epoch float do último spin
+        # Phantom dedup (auditoria resultados_bancos 22/06): ultimo spin ACEITO
+        # (numero/sentido/ts ms) p/ rejeitar re-envios do mesmo numero+sentido em
+        # janela curta (extensao re-detecta o DOM estatico). Flag-gated, default OFF.
+        self._last_accept_num: Optional[int] = None
+        self._last_accept_dir: Optional[str] = None
+        self._last_accept_ts_ms: Optional[int] = None
         self._decision_count: int = 0
         self.extractor_service = ExtractorService(configs_path)
         # IMPL C1/C2 variável + Block-Gale (17/06): metadados por spin (gated por flag).
@@ -101,12 +107,32 @@ class MessageHandler:
             self._ff_dealer = str(dealer).strip()
             self._ff_session = self.current_session_id
 
-    def is_duplicate_spin(self, numero: int, timestamp: int) -> bool:
-        """Verifica se é um spin duplicado (mesmo número no mesmo segundo)."""
+    def is_duplicate_spin(self, numero: int, timestamp: int, direcao: Optional[str] = None) -> bool:
+        """Verifica se é um spin duplicado.
+
+        (1) Mesmo número no MESMO segundo (guarda original).
+        (2) PHANTOM (flag SDA_DEDUP_PHANTOM, default OFF): mesmo número+sentido do
+            último spin ACEITO dentro de uma janela curta (SDA_DEDUP_PHANTOM_WINDOW_MS,
+            default 20s). A extensão às vezes re-detecta o DOM estático e reenvia o
+            mesmo resultado 1-7s depois (o ciclo real é ~42-48s), o que o engine
+            processaria como giro real e corromperia a cadeia de predição/aposta.
+            A JANELA DE TEMPO é o discriminador (não a força — força=0 é só a
+            distância na roda de número repetido). Auditoria: resultados_bancos_junho.md.
+        """
         current_hash = f"{numero}_{timestamp // 1000}"
         if current_hash == self.last_spin_hash:
             return True
+        if direcao is not None and self._last_accept_ts_ms is not None:
+            from app_config.settings import dedup_phantom_enabled, dedup_phantom_window_ms
+            if (dedup_phantom_enabled()
+                    and numero == self._last_accept_num
+                    and direcao == self._last_accept_dir
+                    and 0 <= (timestamp - self._last_accept_ts_ms) <= dedup_phantom_window_ms()):
+                return True
         self.last_spin_hash = current_hash
+        self._last_accept_num = numero
+        self._last_accept_dir = direcao
+        self._last_accept_ts_ms = timestamp
         return False
 
     # ================= IMPL C1/C2 variável + Block-Gale (17/06) =================
@@ -357,7 +383,7 @@ class MessageHandler:
                 # Deduplicação para novo_resultado
                 if msg_type == "novo_resultado":
                     numero = data.get("numero")
-                    if self.is_duplicate_spin(numero, timestamp):
+                    if self.is_duplicate_spin(numero, timestamp, data.get("direcao")):
                         logger.info(f"🔄 Spin duplicado ignorado: {numero}")
                         return
 

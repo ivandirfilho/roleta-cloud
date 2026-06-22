@@ -253,3 +253,27 @@ def vision_attach_max_age_s() -> float:
         return max(0.0, float(os.environ.get("SDA_VISION_ATTACH_MAX_AGE_S", "0")))
     except (TypeError, ValueError):
         return 0.0
+
+
+def dedup_phantom_enabled() -> bool:
+    """Phantom dedup (auditoria resultados_bancos 22/06): rejeita re-envios do
+    MESMO número+sentido em janela curta (extensão re-detecta o DOM estático e
+    reenvia o resultado 1-7s depois; o ciclo real é ~42-48s). Esses giros fantasma
+    o engine processaria como reais, corrompendo a cadeia de predição/aposta.
+
+    Default **OFF** (toca o caminho de aposta — ligar só após validar). Ligar com
+    SDA_DEDUP_PHANTOM=1. Discriminador = janela de TEMPO (não a força).
+    """
+    import os
+    return os.environ.get("SDA_DEDUP_PHANTOM", "0").strip().lower() in ("1", "true", "on")
+
+
+def dedup_phantom_window_ms() -> int:
+    """Janela (ms) do phantom dedup: re-envio do mesmo número+sentido dentro dela é
+    descartado. Default 20000 (20s) — bem abaixo do ciclo real (~42-48s) e bem
+    acima dos re-envios observados (1-7s). Ajuste via SDA_DEDUP_PHANTOM_WINDOW_MS."""
+    import os
+    try:
+        return max(0, int(os.environ.get("SDA_DEDUP_PHANTOM_WINDOW_MS", "20000")))
+    except (TypeError, ValueError):
+        return 20000

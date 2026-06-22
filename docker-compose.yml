@@ -89,6 +89,11 @@ services:
       # Janela máx (s) p/ a foto/OCR colar na última decisão. 0 = sem limite
       # (comportamento atual). >0 = hardening anti cross-spin quando o OCR atrasa.
       - SDA_VISION_ATTACH_MAX_AGE_S=${SDA_VISION_ATTACH_MAX_AGE_S:-0}
+      # Phantom dedup (auditoria resultados_bancos 22/06): rejeita re-envio do mesmo
+      # numero+sentido em janela curta (extensao re-detecta DOM estatico). DEFAULT
+      # OFF (toca aposta). Ligar so apos validar: SDA_DEDUP_PHANTOM=1.
+      - SDA_DEDUP_PHANTOM=${SDA_DEDUP_PHANTOM:-0}
+      - SDA_DEDUP_PHANTOM_WINDOW_MS=${SDA_DEDUP_PHANTOM_WINDOW_MS:-20000}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
