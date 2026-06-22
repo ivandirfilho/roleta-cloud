@@ -233,11 +233,9 @@ Como o dealer/modelo/provider são **estáveis por turno**, o último OCR bem-su
 - **Sintoma (id 9221):** `dealer='/CROUPIEREEXPERIMENTE(E)'` — o OCR capturou texto de UI ("croupier/experimente") como nome e o `_parse_fields` aceitava qualquer `(.*)`. Pior: virava o contexto e era **propagado** (fill-forward) até o próximo OCR bom.
 - **Correção:** `_norm_dealer` agora **valida plausibilidade** — nome = 1-2 palavras só de letras (com acento), 2-16 chars, **sem** rótulos (`croupier/dealer/experimente/roleta/...`). Lixo → `None` → o fill-forward mantém o último dealer **válido**. Arquivo: `server/vision_ocr.py` (`_clean_dealer`). +teste com o lixo real de produção.
 
-### 9.4 Resultado ao vivo (antes → depois)
-- **Antes:** `dealer_table='Blackjack Silver D'` (100% errado); dealer-lixo `/CROUPIER...` passava.
-- **Depois (pós-deploy):** _preenchido na verificação ao vivo abaixo._
-
-<!-- LIVE_AFTER_2 -->
+### 9.4 Resultado ao vivo (antes → depois) — PROVADO
+- **Antes:** `dealer_table='Blackjack Silver D'` em **100%** das linhas (DOM errado); dealer-lixo `/CROUPIEREEXPERIMENTE(E)` (id 9221) passava e era propagado.
+- **Depois (pós-deploy `b0c62c4`):** jogadas 9237-9240 → `dealer_table='Roleta ao Vivo'` (**4/4**, mesa do OCR), **0** `Blackjack`; dealer=`ELINE` (limpo). A **mesa agora vem da foto** e o dealer-lixo é rejeitado na origem (teste com o lixo real de produção verde).
 
 ### 9.5 Veredito — a infra de banco/arquitetura está OK?
 > **SIM para o objetivo declarado.** O **SoT (SQLite)** grava, por jogada e numa única linha, as 4 dimensões — agora com **dealer higienizado**, **mesa vinda da foto** (não mais o DOM errado), `provider` e `força`. É o "fluxo do banco" e está **íntegro e auditável** para projetar estratégias.
