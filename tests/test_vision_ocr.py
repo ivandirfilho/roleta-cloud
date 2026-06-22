@@ -157,6 +157,12 @@ def test_parse_fields_rejects_self_dashboard():
     # dealer == identidade própria também é rejeitado
     dealer2, _w2, _p2 = vision_ocr._parse_fields(["Dealer Roleta Cloud"])
     assert dealer2 is None
+    # BUG-6 (22/06): variantes SEM espaço / com hífen que escapavam do match antigo
+    for variant in ("Roletacloud", "roleta-cloud", "ROLETACLOUD", "xma-ia"):
+        assert vision_ocr._is_self(variant) is True, variant
+    # roleta REAL não é falso-positivo
+    assert vision_ocr._is_self("Roleta ao Vivo") is False
+    assert vision_ocr._is_self("Lightning Roulette") is False
 
 
 def test_parse_fields_infers_provider_from_wheel():

@@ -184,15 +184,20 @@ def _crop(arr, roi: Optional[dict]):
 # BUG-FIX 21/06 (auditoria pos-foto): identidade do PROPRIO produto/dashboard.
 # O OCR as vezes pega a aba do dashboard ('Roleta Cloud' / 'roleta.xma-ia.com')
 # em vez da mesa do cassino -> falso-positivo de wheel_model/dealer. Rejeitamos.
-_SELF_TOKENS = ("roleta cloud", "xma-ia", "xma ia", "escuta beat")
+# BUG-6 22/06 (auditoria profunda pos-reload): o OCR tambem le SEM espaco
+# ('Roletacloud') -> o match por substring com espaco falhava e vazava. Agora
+# normalizamos (remove nao-alfanumerico) p/ pegar todas as variantes de grafia.
+_SELF_TOKENS = ("roletacloud", "xmaia", "escutabeat")
 
 
 def _is_self(text: Optional[str]) -> bool:
-    """True se o texto e' a identidade do proprio app (nao uma mesa/dealer real)."""
+    """True se o texto e' a identidade do proprio app (nao uma mesa/dealer real).
+    Normaliza removendo nao-alfanumerico p/ casar 'Roleta Cloud', 'Roletacloud',
+    'roleta-cloud', 'xma-ia', 'xma ia' no mesmo token. BUG-6 (22/06)."""
     if not text:
         return False
-    low = text.lower()
-    return any(tok in low for tok in _SELF_TOKENS)
+    norm = re.sub(r"[^a-z0-9]", "", text.lower())
+    return any(tok in norm for tok in _SELF_TOKENS)
 
 
 def _parse_fields(texts: list[str]):
