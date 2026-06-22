@@ -241,3 +241,26 @@ Como o dealer/modelo/provider são **estáveis por turno**, o último OCR bem-su
 > **SIM para o objetivo declarado.** O **SoT (SQLite)** grava, por jogada e numa única linha, as 4 dimensões — agora com **dealer higienizado**, **mesa vinda da foto** (não mais o DOM errado), `provider` e `força`. É o "fluxo do banco" e está **íntegro e auditável** para projetar estratégias.
 >
 > **Ressalva (não-bloqueante):** o **feature store PG** está desligado (dual-write OFF) e não recebe a visão — por design (SQLite basta). **Recomendação (follow-up):** se a análise for migrar para o PG, ligar `DUAL_WRITE_PG=1` e mapear `dealer/dealer_table/wheel_model/vision_*` no publisher do outbox (hoje o `spin_features` tem as colunas — migração 0009 — mas o publisher não as preenche).
+
+---
+
+## 10. Verificação operacional (22/06 ~03:18Z) — conforme + fotos por rodada
+
+> Conferência ao vivo das últimas jogadas (conformidade da estrutura + a foto funcionando a cada rodada). DB de produção, por `id`.
+
+### 10.1 Conformidade da estrutura (últimas 40 jogadas)
+| Dimensão | Resultado | Status |
+|---|---|---|
+| `dealer` real | **40/40 (100%)** — OLIVER | ✅ |
+| `dealer_table` (**mesa**) real | **40/40 (100%)** — `Roleta ao Vivo` | ✅ |
+| mesa errada (`Blackjack`) | **0/40** | ✅ (fix §9.2 firme) |
+| `provider` = evolution | **40/40 (100%)** | ✅ |
+| `spin_force` > 0 | 35/40 (5 são nº repetido → dist 0, normal) | ✅ |
+| dealer-lixo (não-alfabético) | **0/40** | ✅ (fix §9.3 firme) |
+
+### 10.2 A foto está funcionando a cada rodada?
+- **Sim.** As **últimas 20 rodadas (9260-9279) têm 100% OCR fresco** (`vision_source='vision'`, conf ~0.96) — uma foto OCR'd por rodada. Na janela de 40: **34/40 (85%) com OCR fresco**; as 6 restantes ficam cobertas pelo **fill-forward** (dealer/mesa/provider mantidos) → **100% das rodadas têm os dados**.
+- **Cadência (logs FOTO):** 1 foto por rodada (~45s entre rodadas), OCR ~7s cada (9276→9277→9278→9279). Métricas: `vision_frames_total{ok}` e `vision_persisted_total` incrementando 1:1, **sem `busy`/`error`** na janela.
+
+### 10.3 Veredito
+> **Conforme o estruturado e a foto funcionando a cada rodada.** Nas últimas 40 jogadas: `dealer`, `mesa`, `provider` e `força` corretos e limpos (mesa da foto, 0 Blackjack; 0 dealer-lixo). O OCR aterrissou em **100% das últimas 20 rodadas**; quando uma foto eventualmente cai, o fill-forward garante a cobertura. **Toda jogada está auditável pelas 4 dimensões.**
