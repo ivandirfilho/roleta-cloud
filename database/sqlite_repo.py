@@ -585,6 +585,11 @@ class SQLiteDecisionRepository(DecisionRepository):
             if wheel_model:
                 sets.append("wheel_model = ?")
                 params.append(str(wheel_model)[:80])
+                # Mesa (auditoria 22/06): a mesa vem da FOTO. dealer_table espelha
+                # o modelo/jogo do OCR (o DOM trazia mesa errada). Assim a foto
+                # também carimba a mesa na decisão mais recente.
+                sets.append("dealer_table = ?")
+                params.append(str(wheel_model)[:80])
             if provider:
                 sets.append("provider = ?")
                 params.append(str(provider)[:40])

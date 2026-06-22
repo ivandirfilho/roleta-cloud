@@ -973,7 +973,10 @@ class MessageHandler:
                 # sessão a TODA jogada (flag SDA_DEALER_FILL_FORWARD; metadata, não
                 # toca aposta) → dados 100% acoplados. resultados_bancos_junho.md.
                 dealer=(_vf_dealer or "unknown"),
-                dealer_table=(getattr(spin, "table", None) or ""),
+                # Mesa (auditoria 22/06): vem da FOTO/OCR (o DOM trazia 'Blackjack
+                # Silver D' errado numa roleta). dealer_table = mesa do OCR
+                # (= wheel_model), com fill-forward. DOM descartado.
+                dealer_table=(_vf_wheel or ""),
                 provider=(_vf_provider or ""),
                 round_id=(getattr(spin, "round_id", None) or ""),
                 wheel_model=(_vf_wheel or ""),

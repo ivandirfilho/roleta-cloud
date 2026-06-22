@@ -163,6 +163,8 @@ def test_update_last_vision_persists_on_latest_decision(tmp_db):
     loaded = repo.get_decision(last_id)
     assert loaded.dealer == "Carlos"
     assert loaded.wheel_model == "evo_immersive"
+    # Mesa (auditoria 22/06): a foto também carimba dealer_table = mesa do OCR.
+    assert loaded.dealer_table == "evo_immersive"
     assert loaded.provider == "evolution"
     assert abs(loaded.vision_confidence - 0.91) < 1e-9
     assert loaded.vision_source == "vision"

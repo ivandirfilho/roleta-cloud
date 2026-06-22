@@ -260,12 +260,37 @@ def _norm_ws(s: str) -> str:
 
 
 def _norm_dealer(name: Optional[str]) -> Optional[str]:
-    """Canonicaliza o nome do dealer p/ agrupar variantes de OCR
-    (LEVI/Levi/levi -> LEVI). Casas exibem o nome em CAIXA ALTA."""
+    """Canonicaliza + VALIDA o nome do dealer. Agrupa variantes (Levi->LEVI) e
+    REJEITA lixo de OCR (BUG 22/06: '/CROUPIEREEXPERIMENTE(E)' virava dealer e era
+    propagado). Retorna None se implausível → o fill-forward mantém o último válido."""
     if not name:
         return name
-    out = _norm_ws(name).upper()
-    return out or None
+    return _clean_dealer(name)
+
+
+# Palavras que NUNCA fazem parte de um nome de dealer (rótulos/UI capturados junto).
+_DEALER_LABEL_WORDS = (
+    "CROUPIER", "CRUPIE", "DEALER", "EXPERIMENTE", "EXPERIMENT",
+    "MESA", "TABLE", "ROLETA", "ROULETTE", "VIVO", "AOVIVO",
+)
+
+
+def _clean_dealer(name: Optional[str]) -> Optional[str]:
+    """Valida plausibilidade de um nome de dealer (1-2 palavras só de letras,
+    2-16 chars, sem rótulos de UI). Devolve em CAIXA ALTA, ou None se for lixo."""
+    if not name:
+        return None
+    # troca tudo que não é letra (com acento) por espaço; colapsa
+    core = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ ]", " ", str(name))
+    core = re.sub(r"\s+", " ", core).strip()
+    if not (2 <= len(core) <= 16):
+        return None
+    up = core.upper()
+    if any(w in up for w in _DEALER_LABEL_WORDS):
+        return None
+    if len(core.split()) > 2:
+        return None
+    return up
 
 
 # BUG-FIX 21/06 (auditoria pos-foto): defaults EMBUTIDOS p/ canonizar variantes de

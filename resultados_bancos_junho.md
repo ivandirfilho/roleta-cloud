@@ -206,3 +206,40 @@ Como o dealer/modelo/provider são **estáveis por turno**, o último OCR bem-su
 
 ### 8.5 Veredito da sprint
 > Sob a premissa (foto autoritativa), a infra agora acopla **dealer+modelo+provider a 100% das jogadas** da sessão (propagados do último OCR), preservando a distinção *medido vs propagado* via `vision_source`. Combinado com `provider` (host) e `força` (engine) já universais, **toda jogada fica auditável pelas 4 dimensões** — habilitando estratégia por dealer/modelo. O dedup de fantasmas (§6.1) segue como flag separada a validar.
+
+---
+
+## 9. SPRINT 2 (22/06) — mesa pela foto + higiene do dealer + veredito da infra de banco
+
+> **Premissa:** *a cada jogada a foto deve identificar **dealer + mesa + provedor** e gravar no fluxo do banco para análise posterior. A infra de banco/arquitetura está OK?*
+
+### 9.1 Auditoria da infraestrutura de dados (citando o código + estado ao vivo)
+```
+[Engine = escritor ÚNICO] handle_new_result → SpinInput → save_decision
+        ▼
+[SoT] SQLite decisions (41 cols, UMA linha/jogada): dealer+dealer_table+provider+
+      wheel_model+spin_force+spin_direction+vision_*  ← TUDO numa linha (✅)
+        ▼
+[Outbox/CDC] maybe_publish_spin_result → cdc-worker → [PG] cw/ccw.spin_features
+```
+- **SoT (SQLite):** ✅ tem as 4 dimensões por jogada e é consultável (esta auditoria toda saiu dele). É o "fluxo do banco" — e está **íntegro**.
+- **Feature store (PG):** ⚠️ `cw.spin_features` = **2360 linhas, mas `wheel_model`=0** (e `DUAL_WRITE_PG` unset → **dual-write OFF**). A visão **não flui** para o PG. Por design o PG é analítico-opcional (SQLite basta), então **não bloqueia** a análise — mas é um **gap** se a análise for via PG (ver §9.5).
+
+### 9.2 🐞 BUG-A — a MESA não vinha da foto (DOM errado)
+- **Sintoma (ao vivo, todas as linhas):** `dealer_table='Blackjack Silver D'` numa sessão de **Roleta** — o seletor DOM pegava um **tile de Blackjack**. A mesa real do OCR (`'Roleta ao Vivo'`) só existia em `wheel_model`; `update_last_vision` **nem gravava** `dealer_table`.
+- **Correção:** a **mesa agora vem da FOTO**. `dealer_table` = mesa do OCR (= `wheel_model`), com **fill-forward** (100%/sessão); o DOM é **descartado**. `update_last_vision` também carimba `dealer_table` quando a foto traz o modelo/jogo. Arquivos: `server/message_handler.py` (Decision), `database/sqlite_repo.py` (`update_last_vision`).
+
+### 9.3 🐞 BUG-B — dealer com LIXO de OCR (sem validação)
+- **Sintoma (id 9221):** `dealer='/CROUPIEREEXPERIMENTE(E)'` — o OCR capturou texto de UI ("croupier/experimente") como nome e o `_parse_fields` aceitava qualquer `(.*)`. Pior: virava o contexto e era **propagado** (fill-forward) até o próximo OCR bom.
+- **Correção:** `_norm_dealer` agora **valida plausibilidade** — nome = 1-2 palavras só de letras (com acento), 2-16 chars, **sem** rótulos (`croupier/dealer/experimente/roleta/...`). Lixo → `None` → o fill-forward mantém o último dealer **válido**. Arquivo: `server/vision_ocr.py` (`_clean_dealer`). +teste com o lixo real de produção.
+
+### 9.4 Resultado ao vivo (antes → depois)
+- **Antes:** `dealer_table='Blackjack Silver D'` (100% errado); dealer-lixo `/CROUPIER...` passava.
+- **Depois (pós-deploy):** _preenchido na verificação ao vivo abaixo._
+
+<!-- LIVE_AFTER_2 -->
+
+### 9.5 Veredito — a infra de banco/arquitetura está OK?
+> **SIM para o objetivo declarado.** O **SoT (SQLite)** grava, por jogada e numa única linha, as 4 dimensões — agora com **dealer higienizado**, **mesa vinda da foto** (não mais o DOM errado), `provider` e `força`. É o "fluxo do banco" e está **íntegro e auditável** para projetar estratégias.
+>
+> **Ressalva (não-bloqueante):** o **feature store PG** está desligado (dual-write OFF) e não recebe a visão — por design (SQLite basta). **Recomendação (follow-up):** se a análise for migrar para o PG, ligar `DUAL_WRITE_PG=1` e mapear `dealer/dealer_table/wheel_model/vision_*` no publisher do outbox (hoje o `spin_features` tem as colunas — migração 0009 — mas o publisher não as preenche).

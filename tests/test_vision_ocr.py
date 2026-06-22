@@ -124,6 +124,25 @@ def test_dealer_normalized_uppercase():
     assert d1 == "LEVI" and d2 == "LEVI"
 
 
+def test_dealer_plausibility_rejects_ocr_garbage():
+    """BUG 22/06: o OCR às vezes captura UI ('/CROUPIEREEXPERIMENTE(E)') como
+    dealer. _norm_dealer agora REJEITA lixo (rótulos/pontuação/comprido) → None."""
+    # lixo real visto em produção
+    assert vision_ocr._norm_dealer("/CROUPIEREEXPERIMENTE(E)") is None
+    assert vision_ocr._norm_dealer("CROUPIER") is None
+    assert vision_ocr._norm_dealer("Roleta ao Vivo") is None      # mesa, não dealer
+    assert vision_ocr._norm_dealer("12345") is None
+    assert vision_ocr._norm_dealer("A") is None                    # curto demais
+    assert vision_ocr._norm_dealer("UM NOME MUITO COMPRIDO DEMAIS") is None
+    # nomes reais passam (inclusive com acento e 2 palavras)
+    assert vision_ocr._norm_dealer("Felipe") == "FELIPE"
+    assert vision_ocr._norm_dealer("joão") == "JOÃO"
+    assert vision_ocr._norm_dealer("Ana Paula") == "ANA PAULA"
+    # via _parse_fields: 'croupier' + lixo não vira dealer
+    d, _w, _p = vision_ocr._parse_fields(["Croupier /EXPERIMENTE(E)", "Roleta ao Vivo"])
+    assert d is None
+
+
 def test_model_normalized_title_case_and_whitespace():
     """Modelo desconhecido: espaços colapsados + Title Case (variantes de espaço agrupam)."""
     _d, w1, _ = vision_ocr._parse_fields(["Speed  Auto   Roulette"])
