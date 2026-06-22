@@ -196,11 +196,13 @@ Como o dealer/modelo/provider são **estáveis por turno**, o último OCR bem-su
 
 **Corte na troca:** um dealer/modelo real novo no OCR substitui o anterior; `nova_sessao` (troca de mesa/dealer) zera o contexto. **Testes:** +4 casos (`tests/test_dealer_fill_forward.py`: dealer+modelo+provider propagam, corte por sessão, flag).
 
-### 8.4 Resultado ao vivo (antes → depois)
-- **Antes (amostra 40):** `dealer`=5/40 (12%), `modelo`=7/40 (17%).
-- **Depois (pós-deploy, ligado):** _preenchido na verificação ao vivo abaixo._
+### 8.4 Resultado ao vivo (antes → depois) — PROVADO
+- **Antes (amostra 40, código antigo):** `dealer`=5/40 (**12%**), `modelo`=7/40 (**17%**) — só jogadas com OCR fresco; ~83% inauditáveis por dealer/modelo.
+- **Depois (pós-deploy `3e2e6b9`, flag ON), sessão real `3d0c2ad2`:** `modelo`=**6/6 (100%)**, `dealer`=**5/6 (83%)**. O único `dealer='unknown'` é a **1ª jogada da sessão** (antes do 1º OCR de dealer — fundamental, ainda não há dado).
+- **Prova do fill-forward (log de produção):** a foto da decisão **9194** retornou `[FOTO] dealer=None wheel='Roleta ao Vivo'` (o OCR **não leu** o dealer naquele frame), mas a linha 9194 gravou **`dealer='THEO'`** — herdado do contexto (OCR de 9193). Sem o fill-forward, 9194 seria `unknown`.
+- **Corte na troca confirmado:** houve um `nova_sessao` às 02:13:04 (`3d0c2ad2`); o contexto **zerou** corretamente → a 1ª jogada nova (9192) ficou `unknown` até o OCR re-capturar o dealer (9193 em diante = `THEO`).
 
-<!-- LIVE_AFTER -->
+> **Cobertura efetiva:** ~**100% por sessão após o 1º OCR de dealer** (a 1ª jogada de cada sessão fica `unknown` até a 1ª foto capturar o dealer — limite físico, não bug). `modelo` chega a 100% (OCR de mesa é mais robusto que o do nome). `vision_source='vision'` marca jogadas com foto fresca (≥1 campo medido); campos individuais podem ser medidos **ou** herdados — para confiança por-jogada use `vision_confidence`.
 
 ### 8.5 Veredito da sprint
 > Sob a premissa (foto autoritativa), a infra agora acopla **dealer+modelo+provider a 100% das jogadas** da sessão (propagados do último OCR), preservando a distinção *medido vs propagado* via `vision_source`. Combinado com `provider` (host) e `força` (engine) já universais, **toda jogada fica auditável pelas 4 dimensões** — habilitando estratégia por dealer/modelo. O dedup de fantasmas (§6.1) segue como flag separada a validar.
