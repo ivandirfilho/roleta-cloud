@@ -95,3 +95,47 @@ def test_handler_remember_dealer_from_vision(monkeypatch):
     assert h._resolve_spin_dealer(None) == "STEFANY"
     h._remember_dealer("unknown")                      # não sobrescreve com lixo
     assert h._resolve_spin_dealer(None) == "STEFANY"
+
+
+# ---------- vision-context UNIFICADO (dealer+modelo+provider) ----------
+
+def test_vision_context_fills_all_three(monkeypatch):
+    """resultados_bancos 22/06: dealer+modelo+provider propagam do último OCR a
+    TODA jogada (100% acoplado)."""
+    monkeypatch.setenv("SDA_DEALER_FILL_FORWARD", "1")
+    h = _make_handler()
+    # OCR de um giro traz os 3
+    h._remember_vision("FELIPE", "Roleta ao Vivo", "evolution")
+    # giro seguinte SEM nada (DOM não casa) → herda os 3
+    d, w, p = h._apply_vision_context(None, "", None)
+    assert (d, w, p) == ("FELIPE", "Roleta ao Vivo", "evolution")
+    # giro com dealer real novo → corta (troca); modelo/provider seguem herdados
+    d2, w2, p2 = h._apply_vision_context("THON", "", None)
+    assert d2 == "THON" and w2 == "Roleta ao Vivo" and p2 == "evolution"
+
+
+def test_vision_context_disabled_no_fill(monkeypatch):
+    monkeypatch.setenv("SDA_DEALER_FILL_FORWARD", "0")
+    h = _make_handler()
+    h._remember_vision("FELIPE", "Roleta ao Vivo", "evolution")
+    d, w, p = h._apply_vision_context(None, "", None)
+    assert d is None and (w in (None, "")) and p is None  # flag OFF: não herda
+
+
+def test_vision_context_session_change_clears(monkeypatch):
+    monkeypatch.setenv("SDA_DEALER_FILL_FORWARD", "1")
+    h = _make_handler()
+    h._remember_vision("FELIPE", "Roleta ao Vivo", "evolution")
+    h.current_session_id = "outrasess"                 # troca de sessão
+    d, w, p = h._apply_vision_context(None, "", None)
+    assert d is None and (w in (None, "")) and p is None  # não vaza entre sessões
+
+
+def test_vision_context_real_value_passes_and_updates(monkeypatch):
+    monkeypatch.setenv("SDA_DEALER_FILL_FORWARD", "1")
+    h = _make_handler()
+    # provider real do DOM (evolution) passa e vira o último conhecido
+    d, w, p = h._apply_vision_context("unknown", "", "evolution")
+    assert p == "evolution"
+    d2, w2, p2 = h._apply_vision_context(None, "", None)
+    assert p2 == "evolution"                            # herdado

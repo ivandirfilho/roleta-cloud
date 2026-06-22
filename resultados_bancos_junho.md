@@ -166,3 +166,41 @@ Ou seja: **dealer × modelo × fornecedor × força por sentido é consultável*
 | `dealer_table` / `round_id` | metadados DOM | seletor pega mesa errada / vazio | ⚠️ baixo impacto |
 
 > **Resumo de 1 linha:** a **estrutura de dados está como projetada** — fornecedor e força são identificáveis por jogada (quase 100%), dealer/modelo vêm da foto (por design, em ramp-up), e a 4-tupla completa é consultável na mesma linha. O **único desvio relevante** eram os **giros fantasma** (re-envio da extensão corrompendo ~17% da cadeia de aposta) — **encontrado, explicado pelo código e corrigido** com dedup por janela de tempo (**flag OFF**, pronto para validar e ligar). Achados menores (OCR/seletor DOM) documentados como follow-up. Suíte **646 verde**.
+
+---
+
+## 8. SPRINT DE CORREÇÃO (22/06) — premissa: foto autoritativa, acoplada a 100%
+
+> **Premissa do dono (decisiva):** *"a chamada de dealer, provider e modelo de roleta pelo DOM **nunca funcionou** — por isso estruturamos a foto para extrair a cada jogada. Organize para que tudo funcione perfeitamente **acoplado** em toda a infra e fluxo de dados, para auditar dados **100% funcionais** para projetar estratégias."*
+
+### 8.1 Auditoria do próprio documento (bugs/lacunas)
+- **Lacuna de enquadramento (corrigida aqui):** as §5/§7 tratavam a cobertura de `dealer`/`modelo` de ~12-17% como *"✅ por design / ramp-up / aceitável"*. **Sob a premissa, isso é um BUG**, não um "aceitável": se a foto é a fonte autoritativa, dealer/modelo têm de estar em **TODA** jogada (acoplados), não só nas que recebem OCR fresco.
+- **Nuance do `provider` (esclarecida):** a §1 dizia "provider via DOM 100%". Preciso: o *elemento* DOM nunca casou; o que funciona é o **host** do iframe (`evo-games`→`evolution`) — um fallback, não a leitura de DOM. Por isso o `provider` também entra no contexto de visão (fill-forward) para robustez se o host falhar.
+- Demais números/cenários da auditoria reversa (§4) foram reconferidos e **estão corretos**.
+
+### 8.2 🐞 BUG CENTRAL — vision não acoplada a 100% das jogadas
+- **Sintoma (§4):** `dealer`=5/40 e `modelo`=7/40 — só as jogadas com **OCR fresco** (a foto leva 5-6.7s e o single-flight descarta sobrepostas; nem todo giro recebe OCR bem-sucedido). As outras ~83% ficavam `dealer='unknown'`, `wheel_model=''` → **inauditáveis por dealer/modelo** → estratégia por dealer inviável na maioria dos giros.
+- **Causa-raiz:** o enriquecimento de visão entrava **só** via `update_last_vision` (foto daquele giro) e o fill-forward existente cobria **apenas o dealer** e estava **desligado**. `wheel_model`/`provider` não tinham propagação.
+
+### 8.3 ✅ Correção — vision-context fill-forward UNIFICADO (dealer+modelo+provider)
+Como o dealer/modelo/provider são **estáveis por turno**, o último OCR bem-sucedido define o "contexto de visão" da sessão, **carimbado em TODA jogada** no momento da criação da decisão:
+
+| Camada | Mudança | Arquivo |
+|---|---|---|
+| Lógica pura | `resolve_value`/`is_real_value` (genérico p/ qualquer atributo de visão) | `core/dealer_fill.py` |
+| Engine | `_apply_vision_context(dealer,modelo,provider)` resolve os 3 com fill-forward; `_remember_vision(...)` aprende do OCR (`handle_foto_frame`); reset/sessão limpam o contexto | `server/message_handler.py` |
+| Decisão | a linha grava o **melhor conhecido** dos 3 (não só o do giro) | `message_handler.py` (Decision) |
+| Flag | `SDA_DEALER_FILL_FORWARD` agora cobre os **3** campos; **LIGADA em produção** (`=1`) | `app_config/settings.py`, `docker-compose.yml` |
+
+**Semântica preservada (auditável):** `vision_source='vision'` **continua** marcando só as jogadas com **OCR fresco** (com `vision_confidence`); as demais recebem dealer/modelo/provider **herdados** com `vision_source=''`. Assim o auditor distingue *medido* (`vision_source='vision'`) de *propagado* — sem perder cobertura. **Metadata: NÃO toca o caminho de aposta.**
+
+**Corte na troca:** um dealer/modelo real novo no OCR substitui o anterior; `nova_sessao` (troca de mesa/dealer) zera o contexto. **Testes:** +4 casos (`tests/test_dealer_fill_forward.py`: dealer+modelo+provider propagam, corte por sessão, flag).
+
+### 8.4 Resultado ao vivo (antes → depois)
+- **Antes (amostra 40):** `dealer`=5/40 (12%), `modelo`=7/40 (17%).
+- **Depois (pós-deploy, ligado):** _preenchido na verificação ao vivo abaixo._
+
+<!-- LIVE_AFTER -->
+
+### 8.5 Veredito da sprint
+> Sob a premissa (foto autoritativa), a infra agora acopla **dealer+modelo+provider a 100% das jogadas** da sessão (propagados do último OCR), preservando a distinção *medido vs propagado* via `vision_source`. Combinado com `provider` (host) e `força` (engine) já universais, **toda jogada fica auditável pelas 4 dimensões** — habilitando estratégia por dealer/modelo. O dedup de fantasmas (§6.1) segue como flag separada a validar.

@@ -84,28 +84,60 @@ class MessageHandler:
         # (não toca aposta). Ver core/dealer_fill.py + SDA_DEALER_FILL_FORWARD.
         self._ff_dealer: Optional[str] = None
         self._ff_session: Optional[str] = None
+        # Vision-context fill-forward UNIFICADO (resultados_bancos 22/06): a foto/OCR
+        # e' a fonte autoritativa de dealer/modelo/provider (o DOM da Evolution nao
+        # os expoe). Propaga o ULTIMO valor real de cada um a TODA jogada da sessao,
+        # p/ os dados ficarem 100% acoplados (auditaveis/estrategia). Metadata, nao
+        # toca aposta. Mesma flag SDA_DEALER_FILL_FORWARD.
+        self._ff_wheel: Optional[str] = None
+        self._ff_provider: Optional[str] = None
 
-    def _resolve_spin_dealer(self, raw_dealer: Optional[str]) -> Optional[str]:
-        """Vision fill-forward (21/06): resolve o dealer do giro e atualiza o
-        último conhecido da sessão. Flag SDA_DEALER_FILL_FORWARD (default OFF);
-        metadata pura, nunca altera decisão de aposta. Corta na troca de sessão."""
-        from core.dealer_fill import resolve_dealer
-        from app_config.settings import dealer_fill_forward_enabled
+    def _vision_ctx_reset_if_new_session(self) -> None:
         if self._ff_session != self.current_session_id:
             self._ff_dealer = None
+            self._ff_wheel = None
+            self._ff_provider = None
             self._ff_session = self.current_session_id
+
+    def _apply_vision_context(self, raw_dealer, raw_wheel, raw_provider):
+        """Resolve dealer/modelo/provider do giro com fill-forward do último OCR da
+        sessão (flag SDA_DEALER_FILL_FORWARD). Devolve (dealer, wheel, provider).
+        Metadata pura — nunca altera decisão de aposta. Corta na troca de sessão."""
+        from core.dealer_fill import resolve_value
+        from app_config.settings import dealer_fill_forward_enabled
+        self._vision_ctx_reset_if_new_session()
+        en = dealer_fill_forward_enabled()
+        dealer, self._ff_dealer = resolve_value(raw_dealer, self._ff_dealer, en)
+        wheel, self._ff_wheel = resolve_value(raw_wheel, self._ff_wheel, en)
+        provider, self._ff_provider = resolve_value(raw_provider, self._ff_provider, en)
+        return dealer, wheel, provider
+
+    def _remember_vision(self, dealer, wheel_model, provider) -> None:
+        """Registra os valores REAIS de um OCR (handle_foto_frame) como último
+        conhecido da sessão, p/ os próximos giros herdarem (fill-forward)."""
+        from core.dealer_fill import is_real_value
+        self._vision_ctx_reset_if_new_session()
+        if is_real_value(dealer):
+            self._ff_dealer = str(dealer).strip()
+        if is_real_value(wheel_model):
+            self._ff_wheel = str(wheel_model).strip()
+        if is_real_value(provider):
+            self._ff_provider = str(provider).strip()
+
+    def _resolve_spin_dealer(self, raw_dealer: Optional[str]) -> Optional[str]:
+        """Vision fill-forward (21/06): resolve só o dealer (mantido p/ testes).
+        Flag SDA_DEALER_FILL_FORWARD (default OFF); metadata, não toca aposta."""
+        from core.dealer_fill import resolve_dealer
+        from app_config.settings import dealer_fill_forward_enabled
+        self._vision_ctx_reset_if_new_session()
         used, self._ff_dealer = resolve_dealer(
             raw_dealer, self._ff_dealer, dealer_fill_forward_enabled()
         )
         return used
 
     def _remember_dealer(self, dealer: Optional[str]) -> None:
-        """Vision fill-forward (21/06): registra um dealer real (ex.: vindo do OCR
-        em handle_foto_frame) como último conhecido da sessão atual."""
-        from core.dealer_fill import is_real_dealer
-        if is_real_dealer(dealer):
-            self._ff_dealer = str(dealer).strip()
-            self._ff_session = self.current_session_id
+        """Compat: registra só o dealer (delega ao vision-context unificado)."""
+        self._remember_vision(dealer, None, None)
 
     def is_duplicate_spin(self, numero: int, timestamp: int, direcao: Optional[str] = None) -> bool:
         """Verifica se é um spin duplicado.
@@ -895,6 +927,13 @@ class MessageHandler:
                 )
 
             # Salvar nova decisão
+            # Vision-context fill-forward (22/06): resolve dealer/modelo/provider
+            # uma vez (foto autoritativa + propagação do último OCR da sessão).
+            _vf_dealer, _vf_wheel, _vf_provider = self._apply_vision_context(
+                getattr(spin, "dealer", None),
+                getattr(spin, "wheel_model", None),
+                getattr(spin, "provider", None),
+            )
             decision = Decision(
                 session_id=self.current_session_id,
                 spin_number=numero,
@@ -928,16 +967,16 @@ class MessageHandler:
                 ),
                 calibration_offset=0,
                 performance_snapshot=self.game_state.target_performance[:12],
-                # SP-13 DEAL-03 (27/05): propaga metadata DOM se presente.
-                # Vision fill-forward (21/06): _resolve_spin_dealer propaga o
-                # último dealer real da sessão quando o giro vem sem dealer
-                # (flag SDA_DEALER_FILL_FORWARD; metadata, não toca aposta).
-                dealer=(self._resolve_spin_dealer(getattr(spin, "dealer", None)) or "unknown"),
+                # SP-13 DEAL-03 (27/05) + Vision-context fill-forward (22/06):
+                # dealer/modelo/provider vêm da FOTO (autoritativa; o DOM da
+                # Evolution não os expõe). O fill-forward propaga o último OCR da
+                # sessão a TODA jogada (flag SDA_DEALER_FILL_FORWARD; metadata, não
+                # toca aposta) → dados 100% acoplados. resultados_bancos_junho.md.
+                dealer=(_vf_dealer or "unknown"),
                 dealer_table=(getattr(spin, "table", None) or ""),
-                provider=(getattr(spin, "provider", None) or ""),
+                provider=(_vf_provider or ""),
                 round_id=(getattr(spin, "round_id", None) or ""),
-                # Vision (foto_roleta Parte 4): propaga metadata de visao se presente.
-                wheel_model=(getattr(spin, "wheel_model", None) or ""),
+                wheel_model=(_vf_wheel or ""),
                 vision_confidence=(getattr(spin, "vision_confidence", None) or 0.0),
                 vision_source=(getattr(spin, "vision_source", None) or ""),
             )
@@ -1242,9 +1281,11 @@ class MessageHandler:
             new_session_id = uuid.uuid4().hex[:8]  # S-MIG-2: UUID em vez de session_<epoch_ms>
             db_service.create_session(new_session_id)
             self.current_session_id = new_session_id
-            # Vision fill-forward (21/06): nova sessão (troca de dealer/mesa)
-            # invalida o último dealer conhecido — refila do zero na sessão nova.
+            # Vision-context fill-forward (22/06): nova sessão (troca de dealer/mesa)
+            # invalida o contexto de visão — refila do zero na sessão nova.
             self._ff_dealer = None
+            self._ff_wheel = None
+            self._ff_provider = None
             self._ff_session = new_session_id
 
         # Resposta de confirmação
@@ -1364,10 +1405,12 @@ class MessageHandler:
                 result.get("confidence", 0.0), len(result.get("texts", [])),
                 result.get("ms", 0),
             )
-            # Vision fill-forward (21/06): um dealer real do OCR vira o "último
-            # conhecido" da sessão, p/ os próximos giros sem dealer herdarem
-            # (flag SDA_DEALER_FILL_FORWARD; metadata, não toca aposta).
-            self._remember_dealer(result.get("dealer"))
+            # Vision-context fill-forward (22/06): dealer+modelo+provider reais do
+            # OCR viram o "último conhecido" da sessão, p/ TODA jogada seguinte
+            # herdar (flag SDA_DEALER_FILL_FORWARD; metadata, não toca aposta).
+            self._remember_vision(
+                result.get("dealer"), result.get("wheel_model"), result.get("provider")
+            )
             # Persiste o OCR na decisão mais recente (foto->dados->DB). Defensivo:
             # safe_except nunca deixa a persistência derrubar o handler.
             if result.get("dealer") or result.get("wheel_model") or result.get("provider"):

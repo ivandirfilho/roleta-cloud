@@ -23,6 +23,23 @@ def is_real_dealer(dealer: Optional[str]) -> bool:
     return bool(dealer) and str(dealer).strip().lower() != UNKNOWN
 
 
+# Aliases genéricos: a MESMA semântica de fill-forward serve para qualquer
+# atributo estável de visão por sessão (dealer, wheel_model, provider). 'vazio'/
+# 'unknown' = não-real. Usado pelo vision-context fill-forward (resultados_bancos).
+def is_real_value(value: Optional[str]) -> bool:
+    """True se `value` é real (não vazio, não 'unknown'). Genérico (dealer/modelo/provider)."""
+    return is_real_dealer(value)
+
+
+def resolve_value(
+    raw_value: Optional[str],
+    last_known: Optional[str],
+    enabled: bool,
+) -> tuple[Optional[str], Optional[str]]:
+    """Alias genérico de resolve_dealer (mesma lógica) p/ qualquer atributo de visão."""
+    return resolve_dealer(raw_value, last_known, enabled)
+
+
 def resolve_dealer(
     raw_dealer: Optional[str],
     last_known: Optional[str],

@@ -81,9 +81,12 @@ services:
       - C_SELECTION_AUTO_PROMOTE=${C_SELECTION_AUTO_PROMOTE:-0}
       # 📸 Vision (auditoria_pos_foto 21/06) — 3 flags de higiene/cobertura, todas
       # DEFAULT OFF (rollback trivial, ISO obrig. #4: flags vivem no compose).
-      # Fill-forward do dealer por sessão (propaga o último dealer real p/ giros
-      # sem dealer; metadata, NÃO toca aposta). Ligar após validar cobertura.
-      - SDA_DEALER_FILL_FORWARD=${SDA_DEALER_FILL_FORWARD:-0}
+      # 📸 Vision (auditoria_pos_foto 21/06 + resultados_bancos 22/06) — vision-context
+      # fill-forward: a foto/OCR e' a fonte autoritativa de dealer/modelo/provider (o
+      # DOM da Evolution NAO os expoe); propaga o ultimo OCR da sessao a TODA jogada
+      # p/ dados 100% acoplados (auditaveis/estrategia). Metadata, NAO toca aposta.
+      # LIGADO em producao (=1) por decisao do dono. Rollback: =0 + redeploy.
+      - SDA_DEALER_FILL_FORWARD=${SDA_DEALER_FILL_FORWARD:-1}
       # Consumidor dormante de perfil de força por dealer (n≥30). Só após ramp-up.
       - SDA_DEALER_FORCE_PROFILE=${SDA_DEALER_FORCE_PROFILE:-0}
       # Janela máx (s) p/ a foto/OCR colar na última decisão. 0 = sem limite

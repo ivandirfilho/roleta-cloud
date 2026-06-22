@@ -215,13 +215,15 @@ def c_selection_auto_promote_enabled() -> bool:
 
 
 def dealer_fill_forward_enabled() -> bool:
-    """Vision (auditoria_pos_foto 21/06) — fill-forward do dealer por sessão.
+    """Vision-context fill-forward (resultados_bancos 22/06) — a foto/OCR é a fonte
+    AUTORITATIVA de dealer/modelo/provider (o DOM da Evolution não os expõe). Quando
+    o giro chega sem esses campos, propaga o ÚLTIMO valor real de cada um da MESMA
+    sessão (do último OCR) para TODA jogada, deixando os dados 100% acoplados
+    (auditáveis/estratégia). Corta na troca (valor real novo substitui) e na sessão.
+    É METADATA — não altera nenhuma decisão de aposta.
 
-    Quando o giro chega sem dealer (DOM não casou e a foto ainda não aterrissou),
-    propaga o ÚLTIMO dealer real conhecido da MESMA sessão. Corta na troca (um
-    dealer real novo substitui o anterior) e na troca de sessão. É METADATA — não
-    altera nenhuma decisão de aposta. Default **OFF**; ligar com
-    SDA_DEALER_FILL_FORWARD=1. Auditoria: auditoria_pos_foto_21_junho.md §7.2.
+    Default do código **OFF** (testes/envs neutros); **produção liga via compose
+    (SDA_DEALER_FILL_FORWARD=1)**. Auditoria: resultados_bancos_junho.md §sprint.
     """
     import os
     return os.environ.get("SDA_DEALER_FILL_FORWARD", "0").strip().lower() in ("1", "true", "on")
