@@ -307,3 +307,33 @@ Para o banco ficar **como projetado**, rodei `tools/backfill_wheel_model.py --ap
 
 ### 14.4 Veredito
 > **Nenhuma regressão do reload.** O `host:*` está **eliminado pós-deploy** (server `sanitize_provider` confirmado). Achei e corrigi o **BUG-5** (frame de analytics sobrescrevendo o provider com `unknown`) com um guard de sinal real em `deal_capture.js` (**v3.4.2**) — após o **reload da v3.4.2**, o `provider` fica consistentemente `evolution` na origem. Server-side já protege o DB enquanto isso.
+
+---
+
+## 15. Auditoria PROFUNDA pós-reload v3.4.2 (22/06 ~00:08Z)
+
+> 2º reload (agora v3.4.2). Auditoria profunda: confirmar o BUG-5, caçar regressões e varrer o pipeline inteiro (provider/dealer/table/round/vision) + logs/saúde.
+
+### 15.1 ✅ BUG-5 confirmado CORRIGIDO (sem regressão)
+- Por `id` (autoritativo, sem depender de janela de tempo): a partir do reload (~00:00Z, ids 9016→9029) o `provider` é **100% `evolution`** — o último `unknown` foi o id 9015 (23:57, ainda v3.4.1).
+- **Sem regressão**: `provider` nunca caiu para vazio/null (o guard `hasUsefulSignal` não suprimiu o frame do jogo, que tem marca real `evolution`).
+- Logs confirmam: `[FOTO] dealer='OLIVER' wheel='Roleta ao Vivo' provider='evolution' conf=0.96` persistindo nas decisions 9019-9028.
+
+### 15.2 🐞 BUG-6 ENCONTRADO e CORRIGIDO (server-side) — self-capture sem espaço
+- **Sintoma (log ao vivo 00:08):** `[FOTO] dealer=None wheel='Roletacloud' provider=None` persistido na decision 9029 — o OCR pegou o **próprio dashboard** e vazou como `wheel_model`.
+- **Causa-raiz:** `_is_self` (vision_ocr.py) casava `'roleta cloud'` **com espaço**, mas o OCR lê `'Roletacloud'` **sem espaço** → substring não batia → não rejeitava.
+- **Correção:** `_is_self` agora **normaliza** (remove não-alfanumérico) antes do match → pega `Roleta Cloud`/`Roletacloud`/`roleta-cloud`/`xma-ia` no mesmo token, sem falso-positivo em roleta real (`Roleta ao Vivo`→False). Server-side → **deploy resolve sem reload da extensão**. Verificado em prod: `_is_self('Roletacloud')=True`, `_is_self('Roleta ao Vivo')=False`. Commit `e0038da`. +casos de teste.
+
+### 15.3 🔎 Achados de qualidade de dado (DOM — documentados, não corrigidos)
+Pré-existentes (seletores DOM client-side; exigem inspeção do DOM ao vivo para corrigir com segurança — **não** mexi às cegas):
+- **`dealer_table='Blackjack Silver D'`** em todas as linhas, numa sessão de **Roleta** (`wheel_model='Roleta ao Vivo'` pela visão). O seletor de mesa do DOM pega um **tile de Blackjack** errado. Impacto baixo (não entra na aposta); **a visão (`wheel_model`) é a fonte confiável da mesa/modelo**.
+- **`round_id` = 0/254** (nunca capturado) — seletor de round não casa. Usado só p/ deduplicação opcional.
+> Recomendação (follow-up, precisa do DOM ao vivo): afinar os seletores `table`/`round` por provider, ou tratar `wheel_model` (visão) como autoritativo para a mesa.
+
+### 15.4 ✅ Saúde do servidor & pipeline
+- **0 erros/exceptions**, sem `1011`/keepalive timeout; WS saudável, **MASTER presente**, container healthy.
+- Visão viva (OCR 5–6.7s/foto, dentro do single-flight); `spin_direction` 100%, `spin_force` ~80%, sem duplicatas.
+- Nota de método: a 1ª varredura por janela de tempo deu falso-positivo de `host:*` por um **bug de query** (timestamp usa separador `T` e `datetime('now')` usa espaço → comparação de string quebra). As verificações autoritativas foram por **`id`** e por **log**, e o teste direto do `SpinInput`/`_is_self` no container.
+
+### 15.5 Veredito
+> **BUG-5 corrigido e confirmado** (provider `evolution` consistente pós-v3.4.2, sem regressão). **BUG-6 encontrado e corrigido** (self-capture `Roletacloud` sem espaço) — server-side, já em produção (`e0038da`), **sem precisar de novo reload**. Pipeline saudável (0 erros). Restam 2 achados de **seletor DOM** (`table` errada / `round_id` vazio) documentados como follow-up — a **visão é a fonte confiável** de mesa/modelo. Suíte **641 verde**.
