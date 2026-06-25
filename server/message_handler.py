@@ -452,6 +452,8 @@ class MessageHandler:
                 await self.handle_get_state(websocket)
             elif msg_type == "direction_event":
                 await self.handle_direction_event(websocket, data)
+            elif msg_type == "set_seed":
+                await self.handle_set_seed(websocket, data)
             elif msg_type == "register":
                 device_id = data.get("device_id")
                 logger.info(f"📩 Recebido REGISTER de {conn_id} com device_id={device_id}")
@@ -688,15 +690,18 @@ class MessageHandler:
             from app_config.settings import phase_reconcile_enabled
             if phase_reconcile_enabled():
                 from state.phase import reconcile_shift
+                from state import phase_metrics
                 _all_nums = data.get("allNumbers") or []
                 _prev_nums = list(self.game_state.recent_results)
                 _k, _matched = reconcile_shift(_prev_nums, _all_nums)
                 _gap = max(0, _k - 1)
                 if _gap > 0:
                     self.game_state.spin_seq += _gap
+                    phase_metrics.incr("gap_recuperado_total", _gap)
                     logger.info(f"[FASE] gap recuperado: k={_k} ({_gap} giro(s) perdido(s))")
                 _phase_uncertain = (not _matched) and len(_prev_nums) > 0 and len(_all_nums) > 0
                 if _phase_uncertain:
+                    phase_metrics.incr("phase_uncertain_total")
                     logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
 
             # DIR5 (sentido-fase): AUTORIDADE da fase. Quando ligado, o servidor deixa
@@ -733,6 +738,8 @@ class MessageHandler:
                         if _fsrc and _fsrc != "deterministic_toggle":
                             _gs.direction_source = _fsrc
                     if _fused != _phase_norm(direcao):
+                        from state import phase_metrics
+                        phase_metrics.incr("direction_divergence_total")
                         logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_fused} (seq={_gs.spin_seq})")
                         direcao = _fused
 
@@ -1430,6 +1437,27 @@ class MessageHandler:
         await websocket.send(json.dumps({
             "type": "ack", "message": "direction_event recebido",
             "direction": direction, "t_server": now_ms(),
+        }))
+
+    async def handle_set_seed(self, websocket: WebSocketServerProtocol, data: Dict):
+        """DIR8 (sentido-fase): o operador define a fase-semente UMA vez (e opcionalmente
+        trava). A partir daí a fase é projetada deterministicamente; persistido (round-trip
+        save/load). É o ponto de RE-ANCORAGEM de fase pelo operador (não recálculo cego)."""
+        from state.phase import normalize as _norm
+        direction = _norm(data.get("direction") or "")
+        locked = bool(data.get("locked", False))
+        ok = direction in ("horario", "anti-horario")
+        if ok:
+            async with self.state_lock:
+                self.game_state.seed_parity = direction
+                self.game_state.seed_n = self.game_state.spin_seq
+                self.game_state.direction_source = "operator_seed"
+                self.game_state.direction_locked = locked
+                self.game_state.save()
+            logger.info(f"[FASE] seed do operador: {direction} (locked={locked}, seq={self.game_state.spin_seq})")
+        await websocket.send(json.dumps({
+            "type": "ack", "message": ("seed definido" if ok else "direction invalida"),
+            "direction": direction, "locked": locked, "t_server": now_ms(),
         }))
 
     async def handle_get_state(self, websocket: WebSocketServerProtocol):

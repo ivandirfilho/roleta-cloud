@@ -1027,6 +1027,11 @@ class GameState:
             "source": getattr(self, "direction_source", "") or "",
             "resync_advised": bool(getattr(self, "last_phase_uncertain", False)),
         }
+        try:
+            from state import phase_metrics
+            out["sentido"]["stats"] = phase_metrics.snapshot()
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra o overlay
+            pass
         return out
 
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:

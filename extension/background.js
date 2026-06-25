@@ -1243,6 +1243,13 @@ async function handleMessage(message, sender = null) {
   if (action === 'setDirection') {
     const isManualCorrection = message.manual === true;  // 🔧 Flag para distinguir
     currentDirection = message.direction || 'horario';
+    // 🆕 DIR8 (sentido-fase): a definição manual ANCORA a fase-semente (operador) e a
+    // propaga ao servidor (autoridade), que re-ancora a projeção determinística.
+    directionSeed = currentDirection;
+    chrome.storage.local.set({ directionSeed, currentDirection });
+    if (isManualCorrection) {
+      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: false });
+    }
     console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection})`);
     addLog('info', `Direção alterada: ${currentDirection}`);
 

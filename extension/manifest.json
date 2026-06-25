@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.5.2",
+  "version": "3.6.0",
   "description": "Monitor de resultados - v3.4.2 FIX: frame sem sinal real nao publica dealMeta (analytics nao sobrescreve provider do jogo). v3.4.1: provider sem host:* (recupera marca do dominio ou 'unknown'). v3.4 VISION: foto->dados (captura 1 frame/giro + OCR no servidor). v3.3 AUTO-START: detecta a roleta sozinha (zero-upload) via provider_router + manifests empacotados",
   "permissions": [
     "activeTab",
