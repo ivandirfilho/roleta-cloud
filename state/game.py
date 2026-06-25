@@ -254,6 +254,11 @@ class GameState:
     # fria C3 — nao mexer para nao quebrar SDA17). Tamanho controlado por
     # SDA_OVERLAY_ULTIMOS_N (default 12; 0 = desativa publicacao).
     _phase_overlay_ring: deque = field(default_factory=lambda: deque(maxlen=12))
+    # DIR19 (sentido-fase): buffer dedicado p/ shift de fase (DIR4). Mantem janela 20
+    # (suporta gap k<=20, > que recent_results maxlen=10). SEPARADO para nao alterar
+    # zona fria C3 (8 testes SDA17 dependem da janela 10 original). phase_advance ja
+    # aceita max_window=20 em state/phase.py.
+    _phase_results: deque = field(default_factory=lambda: deque(maxlen=20))
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -332,6 +337,8 @@ class GameState:
         self.recent_results = deque(maxlen=10)
         # DIR10 (sentido-fase): zera tambem o ring overlay — historico novo comeca limpo.
         self._phase_overlay_ring = deque(maxlen=12)
+        # DIR19 (sentido-fase): zera buffer de fase tambem (janela 20).
+        self._phase_results = deque(maxlen=20)
         
         # Calibração removida (momentum desabilitado)
         
@@ -414,6 +421,11 @@ class GameState:
         # V4: registra todo número sorteado (zona fria de C3), independente de
         # haver spin anterior. Antes do cálculo de força (BUG-F: ciclo de vida).
         self.recent_results.appendleft(numero)
+        # DIR19: buffer dedicado para shift (janela 20). Separado para nao alterar C3.
+        try:
+            self._phase_results.appendleft(int(numero))
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra fluxo de aposta
+            pass
         # DIR10 (sentido-fase): ring overlay rico (numero+seq+direction) — separado
         # para nao perturbar a zona fria C3. spin_seq atual reflete o evento ainda
         # nao incrementado (handle_new_result incrementa em :762 apos process_spin).
@@ -451,6 +463,11 @@ class GameState:
         populamos recent_results (zona fria C3) e o último número, SEM tocar
         timelines nem last_direction (a fase real entra com os giros ao vivo)."""
         self.recent_results.appendleft(numero)
+        # DIR19: historico tambem alimenta buffer de fase (janela 20).
+        try:
+            self._phase_results.appendleft(int(numero))
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra fluxo de aposta
+            pass
         # DIR10: historico tambem entra no ring overlay (NAO-direcional explicito).
         try:
             self._phase_overlay_ring.appendleft({
@@ -1334,6 +1351,8 @@ class GameState:
             # DIR10: ring overlay rico (numero+seq+direction). Round-trip preserva
             # historico recente atraves de restarts (cliente nao perde timeline).
             "_phase_overlay_ring": list(self._phase_overlay_ring),
+            # DIR19: buffer dedicado para shift (janela 20).
+            "_phase_results": list(self._phase_results),
             # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
             "c_selection": self.c_selection_engine.state_dict(),
             "block_gale": self.block_gale_engine.state_dict(),
@@ -1440,6 +1459,12 @@ class GameState:
                 gs._phase_overlay_ring = deque(_ring_data, maxlen=12)
             except Exception:  # noqa: BLE001
                 gs._phase_overlay_ring = deque(maxlen=12)
+            # DIR19: round-trip do buffer de fase.
+            try:
+                _phase_data = data.get("_phase_results", []) or []
+                gs._phase_results = deque(_phase_data, maxlen=20)
+            except Exception:  # noqa: BLE001
+                gs._phase_results = deque(maxlen=20)
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))

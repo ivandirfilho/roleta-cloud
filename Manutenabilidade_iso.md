@@ -1035,6 +1035,47 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-9) — SPR-DIR19: buffer de fase separado, maxlen=20 (fix #R)
+
+> Sprint P3. Aumenta a janela de shift de 10 para 20 SEM tocar em `recent_results` (8 testes SDA17 dependem do 10). Suíte **726 verde**.
+
+### A. Bug #R auditado
+`state/game.py:238` definia `recent_results = deque(maxlen=10)`. `phase_advance` (DIR4) aceitava `max_window=20` mas era limitado pela janela. Em minimização longa (>~20 s) ou troca de mesa com gap k>10, shift falhava prematuramente como `uncertain`.
+
+**Constraint:** mudar `recent_results` para 20 quebraria 8 testes da zona fria C3 (SDA17 depende da janela 10 para calcular frieza).
+
+### B. Correção
+- **`state/game.py:251`** — novo `_phase_results: deque(maxlen=20)` (SEPARADO de `recent_results`).
+- **`process_spin` + `register_history_number`** — appendleft em ambos os buffers (paralelos).
+- **`message_handler.py:700`** — `_prev_nums = list(getattr(self.game_state, "_phase_results", None) or self.game_state.recent_results)` (fallback para load_state legado).
+- **Round-trip** `save_state`/`load_state` (default `[]` se ausente).
+- **`reset_session`** zera o novo buffer.
+
+### C. Testes novos (`tests/test_dir19_phase_buffer_separado.py`, 8 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_buffer_separado_inicial` | `_phase_results` separado de `recent_results`. |
+| `test_process_spin_alimenta_buffers_em_paralelo` | Ambos crescem; nenhum perturba o outro. |
+| `test_register_history_alimenta_ambos` | Histórico → ambos. |
+| `test_phase_advance_aceita_janela_maior` | Gap k=14 recuperado com janela 20. |
+| `test_roundtrip_phase_results_em_save_load` | Sobrevive a restart. |
+| `test_reset_session_zera_phase_results` | Reset limpa novo buffer. |
+| `test_recent_results_NAO_alterado_pela_DIR19` | **INV**: SDA17 zona fria intacta. |
+| `test_fallback_phase_advance_se_phase_results_ausente` | Backward-compat com load_state legado. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Confiabilidade** (recuperação de gap longo) | k ≤ 10 | k ≤ 20 |
+| **Confiabilidade** (zona fria C3) | ✅ | ✅ INV preservado |
+
+### E. Rollback
+`git revert` deste PR. `_phase_results` é aditivo; remoção volta ao baseline (`recent_results`).
+
+> **Veredito:** janela de shift dobrada sem efeito colateral em SDA17. Próximas: DIR15 (closeout docs) + DIR13 (UX cliente + #Z).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
