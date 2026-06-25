@@ -863,6 +863,39 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-4) — SPR-DIR11: migração Alembic 0010 retroativa (fix #L)
+
+> Sprint P1. Fecha gap metodológico #L: as 5 colunas DIR3 (`spin_seq`, `direction_source`, `direction_confidence`, `direction_next`, `phase_uncertain`) que viviam em SQLite via fallback in-loco agora têm migração Alembic formal para o PG espelho. Aditivo, idempotente. Suíte **701 verde**.
+
+### A. Bug #L auditado
+`migrations/versions/` parava em `0009_vision_features.py` (19/06). As 5 colunas DIR3 em `decisions` (SQLite) eram criadas via `sqlite_repo.py:372-380` no boot (try/`SELECT`/except/`ALTER`). Funcional, mas:
+- Sem migração Alembic → desenvolvedor que rodasse `alembic upgrade head` em PG zero-state ficava sem espelho.
+- `schema_parity_manifest.json` não listava `spin_seq`/etc. em `must_propagate_to_pg` → quebrava uniformidade metodológica.
+
+### B. Correção
+- **`migrations/versions/0010_dir3_phase_columns.py`** — `ADD COLUMN IF NOT EXISTS` para as 5 colunas em `cw.spin_features` e `ccw.spin_features` (mesmo padrão de 0007/0009). Index em `spin_seq` para debug temporal. `downgrade()` mantém colunas (INV ADITIVO; só remove índice).
+- **`database/schema_parity_manifest.json`** — adicionadas as 5 colunas em `must_propagate_to_pg.decisions`. O `test_schema_parity` (`tests/test_schema_parity.py`) valida o casamento — segue verde.
+- **`sqlite_repo.py:372-380`** permanece como **fallback** para SQLite local (idempotente, sem mudança).
+
+### C. Validação
+- Suíte **701 verde** (sem regressão).
+- `test_schema_parity.py` passa (as 5 colunas estão alinhadas SQLite↔PG manifest).
+- DB PG zero-state: `alembic upgrade head` cria as 5 colunas em ambos os schemas (não testado em deploy ainda; rollback por `git revert`).
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Manutenibilidade** (uniformidade método) | ⚠️ Alembic + auto-migrate SQLite | ✅ Alembic cobre PG + auto-migrate SQLite (fallback) |
+| **Compatibilidade** (PG espelho) | ⚠️ DIR3 só em SQLite | ✅ DIR3 em SQLite + PG espelho |
+
+### E. Rollback
+- `git revert` deste PR + `alembic downgrade 0009_vision_features` no host.
+- Como `downgrade()` é não-destrutivo, as colunas permanecem (compatível com `INV ADITIVO`).
+
+> **Veredito:** método uniformizado. Próxima: DIR12 (/metrics Prometheus).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
