@@ -120,3 +120,30 @@ def fuse_direction(signals, default_direction, min_vision_conf: float = 0.7):
         base = default_direction if default_direction in VALID else HORARIO
         return (base, "deterministic_toggle")
     return best
+
+
+def phase_advance(prev, new):
+    """DIR4/DIR6: decide COMO avançar a fase a partir do shift dos últimos resultados.
+
+    Retorna (gap, intermediates, uncertain):
+      - gap: giros perdidos a contabilizar ALÉM do giro atual (>= 0). Só é > 0 quando
+        houve ALINHAMENTO — nunca adivinha a partir de um shift sem casamento.
+      - intermediates: números perdidos a sincronizar em recent_results, do mais antigo
+        ao mais recente (para o próximo giro alinhar e não gerar phase_uncertain falso).
+      - uncertain: True se NÃO houve alinhamento (troca de mesa/dealer) → o chamador deve
+        pedir resync e NÃO mexer no contador de fase.
+
+    Corrige o bug de somar `k-1` ao contador quando `reconcile_shift` devolve
+    `matched=False` (k é um "não sei", não um número de giros). Função pura.
+    """
+    k, matched = reconcile_shift(prev, new)
+    if not matched:
+        uncertain = bool(prev) and bool(new)
+        return (0, [], uncertain)
+    gap = max(0, k - 1)
+    inter = []
+    if gap > 0:
+        new_list = list(new)
+        hi = min(k - 1, len(new_list) - 1)
+        inter = [new_list[i] for i in range(hi, 0, -1)]
+    return (gap, inter, False)

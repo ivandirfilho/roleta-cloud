@@ -521,6 +521,11 @@ class MessageHandler:
                 wheel_model=(data.get("wheel_model") or None),
                 vision_confidence=(data.get("vision_confidence") if data.get("vision_confidence") is not None else None),
                 vision_source=(data.get("vision_source") or None),
+                # DIR3/DIR7 (sentido-fase): sinais opcionais de direção/sequência (ex.: o
+                # vídeo envia direction_source='vision' + direction_confidence junto ao spin).
+                direction_source=(data.get("direction_source") or None),
+                direction_confidence=(data.get("direction_confidence") if data.get("direction_confidence") is not None else None),
+                client_spin_seq=(data.get("client_spin_seq") if data.get("client_spin_seq") is not None else None),
             )
             numero = spin.numero
             direcao = spin.direcao
@@ -689,18 +694,23 @@ class MessageHandler:
             _phase_uncertain = False
             from app_config.settings import phase_reconcile_enabled
             if phase_reconcile_enabled():
-                from state.phase import reconcile_shift
+                from state.phase import phase_advance
                 from state import phase_metrics
                 _all_nums = data.get("allNumbers") or []
                 _prev_nums = list(self.game_state.recent_results)
-                _k, _matched = reconcile_shift(_prev_nums, _all_nums)
-                _gap = max(0, _k - 1)
+                _gap, _inter, _phase_uncertain = phase_advance(_prev_nums, _all_nums)
                 if _gap > 0:
+                    # gap recuperado (com alinhamento): avança a fase pelos giros perdidos
+                    # E sincroniza recent_results com os intermediários (zona fria C3), para
+                    # o próximo giro alinhar e não gerar phase_uncertain falso.
                     self.game_state.spin_seq += _gap
                     phase_metrics.incr("gap_recuperado_total", _gap)
-                    logger.info(f"[FASE] gap recuperado: k={_k} ({_gap} giro(s) perdido(s))")
-                _phase_uncertain = (not _matched) and len(_prev_nums) > 0 and len(_all_nums) > 0
+                    for _n in _inter:
+                        self.game_state.recent_results.appendleft(_n)
+                    logger.info(f"[FASE] gap recuperado: {_gap} giro(s) perdido(s)")
                 if _phase_uncertain:
+                    # sem alinhamento (troca de mesa/dealer): NÃO adivinha a contagem;
+                    # marca ambiguidade para resync estruturado (não corrompe spin_seq).
                     phase_metrics.incr("phase_uncertain_total")
                     logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
 
@@ -725,7 +735,9 @@ class MessageHandler:
                     # acoplar). O vídeo publica direction_event (ou direction_source=
                     # 'vision' no spin); se confiável, confirma/sobrepõe o toggle.
                     from app_config.settings import direction_vision_enabled, direction_vision_min_conf
-                    if direction_vision_enabled():
+                    # DIR8: se o operador TRAVOU a fase (direction_locked), a projeção do
+                    # seed manda — nenhuma fonte de vídeo a sobrepõe.
+                    if direction_vision_enabled() and not _gs.direction_locked:
                         from state.phase import fuse_direction
                         _signals = [{"source": "deterministic_toggle", "direction": _proj, "confidence": 1.0}]
                         _ev = getattr(_gs, "last_direction_event", None)
@@ -1076,8 +1088,11 @@ class MessageHandler:
                 # origem/confiança do sinal de direção e ambiguidade do shift. Aditivo,
                 # não toca a aposta (a autoridade da fase é publicada em DIR5).
                 spin_seq=self.game_state.spin_seq,
-                direction_source=(getattr(spin, "direction_source", None) or ""),
+                # DIR3/DIR5: a fonte REAL da fase vive no game_state (autoridade/auto-seed);
+                # direction_next = oposto do último processado = fase do próximo giro.
+                direction_source=(getattr(self.game_state, "direction_source", "") or ""),
                 direction_confidence=(getattr(spin, "direction_confidence", None) or 0.0),
+                direction_next=self.game_state.target_direction,
                 phase_uncertain=_phase_uncertain,
             )
 
