@@ -1,0 +1,8 @@
+#!/bin/sh
+# Roleta Cloud / metodologia: bloqueia commit de graphify-out/graph.* (artefato pesado/regenerável).
+if git diff --cached --name-only --diff-filter=AM | grep -E '^graphify-out/(graph\.json|graph\.html)$' >/dev/null 2>&1; then
+  echo "BLOQUEADO: não commite graphify-out/graph.json|html (regenerável)." >&2
+  echo "  Use: git restore --staged graphify-out/" >&2
+  exit 1
+fi
+exit 0

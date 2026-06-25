@@ -86,3 +86,15 @@ jobs:
 
       - name: Syntax check (all .py files)
         run: python -m py_compile main.py && find . -name "*.py" -not -path "./__pycache__/*" -not -path "./archive/*" | head -30 | xargs -I{} python -m py_compile {}
+
+  ci-ok:
+    needs: [lint-and-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Gate agregador (check estavel para branch protection)
+        run: |
+          if [ "${{ needs.lint-and-test.result }}" != "success" ]; then
+            echo "lint-and-test=${{ needs.lint-and-test.result }}"; exit 1
+          fi
+          echo "ci-ok"
