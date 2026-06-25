@@ -741,11 +741,18 @@ class MessageHandler:
             if _autoridade or _shadow:
                 from state.phase import project_phase, normalize as _phase_norm
                 _gs = self.game_state
-                if not _gs.seed_parity:
+                # DIR13 #Z: se SDA_LOCK_TOTAL ON E lock explicito do operador,
+                # NAO auto-seedar (preserva o seed_parity que o operador definiu).
+                from app_config.settings import lock_total_enabled as _lte
+                _lock_total = _lte() and _gs.direction_locked
+                if not _gs.seed_parity and not _lock_total:
                     _gs.seed_parity = _phase_norm(direcao)
                     _gs.seed_n = _gs.spin_seq
                     if not _gs.direction_source or _gs.direction_source == "reset":
                         _gs.direction_source = (getattr(spin, "direction_source", None) or "auto_seed")
+                elif not _gs.seed_parity and _lock_total:
+                    # Lock total + seed vazio: deixa o cliente ditar (sem usurpar).
+                    pass
                 else:
                     _proj = project_phase(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
                     _fused = _proj

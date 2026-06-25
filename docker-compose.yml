@@ -138,6 +138,11 @@ services:
       # divergente se ligasse autoridade plena). Em producao SHADOW=1 sempre (zero risco,
       # nao muda aposta). Rollback: SDA_SENTIDO_AUTORITATIVO_SHADOW=0.
       - SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}
+      # DIR13 (sentido-fase): FIX #Z — lock total. Sem isto, direction_locked so impede
+      # fusao de video (DIR7). Com flag ON, direction_locked impede tambem auto-seed
+      # da DIR5 e reanchoragem da DIR17. Quando operador trava a fase, ela FICA travada.
+      # ATIVADO (default ON). Rollback: SDA_LOCK_TOTAL=0.
+      - SDA_LOCK_TOTAL=${SDA_LOCK_TOTAL:-1}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
