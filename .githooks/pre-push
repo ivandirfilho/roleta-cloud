@@ -1,0 +1,12 @@
+#!/bin/sh
+# Roleta Cloud / metodologia: bloqueia push direto na 'main' (entregue por PR).
+# 'main' é produção (deploy automático em ~2 min). Ative com: git config core.hooksPath .githooks
+while read local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "BLOQUEADO: push direto em 'main' não é permitido — abra um PR (main = produção)." >&2
+      exit 1
+      ;;
+  esac
+done
+exit 0

@@ -1,0 +1,34 @@
+name: Build image (GHCR)
+
+# Aditivo / opt-in: só roda em tag v* (ou manual). Publica imagem versionada/digest-pinned
+# em ghcr.io para o host PUXAR (em vez de buildar no host) — melhoria de portabilidade ISO (SPR-G3/SPR-M12).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
