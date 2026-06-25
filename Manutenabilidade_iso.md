@@ -896,6 +896,42 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-5) — SPR-DIR12: /metrics Prometheus expõe DIR8 (fix #M)
+
+> Sprint P1 sem flag (puro observabilidade). 3 contadores DIR8 (`gap_recuperado_total`, `phase_uncertain_total`, `direction_divergence_total`) agora chegam ao painel Grafana externo via `/metrics`. Suíte **705 verde**.
+
+### A. Bug #M auditado
+`server/health_server.py:_PROM_METRICS` registrava ~30 contadores Prometheus mas **nenhum** dos 3 contadores DIR8. Eles só viviam em `state/phase_metrics.py` + `sentido.stats` no `state_sync` (overlay interno). Grafana externo cego.
+
+### B. Correção
+- **`server/health_server.py:194-198`** — 3 Gauges novas:
+  - `roleta_phase_gap_recuperado_total`
+  - `roleta_phase_uncertain_total`
+  - `roleta_phase_direction_divergence_total`
+- **`_refresh_custom_metrics` (`:204-213`)** — lê `phase_metrics.snapshot()` a cada scrape e publica nos Gauges. Try/except defensivo (tolerante a ausência do módulo).
+- **Lint baseline atualizado** via `tools/lint_silent_except.py --update` (18 → 19 except permitidos).
+
+### C. Testes novos (`tests/test_dir12_metrics_exporter.py`, 4 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_phase_metrics_module_disponivel` | `state.phase_metrics.snapshot()` retorna dict com 3 chaves. |
+| `test_health_server_define_metricas_phase` | 3 Gauges registradas em `_PROM_METRICS`. |
+| `test_refresh_custom_metrics_atualiza_phase` | Refresh lê snapshot e popula Gauges. |
+| `test_refresh_tolerante_a_falha_silenciosa` | Refresh não quebra se módulo falhar. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Observabilidade externa** (Grafana) | ⚠️ Apenas via `state_sync` (cliente) | ✅ `/metrics` Prometheus padrão |
+| **Manutenibilidade** | ⚠️ Comentário "pronto para /metrics" há semanas | ✅ Implementado |
+
+### E. Rollback
+`git revert` deste PR. Métricas Prometheus aparecem como `0` se nada incrementar.
+
+> **Veredito:** painel externo pode acompanhar saúde da fase autoritativa em tempo real. Próximas P2: DIR10 + DIR13 + DIR14 + DIR18 em paralelo.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

@@ -192,6 +192,12 @@ if _METRICS_AVAILABLE:
             "region_shift": Gauge("roleta_region_shift", "Shift de C1 aplicado pelo M5 (casas, por sentido)", ["direction"]),
             # force17 (18/06): 1 se o modo C1=ForceLast/17# está no ar (SDA_BET_PAIR=force17).
             "force17_active": Gauge("roleta_force17_active", "1 se SDA_BET_PAIR=force17 (C1=ForceLast + 17# / 3 regiões)"),
+            # DIR12 (sentido-fase): 3 contadores monotonicos da fase (DIR8). Lidos do
+            # singleton state.phase_metrics no scrape. Permitem painel Grafana externo
+            # acompanhar saude da fase autoritativa em tempo real.
+            "phase_gap_recuperado": Gauge("roleta_phase_gap_recuperado_total", "Giros recuperados pelo shift DIR4 (k>=2 com alinhamento)"),
+            "phase_uncertain": Gauge("roleta_phase_uncertain_total", "Eventos de fase ambigua (DIR4 sem alinhamento, possivel troca de mesa)"),
+            "phase_divergence": Gauge("roleta_phase_direction_divergence_total", "Vezes que a autoridade DIR5 corrigiu o hint do cliente"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -202,6 +208,16 @@ def _refresh_custom_metrics() -> None:
     if not _PROM_METRICS:
         return
     try:
+        # DIR12 (sentido-fase): 3 contadores DIR8 do singleton phase_metrics.
+        # Lidos no scrape; tolerante a ausencia (se modulo nao carregar, skip silencioso).
+        try:
+            from state import phase_metrics as _pm
+            _pm_snap = _pm.snapshot()
+            _PROM_METRICS["phase_gap_recuperado"].set(float(_pm_snap.get("gap_recuperado_total", 0)))
+            _PROM_METRICS["phase_uncertain"].set(float(_pm_snap.get("phase_uncertain_total", 0)))
+            _PROM_METRICS["phase_divergence"].set(float(_pm_snap.get("direction_divergence_total", 0)))
+        except Exception:  # noqa: BLE001
+            pass
         # force17 (18/06): modo de cobertura no ar (auto-contido; sem provider).
         try:
             from app_config.settings import bet_pair_mode as _bpm
