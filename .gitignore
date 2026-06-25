@@ -112,3 +112,6 @@ post_audit.py
 # Manter backtest_gale.py e backtest_techniques.py (referência)
 audit_*.txt
 
+archive/RoletaV11/Extrator Beat/
+archive/historico_dev/Extrator Beat/
+archive/historico_dev/Roleta Cloud Antiga referencia/
