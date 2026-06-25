@@ -236,6 +236,18 @@ class GameState:
     # de C3 — refatoracao_estrategica_13_06.md. Não confundir com as timelines
     # (que guardam FORÇAS). Mais recente em index 0 (appendleft).
     recent_results: deque = field(default_factory=lambda: deque(maxlen=10))
+
+    # DIR3 (sentido-fase): o sentido é uma FASE alternada (a roleta gira um sentido
+    # por vez). spin_seq = contador de giros reais ao vivo (n); seed_parity/seed_n =
+    # âncora informada pelo operador; fase(n) = seed XOR ((n - seed_n) % 2).
+    # direction_source = origem do sentido vigente; direction_locked = fase travada
+    # pelo operador. Round-trip em save()/load()/reset_session(). Telemetria inócua
+    # até SDA_SENTIDO_AUTORITATIVO=1 (não muda a aposta).
+    spin_seq: int = 0
+    seed_parity: str = ""
+    seed_n: int = 0
+    direction_source: str = ""
+    direction_locked: bool = False
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -356,6 +368,12 @@ class GameState:
             self.last_number = 0
             self.last_direction = ""
         
+        # DIR3 (sentido-fase): re-ancora a fase no novo começo (n=0). Mantém a
+        # paridade-semente e o lock do operador (a roleta física segue alternando).
+        self.spin_seq = 0
+        self.seed_n = 0
+        self.direction_source = "reset"
+        
         # Salvar estado limpo
         self.save()
         
@@ -396,6 +414,15 @@ class GameState:
         
         return force
     
+    def register_history_number(self, numero: int) -> None:
+        """DIR2 (sentido-fase): registra um número de HISTÓRICO como contexto
+        NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real
+        do giro — a extensão o fabrica por alternância retroativa. Alimentar
+        timeline_cw/ccw com essa direção inventada envenena o SDA17. Aqui só
+        populamos recent_results (zona fria C3) e o último número, SEM tocar
+        timelines nem last_direction (a fase real entra com os giros ao vivo)."""
+        self.recent_results.appendleft(numero)
+        self.last_number = numero
     def check_prediction(self, actual_number: int) -> Optional[bool]:
         """
         Verifica se a predição anterior foi acertada.
@@ -988,6 +1015,23 @@ class GameState:
                 "dir_bias": _bias,
             }
             out["regioes"] = f17.get("regioes", [])
+        # DIR5 (sentido-fase): bloco autoritativo da fase, publicado no state_sync (1s)
+        # e no trace. O cliente sobrescreve sua paridade com next_direction; o overlay
+        # mostra a fase + origem. Aditivo (clientes antigos ignoram). next_direction =
+        # oposto do último processado = fase do próximo giro.
+        out["sentido"] = {
+            "last_seq": int(getattr(self, "spin_seq", 0) or 0),
+            "last_direction": getattr(self, "last_direction", "") or "",
+            "next_direction": self.target_direction,
+            "locked": bool(getattr(self, "direction_locked", False)),
+            "source": getattr(self, "direction_source", "") or "",
+            "resync_advised": bool(getattr(self, "last_phase_uncertain", False)),
+        }
+        try:
+            from state import phase_metrics
+            out["sentido"]["stats"] = phase_metrics.snapshot()
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra o overlay
+            pass
         return out
 
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
@@ -1232,6 +1276,12 @@ class GameState:
             "incumbent_shadow_ccw": list(self.incumbent_shadow_ccw),
             # V4 (13/06): janela de resultados para a zona fria de C3.
             "recent_results": list(self.recent_results),
+            # DIR3 (sentido-fase): contador de giros + âncora de fase + origem/lock.
+            "spin_seq": self.spin_seq,
+            "seed_parity": self.seed_parity,
+            "seed_n": self.seed_n,
+            "direction_source": self.direction_source,
+            "direction_locked": self.direction_locked,
             # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
             "c_selection": self.c_selection_engine.state_dict(),
             "block_gale": self.block_gale_engine.state_dict(),
@@ -1326,6 +1376,12 @@ class GameState:
             gs._adaptive_state = data.get("adaptive_state", {})
             # V4 (13/06): restaurar janela de resultados (compat: vazio se ausente)
             gs.recent_results = deque(data.get("recent_results", []), maxlen=10)
+            # DIR3 (sentido-fase): restaurar contador/âncora (compat: defaults se ausente)
+            gs.spin_seq = int(data.get("spin_seq", 0) or 0)
+            gs.seed_parity = data.get("seed_parity", "") or ""
+            gs.seed_n = int(data.get("seed_n", 0) or 0)
+            gs.direction_source = data.get("direction_source", "") or ""
+            gs.direction_locked = bool(data.get("direction_locked", False))
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))

@@ -101,6 +101,34 @@ let readCount = 0;
 
 // 🆕 v2.7: Direção atual do giro (definida pelo usuário no popup)
 let currentDirection = 'horario';
+// 🆕 DIR1 (sentido-fase): a roleta gira UM sentido por vez; o sentido é uma FASE
+// alternada, não um dado lido. directionSeed = fase informada pelo operador (1x);
+// pendingPhaseResync = reconciliar a fase com a autoridade do servidor no primeiro
+// state_sync após (re)conectar. Estas globals do service worker MV3 perdem-se quando
+// o SW dorme (minimizar Chrome) — por isso são re-hidratadas do storage no boot.
+let directionSeed = 'horario';
+let pendingPhaseResync = false;
+
+function phaseFlip(d) { return d === 'horario' ? 'anti-horario' : 'horario'; }
+// Conta quantos giros NOVOS entraram no topo da leitura, alinhando a cauda da
+// leitura nova com a cabeça da anterior (subsequência ordenada, robusto a repetição).
+// Se k>1 giros caíram entre dois ticks (ou no minimizar), a fase precisa avançar k
+// vezes, não 1, senão a paridade defasa. Conservador (=1) quando não há alinhamento.
+function countNewSpins(newArr, oldArr) {
+  if (!Array.isArray(newArr) || newArr.length === 0) return 1;
+  if (!Array.isArray(oldArr) || oldArr.length === 0) return 1;
+  const maxK = Math.min(newArr.length, 12);
+  for (let k = 1; k <= maxK; k++) {
+    const overlapLen = Math.min(oldArr.length, newArr.length - k);
+    if (overlapLen <= 0) break;
+    let match = true;
+    for (let i = 0; i < overlapLen; i++) {
+      if (newArr[k + i] !== oldArr[i]) { match = false; break; }
+    }
+    if (match) return k;
+  }
+  return 1;
+}
 
 // ===== 🆕 v2.7: WEBSOCKET CLIENT PARA INTEGRAÇÃO =====
 const WS_CONFIG = {
@@ -495,6 +523,9 @@ function connectWebSocket() {
         device_id: deviceId
       }));
 
+      // 🆕 DIR1: ao (re)conectar, pedir reconciliação de fase no primeiro state_sync.
+      pendingPhaseResync = true;
+
       addLog('success', 'WebSocket conectado', { url: WS_CONFIG.url, device_id: deviceId });
       notifyConnectionStatus(true); // 🆕 v3.0: Notificar overlay
     };
@@ -544,6 +575,29 @@ function connectWebSocket() {
         }
         else if (data.type === 'state_sync') {
           // 🆕 v3.1: Heartbeat - sincronização de estado a cada 1s
+          // 🆕 DIR1 (sentido-fase): o state_sync já carrega target_direction (a direção
+          // do PRÓXIMO giro = autoridade do servidor). Após (re)conectar, reconcilia UMA
+          // vez a fase local com a do servidor — corrige o caso em que o service worker
+          // reiniciou e voltou currentDirection a 'horario' ao minimizar o Chrome.
+          // 🆕 DIR6: se o servidor sinaliza ambiguidade de fase (gap/troca de mesa),
+          // re-arma a reconciliação para o próximo ciclo.
+          if (data.data && data.data.sentido && data.data.sentido.resync_advised) {
+            pendingPhaseResync = true;
+          }
+          if (pendingPhaseResync && data.data) {
+            // 🆕 DIR5: prefere o bloco autoritativo `sentido.next_direction`; cai em
+            // target_direction (DIR1) se um servidor antigo não enviar o bloco.
+            const _s = data.data.sentido;
+            const srvDir = (_s && _s.next_direction) ? _s.next_direction : data.data.target_direction;
+            if (srvDir === 'horario' || srvDir === 'anti-horario') {
+              if (srvDir !== currentDirection) {
+                console.log(`🔄 DIR1 resync de fase: ${currentDirection} → ${srvDir} (servidor)`);
+                currentDirection = srvDir;
+                chrome.storage.local.set({ currentDirection });
+              }
+              pendingPhaseResync = false;
+            }
+          }
           // Enviar para o content script para manter overlay sincronizado
           sendStateSyncToContentScript(data.data);
         }
@@ -551,6 +605,12 @@ function connectWebSocket() {
           // 🆕 v3.3: Resposta de reset de sessão
           console.log('✅ Sessão resetada pelo servidor:', data.data);
           addLog('success', 'Sessão resetada', data.data);
+          // 🆕 DIR1 (sentido-fase): o reset zera last_direction no servidor; a fase do
+          // cliente deve voltar à semente do operador para não dessincronizar na cadência
+          // pós-reset (1ª calibração). Reconcilia com o servidor no próximo state_sync.
+          currentDirection = directionSeed || 'horario';
+          chrome.storage.local.set({ currentDirection });
+          pendingPhaseResync = true;
           sendSessionResetToContentScript(data.data);
         }
         // 🆕 v3.4: Sistema MASTER/SLAVE
@@ -908,6 +968,19 @@ chrome.storage.local.get(['escutaState'], (data) => {
   }
 });
 
+// 🆕 DIR1 (sentido-fase): re-hidratar a FASE do storage no boot do service worker.
+// Sem isto, o SW MV3 reinicia com currentDirection='horario' (literal) ao acordar de
+// uma minimização, perdendo a paridade — causa do "dois números no mesmo sentido".
+chrome.storage.local.get(['currentDirection', 'directionSeed'], (data) => {
+  if (data.directionSeed === 'horario' || data.directionSeed === 'anti-horario') {
+    directionSeed = data.directionSeed;
+  }
+  if (data.currentDirection === 'horario' || data.currentDirection === 'anti-horario') {
+    currentDirection = data.currentDirection;
+    console.log(`🔄 DIR1: fase re-hidratada do storage no boot: ${currentDirection}`);
+  }
+});
+
 // 🆕 v3.3: registra a auto-detecção sempre que o service worker carrega
 // (event-driven MV3). Guard interno evita listener duplicado; o scan cobre
 // abas de cassino já abertas antes do SW acordar.
@@ -1170,6 +1243,13 @@ async function handleMessage(message, sender = null) {
   if (action === 'setDirection') {
     const isManualCorrection = message.manual === true;  // 🔧 Flag para distinguir
     currentDirection = message.direction || 'horario';
+    // 🆕 DIR8 (sentido-fase): a definição manual ANCORA a fase-semente (operador) e a
+    // propaga ao servidor (autoridade), que re-ancora a projeção determinística.
+    directionSeed = currentDirection;
+    chrome.storage.local.set({ directionSeed, currentDirection });
+    if (isManualCorrection) {
+      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: false });
+    }
     console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection})`);
     addLog('info', `Direção alterada: ${currentDirection}`);
 
@@ -1620,6 +1700,16 @@ async function readResults() {
       if (newHash !== state.lastHash && state.lastHash !== '') {
         // NOVO RESULTADO!
         const newNumber = newNumbers[0];
+        // 🆕 DIR1 (sentido-fase): quantos giros novos entraram desde a última leitura
+        // (antes de sobrescrever state.results). A fase do número mais recente e a próxima
+        // fase derivam dessa contagem. Quando k=1 (caso normal) sendDir==currentDirection
+        // e tudo fica idêntico ao comportamento anterior; só difere quando k>1 (corrige gap).
+        const _prevResults = Array.isArray(state.results) ? state.results.slice() : [];
+        const _novos = countNewSpins(newNumbers, _prevResults);
+        const sendDir = (_novos % 2 === 1) ? currentDirection : phaseFlip(currentDirection);
+        if (_novos > 1) {
+          console.log(`🔄 DIR1: ${_novos} giros novos detectados — fase do envio = ${sendDir}`);
+        }
         state.totalRead++;
         state.results = newNumbers.slice(0, 12);
         state.lastHash = newHash;
@@ -1628,7 +1718,7 @@ async function readResults() {
 
         // 🆕 v2.8: Armazenar resultado COM direção para exibir setas no popup
         if (!state.resultsWithDir) state.resultsWithDir = [];
-        state.resultsWithDir.unshift({ numero: newNumber, direcao: currentDirection });
+        state.resultsWithDir.unshift({ numero: newNumber, direcao: sendDir });
         if (state.resultsWithDir.length > 12) {
           state.resultsWithDir = state.resultsWithDir.slice(0, 12);
         }
@@ -1655,7 +1745,7 @@ async function readResults() {
         const sent = sendToWebSocket({
           type: 'novo_resultado',
           numero: newNumber,
-          direcao: currentDirection,  // 🆕 v2.7: Direção do giro
+          direcao: sendDir,  // 🆕 v2.7 + DIR1: fase do giro (corrigida por shift local)
           trace_id: `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,  // 🆕 v3.1: ID único
           t_client: Date.now(),  // 🆕 v3.1: Timestamp cliente
           timestamp: Date.now(),
@@ -1668,8 +1758,8 @@ async function readResults() {
         });
 
         if (sent) {
-          const dirLabel = currentDirection === 'horario' ? '⬅️' : '➡️';
-          addLog('result', `Enviado: ${newNumber} ${dirLabel}`, { wsConnected: true, direcao: currentDirection });
+          const dirLabel = sendDir === 'horario' ? '⬅️' : '➡️';
+          addLog('result', `Enviado: ${newNumber} ${dirLabel}`, { wsConnected: true, direcao: sendDir });
         }
 
         // 📸 Vision (foto_roleta): apos enviar o numero, tira UMA foto da tela e
@@ -1681,10 +1771,12 @@ async function readResults() {
           console.warn('📸 captura de frame falhou (ignorado):', e && e.message);
         }
 
-        // 🆕 v2.8: Auto-alternar direção após cada jogada
+        // 🆕 v2.8 + DIR1: a próxima fase é o oposto da fase do número recém-enviado.
+        // Quando k=1 (caso normal) sendDir==currentDirection, então isto é idêntico ao
+        // comportamento anterior; só difere quando k>1, corrigindo o gap de paridade.
         const previousDir = currentDirection;
-        currentDirection = currentDirection === 'horario' ? 'anti-horario' : 'horario';
-        console.log(`🔄 Direção alternada: ${previousDir} → ${currentDirection}`);
+        currentDirection = phaseFlip(sendDir);
+        console.log(`🔄 Direção alternada: ${previousDir} → ${currentDirection} (k=${_novos})`);
 
         // Salvar direção no storage para sincronizar com popup
         await chrome.storage.local.set({ currentDirection: currentDirection });

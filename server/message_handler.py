@@ -167,6 +167,18 @@ class MessageHandler:
         self._last_accept_ts_ms = timestamp
         return False
 
+    def _is_duplicate_trace(self, trace_id: str) -> bool:
+        """DIR6 (sentido-fase): idempotência por trace_id. Cada giro carrega um
+        trace_id único do cliente; reenvios chegam com o mesmo. Janela de 64 —
+        O(64) por checagem, trivial. Estado efêmero (não persiste)."""
+        from collections import deque
+        if getattr(self, "_recent_trace_ids", None) is None:
+            self._recent_trace_ids = deque(maxlen=64)
+        if trace_id in self._recent_trace_ids:
+            return True
+        self._recent_trace_ids.append(trace_id)
+        return False
+
     # ================= IMPL C1/C2 variável + Block-Gale (17/06) =================
     # Motores isolados (state/block_gale.py, strategies/c_selection.py), gated por
     # flags (SDA_BET_PAIR, SDA_STAKING_MODE, GALE_CAP, GALE_ONLY_AFTER_GREEN).
@@ -415,6 +427,14 @@ class MessageHandler:
                 # Deduplicação para novo_resultado
                 if msg_type == "novo_resultado":
                     numero = data.get("numero")
+                    # DIR6 (sentido-fase): idempotência por trace_id (mais robusta que
+                    # numero+dir+ms — reenvios/re-render chegam com o mesmo trace_id).
+                    from app_config.settings import dedup_seq_enabled
+                    if dedup_seq_enabled():
+                        _tid = data.get("trace_id")
+                        if _tid and self._is_duplicate_trace(_tid):
+                            logger.info(f"🔁 trace_id duplicado ignorado: {_tid}")
+                            return
                     if self.is_duplicate_spin(numero, timestamp, data.get("direcao")):
                         logger.info(f"🔄 Spin duplicado ignorado: {numero}")
                         return
@@ -430,6 +450,10 @@ class MessageHandler:
                 await self.handle_new_session(websocket, data)
             elif msg_type == "get_state":
                 await self.handle_get_state(websocket)
+            elif msg_type == "direction_event":
+                await self.handle_direction_event(websocket, data)
+            elif msg_type == "set_seed":
+                await self.handle_set_seed(websocket, data)
             elif msg_type == "register":
                 device_id = data.get("device_id")
                 logger.info(f"📩 Recebido REGISTER de {conn_id} com device_id={device_id}")
@@ -497,6 +521,11 @@ class MessageHandler:
                 wheel_model=(data.get("wheel_model") or None),
                 vision_confidence=(data.get("vision_confidence") if data.get("vision_confidence") is not None else None),
                 vision_source=(data.get("vision_source") or None),
+                # DIR3/DIR7 (sentido-fase): sinais opcionais de direção/sequência (ex.: o
+                # vídeo envia direction_source='vision' + direction_confidence junto ao spin).
+                direction_source=(data.get("direction_source") or None),
+                direction_confidence=(data.get("direction_confidence") if data.get("direction_confidence") is not None else None),
+                client_spin_seq=(data.get("client_spin_seq") if data.get("client_spin_seq") is not None else None),
             )
             numero = spin.numero
             direcao = spin.direcao
@@ -658,8 +687,81 @@ class MessageHandler:
             # on_result block_gale (hit REAL como verdade de campo, fix audit 17/06).
             self._engine_resolve(pending, hit_result)
 
+            # DIR4 (sentido-fase): reconciliação de fase por SHIFT. Consome allNumbers
+            # (os 12 últimos que o cliente já envia mas o servidor ignorava) e conta
+            # quantos giros REAIS entraram desde a última leitura. k>1 = gap (cliente
+            # minimizado / 2 giros num tick) → avança a fase pelos giros perdidos.
+            _phase_uncertain = False
+            from app_config.settings import phase_reconcile_enabled
+            if phase_reconcile_enabled():
+                from state.phase import phase_advance
+                from state import phase_metrics
+                _all_nums = data.get("allNumbers") or []
+                _prev_nums = list(self.game_state.recent_results)
+                _gap, _inter, _phase_uncertain = phase_advance(_prev_nums, _all_nums)
+                if _gap > 0:
+                    # gap recuperado (com alinhamento): avança a fase pelos giros perdidos
+                    # E sincroniza recent_results com os intermediários (zona fria C3), para
+                    # o próximo giro alinhar e não gerar phase_uncertain falso.
+                    self.game_state.spin_seq += _gap
+                    phase_metrics.incr("gap_recuperado_total", _gap)
+                    for _n in _inter:
+                        self.game_state.recent_results.appendleft(_n)
+                    logger.info(f"[FASE] gap recuperado: {_gap} giro(s) perdido(s)")
+                if _phase_uncertain:
+                    # sem alinhamento (troca de mesa/dealer): NÃO adivinha a contagem;
+                    # marca ambiguidade para resync estruturado (não corrompe spin_seq).
+                    phase_metrics.incr("phase_uncertain_total")
+                    logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
+
+            # DIR5 (sentido-fase): AUTORIDADE da fase. Quando ligado, o servidor deixa
+            # de confiar cegamente no `direcao` do cliente (que pode ter defasado) e
+            # DERIVA a fase do giro pela projeção determinística, ancorada na primeira
+            # direção observada (auto-seed). Imune a gaps subsequentes. Sem seed (ou flag
+            # OFF) cai no comportamento atual (obedece o cliente).
+            from app_config.settings import sentido_autoritativo_enabled
+            if sentido_autoritativo_enabled():
+                from state.phase import project_phase, normalize as _phase_norm
+                _gs = self.game_state
+                if not _gs.seed_parity:
+                    _gs.seed_parity = _phase_norm(direcao)
+                    _gs.seed_n = _gs.spin_seq
+                    if not _gs.direction_source or _gs.direction_source == "reset":
+                        _gs.direction_source = (getattr(spin, "direction_source", None) or "auto_seed")
+                else:
+                    _proj = project_phase(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
+                    _fused = _proj
+                    # DIR7 (sentido-fase): fusão com a fonte de VÍDEO (stand-by até
+                    # acoplar). O vídeo publica direction_event (ou direction_source=
+                    # 'vision' no spin); se confiável, confirma/sobrepõe o toggle.
+                    from app_config.settings import direction_vision_enabled, direction_vision_min_conf
+                    # DIR8: se o operador TRAVOU a fase (direction_locked), a projeção do
+                    # seed manda — nenhuma fonte de vídeo a sobrepõe.
+                    if direction_vision_enabled() and not _gs.direction_locked:
+                        from state.phase import fuse_direction
+                        _signals = [{"source": "deterministic_toggle", "direction": _proj, "confidence": 1.0}]
+                        _ev = getattr(_gs, "last_direction_event", None)
+                        if isinstance(_ev, dict):
+                            _signals.append(_ev)
+                        if getattr(spin, "direction_source", None) == "vision":
+                            _signals.append({"source": "vision", "direction": _phase_norm(direcao),
+                                             "confidence": float(getattr(spin, "direction_confidence", 0.0) or 0.0)})
+                        _fused, _fsrc = fuse_direction(_signals, _proj, direction_vision_min_conf())
+                        if _fsrc and _fsrc != "deterministic_toggle":
+                            _gs.direction_source = _fsrc
+                    if _fused != _phase_norm(direcao):
+                        from state import phase_metrics
+                        phase_metrics.incr("direction_divergence_total")
+                        logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_fused} (seq={_gs.spin_seq})")
+                        direcao = _fused
+
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
+            # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua
+            # até SDA_SENTIDO_AUTORITATIVO=1; base do shift/projeção de fase (DIR4/5).
+            self.game_state.spin_seq += 1
+            # DIR6: expõe a ambiguidade de fase ao overlay (resync_advised no state_sync).
+            self.game_state.last_phase_uncertain = _phase_uncertain
             # S-OBS-6: registra timestamp epoch para /api/strategy
             import time as _t_obs6
             self.last_spin_ts = _t_obs6.time()
@@ -982,6 +1084,16 @@ class MessageHandler:
                 wheel_model=(_vf_wheel or ""),
                 vision_confidence=(getattr(spin, "vision_confidence", None) or 0.0),
                 vision_source=(getattr(spin, "vision_source", None) or ""),
+                # DIR3/DIR4 (sentido-fase): telemetria de fase — spin_seq reconciliado,
+                # origem/confiança do sinal de direção e ambiguidade do shift. Aditivo,
+                # não toca a aposta (a autoridade da fase é publicada em DIR5).
+                spin_seq=self.game_state.spin_seq,
+                # DIR3/DIR5: a fonte REAL da fase vive no game_state (autoridade/auto-seed);
+                # direction_next = oposto do último processado = fase do próximo giro.
+                direction_source=(getattr(self.game_state, "direction_source", "") or ""),
+                direction_confidence=(getattr(spin, "direction_confidence", None) or 0.0),
+                direction_next=self.game_state.target_direction,
+                phase_uncertain=_phase_uncertain,
             )
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)
@@ -1204,13 +1316,22 @@ class MessageHandler:
         resultados = data.get("resultados", [])
         count = 0
 
+        from app_config.settings import historico_nao_direcional_enabled
+        nao_direcional = historico_nao_direcional_enabled()
+
         # IMPORTANTE: Extensão envia índice 0 = mais recente
         # Precisamos processar do mais antigo para o mais recente
         for item in reversed(resultados):
             numero = item.get("numero")
             direcao = item.get("direcao", "horario")
             if numero is not None:
-                self.game_state.process_spin(numero, direcao)
+                if nao_direcional:
+                    # DIR2: o histórico do DOM não carrega direção real (a extensão a
+                    # FABRICA por alternância retroativa). Alimentar timeline_cw/ccw com
+                    # isso envenena o motor. Registra só como contexto não-direcional.
+                    self.game_state.register_history_number(numero)
+                else:
+                    self.game_state.process_spin(numero, direcao)
                 count += 1
 
         self.game_state.save()
@@ -1228,6 +1349,9 @@ class MessageHandler:
     async def handle_history_correction(self, websocket: WebSocketServerProtocol, data: Dict):
         resultados = data.get("resultados", [])
 
+        from app_config.settings import historico_nao_direcional_enabled
+        nao_direcional = historico_nao_direcional_enabled()
+
         # Reset das timelines
         self.game_state.timeline_cw.clear()
         self.game_state.timeline_ccw.clear()
@@ -1241,7 +1365,12 @@ class MessageHandler:
             numero = item.get("numero")
             direcao = item.get("direcao", "horario")
             if numero is not None:
-                self.game_state.process_spin(numero, direcao)
+                if nao_direcional:
+                    # DIR2: reancoragem não-direcional — não repopula timelines com
+                    # direção fabricada (que envenena o motor); só o contexto C3.
+                    self.game_state.register_history_number(numero)
+                else:
+                    self.game_state.process_spin(numero, direcao)
                 count += 1
 
         self.game_state.save()
@@ -1303,6 +1432,48 @@ class MessageHandler:
         }
         await websocket.send(json.dumps(response))
         logger.info(f"✅ Sessão resetada: {self.current_session_id}")
+
+    async def handle_direction_event(self, websocket: WebSocketServerProtocol, data: Dict):
+        """DIR7 (sentido-fase): ingestão STAND-BY do sinal de direção do futuro serviço
+        de vídeo. Armazena o último sinal (efêmero) para fusão por prioridade quando
+        SDA_DIRECTION_VISION=1. Inerte (apenas ack) enquanto a flag estiver OFF — permite
+        acoplar o módulo de vídeo sem nenhuma outra mudança no servidor."""
+        from state.phase import normalize as _norm
+        direction = _norm(data.get("direction") or "")
+        try:
+            conf = float(data.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if direction in ("horario", "anti-horario"):
+            self.game_state.last_direction_event = {
+                "source": "vision", "direction": direction,
+                "confidence": conf, "ts": now_ms(),
+            }
+        await websocket.send(json.dumps({
+            "type": "ack", "message": "direction_event recebido",
+            "direction": direction, "t_server": now_ms(),
+        }))
+
+    async def handle_set_seed(self, websocket: WebSocketServerProtocol, data: Dict):
+        """DIR8 (sentido-fase): o operador define a fase-semente UMA vez (e opcionalmente
+        trava). A partir daí a fase é projetada deterministicamente; persistido (round-trip
+        save/load). É o ponto de RE-ANCORAGEM de fase pelo operador (não recálculo cego)."""
+        from state.phase import normalize as _norm
+        direction = _norm(data.get("direction") or "")
+        locked = bool(data.get("locked", False))
+        ok = direction in ("horario", "anti-horario")
+        if ok:
+            async with self.state_lock:
+                self.game_state.seed_parity = direction
+                self.game_state.seed_n = self.game_state.spin_seq
+                self.game_state.direction_source = "operator_seed"
+                self.game_state.direction_locked = locked
+                self.game_state.save()
+            logger.info(f"[FASE] seed do operador: {direction} (locked={locked}, seq={self.game_state.spin_seq})")
+        await websocket.send(json.dumps({
+            "type": "ack", "message": ("seed definido" if ok else "direction invalida"),
+            "direction": direction, "locked": locked, "t_server": now_ms(),
+        }))
 
     async def handle_get_state(self, websocket: WebSocketServerProtocol):
         state_response = {

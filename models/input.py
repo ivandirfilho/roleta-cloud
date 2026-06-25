@@ -39,6 +39,10 @@ class SpinInput(BaseModel):
     wheel_model: str | None = Field(default=None, max_length=80, description="Modelo da roleta (visao)")
     vision_confidence: float | None = Field(default=None, ge=0.0, le=1.0, description="Confianca do motor de visao (0..1)")
     vision_source: str | None = Field(default=None, max_length=20, description="Origem do dado: vision|dom|fused")
+    # DIR3 (sentido-fase): sinais opcionais de direção/sequência (aditivo, backward-compat).
+    direction_source: str | None = Field(default=None, max_length=24, description="Origem do sentido: operator_seed|deterministic_toggle|vision|dom_hint|manual_fix")
+    client_spin_seq: int | None = Field(default=None, description="Sequência de fase prevista pelo cliente")
+    direction_confidence: float | None = Field(default=None, ge=0.0, le=1.0, description="Confiança da fonte de direção (0..1)")
     
     @field_validator('numero')
     @classmethod

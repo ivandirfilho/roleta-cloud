@@ -62,6 +62,13 @@ class Decision:
     wheel_model: str = ""
     vision_confidence: float = 0.0
     vision_source: str = ""
+    # DIR3 (sentido-fase): contador de fase (n) + origem/confiança do sentido +
+    # próxima fase projetada + flag de ambiguidade. Aditivo/retrocompatível.
+    spin_seq: int = 0
+    direction_source: str = ""
+    direction_confidence: float = 0.0
+    direction_next: str = ""
+    phase_uncertain: bool = False
     
     # Decisão Final
     final_action: str = ""  # "APOSTAR" ou "PULAR"

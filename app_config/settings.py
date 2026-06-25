@@ -279,3 +279,65 @@ def dedup_phantom_window_ms() -> int:
         return max(0, int(os.environ.get("SDA_DEDUP_PHANTOM_WINDOW_MS", "20000")))
     except (TypeError, ValueError):
         return 20000
+
+
+def historico_nao_direcional_enabled() -> bool:
+    """DIR2 (sentido-fase): trata o histórico inicial/correção como contexto
+    NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real do
+    giro — a extensão o FABRICA por alternância retroativa — e hoje alimenta
+    timeline_cw/ccw via process_spin, envenenando o motor SDA17. Com a flag ON, o
+    histórico popula só recent_results (zona fria C3), sem direção; a fase real
+    entra com os giros ao vivo. Default OFF (byte-idêntico). Ligar com
+    SDA_HISTORICO_NAO_DIRECIONAL=1."""
+    import os
+    return os.environ.get("SDA_HISTORICO_NAO_DIRECIONAL", "0").strip().lower() in ("1", "true", "on")
+
+
+def sentido_autoritativo_enabled() -> bool:
+    """DIR3-5 (sentido-fase): torna o SERVIDOR a autoridade da fase do giro
+    (horário↔anti-horário). Com OFF, o servidor obedece o sentido do master e os
+    campos de fase (spin_seq/seed/source) são apenas telemetria — a aposta não muda.
+    Com ON (SDA_SENTIDO_AUTORITATIVO=1), a fase projetada/reconciliada pelo servidor
+    passa a valer e é publicada no state_sync/sugestao. Default OFF (byte-idêntico)."""
+    import os
+    return os.environ.get("SDA_SENTIDO_AUTORITATIVO", "0").strip().lower() in ("1", "true", "on")
+
+
+def phase_reconcile_enabled() -> bool:
+    """DIR4 (sentido-fase): reconciliação de fase por SHIFT dos últimos resultados.
+    O cliente já envia allNumbers (12 últimos) mas o servidor os ignorava. Com ON, o
+    servidor compara allNumbers com recent_results para contar quantos giros REAIS
+    entraram (k); k>1 = gap (cliente minimizado / 2 giros num tick) → avança a fase
+    pelos giros perdidos, corrigindo a paridade. Default OFF (byte-idêntico). Ligar
+    com SDA_PHASE_RECONCILE=1."""
+    import os
+    return os.environ.get("SDA_PHASE_RECONCILE", "0").strip().lower() in ("1", "true", "on")
+
+
+def dedup_seq_enabled() -> bool:
+    """DIR6 (sentido-fase): idempotência por trace_id. Cada giro carrega um trace_id
+    único do cliente; reenvios (cliente caiu após enviar, re-render do DOM) chegam com
+    o MESMO trace_id. Com ON, o servidor rejeita trace_ids já vistos (janela de 64) —
+    mais robusto que o dedup por numero+sentido+ms. Default OFF. Ligar com
+    SDA_DEDUP_SEQ=1."""
+    import os
+    return os.environ.get("SDA_DEDUP_SEQ", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_enabled() -> bool:
+    """DIR7 (sentido-fase): fusão da fonte de VÍDEO na decisão de fase. Estrutura
+    STAND-BY: o futuro serviço de vídeo publica direction_event (ou direction_source=
+    'vision' no spin) e, se confiável, confirma/sobrepõe o toggle determinístico
+    (prioridade operator>vision>toggle). Default OFF (vídeo inerte). SDA_DIRECTION_VISION=1."""
+    import os
+    return os.environ.get("SDA_DIRECTION_VISION", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_min_conf() -> float:
+    """DIR7: confiança mínima (0..1) para um sinal de direção de vídeo ser aceito.
+    Abaixo disto o sinal é descartado e o toggle determinístico prevalece. Default 0.7."""
+    import os
+    try:
+        return max(0.0, min(1.0, float(os.environ.get("SDA_DIRECTION_VISION_MIN_CONF", "0.7"))))
+    except (TypeError, ValueError):
+        return 0.7
