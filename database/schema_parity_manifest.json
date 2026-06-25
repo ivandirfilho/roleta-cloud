@@ -11,7 +11,12 @@
       "gale_level",
       "result_hit",
       "result_actual",
-      "calibration_error"
+      "calibration_error",
+      "spin_seq",
+      "direction_source",
+      "direction_confidence",
+      "direction_next",
+      "phase_uncertain"
     ]
   },
   "pg_target_table": {
