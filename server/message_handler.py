@@ -658,6 +658,25 @@ class MessageHandler:
             # on_result block_gale (hit REAL como verdade de campo, fix audit 17/06).
             self._engine_resolve(pending, hit_result)
 
+            # DIR4 (sentido-fase): reconciliação de fase por SHIFT. Consome allNumbers
+            # (os 12 últimos que o cliente já envia mas o servidor ignorava) e conta
+            # quantos giros REAIS entraram desde a última leitura. k>1 = gap (cliente
+            # minimizado / 2 giros num tick) → avança a fase pelos giros perdidos.
+            _phase_uncertain = False
+            from app_config.settings import phase_reconcile_enabled
+            if phase_reconcile_enabled():
+                from state.phase import reconcile_shift
+                _all_nums = data.get("allNumbers") or []
+                _prev_nums = list(self.game_state.recent_results)
+                _k, _matched = reconcile_shift(_prev_nums, _all_nums)
+                _gap = max(0, _k - 1)
+                if _gap > 0:
+                    self.game_state.spin_seq += _gap
+                    logger.info(f"[FASE] gap recuperado: k={_k} ({_gap} giro(s) perdido(s))")
+                _phase_uncertain = (not _matched) and len(_prev_nums) > 0 and len(_all_nums) > 0
+                if _phase_uncertain:
+                    logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
+
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
             # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua
@@ -985,6 +1004,13 @@ class MessageHandler:
                 wheel_model=(_vf_wheel or ""),
                 vision_confidence=(getattr(spin, "vision_confidence", None) or 0.0),
                 vision_source=(getattr(spin, "vision_source", None) or ""),
+                # DIR3/DIR4 (sentido-fase): telemetria de fase — spin_seq reconciliado,
+                # origem/confiança do sinal de direção e ambiguidade do shift. Aditivo,
+                # não toca a aposta (a autoridade da fase é publicada em DIR5).
+                spin_seq=self.game_state.spin_seq,
+                direction_source=(getattr(spin, "direction_source", None) or ""),
+                direction_confidence=(getattr(spin, "direction_confidence", None) or 0.0),
+                phase_uncertain=_phase_uncertain,
             )
 
             # Rastrear todas as decisões que têm predição (APOSTAR e PULAR com SDA)

@@ -301,3 +301,14 @@ def sentido_autoritativo_enabled() -> bool:
     passa a valer e é publicada no state_sync/sugestao. Default OFF (byte-idêntico)."""
     import os
     return os.environ.get("SDA_SENTIDO_AUTORITATIVO", "0").strip().lower() in ("1", "true", "on")
+
+
+def phase_reconcile_enabled() -> bool:
+    """DIR4 (sentido-fase): reconciliação de fase por SHIFT dos últimos resultados.
+    O cliente já envia allNumbers (12 últimos) mas o servidor os ignorava. Com ON, o
+    servidor compara allNumbers com recent_results para contar quantos giros REAIS
+    entraram (k); k>1 = gap (cliente minimizado / 2 giros num tick) → avança a fase
+    pelos giros perdidos, corrigindo a paridade. Default OFF (byte-idêntico). Ligar
+    com SDA_PHASE_RECONCILE=1."""
+    import os
+    return os.environ.get("SDA_PHASE_RECONCILE", "0").strip().lower() in ("1", "true", "on")

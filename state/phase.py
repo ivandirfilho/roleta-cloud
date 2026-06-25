@@ -42,3 +42,36 @@ def project_phase(seed_parity: str, seed_n: int, n: int) -> str:
     except (TypeError, ValueError):
         delta = 0
     return base if delta == 0 else opposite(base)
+
+
+def reconcile_shift(prev, new, max_window: int = 20):
+    """Reconciliação por SHIFT: conta quantos giros NOVOS há em `new` em relação a
+    `prev`, ambos ordenados do mais recente (índice 0) para o mais antigo.
+
+    Encontra o menor k >= 0 tal que a CAUDA de `new` (a partir de k) casa com a
+    CABEÇA de `prev`:  new[k : k+m] == prev[0 : m].
+
+    Retorna (k, matched):
+      - k = 0, matched=True  → nenhum giro novo (duplicado / re-render do DOM);
+      - k = 1, matched=True  → um giro novo (caso normal);
+      - k >= 2, matched=True → GAP recuperado (cliente dormiu / 2 giros num tick);
+      - matched=False        → sem alinhamento (lista nova = troca de mesa/dealer)
+                               → o chamador deve pedir resync, não adivinhar.
+
+    Robusto a números repetidos (0–36): é alinhamento de subsequência ordenada
+    (posição-a-posição), não comparação de conjunto. Função pura, nunca lança.
+    """
+    new = list(new) if new else []
+    prev = list(prev) if prev else []
+    if not new:
+        return (0, True)        # nada novo a contabilizar
+    if not prev:
+        return (1, True)        # primeira leitura: trata o topo como 1 giro novo
+    max_k = min(len(new), max_window)
+    for k in range(0, max_k + 1):
+        m = min(len(prev), len(new) - k)
+        if m <= 0:
+            break
+        if all(new[k + i] == prev[i] for i in range(m)):
+            return (k, True)
+    return (min(len(new), max_window), False)   # sem alinhamento → resync
