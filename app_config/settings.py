@@ -355,6 +355,17 @@ def reset_reancora_enabled() -> bool:
     return os.environ.get("SDA_RESET_REANCORA", "0").strip().lower() in ("1", "true", "on")
 
 
+def overlay_ultimos_n() -> int:
+    """DIR10 (sentido-fase): tamanho do ring buffer overlay (lista 'ultimos[N]' no
+    state_sync/sugestao para auditoria offline). 0 = desativa publicacao. Default 12.
+    SDA_OVERLAY_ULTIMOS_N=N."""
+    import os
+    try:
+        return max(0, min(64, int(os.environ.get("SDA_OVERLAY_ULTIMOS_N", "12"))))
+    except (TypeError, ValueError):
+        return 12
+
+
 def uncertain_reancora_enabled() -> bool:
     """DIR17 (sentido-fase): reancora a fase quando phase_advance retorna sem alinhamento
     (matched=False, troca de mesa silenciosa). Em OFF (atual), apenas seta resync_advised

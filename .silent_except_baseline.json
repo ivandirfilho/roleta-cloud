@@ -7,7 +7,7 @@
   "server/vision_ocr.py": 2,
   "server/websocket.py": 22,
   "state/bet_advisor.py": 3,
-  "state/game.py": 17,
+  "state/game.py": 21,
   "strategies/dealer_force_profile.py": 1,
   "strategies/dealer_offset.py": 1,
   "strategies/sda17.py": 9
