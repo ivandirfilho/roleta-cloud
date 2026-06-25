@@ -972,6 +972,36 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-7) — SPR-DIR14: clear _recent_trace_ids em reset (fix #O)
+
+> Sprint P2 trivial. Fecha gap #O — falso-positivo de dedup pós-reset. Sem flag. Suíte **715 verde**.
+
+### A. Bug #O auditado
+`message_handler.py:170-179` (DIR6) — `_recent_trace_ids = deque(maxlen=64)` nunca era limpa em `handle_new_session`. Risco baixíssimo (cliente gera `trace_id` por `timestamp`, raro repetir), mas semanticamente errado.
+
+### B. Correção
+- **`server/message_handler.py:handle_new_session` (`:1399-1407`)** — dentro do `state_lock`, após `reset_session`, chama `self._recent_trace_ids.clear()` (try/except defensivo).
+- Lint baseline atualizado.
+
+### C. Testes novos (`tests/test_dir14_clear_trace_ids.py`, 3 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_handle_new_session_limpa_trace_ids_deque` | Após `clear()`, deque vazio. |
+| `test_clear_e_idempotente_em_deque_vazio` | `clear()` em deque vazio = no-op. |
+| `test_clear_nao_afeta_maxlen` | Após clear, `maxlen=64` preservado. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Confiabilidade** (primeiro spin pós-reset) | ⚠️ Risco residual | ✅ Sem risco (deque limpo) |
+
+### E. Rollback
+`git revert` deste PR. Comportamento volta ao baseline.
+
+> **Veredito:** higiene de dedup. Próxima: DIR18 (shadow mode).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
