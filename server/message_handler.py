@@ -167,6 +167,18 @@ class MessageHandler:
         self._last_accept_ts_ms = timestamp
         return False
 
+    def _is_duplicate_trace(self, trace_id: str) -> bool:
+        """DIR6 (sentido-fase): idempotência por trace_id. Cada giro carrega um
+        trace_id único do cliente; reenvios chegam com o mesmo. Janela de 64 —
+        O(64) por checagem, trivial. Estado efêmero (não persiste)."""
+        from collections import deque
+        if getattr(self, "_recent_trace_ids", None) is None:
+            self._recent_trace_ids = deque(maxlen=64)
+        if trace_id in self._recent_trace_ids:
+            return True
+        self._recent_trace_ids.append(trace_id)
+        return False
+
     # ================= IMPL C1/C2 variável + Block-Gale (17/06) =================
     # Motores isolados (state/block_gale.py, strategies/c_selection.py), gated por
     # flags (SDA_BET_PAIR, SDA_STAKING_MODE, GALE_CAP, GALE_ONLY_AFTER_GREEN).
@@ -415,6 +427,14 @@ class MessageHandler:
                 # Deduplicação para novo_resultado
                 if msg_type == "novo_resultado":
                     numero = data.get("numero")
+                    # DIR6 (sentido-fase): idempotência por trace_id (mais robusta que
+                    # numero+dir+ms — reenvios/re-render chegam com o mesmo trace_id).
+                    from app_config.settings import dedup_seq_enabled
+                    if dedup_seq_enabled():
+                        _tid = data.get("trace_id")
+                        if _tid and self._is_duplicate_trace(_tid):
+                            logger.info(f"🔁 trace_id duplicado ignorado: {_tid}")
+                            return
                     if self.is_duplicate_spin(numero, timestamp, data.get("direcao")):
                         logger.info(f"🔄 Spin duplicado ignorado: {numero}")
                         return
@@ -702,6 +722,8 @@ class MessageHandler:
             # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua
             # até SDA_SENTIDO_AUTORITATIVO=1; base do shift/projeção de fase (DIR4/5).
             self.game_state.spin_seq += 1
+            # DIR6: expõe a ambiguidade de fase ao overlay (resync_advised no state_sync).
+            self.game_state.last_phase_uncertain = _phase_uncertain
             # S-OBS-6: registra timestamp epoch para /api/strategy
             import time as _t_obs6
             self.last_spin_ts = _t_obs6.time()

@@ -110,6 +110,9 @@ services:
       # (12 ultimos, hoje ignorados) p/ contar giros reais e recuperar gap de fase.
       # Default OFF (byte-identico). Ligar: SDA_PHASE_RECONCILE=1.
       - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-0}
+      # DIR6 (sentido-fase): idempotencia por trace_id (reenvios/re-render chegam com
+      # o mesmo trace_id). Mais robusto que numero+dir+ms. Default OFF. SDA_DEDUP_SEQ=1.
+      - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

@@ -1025,6 +1025,7 @@ class GameState:
             "next_direction": self.target_direction,
             "locked": bool(getattr(self, "direction_locked", False)),
             "source": getattr(self, "direction_source", "") or "",
+            "resync_advised": bool(getattr(self, "last_phase_uncertain", False)),
         }
         return out
 

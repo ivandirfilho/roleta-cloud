@@ -579,6 +579,11 @@ function connectWebSocket() {
           // do PRÓXIMO giro = autoridade do servidor). Após (re)conectar, reconcilia UMA
           // vez a fase local com a do servidor — corrige o caso em que o service worker
           // reiniciou e voltou currentDirection a 'horario' ao minimizar o Chrome.
+          // 🆕 DIR6: se o servidor sinaliza ambiguidade de fase (gap/troca de mesa),
+          // re-arma a reconciliação para o próximo ciclo.
+          if (data.data && data.data.sentido && data.data.sentido.resync_advised) {
+            pendingPhaseResync = true;
+          }
           if (pendingPhaseResync && data.data) {
             // 🆕 DIR5: prefere o bloco autoritativo `sentido.next_direction`; cai em
             // target_direction (DIR1) se um servidor antigo não enviar o bloco.

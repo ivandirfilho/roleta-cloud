@@ -312,3 +312,13 @@ def phase_reconcile_enabled() -> bool:
     com SDA_PHASE_RECONCILE=1."""
     import os
     return os.environ.get("SDA_PHASE_RECONCILE", "0").strip().lower() in ("1", "true", "on")
+
+
+def dedup_seq_enabled() -> bool:
+    """DIR6 (sentido-fase): idempotência por trace_id. Cada giro carrega um trace_id
+    único do cliente; reenvios (cliente caiu após enviar, re-render do DOM) chegam com
+    o MESMO trace_id. Com ON, o servidor rejeita trace_ids já vistos (janela de 64) —
+    mais robusto que o dedup por numero+sentido+ms. Default OFF. Ligar com
+    SDA_DEDUP_SEQ=1."""
+    import os
+    return os.environ.get("SDA_DEDUP_SEQ", "0").strip().lower() in ("1", "true", "on")
