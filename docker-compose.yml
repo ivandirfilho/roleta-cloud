@@ -132,6 +132,12 @@ services:
       # autoritativa errada persiste por N giros. ATIVADO (default ON).
       # Rollback: SDA_UNCERTAIN_REANCORA=0 no host + redeploy.
       - SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}
+      # DIR18 (sentido-fase): SHADOW MODE — observabilidade da fase sem substituir aposta.
+      # Mesmo com autoridade OFF, com SHADOW=1 o servidor roda project_phase + incrementa
+      # direction_divergence_total. Permite A/B real (Grafana mostra qual percentual seria
+      # divergente se ligasse autoridade plena). Em producao SHADOW=1 sempre (zero risco,
+      # nao muda aposta). Rollback: SDA_SENTIDO_AUTORITATIVO_SHADOW=0.
+      - SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

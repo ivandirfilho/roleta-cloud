@@ -1002,6 +1002,39 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-8) — SPR-DIR18: shadow mode da autoridade DIR5 (fix #U)
+
+> Sprint P2. Permite Grafana mostrar a divergência hipotética antes de promover SHADOW→AUTORIDADE plena. Em produção: SHADOW=1 sempre (zero risco). Suíte **718 verde**.
+
+### A. Bug #U auditado
+`message_handler.py:722-756` (DIR5) só rodava com `SDA_SENTIDO_AUTORITATIVO=1`. Em OFF, `project_phase` nem executava e `direction_divergence_total` ficava em 0 → impossível A/B real ("o que aconteceria se eu ligasse?").
+
+### B. Correção
+- **`app_config/settings.py`** — novo helper `sentido_autoritativo_shadow_enabled()` (default OFF; ON via `SDA_SENTIDO_AUTORITATIVO_SHADOW=1`).
+- **`server/message_handler.py:727-775`** — refatorado: `if _autoridade or _shadow:` envolve o bloco. Substituição (`direcao = _fused`) só ocorre com `_autoridade=True`. Log distingue `"autoridade"` vs `"shadow"` para auditoria.
+- **`docker-compose.yml`** — `SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}` (ATIVADO em produção; zero risco).
+
+### C. Testes novos (`tests/test_dir18_shadow_mode.py`, 3 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_flag_shadow_default_off` | Helper retorna False default. |
+| `test_logica_shadow_mode_decision_tree` | 4 combinações `(autoridade, shadow)`. |
+| `test_metrica_divergence_incrementa_em_shadow` | `direction_divergence_total` cresce mesmo sem substituir. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Observabilidade** (A/B autoridade) | ❌ Impossível sem ligar | ✅ Métrica disponível com SHADOW=1 |
+| **Confiabilidade** (rollback granular) | ⚠️ Só ON/OFF binário | ✅ Shadow→Autoridade gradual |
+
+### E. Rollback
+- `SDA_SENTIDO_AUTORITATIVO_SHADOW=0` + redeploy: zera shadow.
+- `git revert`: comportamento volta ao bloco condicional original.
+
+> **Veredito:** A/B observável em produção. Próximas P3: DIR15 + DIR19 + (DIR13 retomada).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
