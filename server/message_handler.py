@@ -729,8 +729,13 @@ class MessageHandler:
             # DERIVA a fase do giro pela projeção determinística, ancorada na primeira
             # direção observada (auto-seed). Imune a gaps subsequentes. Sem seed (ou flag
             # OFF) cai no comportamento atual (obedece o cliente).
-            from app_config.settings import sentido_autoritativo_enabled
-            if sentido_autoritativo_enabled():
+            # DIR18 (sentido-fase): SHADOW MODE — quando shadow ON mas autoritativo OFF,
+            # roda toda a logica + metrica mas NAO substitui direcao. Permite A/B real
+            # antes de ligar autoridade plena.
+            from app_config.settings import sentido_autoritativo_enabled, sentido_autoritativo_shadow_enabled
+            _autoridade = sentido_autoritativo_enabled()
+            _shadow = sentido_autoritativo_shadow_enabled()
+            if _autoridade or _shadow:
                 from state.phase import project_phase, normalize as _phase_norm
                 _gs = self.game_state
                 if not _gs.seed_parity:
@@ -762,8 +767,11 @@ class MessageHandler:
                     if _fused != _phase_norm(direcao):
                         from state import phase_metrics
                         phase_metrics.incr("direction_divergence_total")
-                        logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_fused} (seq={_gs.spin_seq})")
-                        direcao = _fused
+                        # DIR18: log distinto se for shadow (mais facil de auditar A/B).
+                        _modo = "autoridade" if _autoridade else "shadow"
+                        logger.info(f"[FASE] {_modo} divergencia: {direcao} -> {_fused} (seq={_gs.spin_seq})")
+                        if _autoridade:  # so substitui se autoridade plena ligada
+                            direcao = _fused
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)

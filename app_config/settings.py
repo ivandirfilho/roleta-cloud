@@ -366,6 +366,17 @@ def overlay_ultimos_n() -> int:
         return 12
 
 
+def sentido_autoritativo_shadow_enabled() -> bool:
+    """DIR18 (sentido-fase): SHADOW MODE da autoridade DIR5. Quando ON com autoritativo
+    OFF, roda project_phase + incrementa direction_divergence_total MAS nao substitui
+    a direcao do hint do cliente. Permite A/B observavel: comparar 'o que aconteceria'
+    sem mudar aposta. Em producao SHADOW=1 sempre (zero risco) — vira fonte de verdade
+    para decidir se ligar autoritativo total. Default OFF (byte-identico).
+    SDA_SENTIDO_AUTORITATIVO_SHADOW=1."""
+    import os
+    return os.environ.get("SDA_SENTIDO_AUTORITATIVO_SHADOW", "0").strip().lower() in ("1", "true", "on")
+
+
 def uncertain_reancora_enabled() -> bool:
     """DIR17 (sentido-fase): reancora a fase quando phase_advance retorna sem alinhamento
     (matched=False, troca de mesa silenciosa). Em OFF (atual), apenas seta resync_advised
