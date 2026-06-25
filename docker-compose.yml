@@ -126,6 +126,12 @@ services:
       # vetor real de aposta no lado errado em handoff. ATIVADO (default ON).
       # Rollback: SDA_RESET_REANCORA=0 no host + redeploy.
       - SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}
+      # DIR17 (sentido-fase): FIX #T — reancora a fase quando phase_advance retorna sem
+      # alinhamento (matched=False, troca de mesa silenciosa). Sem isto, project_phase
+      # segue projetando com seed antigo + spin_seq que continua incrementando -> direcao
+      # autoritativa errada persiste por N giros. ATIVADO (default ON).
+      # Rollback: SDA_UNCERTAIN_REANCORA=0 no host + redeploy.
+      - SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

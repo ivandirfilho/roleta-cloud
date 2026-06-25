@@ -353,3 +353,14 @@ def reset_reancora_enabled() -> bool:
     (byte-identico). SDA_RESET_REANCORA=1."""
     import os
     return os.environ.get("SDA_RESET_REANCORA", "0").strip().lower() in ("1", "true", "on")
+
+
+def uncertain_reancora_enabled() -> bool:
+    """DIR17 (sentido-fase): reancora a fase quando phase_advance retorna sem alinhamento
+    (matched=False, troca de mesa silenciosa). Em OFF (atual), apenas seta resync_advised
+    e segue projetando com seed antigo + spin_seq que ainda incrementa — direcao autoritativa
+    errada persiste ate cliente ver resync_advised e mandar set_seed. Em ON, zera seed_parity
+    (a menos que direction_locked) e marca seed_n=spin_seq atual — proximo giro alinhado faz
+    auto-seed limpo. Default OFF (byte-identico). SDA_UNCERTAIN_REANCORA=1."""
+    import os
+    return os.environ.get("SDA_UNCERTAIN_REANCORA", "0").strip().lower() in ("1", "true", "on")
