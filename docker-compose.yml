@@ -100,19 +100,20 @@ services:
       # DIR2 (sentido-fase): historico inicial/correcao como contexto NAO-DIRECIONAL.
       # O historico do DOM nao carrega o sentido real (a extensao o fabrica por
       # alternancia retroativa); hoje alimenta timeline_cw/ccw via process_spin e
-      # envenena o motor. Default OFF (byte-identico). Ligar: SDA_HISTORICO_NAO_DIRECIONAL=1.
-      - SDA_HISTORICO_NAO_DIRECIONAL=${SDA_HISTORICO_NAO_DIRECIONAL:-0}
-      # DIR3-5 (sentido-fase): servidor como AUTORIDADE da fase do sentido. OFF =
-      # telemetria (spin_seq/seed/source) sem mudar a aposta; ON publica a fase
-      # autoritativa no state_sync/sugestao. Default OFF (byte-identico).
-      - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-0}
+      # envenena o motor. ATIVADO (default ON) apos validacao (suite 689 verde + 2x
+      # code-review). Rollback: SDA_HISTORICO_NAO_DIRECIONAL=0 no host + redeploy.
+      - SDA_HISTORICO_NAO_DIRECIONAL=${SDA_HISTORICO_NAO_DIRECIONAL:-1}
+      # DIR3-5 (sentido-fase): servidor como AUTORIDADE da fase do sentido. ATIVADO
+      # (default ON) — o servidor passa a decidir o sentido em vez de obedecer o cliente
+      # (muda p/ qual lado a aposta vai). Rollback: SDA_SENTIDO_AUTORITATIVO=0 + redeploy.
+      - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-1}
       # DIR4 (sentido-fase): reconciliacao de fase por SHIFT — consome allNumbers
       # (12 ultimos, hoje ignorados) p/ contar giros reais e recuperar gap de fase.
-      # Default OFF (byte-identico). Ligar: SDA_PHASE_RECONCILE=1.
-      - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-0}
+      # ATIVADO (default ON). Rollback: SDA_PHASE_RECONCILE=0 no host + redeploy.
+      - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-1}
       # DIR6 (sentido-fase): idempotencia por trace_id (reenvios/re-render chegam com
-      # o mesmo trace_id). Mais robusto que numero+dir+ms. Default OFF. SDA_DEDUP_SEQ=1.
-      - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-0}
+      # o mesmo trace_id). Mais robusto que numero+dir+ms. ATIVADO (default ON).
+      - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-1}
       # DIR7 (sentido-fase): fusao da fonte de VIDEO (stand-by acoplavel). O futuro
       # servico de video publica direction_event; se confiavel, confirma/sobrepoe o
       # toggle. Default OFF (video inerte). Ligar: SDA_DIRECTION_VISION=1.
