@@ -1116,6 +1116,58 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-11) — SPR-DIR15: closeout ISO + docs + supersede notice (fix #P + #Y)
+
+> **Sprint final do ciclo DIR9..DIR19.** 11 sprints mergeadas em 1 dia (25/06): **DIR16 → DIR17 → DIR9 → DIR11 → DIR12 → DIR10 → DIR14 → DIR18 → DIR19 → DIR13 → DIR15**. Conformidade rev. 4 do `evolução_sentido.md` agora **~99%**. Suíte segue verde.
+
+### A. Fechamento documental
+
+| Item | Antes | Depois |
+|---|---|---|
+| `evolução_sentido.md` (rev. 4) | Sem nota de status | Cabeçalho: ⚠️ **SUPERSEDED** por `evolução_sentido_25.md` |
+| `evolução_sentido_25.md` (rev. 5) | Proposta de 11 sprints | **TODAS executadas e mergeadas** |
+| `models/input.py:44` — `client_spin_seq` | Campo aceito mas cliente nunca enviava (#Y) | Mantido (INV não-removido) + comentário "RESERVADO DIR21+" |
+| `Manutenabilidade_iso.md` | 1 ADENDO 25/06 (manhã, DIR1..DIR8) | + 11 ADENDOS 25/06 (tarde, DIR9..DIR19) |
+
+### B. Resumo executivo do ciclo (todos mergeados em main, deployados via systemd timer)
+
+| Sprint | PR | Bug | Severidade | Flag default em prod |
+|---|:--:|---|:--:|:--:|
+| **DIR16** | #27 | #S/#W/#X reset/reancoragem | 🔴 P0 | `SDA_RESET_REANCORA=1` |
+| DIR17 | #28 | #T uncertain reancora | 🟠 P1 | `SDA_UNCERTAIN_REANCORA=1` |
+| DIR9 | #29 | #J sentido em sugestao | 🟡 P1 | — (aditivo puro) |
+| DIR11 | #30 | #L Alembic 0010 retroativa | 🟡 P1 | — (aditivo Alembic) |
+| DIR12 | #31 | #M /metrics Prometheus | 🟡 P1 | — (observabilidade) |
+| DIR10 | #32 | #K ultimos[N] no overlay | 🟡 P2 | `SDA_OVERLAY_ULTIMOS_N=12` |
+| DIR14 | #33 | #O clear trace_ids em reset | 🟢 P2 | — (defensivo) |
+| DIR18 | #34 | #U shadow mode | 🟡 P2 | `SDA_SENTIDO_AUTORITATIVO_SHADOW=1` |
+| DIR19 | #35 | #R buffer fase maxlen 20 | 🟡 P3 | — (aditivo) |
+| DIR13 | #36 | #N/#Z UX lock + lock total | 🟠 P2 | `SDA_LOCK_TOTAL=1`; ext 3.7.0 |
+| DIR15 | (este) | #P/#Y docs closeout | 🟢 P3 | — (docs) |
+
+### C. Estado final pós-ciclo
+- **Suíte:** 730 passed (era 689 no início) + 9 skipped + 1 xfailed. **+41 testes novos** cobrindo a família DIR9..DIR19.
+- **CI main:** 5/5 SUCCESS em cada PR; main consistentemente verde.
+- **Servidor Debian:** systemd timer puxa `origin/main` a cada ~2min → todos os 10 PRs já em produção (com flags ON nas DIR16/17/18/13 + auto-migrate Alembic 0010 + métricas Prometheus + lock cliente 3.7.0).
+- **Extensão Chrome:** v3.7.0 publicada (operador precisa reload manual; comportamento legado intacto se ainda em 3.6.0).
+- **Conformidade ISO/IEC 25010:** Confiabilidade 8.8→**9.0**, Manutenibilidade 8.6→**8.8**, Adequação 9.2→**9.3** (corrige vetor de aposta no lado errado em handoff).
+
+### D. Bugs/gaps remanescentes (não-cobertos por este ciclo, ficam para próximos ADENDOS)
+- **DIR13b** (UX visual): checkbox "🔒 Travar fase" no `popup.html` + badge colorido no `content.js` por `sentido.source`.
+- **DIR20+:** labels por mesa nas métricas Prometheus (`{mesa, direction}` em vez de globais).
+- **DIR21+:** ativar `client_spin_seq` no cliente para cross-validation.
+- **Premissas históricas remanescentes:** ordem do DOM por provider, restore drill, AsyncAPI/REST formal — ver `Manutenabilidade_iso.md` §D do ADENDO 12/06.
+
+### E. Invariantes verificados ao longo do ciclo
+- ✅ **INV-3** (aposta sempre indicada) — nenhuma sprint suprime; `phase_uncertain` e `direction_locked` só ajustam o **lado**.
+- ✅ **INV ADITIVO** — toda mudança via `ADD COLUMN IF NOT EXISTS`, `out["…"] = …`, ou sub-flag default OFF.
+- ✅ **`main` é produção** — todas as mudanças via PR (`#27`..`#36`), zero push direto.
+- ✅ **`graphify-out/` não commitado** (artefato regenerável).
+
+> **Veredito FINAL do ciclo:** o eixo de sentido tem **fonte de verdade autoritativa, auto-recuperável em ≤2 giros em qualquer transição (handoff, troca silenciosa, correção), observável via Prometheus, com lock real do operador**. 11 sprints, 1 dia, zero regressão. Próximo ADENDO esperado: pós-validação 24h em produção (monitorar `roleta_phase_direction_divergence_total` e `roleta_phase_uncertain_total`).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
