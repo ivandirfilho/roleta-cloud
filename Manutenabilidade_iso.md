@@ -833,6 +833,36 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-3) — SPR-DIR9: bloco `sentido` no canal `sugestao` (fix #J)
+
+> Sprint P1 sem flag (aditivo puro). Cliente recebe o bloco autoritativo da fase no canal por-giro, não só no `state_sync` (1 s). Suíte **701 verde**.
+
+### A. Bug #J auditado
+`message_handler.py:357,1270` — `_engine_overlay_fields()` privado retorna `c_selection/force17/block_gale/bet_gate/ultimo_acerto`, **não** `sentido`. Resposta `sugestao` saía sem fase autoritativa; cliente etiquetava overlay com fase 1 tick atrasada (até o próximo `state_sync`).
+
+### B. Correção
+- **`server/message_handler.py:1268-1278`** — após `self._engine_overlay_fields()` (handler), unir com `self.game_state.engine_overlay_fields()` (gamestate). Fontes COMPLEMENTARES (handler tem `_cs_meta/_bg_meta`; GameState tem `sentido`).
+- Sem flag (campo já existia no `state_sync`; só estamos copiando para o `sugestao`). Aditivo.
+
+### C. Testes novos (`tests/test_dir9_sentido_na_sugestao.py`, 2 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_engine_overlay_fields_inclui_sentido` | Bloco `sentido` na fonte única (`GameState.engine_overlay_fields`). |
+| `test_overlay_uniao_complementar` | Handler + GameState formam união disjunta. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Adequação funcional** (latência fase ↔ overlay) | ≤1 s (state_sync) | ≤ tick do giro (sugestao) |
+| **Manutenibilidade** | 2 fontes ambíguas | 2 fontes COMPLEMENTARES (documentadas) |
+
+### E. Rollback
+`git revert` deste PR. Sem flag necessária (cliente antigos já ignoram campos desconhecidos).
+
+> **Veredito:** completude do canal por-giro. Próximas P1: DIR11 (Alembic) + DIR12 (/metrics) em paralelo.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
