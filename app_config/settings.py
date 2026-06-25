@@ -279,3 +279,15 @@ def dedup_phantom_window_ms() -> int:
         return max(0, int(os.environ.get("SDA_DEDUP_PHANTOM_WINDOW_MS", "20000")))
     except (TypeError, ValueError):
         return 20000
+
+
+def historico_nao_direcional_enabled() -> bool:
+    """DIR2 (sentido-fase): trata o histórico inicial/correção como contexto
+    NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real do
+    giro — a extensão o FABRICA por alternância retroativa — e hoje alimenta
+    timeline_cw/ccw via process_spin, envenenando o motor SDA17. Com a flag ON, o
+    histórico popula só recent_results (zona fria C3), sem direção; a fase real
+    entra com os giros ao vivo. Default OFF (byte-idêntico). Ligar com
+    SDA_HISTORICO_NAO_DIRECIONAL=1."""
+    import os
+    return os.environ.get("SDA_HISTORICO_NAO_DIRECIONAL", "0").strip().lower() in ("1", "true", "on")

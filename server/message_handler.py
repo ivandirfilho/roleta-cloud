@@ -1204,13 +1204,22 @@ class MessageHandler:
         resultados = data.get("resultados", [])
         count = 0
 
+        from app_config.settings import historico_nao_direcional_enabled
+        nao_direcional = historico_nao_direcional_enabled()
+
         # IMPORTANTE: Extensão envia índice 0 = mais recente
         # Precisamos processar do mais antigo para o mais recente
         for item in reversed(resultados):
             numero = item.get("numero")
             direcao = item.get("direcao", "horario")
             if numero is not None:
-                self.game_state.process_spin(numero, direcao)
+                if nao_direcional:
+                    # DIR2: o histórico do DOM não carrega direção real (a extensão a
+                    # FABRICA por alternância retroativa). Alimentar timeline_cw/ccw com
+                    # isso envenena o motor. Registra só como contexto não-direcional.
+                    self.game_state.register_history_number(numero)
+                else:
+                    self.game_state.process_spin(numero, direcao)
                 count += 1
 
         self.game_state.save()
@@ -1228,6 +1237,9 @@ class MessageHandler:
     async def handle_history_correction(self, websocket: WebSocketServerProtocol, data: Dict):
         resultados = data.get("resultados", [])
 
+        from app_config.settings import historico_nao_direcional_enabled
+        nao_direcional = historico_nao_direcional_enabled()
+
         # Reset das timelines
         self.game_state.timeline_cw.clear()
         self.game_state.timeline_ccw.clear()
@@ -1241,7 +1253,12 @@ class MessageHandler:
             numero = item.get("numero")
             direcao = item.get("direcao", "horario")
             if numero is not None:
-                self.game_state.process_spin(numero, direcao)
+                if nao_direcional:
+                    # DIR2: reancoragem não-direcional — não repopula timelines com
+                    # direção fabricada (que envenena o motor); só o contexto C3.
+                    self.game_state.register_history_number(numero)
+                else:
+                    self.game_state.process_spin(numero, direcao)
                 count += 1
 
         self.game_state.save()

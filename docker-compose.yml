@@ -97,6 +97,11 @@ services:
       # OFF (toca aposta). Ligar so apos validar: SDA_DEDUP_PHANTOM=1.
       - SDA_DEDUP_PHANTOM=${SDA_DEDUP_PHANTOM:-0}
       - SDA_DEDUP_PHANTOM_WINDOW_MS=${SDA_DEDUP_PHANTOM_WINDOW_MS:-20000}
+      # DIR2 (sentido-fase): historico inicial/correcao como contexto NAO-DIRECIONAL.
+      # O historico do DOM nao carrega o sentido real (a extensao o fabrica por
+      # alternancia retroativa); hoje alimenta timeline_cw/ccw via process_spin e
+      # envenena o motor. Default OFF (byte-identico). Ligar: SDA_HISTORICO_NAO_DIRECIONAL=1.
+      - SDA_HISTORICO_NAO_DIRECIONAL=${SDA_HISTORICO_NAO_DIRECIONAL:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

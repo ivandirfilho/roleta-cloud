@@ -396,6 +396,15 @@ class GameState:
         
         return force
     
+    def register_history_number(self, numero: int) -> None:
+        """DIR2 (sentido-fase): registra um número de HISTÓRICO como contexto
+        NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real
+        do giro — a extensão o fabrica por alternância retroativa. Alimentar
+        timeline_cw/ccw com essa direção inventada envenena o SDA17. Aqui só
+        populamos recent_results (zona fria C3) e o último número, SEM tocar
+        timelines nem last_direction (a fase real entra com os giros ao vivo)."""
+        self.recent_results.appendleft(numero)
+        self.last_number = numero
     def check_prediction(self, actual_number: int) -> Optional[bool]:
         """
         Verifica se a predição anterior foi acertada.
