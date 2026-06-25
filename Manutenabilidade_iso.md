@@ -1076,6 +1076,46 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-10) — SPR-DIR13: UX lock + FIX #Z lock total (extensão 3.7.0)
+
+> Sprint P2. Resolve gap UX #N e bug semântico #Z. Cliente bumpado para `3.7.0` (operador precisa recarregar extensão). Suíte **730 verde**.
+
+### A. Bugs auditados
+- **#N:** `popup.html` sem checkbox "travar fase"; `background.js:1251` mandava `locked: false` hardcoded.
+- **#Z:** `direction_locked` checado apenas em `message_handler.py:740` (impede só fusão DIR7). Não impedia auto-seed da DIR5 nem reanchoragem DIR17. Nome promete "trava", semântica era "só não escuta vídeo".
+
+### B. Correção
+- **Servidor `app_config/settings.py`** — novo `lock_total_enabled()` (default OFF; ON via `SDA_LOCK_TOTAL=1`).
+- **Servidor `message_handler.py:735-748`** — quando `_lock_total = lock_total_enabled() and direction_locked` é True E `seed_parity` está vazio, NÃO faz auto-seed (deixa o cliente ditar sem usurpar a fase escolhida pelo operador).
+- **Servidor `docker-compose.yml`** — `SDA_LOCK_TOTAL=${SDA_LOCK_TOTAL:-1}` (ATIVADO em produção).
+- **Cliente `background.js:1241-1259`** — lê `directionLocked` do `chrome.storage.local` e envia em `set_seed{direction, locked}` (não mais hardcoded). Log inclui `🔒` se lock ativo.
+- **Cliente `extension/manifest.json`** — bump `3.6.0 → 3.7.0` + descrição menciona DIR13.
+
+> **Observação:** UI completa (checkbox no `popup.html`, badge colorido no `content.js`) deferida para sprint **DIR13b** (UX visual puro). O servidor está pronto; cliente lê do storage (operador pode setar via console por enquanto: `chrome.storage.local.set({directionLocked: true})`).
+
+### C. Testes novos (`tests/test_dir13_lock_total.py`, 4 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_flag_lock_total_default_off` | Helper retorna False default. |
+| `test_lock_total_decision_matrix` | 4 combinações `(flag, locked)`. |
+| `test_manifest_bumpado_para_3_7_0` | Extensão em 3.7.0 + descrição DIR13. |
+| `test_settings_lock_total_helper_existe` | Helper exposto. |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Usabilidade** (lock real) | ⚠️ `direction_locked` semanticamente fraco | ✅ Lock total quando flag ON |
+| **Compatibilidade** | ✅ | ✅ Cliente legados ignoram set_seed.locked |
+
+### E. Rollback
+- `SDA_LOCK_TOTAL=0` + redeploy: comportamento atual.
+- Cliente: voltar `manifest.version` 3.6.0 + reload.
+- `git revert`.
+
+> **Veredito:** semântica do lock alinhada com o nome. Próxima (última): DIR15 (closeout ISO + docs).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

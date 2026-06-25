@@ -1245,13 +1245,17 @@ async function handleMessage(message, sender = null) {
     currentDirection = message.direction || 'horario';
     // 🆕 DIR8 (sentido-fase): a definição manual ANCORA a fase-semente (operador) e a
     // propaga ao servidor (autoridade), que re-ancora a projeção determinística.
+    // 🆕 DIR13 (sentido-fase): le directionLocked do storage e propaga ao servidor.
+    //    Com SDA_LOCK_TOTAL=1, lock impede auto-seed/reanchoragem no servidor.
     directionSeed = currentDirection;
+    const _stored = await chrome.storage.local.get(['directionLocked']);
+    const _locked = !!_stored.directionLocked;
     chrome.storage.local.set({ directionSeed, currentDirection });
     if (isManualCorrection) {
-      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: false });
+      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: _locked });
     }
-    console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection})`);
-    addLog('info', `Direção alterada: ${currentDirection}`);
+    console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection}, locked: ${_locked})`);
+    addLog('info', `Direção alterada: ${currentDirection}${_locked ? ' 🔒' : ''}`);
 
     // Só recalcula e envia se for correção MANUAL do usuário
     if (isManualCorrection) {

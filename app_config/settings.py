@@ -377,6 +377,22 @@ def sentido_autoritativo_shadow_enabled() -> bool:
     return os.environ.get("SDA_SENTIDO_AUTORITATIVO_SHADOW", "0").strip().lower() in ("1", "true", "on")
 
 
+def lock_total_enabled() -> bool:
+    """DIR13 (sentido-fase): FIX #Z — lock total da fase (DIR5+DIR17). Hoje
+    direction_locked so e checado em message_handler.py:740 (impede fusao de video
+    DIR7). NAO impede phase_advance (DIR4) nem auto-seed da DIR5 nem reanchoragem
+    DIR17. Nome promete 'trava' mas semantica e 'so nao escuta video'.
+
+    Com flag ON, direction_locked passa a ter semantica completa:
+    - DIR5 auto-seed nao dispara (preserva seed_parity escolhido pelo operador)
+    - DIR17 nao reanchora em uncertain (lock manda)
+    - DIR7 segue sem fusao de video (comportamento atual)
+
+    Default OFF (compatibilidade). SDA_LOCK_TOTAL=1."""
+    import os
+    return os.environ.get("SDA_LOCK_TOTAL", "0").strip().lower() in ("1", "true", "on")
+
+
 def uncertain_reancora_enabled() -> bool:
     """DIR17 (sentido-fase): reancora a fase quando phase_advance retorna sem alinhamento
     (matched=False, troca de mesa silenciosa). Em OFF (atual), apenas seta resync_advised
