@@ -713,6 +713,16 @@ class MessageHandler:
                     # marca ambiguidade para resync estruturado (não corrompe spin_seq).
                     phase_metrics.incr("phase_uncertain_total")
                     logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
+                    # DIR17 (sentido-fase): FIX #T — reancora a fase forçando auto-seed
+                    # no proximo giro alinhado. Sem isto, project_phase segue projetando
+                    # com seed antigo + spin_seq que continua incrementando -> direcao
+                    # autoritativa errada persiste por N giros ate cliente ver resync_advised.
+                    # Preserva lock explicito do operador. Atras de flag SDA_UNCERTAIN_REANCORA.
+                    from app_config.settings import uncertain_reancora_enabled
+                    if uncertain_reancora_enabled() and not self.game_state.direction_locked:
+                        self.game_state.seed_parity = ""
+                        self.game_state.seed_n = self.game_state.spin_seq
+                        logger.info("[FASE] DIR17: seed zerado — proximo giro alinhado faz auto-seed")
 
             # DIR5 (sentido-fase): AUTORIDADE da fase. Quando ligado, o servidor deixa
             # de confiar cegamente no `direcao` do cliente (que pode ter defasado) e

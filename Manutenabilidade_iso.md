@@ -789,6 +789,50 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-2) — SPR-DIR17: FIX #T (reancora seed em phase_uncertain)
+
+> Continuação da auditoria pós-implantação. Sprint P1 que fecha o vetor secundário de divergência persistente em troca de mesa silenciosa. Atrás de `SDA_UNCERTAIN_REANCORA` (default OFF byte-idêntico; ON na compose de produção). Suíte **699 verde** (OFF e ON).
+
+### A. Bug auditado
+
+| # | Sev | Bug (HEAD `4c4f541`) | Evidência |
+|---|---|---|---|
+| **#T** | 🟠 | Quando `phase_advance` retorna `matched=False` (troca de mesa silenciosa), `message_handler.py:711-715` apenas loga warning + incrementa `phase_uncertain_total` + seta `resync_advised=true`. NÃO reanchora. `spin_seq += 1` (linha 762) corre incondicionalmente. `project_phase` em `:732` segue usando `(seed_parity_antigo, seed_n_antigo, spin_seq_novo)` → direção autoritativa errada por N giros até cliente ver `resync_advised`. | combinado com #S resolvido em DIR16, ainda persistia |
+
+### B. Correção (atrás de flag)
+
+- **`app_config/settings.py`** — novo helper `uncertain_reancora_enabled()` (default OFF; ON via `SDA_UNCERTAIN_REANCORA=1`).
+- **`server/message_handler.py:711-720`** — após `logger.warning`, quando flag ON e NÃO `direction_locked`: `seed_parity=""`, `seed_n=spin_seq` (marca "ponto zero" novo).
+- **`docker-compose.yml`** — `SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}` (ATIVADO em produção; rollback `=0`).
+
+### C. Testes novos (`tests/test_dir17_uncertain_reanchora.py`, 6 testes)
+
+| Teste | Cobertura |
+|---|---|
+| `test_flag_default_off` | Helper retorna False default; True com env=1. |
+| `test_phase_advance_uncertain_quando_sem_alinhamento` | Sanity DIR4: shift sem overlap → `uncertain=True`. |
+| `test_reconcile_shift_alinhado` | Sanity DIR4: shift normal (k=1) → `matched=True`. |
+| `test_lock_total_preserva_seed_em_uncertain` | Lock do operador sobrevive a `uncertain`. |
+| `test_reancora_em_uncertain_quando_flag_on` | **#T**: flag ON + lock OFF → `seed_parity=""`, `seed_n=spin_seq`. |
+| `test_flag_off_mantem_comportamento_legado` | INV ADITIVO: flag OFF preserva comportamento atual. |
+
+### D. Conformidade ISO (impacto)
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (sentido em troca silenciosa) | ⚠️ direção autoritativa errada por N giros | ✅ auto-seed reanchora em ≤2 giros | DIR17 #T |
+| **Confiabilidade** (autorrecuperação) | ⚠️ dependia de cliente ver `resync_advised` | ✅ servidor reanchora sozinho | DIR17 |
+
+### E. Obrigações / Rollback
+
+1. **INV-3 intacto:** `spin_seq += 1` continua executando (auditoria), só o `seed_parity` é zerado.
+2. **`direction_locked` preservado:** lock do operador (DIR8/futuro DIR13) impede a reanchoragem automática.
+3. **Rollback:** `SDA_UNCERTAIN_REANCORA=0` + redeploy ou `git revert`.
+
+> **Veredito:** vetor secundário de divergência persistente fechado. Junto com DIR16, a fase autoritativa agora se autocorrige em ≤2 giros em qualquer transição (handoff, troca silenciosa, correção). Próxima: DIR9 (sentido em sugestao).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
