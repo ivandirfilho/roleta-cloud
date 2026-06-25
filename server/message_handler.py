@@ -450,6 +450,8 @@ class MessageHandler:
                 await self.handle_new_session(websocket, data)
             elif msg_type == "get_state":
                 await self.handle_get_state(websocket)
+            elif msg_type == "direction_event":
+                await self.handle_direction_event(websocket, data)
             elif msg_type == "register":
                 device_id = data.get("device_id")
                 logger.info(f"📩 Recebido REGISTER de {conn_id} com device_id={device_id}")
@@ -713,9 +715,26 @@ class MessageHandler:
                         _gs.direction_source = (getattr(spin, "direction_source", None) or "auto_seed")
                 else:
                     _proj = project_phase(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
-                    if _proj != _phase_norm(direcao):
-                        logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_proj} (seq={_gs.spin_seq})")
-                        direcao = _proj
+                    _fused = _proj
+                    # DIR7 (sentido-fase): fusão com a fonte de VÍDEO (stand-by até
+                    # acoplar). O vídeo publica direction_event (ou direction_source=
+                    # 'vision' no spin); se confiável, confirma/sobrepõe o toggle.
+                    from app_config.settings import direction_vision_enabled, direction_vision_min_conf
+                    if direction_vision_enabled():
+                        from state.phase import fuse_direction
+                        _signals = [{"source": "deterministic_toggle", "direction": _proj, "confidence": 1.0}]
+                        _ev = getattr(_gs, "last_direction_event", None)
+                        if isinstance(_ev, dict):
+                            _signals.append(_ev)
+                        if getattr(spin, "direction_source", None) == "vision":
+                            _signals.append({"source": "vision", "direction": _phase_norm(direcao),
+                                             "confidence": float(getattr(spin, "direction_confidence", 0.0) or 0.0)})
+                        _fused, _fsrc = fuse_direction(_signals, _proj, direction_vision_min_conf())
+                        if _fsrc and _fsrc != "deterministic_toggle":
+                            _gs.direction_source = _fsrc
+                    if _fused != _phase_norm(direcao):
+                        logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_fused} (seq={_gs.spin_seq})")
+                        direcao = _fused
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
@@ -1391,6 +1410,27 @@ class MessageHandler:
         }
         await websocket.send(json.dumps(response))
         logger.info(f"✅ Sessão resetada: {self.current_session_id}")
+
+    async def handle_direction_event(self, websocket: WebSocketServerProtocol, data: Dict):
+        """DIR7 (sentido-fase): ingestão STAND-BY do sinal de direção do futuro serviço
+        de vídeo. Armazena o último sinal (efêmero) para fusão por prioridade quando
+        SDA_DIRECTION_VISION=1. Inerte (apenas ack) enquanto a flag estiver OFF — permite
+        acoplar o módulo de vídeo sem nenhuma outra mudança no servidor."""
+        from state.phase import normalize as _norm
+        direction = _norm(data.get("direction") or "")
+        try:
+            conf = float(data.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if direction in ("horario", "anti-horario"):
+            self.game_state.last_direction_event = {
+                "source": "vision", "direction": direction,
+                "confidence": conf, "ts": now_ms(),
+            }
+        await websocket.send(json.dumps({
+            "type": "ack", "message": "direction_event recebido",
+            "direction": direction, "t_server": now_ms(),
+        }))
 
     async def handle_get_state(self, websocket: WebSocketServerProtocol):
         state_response = {

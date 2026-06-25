@@ -322,3 +322,22 @@ def dedup_seq_enabled() -> bool:
     SDA_DEDUP_SEQ=1."""
     import os
     return os.environ.get("SDA_DEDUP_SEQ", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_enabled() -> bool:
+    """DIR7 (sentido-fase): fusão da fonte de VÍDEO na decisão de fase. Estrutura
+    STAND-BY: o futuro serviço de vídeo publica direction_event (ou direction_source=
+    'vision' no spin) e, se confiável, confirma/sobrepõe o toggle determinístico
+    (prioridade operator>vision>toggle). Default OFF (vídeo inerte). SDA_DIRECTION_VISION=1."""
+    import os
+    return os.environ.get("SDA_DIRECTION_VISION", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_min_conf() -> float:
+    """DIR7: confiança mínima (0..1) para um sinal de direção de vídeo ser aceito.
+    Abaixo disto o sinal é descartado e o toggle determinístico prevalece. Default 0.7."""
+    import os
+    try:
+        return max(0.0, min(1.0, float(os.environ.get("SDA_DIRECTION_VISION_MIN_CONF", "0.7"))))
+    except (TypeError, ValueError):
+        return 0.7

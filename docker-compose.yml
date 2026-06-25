@@ -113,6 +113,11 @@ services:
       # DIR6 (sentido-fase): idempotencia por trace_id (reenvios/re-render chegam com
       # o mesmo trace_id). Mais robusto que numero+dir+ms. Default OFF. SDA_DEDUP_SEQ=1.
       - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-0}
+      # DIR7 (sentido-fase): fusao da fonte de VIDEO (stand-by acoplavel). O futuro
+      # servico de video publica direction_event; se confiavel, confirma/sobrepoe o
+      # toggle. Default OFF (video inerte). Ligar: SDA_DIRECTION_VISION=1.
+      - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
+      - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

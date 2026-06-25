@@ -75,3 +75,48 @@ def reconcile_shift(prev, new, max_window: int = 20):
         if all(new[k + i] == prev[i] for i in range(m)):
             return (k, True)
     return (min(len(new), max_window), False)   # sem alinhamento → resync
+
+
+# Prioridade de fontes de direção (maior = mais forte). O operador e a correção
+# manual vencem; o vídeo confiável vence o toggle determinístico; o toggle é o default.
+SOURCE_PRIORITY = {
+    "operator_seed": 100,
+    "manual_fix": 100,
+    "vision": 50,
+    "dom_hint": 20,
+    "deterministic_toggle": 10,
+}
+
+
+def fuse_direction(signals, default_direction, min_vision_conf: float = 0.7):
+    """DIR7 (sentido-fase): funde sinais de direção por PRIORIDADE/confiança.
+
+    `signals`: lista de dicts {"source","direction","confidence"}. Sinais 'vision'
+    abaixo de `min_vision_conf` são descartados (o toggle prevalece). Empate de
+    prioridade → o de maior confiança. Sem sinais válidos → (default, toggle).
+
+    Estrutura STAND-BY para o futuro módulo de vídeo: basta o serviço publicar um
+    sinal {"source":"vision",...} que ele entra na fusão sem mudar mais nada.
+    Função pura, nunca lança. Retorna (direction, source).
+    """
+    best = None
+    best_key = (-1, -1.0)
+    for sig in signals or []:
+        try:
+            src = (sig.get("source") or "").strip()
+            direction = normalize(sig.get("direction") or "")
+            conf = float(sig.get("confidence") or 0.0)
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if direction not in VALID:
+            continue
+        if src == "vision" and conf < min_vision_conf:
+            continue
+        key = (SOURCE_PRIORITY.get(src, 0), conf)
+        if key > best_key:
+            best_key = key
+            best = (direction, src)
+    if best is None:
+        base = default_direction if default_direction in VALID else HORARIO
+        return (base, "deterministic_toggle")
+    return best
