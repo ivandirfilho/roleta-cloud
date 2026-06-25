@@ -690,6 +690,57 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 — Sincronismo de Fase do Sentido (SPR-DIR1..DIR8, branch `spr/sentido-fase`, tudo default-OFF)
+
+> Ciclo que reescreve o controle do **sentido do giro** (horário↔anti-horário) tratando-o como o que ele é: uma **FASE alternada**. A roleta gira **um sentido por vez**; o sentido **não é lido** do site — o operador informa a fase **uma vez** e o sistema **alterna**. Premissa do dono: *"hoje não temos como ler o sentido… a lógica de troca automática é porque a roleta opera uma jogada em cada sentido… deve resincronizar de forma estruturada… a estrutura para receber o módulo de vídeo deve funcionar stand-by para acoplar depois."* Proposta completa: `evolução_sentido.md` (rev. 4 auditada). **Entregue em branch + PR, NÃO em produção.** Suíte **684 verde** (flags OFF e TODAS ON).
+
+### A. Capacidades NOVAS (8 sprints, cada uma atrás de flag default-OFF na compose)
+
+1. **DIR1 — cliente sobrevive/reconcilia/conta (extensão v3.6.0):** re-hidrata `currentDirection` do storage no boot do SW (perda ao minimizar); consome `state_sync.target_direction`/`sentido.next_direction` no resync pós-(re)conexão; conta giros por **shift local** (`countNewSpins`) — corrige o gap quando k>1, idêntico quando k=1; reseta a fase no `sessao_resetada`. Client-side (reload manual no Chrome).
+2. **DIR2 — histórico NÃO-DIRECIONAL (`SDA_HISTORICO_NAO_DIRECIONAL`):** `register_history_number` popula só `recent_results` (zona fria C3) sem alimentar `timeline_cw/ccw` com a direção **fabricada** do histórico (que envenenava o SDA17).
+3. **DIR3 — fundação (`SDA_SENTIDO_AUTORITATIVO` telemetria):** `state/phase.py` (projeção pura `fase(n)=seed XOR ((n-seed_n)%2)`); `GameState` ganha `spin_seq`/`seed_parity`/`seed_n`/`direction_source`/`direction_locked` com **round-trip** (save+load+reset_session); `SpinInput`/`Decision` ganham campos opcionais; **migração SQLite aditiva** (5 colunas em `decisions`, snapshot atualizado).
+4. **DIR4 — reconciliação por SHIFT (`SDA_PHASE_RECONCILE`):** o servidor passa a **consumir `allNumbers`** (12 últimos que o cliente já enviava e o servidor ignorava) e conta os giros reais; k>1 = **gap recuperado** (avança a fase pelos giros perdidos); sem alinhamento → `phase_uncertain`.
+5. **DIR5 — fase autoritativa no canal existente (`SDA_SENTIDO_AUTORITATIVO`):** bloco `sentido{last_seq,last_direction,next_direction,locked,source,resync_advised,stats}` publicado via `engine_overlay_fields()` → aparece no **state_sync (1s)** e na sugestão, **sem mensagem WebSocket nova**; autoridade com **auto-seed** (ancora na 1ª direção, projeta determinística, imune a gaps); cliente sobrescreve a paridade.
+6. **DIR6 — idempotência (`SDA_DEDUP_SEQ`):** dedup por `trace_id` (janela 64) supera numero+dir+ms; `resync_advised` no bloco sentido re-arma a reconciliação do cliente em gap/troca de mesa.
+7. **DIR7 — fusão de fontes / vídeo STAND-BY (`SDA_DIRECTION_VISION`, default OFF):** `fuse_direction` (prioridade operator>vision>toggle + threshold de confiança) + handler `direction_event` — **ponto de acoplamento do futuro serviço de vídeo, inerte enquanto a flag estiver OFF** (atende a premissa #1 do dono).
+8. **DIR8 — UX seed + observabilidade:** `handle_set_seed` (operador ancora a fase 1×, re-ancoragem persistida); `state/phase_metrics` (`gap_recuperado_total`/`phase_uncertain_total`/`direction_divergence_total`) publicado em `sentido.stats` em tempo real (e pronto p/ Prometheus).
+
+### B. Bugs estruturais que motivaram (auditados no código, rev. 1→4)
+
+| # | Bug | Correção (sprint) |
+|---|---|---|
+| #1 | `currentDirection` (global do SW MV3) perde-se ao minimizar; não re-hidratado no boot | DIR1 (re-hidrata + resync) |
+| #G | Gap de fase: cliente processava só `newNumbers[0]` e alternava 1× mesmo com k>1 giros | DIR1 (shift local) + DIR4 (shift no servidor) |
+| #H | `allNumbers` enviado mas ignorado pelo servidor (munição de reconciliação desperdiçada) | DIR4 (consome allNumbers) |
+| #A | Histórico com direção **fabricada** alimentava `timeline_cw/ccw` (envenenava o motor) | DIR2 (não-direcional) |
+| #2 | Servidor passivo: derivava a fase do cliente e não a tornava autoritativa | DIR5 (autoridade + auto-seed) |
+| #C | Reset de dealer zerava `last_direction` no servidor mas não no cliente | DIR1 (reset no cliente) + DIR3 (re-ancora seed) |
+| #D | Handoff de master injetava a fase default do novo master | DIR5 (autoridade no servidor) |
+
+### C. Impacto ISO por característica
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (sentido) | ⚠️ paridade volátil/defasada (dois no mesmo sentido) | ✅ fase determinística reconciliada (flag) | DIR1/DIR4/DIR5 |
+| **Confiabilidade** (motor) | ⚠️ timelines envenenadas por direção fabricada do histórico | ✅ histórico não-direcional (flag) | DIR2 |
+| **Confiabilidade** (recuperação) | ⚠️ minimizar/handoff dessincronizava sem volta | ✅ resync por state_sync + idempotência | DIR1/DIR5/DIR6 |
+| **Compatibilidade/Extensibilidade** | — | ✅ vídeo acoplável stand-by (sem refatorar cliente) | DIR7 |
+| **Manutenibilidade/Testabilidade** | — | ✅ +34 testes; lógica de fase 100% pura | `state/phase.py`, `tests/test_dir*` |
+| **Confiabilidade** (aposta, flags OFF) | ✅ | ✅ | **byte-idêntico** com tudo OFF (suíte 684 verde OFF e ON) |
+
+### D. Obrigações de manutenção / Rollback
+
+1. **Tudo default-OFF** no `docker-compose.yml`; ligar **gradualmente** e na ordem: DIR2 (motor limpo) → DIR3 (telemetria) → DIR4 (reconciliação) → DIR5 (autoridade) → DIR6. DIR1 é client-side (reload da extensão v3.6.0). DIR7/DIR8 conforme o vídeo/UX.
+2. **`SDA_SENTIDO_AUTORITATIVO=1` muda `direcao`** (passa a derivar a fase) — valida em sombra pela divergência (`direction_divergence_total`) antes de confiar; **auto-seed** ancora na 1ª direção (re-ancorável pelo operador via `set_seed`).
+3. **INV-3 preservado:** `phase_uncertain` **nunca** suprime a indicação — no máximo aguarda (como a calibração). A fase só decide **para qual lado** apostar.
+4. **Migração aditiva** (5 colunas nullable em `decisions`); o rollback de deploy não faz downgrade — compatível.
+5. **Rollback:** qualquer flag a `0` + redeploy restaura o comportamento atual byte-a-byte; ou `git revert` dos commits SPR-DIR*. A extensão volta por `manifest.version` anterior + reload.
+6. **Vídeo (stand-by):** o serviço futuro só precisa enviar `{type:'direction_event', direction, confidence}` e ligar `SDA_DIRECTION_VISION=1`; nenhuma outra mudança no servidor.
+
+> **Veredito:** o eixo de sentido passa a ter **fonte de verdade no servidor**, fase **determinística** ancorada em (seed, n), **reconciliação por shift** usando os últimos resultados que já trafegavam, e **resync** estruturado em reconnect/handoff/reset — tudo **aditivo, atrás de flags default-OFF**, com a estrutura de **vídeo stand-by** pronta. **Entrega por PR** (não toca `main`/produção). Suíte **684 verde** (OFF e TODAS ON).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
