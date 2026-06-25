@@ -1,5 +1,9 @@
 # Evolução do Sentido — Sincronismo de Fase (Proposta · rev. 4 · auditada e verificada)
 
+> ⚠️ **SUPERSEDED** por [`evolução_sentido_25.md`](./evolução_sentido_25.md) (rev. 5, 25/06/2026)
+> — auditoria pós-implantação + 11 sprints residuais (SPR-DIR9..DIR19) **já executadas e mergeadas**.
+> Esta rev. 4 permanece como referência histórica do design original.
+
 > **Tema:** tratar o **sentido do giro** como **fase alternada** (a roleta gira um sentido por vez) e
 > tornar o **sincronismo dessa fase** robusto à minimização do Chrome, à troca de master e à perda de
 > giros — **reusando canais e dados que já existem** no sistema. Deixa pronta a entrada do **vídeo**.

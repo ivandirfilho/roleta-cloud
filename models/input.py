@@ -41,7 +41,10 @@ class SpinInput(BaseModel):
     vision_source: str | None = Field(default=None, max_length=20, description="Origem do dado: vision|dom|fused")
     # DIR3 (sentido-fase): sinais opcionais de direção/sequência (aditivo, backward-compat).
     direction_source: str | None = Field(default=None, max_length=24, description="Origem do sentido: operator_seed|deterministic_toggle|vision|dom_hint|manual_fix")
-    client_spin_seq: int | None = Field(default=None, description="Sequência de fase prevista pelo cliente")
+    # DIR15 (25/06): RESERVADO — cliente ainda nao envia client_spin_seq. Aceito por
+    # backward-compat e como ponto de extensao para DIR21+ (cliente pode passar a
+    # enviar contador local para cross-validacao com spin_seq do servidor).
+    client_spin_seq: int | None = Field(default=None, description="RESERVADO (DIR21+): Sequência de fase prevista pelo cliente")
     direction_confidence: float | None = Field(default=None, ge=0.0, le=1.0, description="Confiança da fonte de direção (0..1)")
     
     @field_validator('numero')
