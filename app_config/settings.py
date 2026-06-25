@@ -291,3 +291,13 @@ def historico_nao_direcional_enabled() -> bool:
     SDA_HISTORICO_NAO_DIRECIONAL=1."""
     import os
     return os.environ.get("SDA_HISTORICO_NAO_DIRECIONAL", "0").strip().lower() in ("1", "true", "on")
+
+
+def sentido_autoritativo_enabled() -> bool:
+    """DIR3-5 (sentido-fase): torna o SERVIDOR a autoridade da fase do giro
+    (horário↔anti-horário). Com OFF, o servidor obedece o sentido do master e os
+    campos de fase (spin_seq/seed/source) são apenas telemetria — a aposta não muda.
+    Com ON (SDA_SENTIDO_AUTORITATIVO=1), a fase projetada/reconciliada pelo servidor
+    passa a valer e é publicada no state_sync/sugestao. Default OFF (byte-idêntico)."""
+    import os
+    return os.environ.get("SDA_SENTIDO_AUTORITATIVO", "0").strip().lower() in ("1", "true", "on")

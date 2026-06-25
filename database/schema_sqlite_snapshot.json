@@ -21,6 +21,18 @@
       "type": "TEXT"
     },
     {
+      "name": "direction_confidence",
+      "type": "REAL"
+    },
+    {
+      "name": "direction_next",
+      "type": "TEXT"
+    },
+    {
+      "name": "direction_source",
+      "type": "TEXT"
+    },
+    {
       "name": "final_action",
       "type": "TEXT"
     },
@@ -47,6 +59,10 @@
     {
       "name": "performance_snapshot",
       "type": "TEXT"
+    },
+    {
+      "name": "phase_uncertain",
+      "type": "BOOLEAN"
     },
     {
       "name": "pnl_units",
@@ -122,6 +138,10 @@
     },
     {
       "name": "spin_number",
+      "type": "INTEGER"
+    },
+    {
+      "name": "spin_seq",
       "type": "INTEGER"
     },
     {

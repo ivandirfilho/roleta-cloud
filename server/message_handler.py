@@ -660,6 +660,9 @@ class MessageHandler:
 
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
+            # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua
+            # até SDA_SENTIDO_AUTORITATIVO=1; base do shift/projeção de fase (DIR4/5).
+            self.game_state.spin_seq += 1
             # S-OBS-6: registra timestamp epoch para /api/strategy
             import time as _t_obs6
             self.last_spin_ts = _t_obs6.time()

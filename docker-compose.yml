@@ -102,6 +102,10 @@ services:
       # alternancia retroativa); hoje alimenta timeline_cw/ccw via process_spin e
       # envenena o motor. Default OFF (byte-identico). Ligar: SDA_HISTORICO_NAO_DIRECIONAL=1.
       - SDA_HISTORICO_NAO_DIRECIONAL=${SDA_HISTORICO_NAO_DIRECIONAL:-0}
+      # DIR3-5 (sentido-fase): servidor como AUTORIDADE da fase do sentido. OFF =
+      # telemetria (spin_seq/seed/source) sem mudar a aposta; ON publica a fase
+      # autoritativa no state_sync/sugestao. Default OFF (byte-identico).
+      - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

@@ -366,6 +366,19 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
                 logger.info("Migration Vision (foto_roleta): added wheel_model/vision_confidence/vision_source to decisions")
 
+            # DIR3 (sentido-fase): contador de fase + origem/confiança do sentido +
+            # próxima fase + flag de ambiguidade. Aditivo idempotente (padrão SP-13).
+            try:
+                conn.execute("SELECT spin_seq FROM decisions LIMIT 1")
+            except sqlite3.OperationalError:
+                conn.execute("ALTER TABLE decisions ADD COLUMN spin_seq INTEGER")
+                conn.execute("ALTER TABLE decisions ADD COLUMN direction_source TEXT")
+                conn.execute("ALTER TABLE decisions ADD COLUMN direction_confidence REAL")
+                conn.execute("ALTER TABLE decisions ADD COLUMN direction_next TEXT")
+                conn.execute("ALTER TABLE decisions ADD COLUMN phase_uncertain BOOLEAN")
+                conn.commit()
+                logger.info("Migration DIR3 (sentido-fase): added spin_seq/direction_source/direction_confidence/direction_next/phase_uncertain to decisions")
+
             # ISO-S6 (Sprint B-03 reescopado 26/05): gale_windows.result enum.
             # Enum oficial observado em prod: 'streak', 'reset', 'info'.
             # (1) Backfill defensivo: qualquer NULL legado vira 'info' (neutro).
@@ -405,8 +418,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                     calibration_offset, calibration_error,
                     performance_snapshot,
                     dealer, dealer_table, provider, round_id,
-                    wheel_model, vision_confidence, vision_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    wheel_model, vision_confidence, vision_source,
+                    spin_seq, direction_source, direction_confidence, direction_next, phase_uncertain
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 decision.timestamp.isoformat(),
                 decision.session_id,
@@ -446,6 +460,11 @@ class SQLiteDecisionRepository(DecisionRepository):
                 getattr(decision, "wheel_model", "") or "",
                 float(getattr(decision, "vision_confidence", 0.0) or 0.0),
                 getattr(decision, "vision_source", "") or "",
+                int(getattr(decision, "spin_seq", 0) or 0),
+                getattr(decision, "direction_source", "") or "",
+                float(getattr(decision, "direction_confidence", 0.0) or 0.0),
+                getattr(decision, "direction_next", "") or "",
+                bool(getattr(decision, "phase_uncertain", False)),
             ))
             conn.commit()
             decision_id = cursor.lastrowid
@@ -890,6 +909,12 @@ class SQLiteDecisionRepository(DecisionRepository):
             wheel_model=(row["wheel_model"] if "wheel_model" in row.keys() else "") or "",
             vision_confidence=(row["vision_confidence"] if "vision_confidence" in row.keys() else 0.0) or 0.0,
             vision_source=(row["vision_source"] if "vision_source" in row.keys() else "") or "",
+            # DIR3 (sentido-fase, defensivo: colunas podem nao existir em snapshots antigos)
+            spin_seq=(row["spin_seq"] if "spin_seq" in row.keys() else 0) or 0,
+            direction_source=(row["direction_source"] if "direction_source" in row.keys() else "") or "",
+            direction_confidence=(row["direction_confidence"] if "direction_confidence" in row.keys() else 0.0) or 0.0,
+            direction_next=(row["direction_next"] if "direction_next" in row.keys() else "") or "",
+            phase_uncertain=bool(row["phase_uncertain"]) if ("phase_uncertain" in row.keys() and row["phase_uncertain"] is not None) else False,
         )
     
     # =========================================================================
