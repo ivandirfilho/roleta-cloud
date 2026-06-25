@@ -1435,6 +1435,15 @@ class MessageHandler:
 
             reset_info = self.game_state.reset_session(keep_last_number=keep_last)
 
+            # DIR14 (sentido-fase): FIX #O — limpa cache de trace_ids para nao
+            # rejeitar primeiro spin pos-reset como falso-positivo de dedup
+            # (cliente pode reenviar um trace_id ainda no buffer da sessao anterior).
+            if getattr(self, "_recent_trace_ids", None) is not None:
+                try:
+                    self._recent_trace_ids.clear()
+                except Exception:  # noqa: BLE001 — defensivo, deque.clear nunca falha mas...
+                    pass
+
             # B1 (12/06): zera TAMBÉM o estado adaptativo do SDA17 (P10).
             # Sem isto, o dealer novo herdava _sigmoid_off/históricos do
             # anterior e o warmup de 2 jogadas (P9) nunca recomeçava.
