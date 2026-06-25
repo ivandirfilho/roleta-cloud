@@ -373,6 +373,16 @@ class GameState:
         self.spin_seq = 0
         self.seed_n = 0
         self.direction_source = "reset"
+        # DIR16 (sentido-fase): FIX CRITICO #S/#W/#X — zerar tambem seed_parity para
+        # forcar auto-seed da DIR5 no 1º giro pos-reset (se nao for lock explicito).
+        # Sem isto, project_phase segue projetando com paridade da MESA ANTERIOR ate
+        # o operador chamar set_seed manualmente — vetor real de aposta no lado errado
+        # em handoff de dealer. Atras de flag SDA_RESET_REANCORA (default OFF byte-identico).
+        from app_config.settings import reset_reancora_enabled
+        if reset_reancora_enabled() and not self.direction_locked:
+            self.seed_parity = ""
+            self.last_phase_uncertain = False
+            self.last_direction_event = None
         
         # Salvar estado limpo
         self.save()

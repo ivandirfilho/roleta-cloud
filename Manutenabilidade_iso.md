@@ -741,6 +741,54 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde) — SPR-DIR16: FIX CRÍTICO #S/#W/#X (reset/reancoragem completa de fase)
+
+> Auditoria pós-implantação de `evolução_sentido.md` rev. 4 (PR #25+#26) detectou **bug de aposta no lado errado em handoff de dealer/mesa**. Proposta consolidada: `evolução_sentido_25.md` (rev. 5). Esta é a 1ª sprint residual: P0 crítica, atrás de `SDA_RESET_REANCORA` (default OFF byte-idêntico; ON na compose de produção). Suíte **693 verde** (OFF e ON). Entregue por PR.
+
+### A. Bug auditado (verdade estruturada)
+
+| # | Sev | Bug (HEAD `0dca93d`) | Evidência |
+|---|---|---|---|
+| **#S** | 🔴 | `reset_session` zera `spin_seq=0`/`seed_n=0`/`direction_source="reset"` mas **MANTÉM `seed_parity`** da mesa anterior. Auto-seed da DIR5 (`if not _gs.seed_parity:` em `message_handler.py:726`) **falha** porque a string é truthy → `project_phase` segue projetando com paridade antiga até alguém chamar `set_seed`. | `state/game.py:373-375` zerava 3 de 5 campos |
+| **#W** | 🟠 | `handle_history_correction` reseta timelines/recent_results/last_* mas NÃO toca fase. Cliente DIR1+ chama `set_seed` separado; legados ficam inconsistentes. | `message_handler.py:1349-1386` |
+| **#X** | 🟠 | `handle_history_correction` (e `handle_initial_history`) reprocessam histórico sem incrementar `spin_seq` — `process_spin` não toca em `spin_seq` (só `handle_new_result` em `:762` incrementa). Resultado: timeline com N spins, `spin_seq=0` → projeção desalinhada. | `state/game.py:382-414` |
+
+### B. Correção (passo concreto, atrás de flag)
+
+- **`app_config/settings.py`** — novo helper `reset_reancora_enabled()` (default OFF; ON via `SDA_RESET_REANCORA=1`).
+- **`state/game.py:reset_session` (`:371-385`)** — quando flag ON e NÃO `direction_locked`: zera `seed_parity=""`, `last_phase_uncertain=False`, `last_direction_event=None`. Reativa o auto-seed no 1º giro pós-reset.
+- **`server/message_handler.py:handle_history_correction` (`:1374-1383`)** — após o loop de reprocessamento: `spin_seq=count` (alinha com timeline); se não locked, zera `seed_parity` e `seed_n`.
+- **`server/message_handler.py:handle_initial_history` (`:1334-1344`)** — mesmo tratamento.
+- **`docker-compose.yml`** — `SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}` (ATIVADO em produção; rollback `=0` + redeploy).
+
+### C. Testes novos (`tests/test_dir16_reset_reancora.py`)
+
+| Teste | Cobertura |
+|---|---|
+| `test_flag_default_off` | Helper retorna False default; True com env=1. |
+| `test_reset_zera_seed_parity_quando_flag_on_e_nao_locked` | **#S**: com flag ON + lock OFF → `seed_parity=""`, `last_*` zerados. |
+| `test_reset_preserva_seed_parity_quando_locked` | Lock explícito do operador sobrevive ao reset (roleta física segue alternando). |
+| `test_reset_legado_off_mantem_seed_parity` | **INV ADITIVO**: flag OFF restaura comportamento byte-idêntico ao pré-DIR16. |
+
+### D. Conformidade ISO (impacto)
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (sentido em handoff) | ⚠️ aposta no lado errado da mesa anterior | ✅ auto-seed reanchora em ≤1 giro | DIR16 #S |
+| **Confiabilidade** (correção histórica) | ⚠️ `correcao_historico` deixava fase órfã | ✅ `spin_seq` + `seed_parity` alinhados | DIR16 #W/#X |
+| **Manutenibilidade/Testabilidade** | — | ✅ +4 testes (`test_dir16_*`); flag opt-in preserva 15 testes legados | gateado |
+
+### E. Obrigações / Rollback
+
+1. **Flag default ON na compose** após validação local (suíte 693 verde OFF e ON); rollback por `SDA_RESET_REANCORA=0` + redeploy ou `git revert`.
+2. **INV-3 intacto:** este sprint não toca decisão de aposta — só corrige projeção de fase.
+3. **Migração:** N/A (campo em memória/JSON; round-trip já testado em DIR3).
+4. **Cliente:** N/A (servidor-only); `manifest.version` segue 3.6.0.
+
+> **Veredito:** o vetor crítico de aposta no lado errado em handoff é fechado. Próximas sprints residuais (DIR17/DIR9/DIR11/DIR12/DIR10/DIR13/DIR14/DIR18/DIR15/DIR19) entram em paralelo após validação 24h. Plano: `evolução_sentido_25.md` rev. 5.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

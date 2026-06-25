@@ -1334,6 +1334,17 @@ class MessageHandler:
                     self.game_state.process_spin(numero, direcao)
                 count += 1
 
+        # DIR16 (sentido-fase): FIX #X — reancora a fase apos historico. spin_seq passa
+        # a refletir o numero de spins efetivamente registrados (alinha com timeline);
+        # seed_parity zera para forcar auto-seed da DIR5 no proximo novo_resultado.
+        # Preserva lock explicito do operador. Atras de flag SDA_RESET_REANCORA.
+        from app_config.settings import reset_reancora_enabled
+        if reset_reancora_enabled():
+            self.game_state.spin_seq = count
+            if not self.game_state.direction_locked:
+                self.game_state.seed_parity = ""
+                self.game_state.seed_n = 0
+
         self.game_state.save()
 
         # ACK
@@ -1372,6 +1383,17 @@ class MessageHandler:
                 else:
                     self.game_state.process_spin(numero, direcao)
                 count += 1
+
+        # DIR16 (sentido-fase): FIX #W/#X — reancora a fase ao reprocessar correcao.
+        # spin_seq passa a refletir o numero de spins reprocessados (alinha com timeline);
+        # seed_parity zera para forcar auto-seed da DIR5 no proximo novo_resultado.
+        # Preserva lock explicito do operador. Atras de flag SDA_RESET_REANCORA.
+        from app_config.settings import reset_reancora_enabled
+        if reset_reancora_enabled():
+            self.game_state.spin_seq = count
+            if not self.game_state.direction_locked:
+                self.game_state.seed_parity = ""
+                self.game_state.seed_n = 0
 
         self.game_state.save()
 

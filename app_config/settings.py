@@ -341,3 +341,15 @@ def direction_vision_min_conf() -> float:
         return max(0.0, min(1.0, float(os.environ.get("SDA_DIRECTION_VISION_MIN_CONF", "0.7"))))
     except (TypeError, ValueError):
         return 0.7
+
+
+def reset_reancora_enabled() -> bool:
+    """DIR16 (sentido-fase): fix critico do reset/reancoragem de fase apos troca de
+    dealer/mesa. Em OFF (atual), reset_session zera spin_seq/seed_n/direction_source
+    mas MANTEM seed_parity da mesa anterior -> o auto-seed da DIR5 nunca dispara e
+    project_phase segue usando a paridade antiga. Em ON, reset_session zera tambem
+    seed_parity (a menos que direction_locked=True), e handle_history_correction/
+    handle_initial_history reanchoram fase ao reprocessar historico. Default OFF
+    (byte-identico). SDA_RESET_REANCORA=1."""
+    import os
+    return os.environ.get("SDA_RESET_REANCORA", "0").strip().lower() in ("1", "true", "on")
