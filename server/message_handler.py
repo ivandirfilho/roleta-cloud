@@ -697,7 +697,10 @@ class MessageHandler:
                 from state.phase import phase_advance
                 from state import phase_metrics
                 _all_nums = data.get("allNumbers") or []
-                _prev_nums = list(self.game_state.recent_results)
+                # DIR19: usa buffer de fase dedicado (janela 20), preserva recent_results
+                # (zona fria C3 maxlen=10) intacto para SDA17. Fallback para recent_results
+                # se _phase_results ausente (load_state legado).
+                _prev_nums = list(getattr(self.game_state, "_phase_results", None) or self.game_state.recent_results)
                 _gap, _inter, _phase_uncertain = phase_advance(_prev_nums, _all_nums)
                 if _gap > 0:
                     # gap recuperado (com alinhamento): avança a fase pelos giros perdidos
