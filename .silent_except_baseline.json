@@ -2,7 +2,7 @@
   "server/analytics_handler.py": 1,
   "server/connection_manager.py": 5,
   "server/extractor_service.py": 4,
-  "server/health_server.py": 18,
+  "server/health_server.py": 19,
   "server/message_handler.py": 28,
   "server/vision_ocr.py": 2,
   "server/websocket.py": 22,
