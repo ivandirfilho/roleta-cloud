@@ -932,6 +932,46 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 25/06/2026 (tarde-6) — SPR-DIR10: ultimos[N] no overlay (fix #K)
+
+> Sprint P2 com flag de tamanho. Timeline rica para auditoria offline/dashboards externos. Buffer separado de `recent_results` (preserva zona fria C3). Suíte **712 verde**.
+
+### A. Bug #K auditado
+`engine_overlay_fields` publicava apenas `last_seq` (escalar). Cliente/auditor externo não tinha como reconstruir a fase histórica sem chamar `get_state` ou raspar log.
+
+### B. Correção
+- **`state/game.py:251`** — novo `_phase_overlay_ring: deque(maxlen=12)` (SEPARADO de `recent_results` para não perturbar zona fria C3 / SDA17).
+- **`state/game.py:process_spin` + `register_history_number`** — appendleft de `{numero, seq, direction}` (histórico vai com `direction=""`).
+- **`state/game.py:engine_overlay_fields`** — publica `out["ultimos"]` (N controlado por `SDA_OVERLAY_ULTIMOS_N`, default 12, 0 desativa).
+- **Round-trip:** `save_state`/`load_state` preservam o ring (cliente não perde timeline em restart).
+- **`reset_session`:** zera o ring (novo dealer = nova história).
+- **`app_config/settings.py`** — helper `overlay_ultimos_n()` (int 0..64; default 12).
+- **Lint baseline atualizado** (3 novos try/except defensivos em `game.py`).
+
+### C. Testes novos (`tests/test_dir10_ultimos_overlay.py`, 7 testes)
+| Teste | Cobertura |
+|---|---|
+| `test_flag_default_12` | Helper retorna 12 default; 5 e 0 via env. |
+| `test_process_spin_alimenta_ring` | Giros vivos populam ring com `numero+seq+direction`. |
+| `test_overlay_publica_ultimos` | `out["ultimos"]` aparece, limitado a N. |
+| `test_overlay_desativado_com_n_zero` | N=0 → chave `ultimos` ausente. |
+| `test_register_history_alimenta_ring_nao_direcional` | Histórico → `direction=""` (sem inventar). |
+| `test_roundtrip_ring_em_save_load` | Ring sobrevive a restart. |
+| `test_reset_session_limpa_ring` | Reset zera (cross-dealer isolado). |
+
+### D. Impacto ISO
+| Subcaracterística | Antes | Depois |
+|---|:--:|:--:|
+| **Analisabilidade** (auditoria offline) | ⚠️ Só `last_seq` escalar | ✅ Timeline completa 12 últimos |
+| **Confiabilidade** (zona fria C3) | ✅ | ✅ INV: buffer separado, SDA17 intacto |
+
+### E. Rollback
+`SDA_OVERLAY_ULTIMOS_N=0` no host + restart, ou `git revert`.
+
+> **Veredito:** auditoria externa habilitada sem tocar SDA17. Próxima: DIR13 (UX lock + fix #Z lock total).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

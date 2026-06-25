@@ -248,6 +248,12 @@ class GameState:
     seed_n: int = 0
     direction_source: str = ""
     direction_locked: bool = False
+    # DIR10 (sentido-fase): ring buffer dedicado p/ overlay (timeline rica auditavel).
+    # Cada entry: {"numero":int, "seq":int, "direction":str}. Mais recente em index 0
+    # (mesma convencao de recent_results). SEPARADO de recent_results (maxlen=10, zona
+    # fria C3 — nao mexer para nao quebrar SDA17). Tamanho controlado por
+    # SDA_OVERLAY_ULTIMOS_N (default 12; 0 = desativa publicacao).
+    _phase_overlay_ring: deque = field(default_factory=lambda: deque(maxlen=12))
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -324,6 +330,8 @@ class GameState:
         # V4 (BUG-F): zera a janela de resultados da zona fria de C3 ao trocar
         # dealer/mesa — senão a frieza mistura sessões.
         self.recent_results = deque(maxlen=10)
+        # DIR10 (sentido-fase): zera tambem o ring overlay — historico novo comeca limpo.
+        self._phase_overlay_ring = deque(maxlen=12)
         
         # Calibração removida (momentum desabilitado)
         
@@ -406,6 +414,17 @@ class GameState:
         # V4: registra todo número sorteado (zona fria de C3), independente de
         # haver spin anterior. Antes do cálculo de força (BUG-F: ciclo de vida).
         self.recent_results.appendleft(numero)
+        # DIR10 (sentido-fase): ring overlay rico (numero+seq+direction) — separado
+        # para nao perturbar a zona fria C3. spin_seq atual reflete o evento ainda
+        # nao incrementado (handle_new_result incrementa em :762 apos process_spin).
+        try:
+            self._phase_overlay_ring.appendleft({
+                "numero": int(numero),
+                "seq": int(getattr(self, "spin_seq", 0) or 0),
+                "direction": direcao,
+            })
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra fluxo de aposta
+            pass
 
         force = 0
         
@@ -432,6 +451,15 @@ class GameState:
         populamos recent_results (zona fria C3) e o último número, SEM tocar
         timelines nem last_direction (a fase real entra com os giros ao vivo)."""
         self.recent_results.appendleft(numero)
+        # DIR10: historico tambem entra no ring overlay (NAO-direcional explicito).
+        try:
+            self._phase_overlay_ring.appendleft({
+                "numero": int(numero),
+                "seq": int(getattr(self, "spin_seq", 0) or 0),
+                "direction": "",  # NAO-direcional: historico nao carrega sentido real
+            })
+        except Exception:  # noqa: BLE001 — observabilidade nunca quebra fluxo de aposta
+            pass
         self.last_number = numero
     def check_prediction(self, actual_number: int) -> Optional[bool]:
         """
@@ -1042,6 +1070,17 @@ class GameState:
             out["sentido"]["stats"] = phase_metrics.snapshot()
         except Exception:  # noqa: BLE001 — observabilidade nunca quebra o overlay
             pass
+        # DIR10 (sentido-fase): publica timeline rica (numero+seq+direction) para
+        # auditoria externa (dashboards, debug offline). Default N=12; 0 desativa.
+        # Ring buffer SEPARADO de recent_results (zona fria C3) — sem impacto SDA17.
+        try:
+            from app_config.settings import overlay_ultimos_n as _on
+            _n = _on()
+            if _n > 0:
+                _ring = list(getattr(self, "_phase_overlay_ring", []) or [])
+                out["ultimos"] = _ring[:_n]
+        except Exception:  # noqa: BLE001
+            pass
         return out
 
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:
@@ -1292,6 +1331,9 @@ class GameState:
             "seed_n": self.seed_n,
             "direction_source": self.direction_source,
             "direction_locked": self.direction_locked,
+            # DIR10: ring overlay rico (numero+seq+direction). Round-trip preserva
+            # historico recente atraves de restarts (cliente nao perde timeline).
+            "_phase_overlay_ring": list(self._phase_overlay_ring),
             # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
             "c_selection": self.c_selection_engine.state_dict(),
             "block_gale": self.block_gale_engine.state_dict(),
@@ -1392,6 +1434,12 @@ class GameState:
             gs.seed_n = int(data.get("seed_n", 0) or 0)
             gs.direction_source = data.get("direction_source", "") or ""
             gs.direction_locked = bool(data.get("direction_locked", False))
+            # DIR10: round-trip do ring overlay. Default vazio se ausente (backward compat).
+            try:
+                _ring_data = data.get("_phase_overlay_ring", []) or []
+                gs._phase_overlay_ring = deque(_ring_data, maxlen=12)
+            except Exception:  # noqa: BLE001
+                gs._phase_overlay_ring = deque(maxlen=12)
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))
