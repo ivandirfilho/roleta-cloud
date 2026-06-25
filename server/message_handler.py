@@ -1268,6 +1268,12 @@ class MessageHandler:
         # IMPL C1/C2 + Block-Gale (17/06): campos aditivos (extensão ignora desconhecidos).
         try:
             overlay_response["data"].update(self._engine_overlay_fields())
+            # DIR9 (sentido-fase): bloco `sentido` também no canal por-giro `sugestao`
+            # (antes vivia só em state_sync 1s e no trace). Sem isto, cliente etiqueta
+            # giro com fase 1 tick atrasada. Aditivo (clientes antigos ignoram).
+            # As duas fontes são COMPLEMENTARES (handler tem _cs_meta/_bg_meta;
+            # GameState tem sentido). Não unificar — vivem em escopos diferentes.
+            overlay_response["data"].update(self.game_state.engine_overlay_fields())
         except Exception:  # noqa: BLE001
             pass
 
