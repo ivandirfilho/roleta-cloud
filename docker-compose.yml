@@ -119,6 +119,13 @@ services:
       # toggle. Default OFF (video inerte). Ligar: SDA_DIRECTION_VISION=1.
       - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
       - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
+      # DIR16 (sentido-fase): FIX CRITICO #S/#W/#X — reset_session zera seed_parity
+      # (a menos que direction_locked); handle_history_correction/handle_initial_history
+      # reanchoram fase. Sem isto, apos troca de dealer/mesa, DIR5 segue projetando com
+      # paridade da MESA ANTERIOR (auto-seed nunca dispara pq seed_parity nao zera) —
+      # vetor real de aposta no lado errado em handoff. ATIVADO (default ON).
+      # Rollback: SDA_RESET_REANCORA=0 no host + redeploy.
+      - SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
