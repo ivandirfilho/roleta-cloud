@@ -1015,6 +1015,17 @@ class GameState:
                 "dir_bias": _bias,
             }
             out["regioes"] = f17.get("regioes", [])
+        # DIR5 (sentido-fase): bloco autoritativo da fase, publicado no state_sync (1s)
+        # e no trace. O cliente sobrescreve sua paridade com next_direction; o overlay
+        # mostra a fase + origem. Aditivo (clientes antigos ignoram). next_direction =
+        # oposto do último processado = fase do próximo giro.
+        out["sentido"] = {
+            "last_seq": int(getattr(self, "spin_seq", 0) or 0),
+            "last_direction": getattr(self, "last_direction", "") or "",
+            "next_direction": self.target_direction,
+            "locked": bool(getattr(self, "direction_locked", False)),
+            "source": getattr(self, "direction_source", "") or "",
+        }
         return out
 
     def _calculate_force(self, from_num: int, to_num: int, direction: str) -> int:

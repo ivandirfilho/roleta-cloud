@@ -677,6 +677,26 @@ class MessageHandler:
                 if _phase_uncertain:
                     logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
 
+            # DIR5 (sentido-fase): AUTORIDADE da fase. Quando ligado, o servidor deixa
+            # de confiar cegamente no `direcao` do cliente (que pode ter defasado) e
+            # DERIVA a fase do giro pela projeção determinística, ancorada na primeira
+            # direção observada (auto-seed). Imune a gaps subsequentes. Sem seed (ou flag
+            # OFF) cai no comportamento atual (obedece o cliente).
+            from app_config.settings import sentido_autoritativo_enabled
+            if sentido_autoritativo_enabled():
+                from state.phase import project_phase, normalize as _phase_norm
+                _gs = self.game_state
+                if not _gs.seed_parity:
+                    _gs.seed_parity = _phase_norm(direcao)
+                    _gs.seed_n = _gs.spin_seq
+                    if not _gs.direction_source or _gs.direction_source == "reset":
+                        _gs.direction_source = (getattr(spin, "direction_source", None) or "auto_seed")
+                else:
+                    _proj = project_phase(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
+                    if _proj != _phase_norm(direcao):
+                        logger.info(f"[FASE] autoridade corrige direcao: {direcao} -> {_proj} (seq={_gs.spin_seq})")
+                        direcao = _proj
+
             # Processar spin
             force = self.game_state.process_spin(numero, direcao)
             # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua

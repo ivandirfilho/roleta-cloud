@@ -579,8 +579,11 @@ function connectWebSocket() {
           // do PRÓXIMO giro = autoridade do servidor). Após (re)conectar, reconcilia UMA
           // vez a fase local com a do servidor — corrige o caso em que o service worker
           // reiniciou e voltou currentDirection a 'horario' ao minimizar o Chrome.
-          if (pendingPhaseResync && data.data && data.data.target_direction) {
-            const srvDir = data.data.target_direction;
+          if (pendingPhaseResync && data.data) {
+            // 🆕 DIR5: prefere o bloco autoritativo `sentido.next_direction`; cai em
+            // target_direction (DIR1) se um servidor antigo não enviar o bloco.
+            const _s = data.data.sentido;
+            const srvDir = (_s && _s.next_direction) ? _s.next_direction : data.data.target_direction;
             if (srvDir === 'horario' || srvDir === 'anti-horario') {
               if (srvDir !== currentDirection) {
                 console.log(`🔄 DIR1 resync de fase: ${currentDirection} → ${srvDir} (servidor)`);
