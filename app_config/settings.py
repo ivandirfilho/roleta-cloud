@@ -329,6 +329,27 @@ def dedup_seq_enabled() -> bool:
     return os.environ.get("SDA_DEDUP_SEQ", "0").strip().lower() in ("1", "true", "on")
 
 
+def dna_realize_enabled() -> bool:
+    """H1 (03/08): fecha o loop do decision_dna — dna_realize_lifts() roda
+    automaticamente a cada N resultados (ver dna_realize_every), calculando
+    realized_lift_pp POR SENTIDO (cw/ccw; NULL legado = grupo próprio) e
+    espelhando cada bucket ao PG via outbox (evento dna_lift_bucket).
+    Corrige F1 da auditoria 03/08 (função órfã → coluna 100% NULL).
+    Default OFF (byte-idêntico). Ligar com SDA_DNA_REALIZE=1."""
+    import os
+    return os.environ.get("SDA_DNA_REALIZE", "0").strip().lower() in ("1", "true", "on")
+
+
+def dna_realize_every() -> int:
+    """H1 (03/08): cadência do dna_realize_lifts — roda a cada N resultados
+    confirmados (default 20). Leitura por-chamada via SDA_DNA_REALIZE_EVERY."""
+    import os
+    try:
+        return max(1, int(os.environ.get("SDA_DNA_REALIZE_EVERY", "20").strip()))
+    except ValueError:
+        return 20
+
+
 def direction_vision_enabled() -> bool:
     """DIR7 (sentido-fase): fusão da fonte de VÍDEO na decisão de fase. Estrutura
     STAND-BY: o futuro serviço de vídeo publica direction_event (ou direction_source=

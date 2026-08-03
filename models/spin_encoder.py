@@ -63,9 +63,32 @@ class SpinEncoder:
 
 
 def train_pca(X, n_components: int = 4):
-    """Treina PCA simples. X deve ser array (n_samples, 6)."""
+    """Treina PCA simples. X deve ser array (n_samples, 6).
+
+    Legado (S7). Preferir train_pipeline() — whiten normaliza a SAÍDA do
+    PCA mas não a entrada, então dims com escalas distintas dominam os
+    componentes.
+    """
     from sklearn.decomposition import PCA  # type: ignore
     model = PCA(n_components=n_components, whiten=True, random_state=42)
+    model.fit(X)
+    return model
+
+
+def train_pipeline(X, n_components: int = 4):
+    """H5 (03/08): StandardScaler → PCA(whiten) num Pipeline sklearn.
+
+    Normaliza a ENTRADA antes do PCA (as 6 dims têm escalas distintas:
+    spin_force ~0-100, taxas 0-1, scores 0-10). O Pipeline expõe
+    .transform — API idêntica ao PCA puro, SpinEncoder.encode não muda.
+    """
+    from sklearn.decomposition import PCA  # type: ignore
+    from sklearn.pipeline import Pipeline  # type: ignore
+    from sklearn.preprocessing import StandardScaler  # type: ignore
+    model = Pipeline([
+        ("scaler", StandardScaler()),
+        ("pca", PCA(n_components=n_components, whiten=True, random_state=42)),
+    ])
     model.fit(X)
     return model
 

@@ -250,11 +250,19 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
         return False
 
 
-def maybe_publish_spin_result(decision_id: int, direction: str, hit: bool, actual_number: int) -> bool:
+def maybe_publish_spin_result(
+    decision_id: int,
+    direction: str,
+    hit: bool,
+    actual_number: int,
+    session_id: str | None = None,
+) -> bool:
     """OBS-25-01 — publica evento `spin_result` quando o resultado é conhecido.
 
     Chamado após `db_service.update_result` no message_handler. Permite
     engenharia reversa offline e backtest (S-STRAT-9) sem depender de logs.
+    H3 (03/08): carrega session_id para o worker isolar a janela de lag
+    features por sessão (payloads sem session_id seguem no modo global).
 
     NUNCA levanta — guard-rail consistente com maybe_publish_decision_features.
     """
@@ -278,6 +286,8 @@ def maybe_publish_spin_result(decision_id: int, direction: str, hit: bool, actua
             "hit": bool(hit),
             "actual_number": int(actual_number),
         }
+        if session_id:
+            payload["session_id"] = str(session_id)
         pub.publish(
             aggregate="spin_result",
             aggregate_id=f"{dir_norm}:{decision_id}",
@@ -406,6 +416,62 @@ def _publish_dna_realized_sync(item: dict) -> bool:
         return False
 
 
+def _publish_dna_lift_bucket_sync(item: dict) -> bool:
+    """H1 (03/08): espelha lift por bucket para o PG — 1 evento por bucket."""
+    _m_hook_called.inc()
+    try:
+        if not _is_flag_enabled("dual_write_pg"):
+            _m_hook_skipped.labels(reason="flag_off").inc()
+            return False
+        pub = _get_publisher()
+        if pub is None:
+            _m_hook_skipped.labels(reason="publisher_none").inc()
+            return False
+        payload = {
+            "event_type": "dna_lift_bucket",
+            "feature_name": str(item["feature_name"]),
+            "bucket": str(item["bucket"]),
+            # Fix auditoria 03/08: SQLite guarda "horario"/"anti-horario";
+            # o PG guarda "cw"/"ccw" — sem normalizar, o UPDATE casa 0 rows.
+            "direction": _normalize_direction(item.get("direction") or ""),
+            "realized_lift_pp": float(item["realized_lift_pp"]),
+            "n": item.get("n"),
+        }
+        pub.publish(
+            aggregate="dna",
+            aggregate_id=(
+                f"lift:{item.get('direction') or 'all'}:"
+                f"{item['feature_name']}:{item['bucket']}"
+            ),
+            payload=payload,
+        )
+        _m_hook_published.inc()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        _m_hook_skipped.labels(reason="exception").inc()
+        logger.error("dna_lift_bucket_publish_failed feature=%s bucket=%s exc=%s",
+                     item.get("feature_name"), item.get("bucket"), type(exc).__name__)
+        return False
+
+
+def maybe_publish_dna_lift_bucket(
+    feature_name: str,
+    bucket: str,
+    *,
+    direction: str | None = None,
+    realized_lift_pp: float,
+    n: int | None = None,
+) -> bool:
+    """H1 (03/08) — enfileira o lift realizado de um bucket para o PG."""
+    return _dna_enqueue("lift_bucket", {
+        "feature_name": feature_name,
+        "bucket": bucket,
+        "direction": direction,
+        "realized_lift_pp": realized_lift_pp,
+        "n": n,
+    })
+
+
 # ---- Fila assíncrona do DNA (INCIDENT 12/06: fora do caminho crítico) ----
 import queue as _queue
 
@@ -420,6 +486,8 @@ def _dna_worker() -> None:
         try:
             if kind == "feature":
                 _publish_dna_feature_sync(item)
+            elif kind == "lift_bucket":
+                _publish_dna_lift_bucket_sync(item)
             else:
                 _publish_dna_realized_sync(item)
         except Exception:  # noqa: BLE001 — worker nunca morre
