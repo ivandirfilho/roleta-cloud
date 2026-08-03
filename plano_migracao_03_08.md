@@ -386,7 +386,9 @@ Criar em sprint/PR separado:
    gravado em **`$REPO_DIR/.env`**: o Compose só lê o `.env` do diretório do
    projeto, então escrevê-lo em `/opt/roleta` não teria efeito.
 4. Backup SQLite via `.backup` → Blob e cópia do modelo com checksums.
-5. Deploy Azure que **puxa digest ACR** com `az acr login --identity` +
+5. Deploy Azure que **puxa digest ACR** autenticando pela MI em dois comandos —
+   `az login --identity` e depois `az acr login -n acrroletaprod` (§14, A20:
+   `az acr login` **não** aceita `--identity`) — seguido de
    `docker compose -f docker-compose.azure.yml pull` +
    `up -d --no-build`; nunca `docker compose build` e nunca a credencial de
    admin do ACR. Antes do `alembic upgrade head`, o script **aborta** se
@@ -405,7 +407,7 @@ diff de flags vazio.
 |---|---|
 | Criar layout `/opt/roleta`, volumes e permissões | A+H |
 | Validar leitura do Key Vault por MI | A |
-| Validar `docker pull` do ACR autenticado **pela Managed Identity** (`az acr login --identity`), sem usar admin | A |
+| Validar `docker pull` do ACR autenticado **pela Managed Identity** (`az login --identity` seguido de `az acr login -n acrroletaprod` — §14/A20), sem usar admin | A |
 | Reconciliar nomes dos 16 secrets com o env HostDime, sem ler/exibir valores | A |
 | Validar escrita/leitura de teste no Blob por MI | A |
 | Configurar Caddy para hostname temporário `azure-canary.*` | A+H (DNS) |
@@ -527,7 +529,7 @@ passo novo não pode invalidar as referências do runbook, da DoD e do rollback.
 | **C-17** | Preservar a cópia `hostdime-pre-cutover`, que nunca será sobrescrita | cópia em Blob com nome imutável |
 | **C-18** | Transferir para Blob/Azure; validar SHA-256 e permissões | hash de destino == hash de origem |
 | **C-19** | Restaurar SQLite, estado e modelo **no caminho efetivo do destino** | se `MIG-0` estiver aplicado, o estado vai para dentro do volume `roleta-data` (`/app/data/state.json`); caso contrário, para `$REPO_DIR/state.json`. Verificar com `test -f` no caminho correto **antes** de qualquer `up` |
-| **C-20** | Autenticar no ACR pela MI e puxar a imagem por digest | `az acr login --identity` + `docker compose -f docker-compose.azure.yml pull` |
+| **C-20** | Autenticar no ACR pela MI e puxar a imagem por digest | `az login --identity` → `az acr login -n acrroletaprod` → `docker compose -f docker-compose.azure.yml pull` (§14/A20) |
 | **C-21** | Subir com `up -d --no-build`; validar container, `/healthz` e logs | `docker compose config` do arquivo Azure sem `build:` |
 | **C-22** | Reconciliar o marcador de C-13 no destino | contagem e `spin_seq` idênticos |
 | **C-23** | Testar WSS pelo hostname canário e validar continuidade de `spin_seq` | handshake e primeiro frame OK |
@@ -734,7 +736,11 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 | `restart: unless-stopped` traz o container de volta | Crítica | `docker inspect … RestartPolicy` | `docker update --restart=no` (C-05) |
 | Duas máquinas aceitam escrita | Crítica | teste externo a 443 em C-11 | Fence de ingress antes do flip; nunca canário de tráfego |
 | Overlay mantém `build:` e a VM reconstrói a imagem | Crítica | `config` do arquivo Azure contém `build:` | Arquivo standalone + `pull` + `up --no-build` |
-| `state.json` gravado pelo caminho não atômico | Crítica | escrita não usa `os.replace` | `MIG-0` move o arquivo para o volume; teste em container Linux |
+| `state.json` gravado pelo caminho não atômico | Crítica | escrita não usa `os.replace` | **Resolvido no código por `MIG-0` e provado em 03/08** (§14.2/T1): dentro do volume o `os.replace` executa; no bind antigo falhava com `EBUSY`. Falta aplicar na HostDime |
+| Estado presente porém **corrompido** sobe como default, com health verde | **Crítica** | `state.json` truncado/`{}` e mesmo assim `/healthz` verde e `spin_seq` zerado | `MIG-0` **não** cobre: `GameState.load()` engole o erro e devolve estado vazio (§14/A19). Exigir validação de conteúdo no preflight e repropagar erro quando `STATE_FILE` estiver definido |
+| Escrita atômica no namespace mas **não durável** a power-loss | Alta | corte de energia/reset da VM logo após uma escrita | `save()` não faz `fsync` do arquivo nem do diretório (§14/A23); tratar antes de depender do estado como fonte única |
+| Runbook manda autenticar no ACR com comando inexistente | Alta | `az acr login --identity` retorna erro de parâmetro | Corrigido para `az login --identity` + `az acr login -n acrroletaprod` (§14/A20) |
+| ACR sem nenhuma imagem publicada no dia do cutover | **Bloqueante para G2** | `az acr repository list` devolve `[]` | Onda 3 precisa publicar e fixar o digest antes de qualquer ensaio de pull (§14/A21) |
 | Restore do estado no caminho errado (sobe com default, sem erro) | Crítica | `spin_seq` do destino ≠ marcador de C-13 | `test -f` no caminho efetivo (C-19) + reconciliação (C-22) |
 | `cp` cru do SQLite WAL | Crítica | ausência de checkpoint | Backup API + `wal_checkpoint(TRUNCATE)` (C-14/C-15) |
 | Dependências flutuantes mudam OCR/WS | Alta | diff de `pip freeze` | Imagem runtime exata + digest |
@@ -792,7 +798,7 @@ ensaio correspondente na Onda 4.
 |---|---|---|---|---|
 | **A1** | O overlay `docker-compose.azure.yml` não removeria o `build:` do compose base | `docker compose -f docker-compose.yml -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo serviço — `PROVADO` | Arquivo **standalone**, `pull` + `up -d --no-build`, DoD checando ausência de `build:` | O objetivo nº1 do plano é runtime idêntico. Com `build:` presente, um `docker compose build` — que é literalmente o que o deploy atual faz — reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest. A garantia seria perdida em silêncio, sem nenhum passo do runbook falhando |
 | **A2** | Mascarar só `roleta-deploy.timer` deixa `roleta-deploy.service` startável | São duas units (`docs/DEPLOY.md:29-30`) e o `start` manual do `.service` é procedimento documentado (`docs/DEPLOY.md:57`) — `PROVADO` por leitura | Mascarar as duas units + `chmod 000` no executável (C-01/C-02) | O fence precisa cobrir o caminho que um humano usa por hábito sob pressão, não só o automático. Um `systemctl start roleta-deploy.service` durante a janela executaria `git reset --hard` + `up -d` e ressuscitaria o escritor congelado |
-| **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único (`docker-compose.yml:21`) espera-se `EBUSY`/`EXDEV` — `ESPERADO`. Que `STATE_FILE` sobrepõe `settings.state_file` foi testado e confirmou o override — `PROVADO` (no Windows) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Deploy e retomada têm preflight; `GameState.load()` também falha fechado quando o override aponta para arquivo ausente. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` agora tem `validation_alias="STATE_FILE"` explícito em `Settings`; a mudança não altera a lógica de estratégia. O guard de aplicação cobre subida manual/restart, enquanto o preflight cobre deploy; a atomicidade dentro do volume ainda é `ESPERADO` em container Linux e precisa de ensaio antes do evento irreversível |
+| **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único, `os.replace()` falha com `EBUSY` (errno 16) e a produção grava pelo caminho não atômico — **`PROVADO` em 03/08 com o código real de produção em container Linux** (§14.2/T1: inode do alvo inalterado antes/depois no bind; inode trocando a cada escrita dentro do volume) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Deploy e retomada têm preflight; `GameState.load()` também falha fechado quando o override aponta para arquivo ausente. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` agora tem `validation_alias="STATE_FILE"` explícito em `Settings`; a mudança não altera a lógica de estratégia. O guard de aplicação cobre subida manual/restart, enquanto o preflight cobre deploy. **Ressalvas apuradas em §14:** a atomicidade provada é de *namespace* (`rename`), não de durabilidade — não há `fsync` (A23); e o fail-closed cobre ausência, não corrupção (A19) |
 | **A4** | `state.json` não é rastreado pelo Git, então uma VM nova sem restore faria o Docker criar um **diretório** com esse nome | `.gitignore` lista `state.json`; `git ls-files state.json` devolve vazio — `PROVADO` | C-19 exige `test -f` **no caminho efetivo** antes de qualquer `up` | Com `MIG-0` aplicado a armadilha do diretório desaparece, mas surge outra pior: restaurar no lugar antigo faz o app subir com estado **default**, sem crash e sem alerta. Um passo de verificação que aponta para o caminho errado é pior que nenhum, por isso C-19 é condicional ao estado de `MIG-0` |
 | **A5** | "Volumes no disco gerenciado" só valia para o volume nomeado | O bind `./state.json` vive no `REPO_DIR`, no disco de SO, não em `/mnt/docker` | Redação corrigida em §3.2.1 e no C-19; `MIG-0` resolve na raiz | Um backup só do data disk perderia o estado do motor. Depois de `MIG-0` os dois artefatos críticos ficam no mesmo volume, e a política de backup passa a ter um alvo só |
 | **A6** | O deploy sincroniza `frontend/` e recarrega **nginx**; com Caddy o passo vira no-op silencioso | `scripts/roleta-deploy-pull.sh:96-107`: `command -v nginx` falha e o script loga "reload pulado (não-fatal)" — `PROVADO` por leitura | Caddy com `root * /var/www/roleta`; deploy Azure faz só o `cp -a`; DoD exige alteração de teste chegando ao navegador | Foi exatamente esse gap que já quebrou o deploy do dashboard em 17/06 na HostDime. Repetir o erro na Azure daria um backend saudável servindo um frontend congelado — o pior tipo de falha, porque o healthcheck fica verde |
@@ -810,7 +816,7 @@ ensaio correspondente na Onda 4.
 | **A13** | Backup do SQLite | Além da backup API já exigida, C-15 pede `PRAGMA wal_checkpoint(TRUNCATE)` confirmado e proíbe copiar `-wal`/`-shm` avulsos | A backup API já lida com o WAL corretamente, mas o runbook não tinha como **provar** que lidou. Um check barato transforma uma premissa em evidência |
 | **A14** | Consistência entre SQLite e `state.json` | C-13 registra `MAX(rowid)`/contagem e `spin_seq`; C-22 reconcilia no destino | Parar a aplicação já garante o mesmo ponto de congelamento por construção. O marcador serve para **demonstrar** isso no destino e para detectar restore no caminho errado (A4) |
 | **A15** | Propagação de DNS | Explicitado que C-10 precede C-25 de propósito e que o cliente antigo recebe recusa, não uma segunda instância | É a pergunta que sempre aparece no go/no-go. Deixá-la implícita convida alguém a "amenizar o downtime" mantendo a HostDime no ar — que é precisamente o split-brain que o plano recusa |
-| **A16** | Extensões PG | Conferir `pg_extension` **antes** do restore | AGE aparece em `allowedValues` mas não em `azure.extensions`. Um dump com objetos AGE falharia no meio do restore, na pior hora |
+| **A16** | Extensões PG | Conferir `pg_extension` **antes** do restore | Confirmado em 03/08: `azure.extensions` do `pg-roleta-prod` é `vector,pg_partman,pg_cron,pgcrypto,pg_stat_statements,uuid-ossp` — **sem `age` e sem `timescaledb`**, enquanto a produção roda a imagem custom `roleta/postgres-stack:pg15-age15`. O risco foi **rebaixado de bloqueante para condicional** (§14/A24): as migrations já envolvem `CREATE EXTENSION age` e `timescaledb` em blocos `DO $$ … EXCEPTION`, e nenhum caminho de produção importa `database/age/queries.py`. Ainda assim, um `pg_dump` integral pode arrastar `ag_catalog`, tipos `agtype`, grafos e dependências: a conferência ao vivo continua obrigatória e o restore deve ser seletivo |
 | **A17** | Alerta externo | DoD exige testar desligando a VM em ensaio | Um alerta que nunca disparou é uma suposição com dashboard bonito |
 | **A18** | Autenticação no ACR | Pull pela Managed Identity, nunca pela credencial de admin | O admin do ACR é uma senha estática de longa vida. A VM já tem `AcrPull` na identidade: usar a senha seria criar um secret novo tendo a solução sem secret pronta |
 
@@ -828,3 +834,149 @@ ensaio correspondente na Onda 4.
   são de infraestrutura, configuração e procedimento — condição para que a
   migração continue sendo uma migração, e não uma mudança de comportamento
   disfarçada.
+
+---
+
+## 14. Auditoria de execução — o que foi construído, o que foi provado e o que falta (03/08/2026)
+
+Esta seção audita o **incremento já entregue** (MIG-0, PR #43) contra o que este
+plano prometia, submete as estruturas construídas a **teste empírico** e
+consolida as pendências reais até o cutover. Diferente da §13, que auditou o
+*plano*, a §14 audita a *execução*.
+
+### 14.1 Escopo e método
+
+**O que foi entregue no MIG-0 (PR #43, commit `eb410d7`, CI verde):**
+
+| Artefato | Papel |
+|---|---|
+| `docker-compose.yml` | `STATE_FILE=/app/data/state.json`; bind `./state.json` removido; estado passa a viver no volume `roleta-data` |
+| `scripts/migrate-state-to-volume.sh` | Move o estado legado para dentro do volume com validação, checksum e idempotência |
+| `scripts/roleta-deploy-pull.sh`, `tools/deploy_pull.sh`, `scripts/resume_app.sh` | Preflight fail-closed: recusam subir se o volume não contiver `state.json` |
+| `state/game.py` | `GameState.load()` levanta `FileNotFoundError` quando `STATE_FILE` está definido e o arquivo não existe |
+| `tests/test_state_persistence_config.py` | 5 testes de regressão da configuração |
+| `docs/DEPLOY.md` | Procedimento de migração e rollback |
+
+**Método de teste.** O obstáculo era que o comportamento em disputa só se
+manifesta em Linux com Docker real — não no Windows nem em mock. Foram usados
+dois ambientes:
+
+1. **Imagem real do projeto** (`docker build` do `Dockerfile` do repositório,
+   `python:3.12-slim`), executando o **código de produção** `state/game.py`.
+   Nenhuma réplica, nenhum stub.
+2. **Simulador de host Debian** — container `docker:cli` + `bash` + `python3`,
+   com `/var/run/docker.sock` e `/var/lib/docker/volumes` montados **no mesmo
+   caminho de dentro do container**. Esse detalhe é o que torna o ensaio válido:
+   sem ele, o `mountpoint` devolvido por `docker volume inspect` aponta para um
+   caminho dentro da VM do Docker Desktop, inacessível ao script, e o teste
+   passaria a medir o simulador em vez do produto.
+
+Mantém-se a convenção da §13: `PROVADO` = reproduzido por execução nesta
+auditoria; `ESPERADO` = derivado de leitura de código.
+
+### 14.2 Banco de provas
+
+| ID | O que foi testado | Resultado | Veredito |
+|---|---|---|---|
+| **T1** | Atomicidade de `GameState.save()` nas duas topologias, com o código real em container Linux | Bind de arquivo único: `os.replace()` falha com **`EBUSY` (errno 16)** e cai no fallback in-place — inode do alvo **idêntico** antes/depois (`dev=66`, `ino=66428094503791451`). Volume nomeado: inode **muda a cada escrita** (`ino=655783` → `655784`), `os.replace()` real, sem resíduo `.tmp` | **15/15 PASS.** A3 vira `PROVADO` |
+| **T2** | `scripts/migrate-state-to-volume.sh`, 11 cenários no simulador de host | Caminho feliz com checksum origem == destino e permissão `600`; idempotência; recusa de divergência **preservando o destino**; JSON inválido não contamina o volume; origem ausente; volume inexistente; fallback por label; recusa de label ambíguo; resolução via `docker compose config`; guarda de container em execução; container parado libera a migração | **22/22 PASS** |
+| **T3** | Guards de preflight nos três scripts de subida | Comportamento idêntico nos três: recusa volume sem `state.json`, aceita volume migrado, recusa volume inexistente, resolve label único, recusa label ambíguo | **21/21 PASS** |
+| **T4** | Contrato de estado do app (mesma execução de T1) | `STATE_FILE` definido + arquivo ausente ⇒ `FileNotFoundError` citando o caminho; round-trip `save`→`load` em processo novo preserva o valor; sem `STATE_FILE` o default continua `BASE_DIR/state.json` e o início vazio local segue funcionando | **PASS** (contido nas 15 de T1) |
+| **T5** | O fail-closed cobre **corrupção**, e não só ausência? | **Não.** JSON truncado, `{}` e JSON de tipo errado ⇒ `load()` **não levanta** e devolve estado default | **4 falhas — achado A19** |
+
+**Falso alarme investigado e descartado.** Uma primeira medição sugeriu CRLF nos
+scripts commitados; era artefato do `Out-String` do PowerShell. `git ls-files
+--eol` confirma `i/lf w/lf attr/text eol=lf` em todos. Da mesma forma, a primeira
+execução do T3 acusou 3 falhas — eram contaminação do próprio fixture (volumes
+rotulados sobreviventes tornavam o label ambíguo, e o guard **corretamente**
+recusou). Ambos ficam registrados porque um relatório que só mostra o que deu
+certo não é auditoria.
+
+### 14.3 Achados novos
+
+| ID | Achado | Evidência | Decisão | Por quê |
+|---|---|---|---|---|
+| **A19** | **O fail-closed do MIG-0 cobre ausência, não corrupção.** Com `STATE_FILE` definido, um `state.json` truncado, vazio (`{}`) ou estruturalmente errado faz o app subir com estado **default**, health verde e `spin_seq` zerado | `state/game.py:1507-1516` captura `Exception`, salva `.corrupted` e devolve `cls()`. `PROVADO` (T5): três cenários distintos, nenhum levantou | Repropagar o erro quando `STATE_FILE` estiver explicitamente definido; validar conteúdo (versão, campos obrigatórios, `spin_seq`) nos preflights, não apenas `test -f`; alerta sobre a existência de `*.corrupted` | É **exatamente o modo de falha que o MIG-0 existe para eliminar**, sobrevivendo do outro lado do problema: o MIG-0 fechou a escrita e deixou a leitura aberta. Pior, é silencioso — o operador vê container up e `/healthz` 200 enquanto o motor perdeu a história. E o estado legado da HostDime foi gravado até hoje pelo caminho não atômico, então a chance de já existir truncamento não é teórica |
+| **A20** | O runbook manda autenticar no ACR com um comando que **não existe** | `az acr login --help`: exige `-n/--name` e **não possui** `--identity`. `PROVADO` | Substituído por `az login --identity` seguido de `az acr login -n acrroletaprod`, nas três ocorrências (§6/Onda 1, §6/Onda 2 e **C-20**) | Um comando inválido em runbook não falha na revisão: falha às 3h da manhã, no passo C-20, com a produção já congelada e o relógio do RTO correndo |
+| **A21** | **O ACR não tem nenhuma imagem publicada** | `az acr repository list -n acrroletaprod` ⇒ `[]`. `PROVADO` | Publicar e fixar o digest é pré-condição de G2, não do dia do cutover | Toda a garantia de "runtime idêntico" repousa em puxar um digest imutável. Enquanto o registry está vazio, os passos de pull do ensaio e do cutover não têm o que exercitar — e um ensaio que não exercita o passo real não é ensaio |
+| **A22** | O rollback do MIG-0 aponta para uma cópia de origem que **envelhece** | `docs/DEPLOY.md:86-88`: "a cópia de origem permanece intacta e o compose antigo volta a montá-la". `PROVADO` por leitura | Durante rollback de código, **manter a topologia nova**; se for imprescindível voltar ao bind, copiar o estado atual do volume de volta ao caminho legado sob fence, antes de reverter. Ensaiar o rollback **depois** de gerar escritas novas | "Intacta" e "atual" não são sinônimos. Depois do primeiro spin do soak, a cópia legada é um retrato velho: o rollback funcionaria e ainda assim perderia o progresso — falha silenciosa outra vez |
+| **A23** | A escrita é atômica no **namespace**, não **durável** | `state/game.py:1364-1383`: `NamedTemporaryFile` + `os.replace()` sem `flush`/`fsync` do arquivo nem do diretório. `PROVADO` por leitura | Acrescentar `fsync` do temporário antes do `replace` e `fsync` do diretório depois; restringir o fallback ao legado, registrando `errno` e métrica | `os.replace()` garante que ninguém observe um arquivo pela metade; não garante que o conteúdo tenha chegado ao disco. Num reset de VM, o estado pode voltar ao conteúdo anterior. Como o fallback engole qualquer `OSError`, hoje também não há como o soak **provar** que nenhuma escrita caiu no caminho ruim |
+| **A24** | Extensões PG: o problema não é a aplicação, é o **dump integral** | `azure.extensions` do `pg-roleta-prod` = `vector,pg_partman,pg_cron,pgcrypto,pg_stat_statements,uuid-ossp`; produção usa `roleta/postgres-stack:pg15-age15`. `PROVADO`. Contudo `migrations/versions/0001_baseline.py:23-31` e `docker/postgres/init/03-timescale-optional.sql` envolvem `CREATE EXTENSION` em `DO $$ … EXCEPTION`, e `database/age/queries.py` só é importado por `tests/test_s7_s14_skeletons.py`. `PROVADO` | A16 rebaixado de bloqueante para **condicional**: manter a conferência de `pg_extension` ao vivo e fazer **restore seletivo**, nunca `pg_dump` integral | O plano tratava AGE como bomba-relógio no meio do restore. O código já degrada sozinho e o grafo está vazio — mas isso só cobre o *bootstrap*. Se o dump da HostDime carregar `ag_catalog`, tipos `agtype`, grafos ou views dependentes, o restore quebra igual. A mitigação muda de "bloquear" para "não dumpar o que não se usa" |
+| **A25** | A imagem "runtime exato" pode carregar segredo | `Dockerfile:22` faz `COPY . .`; `.dockerignore` exclui `.env` mas **não** `.env.*`, chaves ou certificados. `PROVADO` por leitura | Antes de publicar no ACR, inspecionar filesystem e history da imagem; se houver segredo, ajustar `.dockerignore`, reconstruir e **rotacionar** | Publicar no ACR transforma um arquivo local em artefato distribuível e versionado. Um `.env.producao` esquecido vira um segredo com retenção e réplica |
+| **A26** | Exposição desnecessária no registry e no runtime | ACR `acrroletaprod` com `adminUserEnabled=true`; container do app roda como `uid=0`. `PROVADO` | Desabilitar o admin **depois** de comprovar pull por MI e confirmar que nenhuma automação legada depende dele — antes da produção, não 30 dias depois | Não contradiz A18: ter a capacidade habilitada não é o mesmo que usá-la. Mas é uma senha estática de longa vida ao lado de uma solução sem segredo já funcionando — a diferença entre risco aceito e risco esquecido é a data em que se decide fechá-lo |
+| **A27** | Custo corrente sem dono e capacidade **não medida** | 6 discos gerenciados `Unattached` (4 `PremiumV2_LRS`, 1 `Premium_LRS`, 1 `StandardSSD_LRS`) e 10 snapshots de 26/05/2026; a VM roda em `StandardSSD_LRS`. PG `Standard_B1ms` (Burstable, 1 vCPU/2 GB), HA `Disabled`, backup 7 dias. `PROVADO` | Inventariar **origem e dependências** antes de excluir qualquer coisa; sem Azure Backup configurado, tratar os snapshots como possíveis únicos recovery points. Separar "capacidade não medida" (SKU do PG) de "disponibilidade reduzida" (HA off), que é fato | `Unattached` prova custo, não orfandade — apagar um disco que era o único retrato de um ensaio é irreversível. E B1ms pode até bastar para um espelho pequeno: sem métrica, "subdimensionado" é palpite. O que **não** é palpite é HA desligada num serviço que o plano quer tornar autoritativo depois |
+
+### 14.4 Correções aplicadas a este documento nesta rodada
+
+- **A3** (§13.1): evidência promovida de `ESPERADO` para `PROVADO`, com o
+  `EBUSY` e os inodes, e acrescidas as ressalvas A19 e A23.
+- **A16** (§13.2): rebaixado de bloqueante para condicional, com a evidência das
+  extensões e a redação de restore seletivo.
+- **§6/Onda 1, §6/Onda 2 e C-20**: `az acr login --identity` substituído pela
+  sequência válida (A20).
+- **§11**: a linha do `state.json` não atômico passa a registrar a resolução; e
+  entram quatro riscos novos — corrupção subindo como default, ausência de
+  `fsync`, comando inválido no runbook e ACR vazio.
+
+### 14.5 Inventário Azure reconferido (fatos de 03/08/2026)
+
+Subscription `c7318da1-eb26-4a67-9826-c63e68112390`, grupo
+`maquina_roleta_cloud` (brazilsouth):
+
+| Recurso | Estado |
+|---|---|
+| VM `vm-roleta-app-01` | `Standard_L2as_v4`, **running**, público `20.226.77.194`, privado `10.20.1.4`, sem zona; OS + 1 data disk `StandardSSD_LRS` |
+| PG `pg-roleta-prod` | **PG 16**, `Standard_B1ms` Burstable, 32 GB, HA **Disabled**, backup 7 d, acesso público **Disabled** (só VNet + private DNS) |
+| ACR `acrroletaprod` | Basic, admin **habilitado**, **0 repositórios** |
+| Identidade da VM | SystemAssigned com **`AcrPull`** no ACR e **`Storage Blob Data Contributor`** no storage — o pull sem segredo é viável hoje |
+| Restante | `kv-roleta-prod`, `stroletaprod`, `roleta-vnet-prod`, `nsg-app-prod`, `pip-roleta-app-01`, private DNS de Postgres, `ai-roleta-prod`, `law-roleta-prod` |
+| Resíduo | 6 discos `Unattached` + 10 snapshots de 26/05 |
+
+Confirma-se a premissa central do plano: **a VM está paga, ligada e ociosa** — o
+custo já existe e a migração não o cria.
+
+### 14.6 Pendências até o cutover
+
+**Bloqueios humanos** (nenhum passo do agente os contorna):
+
+| # | Pendência | Por que trava |
+|---|---|---|
+| H1 | **Acesso SSH à HostDime** | Sem ele o MIG-0 não é aplicado nem observado em soak, o freeze não roda e o último delta não é capturado. Continua sendo o bloqueio nº 1 da §2.4 |
+| H2 | Controle de DNS e TTL do hostname de produção | C-10 e C-25 dependem disso |
+| H3 | Aprovação da janela de manutenção e dos gates G0–G4 | Downtime deliberado exige decisão registrada |
+| H4 | Autorização para tratar discos/snapshots residuais (A27) | Exclusão é irreversível |
+
+**Pendências de código/artefato** (executáveis pelo agente, sem produção):
+
+| # | Pendência | Origem |
+|---|---|---|
+| C1 | Fail-closed de **conteúdo**: repropagar erro de leitura com `STATE_FILE` definido + validação nos preflights | A19 |
+| C2 | `fsync` do arquivo e do diretório em `save()`; instrumentar o fallback | A23 |
+| C3 | `docker-compose.azure.yml` **standalone**, sem `build:` | A1 |
+| C4 | Fail-fast se `ROLETA_PG_DSN` vazio, antes do `alembic upgrade head` | A7 |
+| C5 | Remover o default hardcoded de `migrations/env.py:18-21` e rotacionar a credencial | A8 |
+| C6 | Corrigir rollback do MIG-0 em `docs/DEPLOY.md` | A22 |
+| C7 | Endurecer `.dockerignore` (`.env.*`, chaves, certificados) | A25 |
+| C8 | Unificar os nomes de variável entre os scripts (`VOLUME_NAME` × `STATE_VOLUME_NAME`) | code-review do PR #43 |
+
+**Ensaios ainda não executados:** publicação da imagem no ACR e pull por digest
+pela MI (A21/A20); restore drill do SQLite e do estado; teste do alerta externo
+com a VM desligada (A17); soak do MIG-0 na HostDime (depende de H1).
+
+### 14.7 Veredito
+
+O MIG-0 está **implementado e validado em laboratório** — 58 asserções verdes
+entre T1, T2 e T3, com o código real de produção — e **não está concluído
+segundo a DoD deste plano**, que exige aplicação na HostDime e soak. A distinção
+importa: o que falta não é qualidade de implementação, é acesso ao servidor.
+
+A auditoria também mostra que o MIG-0, sozinho, **não fecha o risco de estado**.
+Ele eliminou a escrita não atômica (provado) e deixou intactos dois caminhos:
+subir com estado corrompido como se fosse novo (A19) e perder a última escrita
+num corte de energia (A23). Ambos são baratos de corrigir agora e caros de
+descobrir no cutover.
+
+**Ordem sugerida:** C1 e C2 (fecham o risco de estado sem depender de ninguém) →
+C3–C5 (destravam a Onda 2/3) → publicar imagem no ACR (A21) → H1 → soak do MIG-0
+→ ensaio → cutover. Nada disso toca estratégia, stake, geometria ou INV-3.
+
