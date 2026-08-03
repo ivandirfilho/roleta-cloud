@@ -20,3 +20,13 @@ dead_code_*.md
 atual_structure_propose.md
 proximos_passos_structure.md
 execucoes_em_19_03.md
+# C7/A-SEC: nunca vazar segredos/credenciais/chaves para o contexto/imagem
+.env.*
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+id_rsa*
+*.secret
+secrets/

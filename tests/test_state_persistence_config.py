@@ -64,3 +64,37 @@ def test_explicit_missing_state_file_fails_closed(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "state_file", state_path)
     with pytest.raises(FileNotFoundError, match="STATE_FILE"):
         GameState.load()
+
+
+def test_corrupt_state_file_fails_closed_in_production(monkeypatch, tmp_path):
+    """C1/A19: com STATE_FILE definido, um state.json corrompido NÃO pode virar
+    reset silencioso (o motor voltaria a apostar do zero). Deve falhar fechado e
+    preservar o backup .corrupted para investigação/restauração."""
+    state_path = tmp_path / "state.json"
+    state_path.write_text("{ isto nao e json valido ", encoding="utf-8")
+    monkeypatch.setenv("STATE_FILE", str(state_path))
+
+    from app_config.settings import settings
+    from state.game import GameState
+
+    monkeypatch.setattr(settings, "state_file", state_path)
+    with pytest.raises(RuntimeError, match="corrompido"):
+        GameState.load()
+    assert (tmp_path / "state.json.corrupted").exists()
+
+
+def test_save_is_atomic_and_roundtrips(tmp_path):
+    """C2/A23: save() escreve de forma atômica+durável e faz round-trip; nenhum
+    arquivo .tmp pode sobrar (o os.replace consome o temporário)."""
+    from state.game import GameState
+
+    state_path = tmp_path / "state.json"
+    gs = GameState()
+    gs.last_number = 17
+    gs.save(state_path)
+
+    assert state_path.exists()
+    assert not list(tmp_path.glob("*.tmp"))
+
+    restored = GameState.load(state_path)
+    assert restored.last_number == 17

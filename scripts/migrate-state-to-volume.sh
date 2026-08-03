@@ -12,8 +12,11 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
-VOLUME_NAME="${VOLUME_NAME:-}"
-VOLUME_KEY="${VOLUME_KEY:-roleta-data}"
+# C8: unifica a nomenclatura de volume com os scripts de deploy/resume, que usam
+# STATE_VOLUME_NAME/STATE_VOLUME_KEY. VOLUME_NAME/VOLUME_KEY mantêm precedência para
+# retro-compatibilidade de quem já chamava este script diretamente.
+VOLUME_NAME="${VOLUME_NAME:-${STATE_VOLUME_NAME:-}}"
+VOLUME_KEY="${VOLUME_KEY:-${STATE_VOLUME_KEY:-roleta-data}}"
 SOURCE_STATE="${SOURCE_STATE:-${REPO_DIR}/state.json}"
 CONTAINER="${CONTAINER:-roleta-cloud}"
 
