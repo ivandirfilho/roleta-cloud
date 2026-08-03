@@ -1,6 +1,10 @@
 # Plano de Migração HostDime → Azure — 03/08/2026
 
 > **Status:** proposta executável, ainda não iniciada.
+> **Revisão:** auditoria técnica aplicada em 03/08/2026. Os achados, as decisões
+> e a justificativa de cada uma estão em **§13**; as correções já foram
+> incorporadas ao corpo do plano. Toda afirmação da auditoria está marcada como
+> `PROVADO` (reproduzida por execução) ou `ESPERADO` (a validar em ensaio).
 > **Origem:** HostDime `187.45.181.75` (produção ativa).
 > **Destino:** Azure RG `maquina_roleta_cloud`, Brazil South.
 > **Princípio:** reconstruir a infraestrutura declarativamente, copiar o runtime
@@ -57,6 +61,8 @@ divergentes.
 - Produção externa em 03/08: HTTPS 200 e WSS `/ws` conectado.
 - Inventário Azure real por `az`, inclusive VM Run Command read-only.
 - Revisão independente do desenho por arquiteto estratégico e rubber-duck.
+- Auditoria de 03/08/2026 sobre este próprio documento, com reexecução dos
+  comandos de inventário e revisão independente dos achados (§13).
 
 ### 1.2 MCP filesystem
 
@@ -139,7 +145,7 @@ A assinatura contém 75 recursos; 31 pertencem à Roleta.
 | Docker/Caddy | Ativos; 80/443 abertos | Caddy só responde placeholder |
 | SSH | Chave, senha OFF; NSG porta 22 limitada a um `/32` | Sessão atual não alcança SSH |
 | Managed Identity da VM | `AcrPull`, Blob Contributor, KV get/list | Boa base |
-| ACR `acrroletaprod` | Basic, `Succeeded` | **0 imagens**, admin habilitado |
+| ACR `acrroletaprod` | Basic, `Succeeded` | **0 imagens**; admin habilitado — o pull deve usar a Managed Identity, nunca a credencial de admin |
 | PG `pg-roleta-prod` | PG16 B1ms, 32 GB, private-only, Ready | HA/geo OFF; espelho vazio/não validado |
 | Extensões permitidas | AGE, TimescaleDB, vector e outras aparecem em `allowedValues` | `azure.extensions` não autoriza AGE/Timescale hoje; consultar `pg_extension` |
 | Key Vault | 16 secrets, soft-delete 30d | Public network ON, purge protection OFF, access policies |
@@ -150,6 +156,21 @@ A assinatura contém 75 recursos; 31 pertencem à Roleta.
 | Resíduos | 6 discos soltos + 10 snapshots completos | Custo; não apagar durante migração |
 | Azure Backup | Não encontrado | Criar depois do cutover |
 
+**Reconciliação (reexecutada em 03/08/2026, `PROVADO`).** Os números acima foram
+conferidos, não estimados:
+
+| Afirmação | Comando | Resultado |
+|---|---|---|
+| 31 recursos no RG | `az resource list -g maquina_roleta_cloud -o json` | 31 |
+| 16 secrets no Key Vault | `az keyvault secret list --vault-name kv-roleta-prod -o json` | 16 |
+| ACR vazio | `az acr repository list -n acrroletaprod` | saída vazia |
+| VM viva | `az vm get-instance-view … --query instanceView.statuses[1].displayStatus` | `VM running` |
+| 6 discos soltos | `az disk list -g maquina_roleta_cloud -o json` | 8 discos, 2 `Attached`, 6 `Unattached` |
+| 10 snapshots | `az snapshot list -g maquina_roleta_cloud -o json` | 10 no RG (13 na assinatura) |
+
+Quem reexecutar a migração deve rodar estes comandos de novo e anexar a saída:
+números sem data e sem comando envelhecem em silêncio.
+
 ### 2.4 Gap para ficar operacional
 
 1. ACR vazio e VM sem imagem/container da aplicação.
@@ -159,7 +180,9 @@ A assinatura contém 75 recursos; 31 pertencem à Roleta.
 5. PG Azure não recebeu schema/dados comprovados.
 6. Timer de deploy Azure está inativo.
 7. Backups Blob e alertas Azure não foram testados.
-8. Acesso HostDime e DNS não foi entregue ao agente.
+8. Acesso HostDime e DNS não foi entregue ao agente — **bloqueio de viabilidade**,
+   não apenas de cronograma: o congelamento do escritor, o checkpoint do WAL e a
+   captura do último delta só existem com acesso à HostDime (§13, A10).
 
 ---
 
@@ -197,6 +220,16 @@ flowchart LR
 - build local → imagem imutável no ACR.
 - alertas críticos → destino externo à própria VM.
 
+### 3.2.1 Mudança permitida, porém **antes** do cutover
+
+- `state.json` sai do bind de arquivo único (`./state.json:/app/state.json`) e
+  passa a viver dentro do volume nomeado `roleta-data`, via
+  `STATE_FILE=/app/data/state.json`.
+
+Essa mudança **não entra na janela**. Ela é entregue por PR próprio (`MIG-0`),
+aplicada primeiro na HostDime e observada em soak; a Azure só herda uma
+configuração já comprovada. O porquê está em §13, A3.
+
 ### 3.3 Mudanças proibidas no mesmo evento
 
 - Alterar estratégia, stake, geometria ou INV-3.
@@ -207,6 +240,9 @@ flowchart LR
 - Mover o engine para Container Apps.
 - Apagar HostDime, discos ou snapshots.
 - Ligar flags hoje OFF.
+- **Estrear** o novo caminho de `state.json` (§3.2.1) na janela: se `MIG-0` não
+  tiver soak na HostDime, o cutover mantém o bind atual e o risco é aceito
+  explicitamente.
 
 ---
 
@@ -305,7 +341,9 @@ Legenda:
 | Capturar digest da imagem, `pip freeze`, OS, timers, cron, volumes e mounts | A | Baseline versionado/assinado |
 | Medir SQLite/estado/modelo e hashes | A | Tamanho e SHA-256 |
 | Capturar schemas, Alembic, rows, outbox e extensões PG | A | Relatório reconciliável |
-| Validar atualização real do bind `state.json` | A | mtime/hash muda após save |
+| Validar atualização real do bind `state.json` | A | mtime/hash muda após save; registrar se a escrita cai no caminho atômico ou no fallback |
+| Enumerar **todas** as units/cron que tocam a aplicação | A | `roleta-deploy.service` **e** `roleta-deploy.timer` mapeados, mais qualquer cron |
+| Registrar o marcador de congelamento: `MAX(rowid)`/contagem de decisões e `spin_seq` do `state.json` | A | Par de valores reconciliável no destino |
 | Validar DNS provider, TTL real e acesso de alteração | A+H | TTL observável |
 
 **G0:** nenhum passo seguinte sem acesso HostDime funcional e cópia seca
@@ -315,22 +353,45 @@ completa. A durabilidade de `/mnt/docker` Azure já foi comprovada por UUID.
 
 Criar em sprint/PR separado:
 
-1. `docker-compose.azure.yml` como overlay, sem alterar flags do compose base:
-   - imagem por digest ACR;
+0. **`MIG-0` — mover `state.json` para o volume nomeado** (§3.2.1): definir
+   `STATE_FILE=/app/data/state.json`, remover o bind `./state.json` e migrar o
+   arquivo existente. Entregue e observado **na HostDime** antes de qualquer
+   passo Azure. Sem 1 linha de código alterada (§13, A3).
+1. `docker-compose.azure.yml` como arquivo **standalone**, nunca como overlay do
+   compose base:
+   - **sem chave `build:`** — a imagem vem só por digest do ACR;
    - PG externo;
    - volumes no disco gerenciado;
    - `stop_grace_period: 60s`;
    - health/metrics somente loopback.
+
+   O motivo é mecânico e foi reproduzido: `docker compose -f docker-compose.yml
+   -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo
+   serviço, porque o merge do Compose não remove chaves do arquivo base
+   (`PROVADO`). Um `build`/`up --build`, ou um `up` sem a imagem local,
+   reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest —
+   destruindo exatamente a garantia que o plano existe para proteger.
+   Contrapartida assumida: um arquivo standalone pode driftar do base, por isso
+   a DoD exige o diff dos dois `config` renderizados (§10).
 2. Caddyfile:
-   - `/` serve frontend;
+   - `/` serve o frontend a partir de `/var/www/roleta` (`root * /var/www/roleta`);
    - `/ws` faz proxy WebSocket com timeouts longos;
-   - `/healthz` expõe apenas readiness mínima;
+   - `/healthz` expõe apenas readiness mínima (o servidor HTTP já aceita
+     `/health` e `/healthz` — `server/health_server.py:372`);
    - `/metrics`, `/api/*` e porta 8766 não ficam públicos.
-3. Script Managed Identity → Key Vault → `.env` (`0600`), sem logar valores.
+3. Script Managed Identity → Key Vault → `.env` (`0600`), sem logar valores,
+   gravado em **`$REPO_DIR/.env`**: o Compose só lê o `.env` do diretório do
+   projeto, então escrevê-lo em `/opt/roleta` não teria efeito.
 4. Backup SQLite via `.backup` → Blob e cópia do modelo com checksums.
-5. Deploy Azure que **puxa digest ACR**; não reconstrói dependências na VM.
+5. Deploy Azure que **puxa digest ACR** com `az acr login --identity` +
+   `docker compose -f docker-compose.azure.yml pull` +
+   `up -d --no-build`; nunca `docker compose build` e nunca a credencial de
+   admin do ACR. Antes do `alembic upgrade head`, o script **aborta** se
+   `ROLETA_PG_DSN` estiver vazio (§13, A7).
 6. Scripts de baseline, paridade, cutover, fencing e rollback.
-7. Teste específico do `state.json` em bind mount e shutdown de 60s.
+7. Teste do caminho de estado no ambiente-alvo: container Linux, escrita, kill
+   -TERM, releitura e `shutdown` de 60s — provando que a gravação é atômica no
+   volume e que nenhuma escrita cai no fallback não atômico.
 
 **G1:** suíte completa verde, lint verde, nenhuma alteração de estratégia e
 diff de flags vazio.
@@ -341,6 +402,7 @@ diff de flags vazio.
 |---|---|
 | Criar layout `/opt/roleta`, volumes e permissões | A+H |
 | Validar leitura do Key Vault por MI | A |
+| Validar `docker pull` do ACR autenticado **pela Managed Identity** (`az acr login --identity`), sem usar admin | A |
 | Reconciliar nomes dos 16 secrets com o env HostDime, sem ler/exibir valores | A |
 | Validar escrita/leitura de teste no Blob por MI | A |
 | Configurar Caddy para hostname temporário `azure-canary.*` | A+H (DNS) |
@@ -373,9 +435,13 @@ cutover.
 
 A HostDime continua servindo produção.
 
-1. Gerar snapshot SQLite consistente via `sqlite3 backup API`.
+1. Gerar snapshot SQLite consistente via `sqlite3 backup API` e confirmar o
+   `wal_checkpoint` (mesmo procedimento de C-14/C-15).
 2. Copiar `state.json` apenas para ensaio; marcar como potencialmente defasado.
-3. Subir Azure no hostname canário.
+   **Ensaiar o caminho de restore no destino efetivo** e provar que o app não
+   sobe com estado default (o marcador de C-13 tem de bater).
+3. Subir Azure no hostname canário, sempre por `pull` do digest — nunca por
+   build local.
 4. Executar cliente WS sintético:
    - conexão;
    - eleição master;
@@ -434,32 +500,48 @@ Após no mínimo 30 dias e aprovação humana:
 
 ### 7.2 Janela operacional
 
-1. **Mascarar o timer HostDime:**
-   `systemctl disable --now roleta-deploy.timer` e
-   `systemctl mask roleta-deploy.timer`.
-2. Confirmar que nenhum cron/unit alternativo executa `docker compose up`.
-3. Desabilitar timer Azure.
-4. Pedir ao operador para fechar clientes; esperar
-   `roleta_ws_connections == 0`.
-5. Parar a aplicação HostDime com timeout de 60s.
-6. Confirmar log `state_saved`, JSON válido e mtime/hash atualizado.
-7. Deixar CDC drenar; exigir outbox pending/failed = 0; parar CDC.
-8. **Write-fence HostDime:** parar nginx e bloquear 80/443, mantendo SSH.
-9. Verificar externamente que HTTPS/WSS da HostDime falham.
-10. Esperar mais de dois ciclos antigos do timer (≥5 min) e provar que a
-    aplicação não ressuscitou nem alterou row count/mtime.
-11. Criar backup final SQLite pela API em container efêmero com o volume
-    montado; não usar `cp` cru do `.db`.
-12. Copiar `state.json`, modelo, frontend e dumps; gerar SHA-256 na origem.
-13. Preservar uma cópia `hostdime-pre-cutover` que nunca será sobrescrita.
-14. Transferir para Blob/Azure; validar SHA-256 e permissões.
-15. Restaurar SQLite/estado/modelo no disco gerenciado.
-16. Subir a imagem ACR por digest; validar container, `/healthz` e logs.
-17. Testar WSS pelo hostname canário e validar continuidade de `spin_seq`.
-18. **G4 humano:** autorizar ou abortar o DNS.
-19. Alterar A de `roleta.xma-ia.com` para `20.226.77.194`.
-20. Validar HTTPS/WSS em múltiplas redes/resolvers.
-21. Operador realiza um teste real controlado; INV-3 e stake conferidos.
+Os passos usam **IDs estáveis** (`C-xx`), não posições numéricas: inserir um
+passo novo não pode invalidar as referências do runbook, da DoD e do rollback.
+
+| ID | Ação | Verificação objetiva |
+|---|---|---|
+| **C-01** | Mascarar **as duas** units de deploy da HostDime: `systemctl disable --now roleta-deploy.timer` e `systemctl mask roleta-deploy.timer roleta-deploy.service` | `systemctl is-enabled` devolve `masked` para ambas |
+| **C-02** | Neutralizar o executável como fence de última instância: `chmod 000 /usr/local/bin/roleta-deploy-pull.sh` | `test ! -x` |
+| **C-03** | Confirmar que nenhum cron/unit alternativo executa `docker compose up` | `crontab -l`, `systemctl list-timers --all` e `grep -r 'compose up' /etc` sem resultado ativo |
+| **C-04** | Desabilitar o timer Azure | `systemctl is-enabled` = `disabled` |
+| **C-05** | Remover a política de restart do container: `docker update --restart=no roleta-cloud` | `docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' roleta-cloud` = `no` |
+| **C-06** | Pedir ao operador para fechar clientes; esperar quiescência | `roleta_ws_connections == 0` |
+| **C-07** | Parar a aplicação HostDime com timeout de 60s | `docker compose stop -t 60` retorna 0 |
+| **C-08** | Confirmar salvamento do estado | log `state_saved`, JSON parseável e mtime/hash atualizados |
+| **C-09** | Deixar o CDC drenar e depois pará-lo | `shared.outbox` com `pending=0` e `failed=0` |
+| **C-10** | **Write-fence de ingress:** parar nginx e bloquear 80/443, mantendo SSH | conexão externa a 443 recusada |
+| **C-11** | Verificar externamente que HTTPS/WSS da HostDime falham | teste a partir de outra rede |
+| **C-12** | Esperar mais de dois ciclos antigos do timer (≥5 min) e provar não-ressurreição | `docker ps` vazio, row count e mtime inalterados |
+| **C-13** | **Registrar o marcador de congelamento:** `MAX(rowid)`/contagem de decisões do SQLite e `spin_seq` do `state.json` | par de valores anotado; é o que prova consistência no destino |
+| **C-14** | Backup final do SQLite pela **backup API**, em container efêmero com o volume montado; nunca `cp` do `.db` | arquivo gerado + `PRAGMA integrity_check` = `ok` |
+| **C-15** | Confirmar que o WAL foi absorvido: `PRAGMA wal_checkpoint(TRUNCATE)` na origem e ausência de `-wal` órfão na cópia | checkpoint devolve `0` na primeira coluna |
+| **C-16** | Copiar `state.json`, modelo, frontend e dumps; gerar SHA-256 na origem | hashes registrados |
+| **C-17** | Preservar a cópia `hostdime-pre-cutover`, que nunca será sobrescrita | cópia em Blob com nome imutável |
+| **C-18** | Transferir para Blob/Azure; validar SHA-256 e permissões | hash de destino == hash de origem |
+| **C-19** | Restaurar SQLite, estado e modelo **no caminho efetivo do destino** | se `MIG-0` estiver aplicado, o estado vai para dentro do volume `roleta-data` (`/app/data/state.json`); caso contrário, para `$REPO_DIR/state.json`. Verificar com `test -f` no caminho correto **antes** de qualquer `up` |
+| **C-20** | Autenticar no ACR pela MI e puxar a imagem por digest | `az acr login --identity` + `docker compose -f docker-compose.azure.yml pull` |
+| **C-21** | Subir com `up -d --no-build`; validar container, `/healthz` e logs | `docker compose config` do arquivo Azure sem `build:` |
+| **C-22** | Reconciliar o marcador de C-13 no destino | contagem e `spin_seq` idênticos |
+| **C-23** | Testar WSS pelo hostname canário e validar continuidade de `spin_seq` | handshake e primeiro frame OK |
+| **C-24** | **G4 humano:** autorizar ou abortar o DNS | decisão registrada |
+| **C-25** | Alterar A de `roleta.xma-ia.com` para `20.226.77.194` | propagação observada |
+| **C-26** | Validar HTTPS/WSS em múltiplas redes/resolvers | 200 + WSS conectado |
+| **C-27** | Operador realiza um teste real controlado; INV-3 e stake conferidos | indicação `APOSTAR` presente |
+
+**Ponto de não-retorno = C-25.** Até C-24 nenhuma escrita de produção chegou à
+Azure e o rollback é trivial (§8). A partir da primeira escrita aceita pela
+Azure, voltar exige transportar o estado de volta.
+
+**Sobre a propagação de DNS.** O fence de ingress (C-10) acontece **antes** do
+flip (C-25) de propósito. Durante a propagação, o cliente que ainda resolve o IP
+antigo recebe recusa de conexão — não uma segunda instância aceitando escrita.
+Isso troca disponibilidade por consistência de forma deliberada: é a razão de o
+plano recusar canário de tráfego.
 
 ### 7.3 TLS
 
@@ -478,30 +560,38 @@ evitando rate limit ACME.
 - **RPO alvo para dados já confirmados:** 0.
 - **Risco residual declarado:** até um evento/spin ainda não confirmado no
   momento da quiescência.
-- **RTO planejado:** 30–60 minutos, mais caches DNS fora do TTL.
+- **RTO planejado:** 60–90 minutos de indisponibilidade percebida, recalculado
+  após a auditoria. A conta: C-01…C-12 (fence e prova de não-ressurreição) já
+  consomem ≥5 min só de espera obrigatória; C-13…C-22 dependem do volume do
+  SQLite e da banda de transferência; e a partir de C-25 ainda há a propagação
+  de DNS. O TTL de 60s só vale se a redução em T−48h tiver sido confirmada em
+  resolvers externos — sem isso, some o TTL antigo ao RTO.
 - **Downtime deliberado:** preferível a split-brain.
 
 ---
 
 ## 8. Rollback
 
-### Antes do DNS
+### Antes do DNS (até C-24)
 
 1. Parar Azure.
 2. Reabrir ingress HostDime.
-3. Reiniciar HostDime com timer ainda mascarado.
+3. Reiniciar HostDime com as duas units ainda mascaradas.
 4. Nenhum dado novo foi aceito pela Azure; rollback simples.
 
-### Depois de a Azure aceitar escritas
+### Depois de a Azure aceitar escritas (a partir de C-25)
 
 1. Declarar manutenção e desconectar clientes.
-2. Parar Azure graciosamente.
-3. Criar `azure-pre-rollback` de SQLite + estado + checksums.
+2. Parar Azure graciosamente, com o mesmo timeout de 60s.
+3. Criar `azure-pre-rollback` de SQLite + estado + checksums, usando **a mesma
+   backup API e o mesmo checkpoint de WAL** de C-14/C-15 — um rollback feito com
+   `cp` desfaz a garantia que o cutover construiu.
 4. **Não sobrescrever** a cópia `hostdime-pre-cutover`.
 5. Restaurar o estado Azure no volume HostDime em área temporária.
-6. Validar JSON, integridade SQLite, schema e hashes.
+6. Validar JSON, integridade SQLite, schema e hashes; reconciliar o marcador de
+   C-13 acrescido do que a Azure aceitou.
 7. Reverter DNS.
-8. Reabrir HostDime e iniciar app com timer ainda mascarado.
+8. Reabrir HostDime e iniciar app com as units ainda mascaradas.
 9. Validar WSS e primeiro evento.
 
 Isso é **rollback quase-zero**, não garantia matemática de zero: pode haver um
@@ -512,7 +602,11 @@ rollback porque continua espelho e `dual_write_pg=0`.
 
 Um lock file local não protege duas máquinas. O fence mínimo é:
 
-- timer HostDime mascarado;
+- **as duas** units (`roleta-deploy.timer` **e** `roleta-deploy.service`)
+  mascaradas — mascarar só o timer deixa a unit oneshot startável à mão, e é
+  exatamente isso que `docs/DEPLOY.md` documenta como procedimento manual;
+- executável de deploy neutralizado (C-02);
+- política de restart do container removida (C-05);
 - container parado;
 - nginx/443 bloqueado;
 - teste de não-ressurreição;
@@ -531,7 +625,7 @@ lift-and-shift.
 Sem nova confirmação:
 
 - inventário read-only local/Azure;
-- criar scripts, overlays, Caddyfile, testes e runbooks em branch/PR;
+- criar scripts, compose Azure, Caddyfile, testes e runbooks em branch/PR;
 - validar hashes, schemas, imagens e backups não produtivos;
 - usar Azure CLI e VM Run Command read-only.
 
@@ -574,20 +668,32 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 ### Paridade
 
 - [ ] Imagem ACR por digest = imagem HostDime verificada.
+- [ ] `docker compose -f docker-compose.azure.yml config` **não contém** `build:`.
+- [ ] Diff entre o `config` renderizado da Azure e o de produção só mostra
+      `build`/`image`, PG externo, `stop_grace_period` e proxy — nada de flags.
+- [ ] Pull do ACR feito pela Managed Identity; credencial de admin nunca usada.
 - [ ] Diff de flags = vazio.
 - [ ] INV-3 preservado.
 - [ ] Todas as flags OFF continuam OFF.
-- [ ] Round-trip `save/load/reset_session` preserva campos.
+- [ ] Round-trip `save/load/reset_session` preserva campos
+      (`tests/test_game_state.py::test_save_load_roundtrip` verde).
 - [ ] SQLite `integrity_check=ok`.
-- [ ] `state.json` válido e atual.
+- [ ] `state.json` válido, atual e **no caminho efetivo** (volume se `MIG-0`
+      aplicado; repo caso contrário) — verificado por `test -f` antes do `up`.
+- [ ] Nenhuma escrita de estado caiu no fallback não atômico durante o ensaio.
 - [ ] Modelo carrega ou degrada explicitamente conforme baseline.
 - [ ] Mapeamento Key Vault ↔ env HostDime completo, sem valores em logs.
+- [ ] `.env` gerado em `$REPO_DIR/.env` e sobrevivente a um `git reset --hard`
+      de teste (é ignorado pelo `.gitignore` e o deploy não roda `git clean`).
 
 ### Dados
 
 - [ ] Backup SQLite e restore testados.
+- [ ] `PRAGMA wal_checkpoint(TRUNCATE)` confirmado antes da cópia final.
+- [ ] Marcador de congelamento (C-13) reconciliado no destino (C-22).
 - [ ] PG Alembic em `0010`.
-- [ ] Extensões necessárias presentes.
+- [ ] Extensões necessárias presentes e conferidas em `pg_extension` **antes**
+      do restore, para não falhar em objetos AGE/Timescale ausentes.
 - [ ] Outbox pending=0 e failed=0 no freeze.
 - [ ] Rows/sequences/triggers reconciliados.
 - [ ] Backups Blob e PITR PG restaurados em ensaio.
@@ -598,9 +704,12 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 - [ ] WSS conecta e mantém heartbeat.
 - [ ] Eleição MASTER funciona após reconnect.
 - [ ] `/metrics`, `/api/*` e 8766 não públicos.
-- [ ] Alerta externo detecta app/VM indisponível.
+- [ ] Frontend servido pelo Caddy a partir de `/var/www/roleta`, com uma
+      alteração de teste em `frontend/` chegando ao navegador.
+- [ ] Alerta externo detecta app/VM indisponível — **testado desligando a VM em
+      ensaio** e observando o disparo fora dela.
 - [ ] Timer Azure passa 3 ciclos.
-- [ ] Timer HostDime permanece mascarado.
+- [ ] `roleta-deploy.timer` **e** `roleta-deploy.service` permanecem `masked`.
 - [ ] Rollback foi ensaiado.
 
 ### Estabilização
@@ -615,21 +724,27 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 
 ## 11. Riscos prioritários
 
-| Risco | Severidade | Controle |
-|---|---|---|
-| Timer HostDime ressuscita app | Crítica | disable + mask + teste ≥5 min |
-| Duas máquinas aceitam escrita | Crítica | process + ingress fence; nunca canário de tráfego |
-| `state.json` stale/torn | Crítica | stop 60s, log, mtime/hash/JSON e teste do bind |
-| `cp` cru do SQLite WAL | Crítica | SQLite backup API |
-| Dependências flutuantes mudam OCR/WS | Alta | imagem runtime exata + digest + `pip freeze` |
-| Deploy Azure sem PG DSN entra em loop | Alta | DSN/KV antes de timer |
-| TLS não emite no cutover | Alta | DNS-01 ou cert temporário via KV |
-| PG espelho inconsistente | Média | drain + dump + reconcile; SQLite permanece SoT |
-| Alertmanager morre com a VM | Alta | alerta externo Azure/Grafana Cloud |
-| VM/PG subdimensionados | Média | benchmark; não redimensionar no cutover |
-| Secrets em logs/repo | Crítica | MI/KV; redaction; valores nunca exibidos |
-| Secret ausente/mapeado errado | Alta | paridade de nomes + smoke de cada integração |
-| Recursos órfãos geram custo | Média | limpar só após 30d e aprovação |
+| Risco | Severidade | Como detectar | Controle |
+|---|---|---|---|
+| Sem acesso à HostDime, o freeze e o último delta não executam | **Bloqueante** | G0 não fecha | Entregar credencial antes de qualquer sprint MIG |
+| `.service` de deploy ressuscita o app mesmo com o timer mascarado | Crítica | `systemctl is-enabled roleta-deploy.service` | Mascarar as duas units + `chmod 000` no script (C-01/C-02) |
+| `restart: unless-stopped` traz o container de volta | Crítica | `docker inspect … RestartPolicy` | `docker update --restart=no` (C-05) |
+| Duas máquinas aceitam escrita | Crítica | teste externo a 443 em C-11 | Fence de ingress antes do flip; nunca canário de tráfego |
+| Overlay mantém `build:` e a VM reconstrói a imagem | Crítica | `config` do arquivo Azure contém `build:` | Arquivo standalone + `pull` + `up --no-build` |
+| `state.json` gravado pelo caminho não atômico | Crítica | escrita não usa `os.replace` | `MIG-0` move o arquivo para o volume; teste em container Linux |
+| Restore do estado no caminho errado (sobe com default, sem erro) | Crítica | `spin_seq` do destino ≠ marcador de C-13 | `test -f` no caminho efetivo (C-19) + reconciliação (C-22) |
+| `cp` cru do SQLite WAL | Crítica | ausência de checkpoint | Backup API + `wal_checkpoint(TRUNCATE)` (C-14/C-15) |
+| Dependências flutuantes mudam OCR/WS | Alta | diff de `pip freeze` | Imagem runtime exata + digest |
+| Deploy Azure sem PG DSN entra em loop | Alta | `alembic` falha por conexão recusada | Abortar fail-fast se `ROLETA_PG_DSN` vazio |
+| Credencial no default versionado de `migrations/env.py` | Alta | leitura do arquivo | Trocar por erro explícito; rotacionar se já usada |
+| Frontend nunca chega ao navegador na Azure | Média | alteração de teste não aparece | Caddy com `root * /var/www/roleta`; remover o `nginx -t` do deploy Azure |
+| TLS não emite no cutover | Alta | Caddy sem cert válido | DNS-01 ou cert temporário via KV |
+| PG espelho inconsistente | Média | row counts divergentes | drain + dump + reconcile; SQLite permanece SoT |
+| Alertmanager morre com a VM | Alta | alerta não dispara com VM desligada | Alerta externo Azure/Grafana Cloud, testado |
+| VM/PG subdimensionados | Média | métricas de 7–30 dias | Benchmark; não redimensionar no cutover |
+| Secrets em logs/repo | Crítica | revisão de log/diff | MI/KV; redaction; valores nunca exibidos |
+| Secret ausente/mapeado errado | Alta | smoke de integração falha | Paridade de nomes + smoke de cada integração |
+| Recursos órfãos geram custo | Média | inventário mensal | Limpar só após 30d e aprovação |
 
 ---
 
@@ -638,8 +753,10 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 1. Tornar o guia de acesso HostDime/DNS disponível neste worktree.
 2. Executar somente a **Onda 0** e atualizar este plano com fatos ao vivo.
 3. Abrir sprints de migração:
+   - `MIG-0` mover `state.json` para o volume nomeado (§3.2.1), aplicado na
+     HostDime e em soak **antes** de qualquer passo Azure;
    - `MIG-1` baseline/fencing;
-   - `MIG-2` overlay+Caddy+KV;
+   - `MIG-2` compose Azure standalone + Caddy + KV;
    - `MIG-3` ACR+imagem;
    - `MIG-4` PG/backup;
    - `MIG-5` rehearsal;
@@ -650,3 +767,61 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 **Resultado esperado:** a mesma aplicação e o mesmo estado operando no mesmo
 hostname, sobre a VM Azure já paga, com runtime reproduzível, dados íntegros,
 rollback real e um caminho posterior — separado — para arquitetura serverless.
+
+---
+
+## 13. Auditoria de 03/08/2026 — achados, decisões e porquês
+
+Auditoria feita com o grafo Graphify do projeto (atualizado antes da leitura:
+1034 nós / 1224 arestas / 114 comunidades), leitura direta do código e da
+infraestrutura, reexecução dos comandos `az` (§2.3) e uma revisão independente
+do próprio relatório.
+
+**Método e honestidade das evidências.** Cada achado é marcado `PROVADO` quando
+foi reproduzido por execução nesta auditoria, e `ESPERADO` quando decorre de
+leitura de código ou de comportamento documentado, mas ainda não foi reproduzido
+no ambiente-alvo. Nenhum passo deste plano depende de um `ESPERADO` sem ter um
+ensaio correspondente na Onda 4.
+
+### 13.1 Achados corrigidos
+
+| ID | Achado | Evidência | Decisão adotada | Por quê |
+|---|---|---|---|---|
+| **A1** | O overlay `docker-compose.azure.yml` não removeria o `build:` do compose base | `docker compose -f docker-compose.yml -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo serviço — `PROVADO` | Arquivo **standalone**, `pull` + `up -d --no-build`, DoD checando ausência de `build:` | O objetivo nº1 do plano é runtime idêntico. Com `build:` presente, um `docker compose build` — que é literalmente o que o deploy atual faz — reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest. A garantia seria perdida em silêncio, sem nenhum passo do runbook falhando |
+| **A2** | Mascarar só `roleta-deploy.timer` deixa `roleta-deploy.service` startável | São duas units (`docs/DEPLOY.md:29-30`) e o `start` manual do `.service` é procedimento documentado (`docs/DEPLOY.md:57`) — `PROVADO` por leitura | Mascarar as duas units + `chmod 000` no executável (C-01/C-02) | O fence precisa cobrir o caminho que um humano usa por hábito sob pressão, não só o automático. Um `systemctl start roleta-deploy.service` durante a janela executaria `git reset --hard` + `up -d` e ressuscitaria o escritor congelado |
+| **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único (`docker-compose.yml:21`) espera-se `EBUSY`/`EXDEV` — `ESPERADO`. Que `STATE_FILE` sobrepõe `settings.state_file` foi testado e confirmou o override — `PROVADO` (no Windows) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` é campo de `Settings` sem `validation_alias`, então a correção é pura configuração — zero linha de código, zero risco de estratégia. Mas ela **não** entra na janela: a atomicidade dentro do volume ainda é `ESPERADO` em container Linux, e estrear uma superfície de persistência nova num evento irreversível é validar em produção |
+| **A4** | `state.json` não é rastreado pelo Git, então uma VM nova sem restore faria o Docker criar um **diretório** com esse nome | `.gitignore` lista `state.json`; `git ls-files state.json` devolve vazio — `PROVADO` | C-19 exige `test -f` **no caminho efetivo** antes de qualquer `up` | Com `MIG-0` aplicado a armadilha do diretório desaparece, mas surge outra pior: restaurar no lugar antigo faz o app subir com estado **default**, sem crash e sem alerta. Um passo de verificação que aponta para o caminho errado é pior que nenhum, por isso C-19 é condicional ao estado de `MIG-0` |
+| **A5** | "Volumes no disco gerenciado" só valia para o volume nomeado | O bind `./state.json` vive no `REPO_DIR`, no disco de SO, não em `/mnt/docker` | Redação corrigida em §3.2.1 e no C-19; `MIG-0` resolve na raiz | Um backup só do data disk perderia o estado do motor. Depois de `MIG-0` os dois artefatos críticos ficam no mesmo volume, e a política de backup passa a ter um alvo só |
+| **A6** | O deploy sincroniza `frontend/` e recarrega **nginx**; com Caddy o passo vira no-op silencioso | `scripts/roleta-deploy-pull.sh:96-107`: `command -v nginx` falha e o script loga "reload pulado (não-fatal)" — `PROVADO` por leitura | Caddy com `root * /var/www/roleta`; deploy Azure faz só o `cp -a`; DoD exige alteração de teste chegando ao navegador | Foi exatamente esse gap que já quebrou o deploy do dashboard em 17/06 na HostDime. Repetir o erro na Azure daria um backend saudável servindo um frontend congelado — o pior tipo de falha, porque o healthcheck fica verde |
+| **A7** | `ROLETA_PG_DSN` ausente não gera erro de configuração, gera loop de rollback | `migrations/env.py:18-21` tem default hardcoded para `127.0.0.1:5432` — `PROVADO` por leitura | Deploy Azure aborta fail-fast se o DSN estiver vazio | Sem o fail-fast, o sintoma é "conexão recusada" a cada 2 minutos e um rollback automático que reverte código bom. O operador perde tempo investigando o app quando o problema é uma variável ausente |
+| **A8** | O default de `migrations/env.py` embute usuário e senha num arquivo versionado | mesmo trecho — `PROVADO` | Substituir por ausência de default + erro explícito; rotacionar a credencial se ela já foi usada em algum ambiente | É credencial em repositório. Mesmo sendo um valor de desenvolvimento, ele viola a regra de não commitar secrets e cria o hábito de assumir que "o default funciona" |
+| **A9** | Não estava afirmado que o `.env` gerado do Key Vault sobrevive ao deploy | `.gitignore` cobre `.env` e `.env.*`; o script não executa `git clean` — `PROVADO` | Afirmado na DoD, com a exigência de gravar em `$REPO_DIR/.env` | A dúvida "o `git reset --hard` apaga minha configuração?" trava a execução. Além disso, o Compose só lê o `.env` do diretório do projeto: escrevê-lo em `/opt/roleta` produziria um deploy que sobe sem nenhuma flag |
+| **A10** | A falta de acesso à HostDime estava registrada como contexto, não como bloqueio | §1.3 | Elevado a bloqueio de viabilidade em §2.4 e primeira linha de §11 | Congelar o escritor, rodar o checkpoint do WAL e capturar o último delta dependem de acesso ao servidor. Sem ele não existe "metade do plano": existe um plano que não roda |
+| **A11** | Passos do cutover referenciados por número | §7.2 | Convertidos em IDs estáveis `C-01…C-27` | A auditoria inseriu passos no meio da lista. Referências posicionais em runbook apodrecem na primeira revisão, e um runbook com referência errada é executado errado às 3h da manhã |
+| **A12** | RTO de 30–60 min incompatível com o runbook | §7.4 | Recalculado para 60–90 min, com a conta explícita | Uma DoD que promete um RTO que o próprio runbook não alcança treina a equipe a ignorar a DoD |
+
+### 13.2 Reforços de verificação (o plano já acertava; faltava a prova)
+
+| ID | Ponto | Reforço | Por quê |
+|---|---|---|---|
+| **A13** | Backup do SQLite | Além da backup API já exigida, C-15 pede `PRAGMA wal_checkpoint(TRUNCATE)` confirmado e proíbe copiar `-wal`/`-shm` avulsos | A backup API já lida com o WAL corretamente, mas o runbook não tinha como **provar** que lidou. Um check barato transforma uma premissa em evidência |
+| **A14** | Consistência entre SQLite e `state.json` | C-13 registra `MAX(rowid)`/contagem e `spin_seq`; C-22 reconcilia no destino | Parar a aplicação já garante o mesmo ponto de congelamento por construção. O marcador serve para **demonstrar** isso no destino e para detectar restore no caminho errado (A4) |
+| **A15** | Propagação de DNS | Explicitado que C-10 precede C-25 de propósito e que o cliente antigo recebe recusa, não uma segunda instância | É a pergunta que sempre aparece no go/no-go. Deixá-la implícita convida alguém a "amenizar o downtime" mantendo a HostDime no ar — que é precisamente o split-brain que o plano recusa |
+| **A16** | Extensões PG | Conferir `pg_extension` **antes** do restore | AGE aparece em `allowedValues` mas não em `azure.extensions`. Um dump com objetos AGE falharia no meio do restore, na pior hora |
+| **A17** | Alerta externo | DoD exige testar desligando a VM em ensaio | Um alerta que nunca disparou é uma suposição com dashboard bonito |
+| **A18** | Autenticação no ACR | Pull pela Managed Identity, nunca pela credencial de admin | O admin do ACR é uma senha estática de longa vida. A VM já tem `AcrPull` na identidade: usar a senha seria criar um secret novo tendo a solução sem secret pronta |
+
+### 13.3 Contrapartidas assumidas conscientemente
+
+- **Arquivo Azure standalone (A1) permite drift** em relação ao compose base.
+  Aceito porque a alternativa comprovadamente não funciona; mitigado pelo diff
+  dos dois `config` renderizados na DoD.
+- **`MIG-0` (A3) adiciona um sprint antes da migração.** Aceito porque o modo de
+  falha que ele remove é silencioso, e o cutover não tem tempo de detectar perda
+  de estado do motor.
+- **RTO maior (A12).** Aceito: o plano já escolheu downtime deliberado em vez de
+  split-brain; prometer menos tempo não muda a física, só piora a expectativa.
+- **Nada disso toca estratégia, stake, geometria ou INV-3.** Todas as correções
+  são de infraestrutura, configuração e procedimento — condição para que a
+  migração continue sendo uma migração, e não uma mudança de comportamento
+  disfarçada.
