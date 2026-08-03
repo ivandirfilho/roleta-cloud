@@ -1227,15 +1227,17 @@ Resultado: `n_live_tup` 162→**3.591** (cw) / 164→**3.370** (ccw), `last_anal
 
 | # | Sprint proposto | Conteúdo | Gap |
 |---|---|---|---|
-| H1 | `SPR-DATA1` | Ligar `dna_realize_lifts()` em job periódico no engine (flag **`SDA_DNA_REALIZE` default-OFF** na compose; leitura por-chamada) + publicar `dna_realized` → PG + backfill 41k | **F1** (desbloqueio da fase de estratégia) |
+| H1 | `SPR-DATA1` | Ligar `dna_realize_lifts()` em job periódico no engine (flag **`SDA_DNA_REALIZE` default-OFF** na compose; leitura por-chamada) + **baseline/buckets POR DIREÇÃO** (`GROUP BY direction`; hoje `dna_logger.py:224` calcula global misturando cw+ccw) + publicar `dna_realized` → PG + backfill 41k | **F1** (desbloqueio da fase de estratégia) |
 | H2 | `SPR-DATA2` | Migração Alembic **aditiva**: `UNIQUE(decision_id)` em `spins_vectors`/`spin_features` + `ON CONFLICT DO NOTHING` no worker | A1 |
 | H3 | `SPR-DATA3` | `session_id` como coluna + filtro na window query do `spin_features` (lag-features por sessão, não globais) — coluna nova ADITIVA, backfill best-effort | A5b |
 | H4 | `SPR-DATA4` | ANALYZE a cada N batches no cdc_worker (flag default-OFF) — persiste S1 | A4 |
-| H5 | `SPR-DATA5` | `train_autoencoder.py` sobre `spin_features` + backfill `ae_latent` (job offline; embedding normalizado resolve A2 na raiz) | A2 |
+| H5 | `SPR-DATA5` | `train_autoencoder.py` com **2 modelos independentes (1 por sentido)** — hoje `train_autoencoder.py:36` treina 1 PCA único misturando cw+ccw — + backfill `ae_latent` com o modelo do sentido correspondente (job offline; z-score embutido resolve A2 na raiz) | A2 |
 | H6 | `SPR-DATA6` | Recriar índices como **HNSW** (pgvector 0.8.2) quando o consumidor de similaridade for ativado | A3 |
 | H7 | `SPR-DATA7` | Docs: corrigir blueprint (`fluxo_mental_24.md` cita Timescale inexistente) + `.gitignore` do joblib + executar decisão AGE (remover ou popular — go/no-go do Diretor) | A5a, 12/06 §D.3/D.4 |
 
 Dependências: H1 é pré-requisito da fase de estratégia; H2–H4 são higiene barata e independentes; H5→H6 em sequência. S2/S3/S5 podem rodar já.
+
+**Requisito transversal — isolamento por sentido (CW/CCW):** toda camada analítica deve permitir análise isolada por sentido de giro. Storage já segrega (schemas `cw`/`ccw`, `decision_dna.direction`, `regime_similarity` exige `direction ∈ {cw,ccw}`); as duas violações no processamento — baseline global do `dna_realize_lifts()` e autoencoder único — são corrigidas por H1 e H5 respectivamente (specs completas em `evolução_03_08.md` §4.0/§4.2).
 
 ### E. Invariantes e conformidade
 

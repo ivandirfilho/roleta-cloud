@@ -4,6 +4,8 @@
 **Escopo:** (1) auditoria de população e formato dos bancos; (2) auditoria pgvector camada básica;
 (3) imersão nas jogadas de hoje; (4) **plano de higienização servidor × git** (ADENDO 03/08 do
 `Manutenabilidade_iso.md`) para a fundação estar 100% antes da fase de estratégia.
+**Requisito reitor:** a infraestrutura deve suportar **análises isoladas por sentido de giro**
+(horário = `cw`, anti-horário = `ccw`) em todas as camadas — ver §4.0.
 **Referências:** `fluxo_mental_24.md` (blueprint), `evolução_24_junho.md` (metodologia),
 `Manutenabilidade_iso.md` (ADENDOs 12/06 §D e **03/08**).
 
@@ -180,6 +182,24 @@ sorte de sessão. O dado bruto está pronto; o plano do §4 liga a analítica.
 > Consolida e **substitui** a lista P1–P6 da 1ª rodada. Objetivo: fundação 100% funcional
 > **antes** da fase de estratégia. Rastreabilidade ISO: `Manutenabilidade_iso.md`, ADENDO 03/08.
 
+### 4.0 Princípio reitor — isolamento por sentido (horário × anti-horário)
+
+**Requisito de arquitetura:** toda a camada analítica deve permitir análise **isolada por sentido**
+(CW = horário, CCW = anti-horário). São processos físicos distintos (rotor + lançamento do dealer)
+e não podem ser misturados em baseline, treino ou similaridade.
+
+Estado real verificado hoje:
+
+| Camada | Isolamento por sentido? | Evidência |
+|---|:--:|---|
+| Storage PG (`cw.*` / `ccw.*` schemas: spins_vectors, spin_features) | ✅ nativo | DDL por schema |
+| Busca de similaridade (`regime_similarity.py`) | ✅ exige `direction ∈ {cw, ccw}` | `_ALLOWED = {"cw","ccw"}` |
+| SQLite `decisions.spin_direction` + `decision_dna.direction` | ✅ coluna presente | schema |
+| **Baseline do `dna_realize_lifts()`** | ❌ **GLOBAL — mistura os 2 sentidos** | `dna_logger.py:224` (`AVG(hit)` sem filtro de direção; buckets sem `direction` no GROUP BY) |
+| **Treino do autoencoder** | ❌ **1 modelo único juntando cw+ccw** | `train_autoencoder.py:36` (pool das rows dos 2 schemas → 1 PCA) |
+
+→ Os PRs H1 e H5 **corrigem exatamente essas duas violações** (specs abaixo).
+
 ### 4.1 No servidor Debian (operacional, sem PR — runbooks já existem)
 
 | # | Ação | Instrumento | Gap | Status |
@@ -190,31 +210,106 @@ sorte de sessão. O dado bruto está pronto; o plano do §4 liga a analítica.
 | S4 | Mover `spin_autoencoder.joblib` p/ volume Docker (parte git em H7) | mv + compose volume | 12/06 §D.4 | pendente |
 | S5 | `docker system prune`: imagens órfãs (5,5 GB) + build cache (1,8 GB) | docker | disco | pendente |
 
-### 4.2 No git / arquivos locais (via PR, 1 sprint cada — invioláveis respeitados)
+### 4.2 No git — o que cada Pull Request solicita e qual o ganho
 
-| # | Sprint | Conteúdo | Gap | Prioridade |
-|---|---|---|---|:--:|
-| H1 | `SPR-DATA1` | **Ligar `dna_realize_lifts()`** em job periódico no engine (flag `SDA_DNA_REALIZE` **default-OFF** na compose, leitura por-chamada) + publicar `dna_realized`→PG + backfill 41k rows | **F1** | 🔴 P1 |
-| H2 | `SPR-DATA2` | Migração Alembic **aditiva**: `UNIQUE(decision_id)` em `spins_vectors`/`spin_features` + `ON CONFLICT DO NOTHING` no cdc_worker | A1 | 🟠 P2 |
-| H3 | `SPR-DATA3` | `session_id` como coluna+filtro na window query do `spin_features` (lag-features por sessão; coluna ADITIVA, backfill best-effort) | A5b | 🟠 P2 |
-| H4 | `SPR-DATA4` | ANALYZE a cada N batches no cdc_worker (flag default-OFF) — persiste S1 | A4 | 🟡 P3 |
-| H5 | `SPR-DATA5` | `train_autoencoder.py` sobre `spin_features` + backfill `ae_latent` cw/ccw (job offline; embedding normalizado resolve A2 na raiz) | A2 | 🟠 P2 |
-| H6 | `SPR-DATA6` | Recriar índices vetoriais como **HNSW** (pgvector 0.8.2) junto com a ativação do consumidor de similaridade | A3 | 🟡 P3 |
-| H7 | `SPR-DATA7` | Docs+decisões: corrigir blueprint (Timescale citado mas não instalado), `.gitignore` do joblib, **executar decisão AGE** (12/06 §D.3: remover → imagem oficial `pgvector/pgvector:pg15`) | A5a | 🟡 P3 |
+> Formato: **Solicitação** = escopo exato da mudança que o PR pede (o que o revisor deve verificar);
+> **Ganho** = capacidade nova ou risco eliminado. 1 sprint = 1 worktree = 1 PR; `main` é produção.
 
-**Dependências:** H1 é **pré-requisito da fase de estratégia** (sem `realized_lift_pp` qualquer ajuste
-de aposta é intuição, não dado). H2–H4 são higiene independente e barata. H5→H6 em sequência.
-S2/S3/S5 podem rodar imediatamente, sem janela.
+#### H1 · `SPR-DATA1` — Fechar o loop de feedback do DNA, POR SENTIDO 🔴 P1 (gap F1)
+
+**Solicitação do PR:**
+1. Alterar `dna_realize_lifts()` (`database/dna_logger.py:203`) para calcular **baseline e buckets
+   POR DIREÇÃO** (`GROUP BY direction, feature_name, bucket`; baseline CW = hit-rate só de CW,
+   idem CCW) — hoje o cálculo, se ativado, misturaria os 2 sentidos.
+2. Criar caller periódico no engine (a cada N decisões resolvidas ou M minutos), atrás da flag
+   **`SDA_DNA_REALIZE` default-OFF** na `docker-compose.yml`, leitura por-chamada.
+3. Propagar para o PG: publicar evento `dna_realized` (handler já existe no worker:
+   `cdc_worker.py:266`) com o lift por sentido.
+4. Backfill one-shot das ~41k rows históricas (idempotente: só `realized_lift_pp IS NULL`).
+5. Testes: por-direção (CW ≠ CCW com fixtures assimétricas), flag OFF = zero efeito, round-trip.
+
+**Ganho:** o ranking de features (E1) passa a existir **separado por sentido** — descobrir, com
+dado real, se p.ex. `sda_score` alto discrimina hit em CW mas não em CCW. Sem isso, toda análise
+de estratégia é intuição. É o pré-requisito da fase seguinte.
+
+#### H2 · `SPR-DATA2` — Idempotência nos INSERTs analíticos 🟠 P2 (gap A1)
+
+**Solicitação do PR:** migração Alembic **ADITIVA** criando `UNIQUE(decision_id)` em
+`cw/ccw.spins_vectors` e `cw/ccw.spin_features` + trocar os INSERTs do `cdc_worker.py` para
+`ON CONFLICT (decision_id) DO NOTHING`. Sem downgrade destrutivo.
+
+**Ganho:** replay do outbox (recuperação de incidente, backfill manual) deixa de poder duplicar
+vetores silenciosamente — dedup passa a ser garantido pelo banco, não por disciplina do operador.
+
+#### H3 · `SPR-DATA3` — Lag-features por sessão 🟠 P2 (gap A5b)
+
+**Solicitação do PR:** adicionar coluna `session_id` (ADITIVA) em `cw/ccw.spin_features`; a window
+query do worker (`cdc_worker.py:169`) passa a filtrar `WHERE session_id = %s`, para `recent_acc_10/50`,
+streaks e `last_20_hits` não contaminarem entre mesas/dealers. Backfill best-effort via `meta->>'session_id'`.
+
+**Ganho:** as lag-features refletem a mesa real em jogo — hoje um streak de outra sessão (outro
+dealer, outra roleta física) vaza para o cálculo, poluindo qualquer modelo treinado sobre elas.
+
+#### H4 · `SPR-DATA4` — ANALYZE periódico no worker 🟡 P3 (gap A4)
+
+**Solicitação do PR:** `ANALYZE` das tabelas analíticas a cada N batches no `cdc_worker`
+(flag `CDC_ANALYZE_EVERY_N` default-OFF). Persiste o S1 (feito manualmente hoje).
+
+**Ganho:** planner do PG nunca mais opera com estatísticas congeladas (hoje: 162 vs 3.591 reais
+antes do S1); planos de query corretos conforme as tabelas crescem.
+
+#### H5 · `SPR-DATA5` — Autoencoder POR SENTIDO + backfill `ae_latent` 🟠 P2 (gap A2)
+
+**Solicitação do PR:**
+1. Alterar `scripts/train_autoencoder.py` para treinar **2 modelos independentes** (1 por schema:
+   `spin_autoencoder_cw.joblib`, `spin_autoencoder_ccw.joblib`) — hoje pool das rows dos 2 sentidos
+   num único PCA, o que mistura distribuições físicas distintas.
+2. Job/script de backfill de `ae_latent` em `cw/ccw.spins_vectors` usando o modelo do sentido correspondente.
+3. Normalização (z-score) embutida no pipeline do modelo — resolve o viés de escala do cosine (A2)
+   na raiz: força (~16) deixa de esmagar as taxas (~0,39).
+
+**Ganho:** regime-matching honesto e **isolado por sentido** — buscar "situações parecidas" compara
+CW com CW e CCW com CCW, em espaço normalizado onde as 6 dimensões pesam de forma comparável.
+Habilita E3 (stake condicionado a regime, via `min()`, INV-3 intacto).
+
+#### H6 · `SPR-DATA6` — Índices HNSW na ativação do consumo 🟡 P3 (gap A3)
+
+**Solicitação do PR:** recriar `idx_{cw,ccw}_spins_vectors_raw_cosine` como **HNSW** (pgvector
+0.8.2) — e criar equivalente para `ae_latent` — no mesmo PR que ativar o consumidor de
+similaridade em produção (`/api/regime_similarity` ou gate de stake).
+
+**Ganho:** busca vetorial com recall/latência corretos numa tabela que cresce (~460/dia);
+elimina o ivfflat mal dimensionado (`lists=100` p/ 3,5k rows) que nunca foi usado (`idx_scan=0`).
+
+#### H7 · `SPR-DATA7` — Docs, joblib e decisão AGE 🟡 P3 (gap A5a + 12/06 §D.3/D.4)
+
+**Solicitação do PR:** corrigir `fluxo_mental_24.md` (cita TimescaleDB inexistente; extensões
+reais: `vector 0.8.2` + `age 1.5.0`); adicionar `models/*.joblib` ao `.gitignore` (par do S4);
+**executar a decisão AGE de 12/06 §D.3**: trocar imagem `roleta/postgres-stack:pg15-age15` →
+`pgvector/pgvector:pg15` oficial na `docker-compose.pg.yml` (remove grafo vazio há 70 dias).
+
+**Ganho:** blueprint volta a ser confiável como fonte de verdade; −1 GB de imagem custom sem uso;
+elimina o hazard de `git clean` apagar o modelo treinado.
+
+### Dependências e ordem
+
+```
+S2, S3, S5 ──────────────► imediato, sem janela
+H1 (por sentido) ────────► PRÉ-REQUISITO da fase de estratégia
+H2, H3, H4 ──────────────► higiene independente, barata
+H5 (por sentido) → H6 ───► sequência (modelo antes do índice)
+H7 ──────────────────────► independente (docs/infra)
+```
 
 ### 4.3 Análises de estratégia destravadas após H1/H5 (fase seguinte)
 
-| # | Estudo | Insumo |
-|---|---|---|
-| E1 | Ranking de features por lift realizado (qual sinal do DNA discrimina hit/miss de verdade) | H1 |
-| E2 | C2-dominância: hit% por região × dealer × direção nas últimas N sessões (61% dos hits hoje em C2) | dados atuais |
-| E3 | Regime-matching por similaridade no espaço latente (stake condicionado a regime favorável, via `min()` — INV-3 intacto) | H5+H6 |
-| E4 | Painel Grafana "hit-rate vs breakeven por modo de aposta" (47,2% no force17) — edge visível antes do PnL sentir | dados atuais |
-| E5 | Causa da queda de `vision_source` (60% hoje; sessão madrugada com dealer `unknown`) | bugfix leve |
+| # | Estudo | Insumo | Isolado por sentido? |
+|---|---|---|:--:|
+| E1 | Ranking de features por lift realizado (qual sinal discrimina hit/miss) | H1 | ✅ CW ≠ CCW |
+| E2 | C2-dominância: hit% por região × dealer × direção nas últimas N sessões (61% dos hits hoje em C2) | dados atuais | ✅ já possível |
+| E3 | Regime-matching por similaridade no espaço latente (stake condicionado a regime, via `min()` — INV-3 intacto) | H5+H6 | ✅ por design |
+| E4 | Painel Grafana "hit-rate vs breakeven por modo de aposta" (47,2% no force17) | dados atuais | ⚠️ adicionar split CW/CCW |
+| E5 | Causa da queda de `vision_source` (60% hoje; sessão madrugada com dealer `unknown`) | bugfix leve | n/a |
 
 **Invioláveis em qualquer item:** INV-3 (APOSTAR sempre; veto só via `min()` no stake), flags
 default-OFF na compose, migrações Alembic ADITIVAS, round-trip `save/load/reset_session`,
