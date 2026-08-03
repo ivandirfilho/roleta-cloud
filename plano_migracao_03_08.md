@@ -1108,3 +1108,102 @@ O que **não** deve ser feito agora: mexer em DNS, ligar o timer Azure, publicar
 credencial de admin do ACR, apagar discos/snapshots residuais ou aplicar MIG-0
 sem o passo de migração de estado na mesma janela.
 
+---
+
+## 16. Rodada de construção Azure — canário no ar e branch pronta p/ merge (03/08)
+
+Esta seção registra o que foi **efetivamente construído e validado** nesta rodada
+(não é mais projeto: é estado verificado por evidência). Nada aqui tocou produção
+HostDime, DNS, `dual_write_pg`, o timer Azure ou **INV-3**.
+
+### 16.1 Artefatos de deploy criados (`deploy/azure/`, versionados)
+
+| Arquivo | Papel |
+|---|---|
+| `compose.azure.yml` | Compose standalone canário→cutover. Imagem por **digest** (`${ROLETA_IMAGE:?}`), volume **bind** `/opt/roleta/data`, portas de app só em loopback (8765/8766), **paridade 1:1** de flags com o `docker-compose.yml` de produção. |
+| `Caddyfile` | Reverse-proxy. `{$SITE_ADDRESS::80}` (canário em `:80`; no cutover vira domínio + TLS automático), `/ws`→8765, `/healthz`→8766, estático em `/var/www/roleta`. |
+| `kv-to-env.sh` | Materializa `/opt/roleta/.env` (0600) com os 16 secrets do `kv-roleta-prod` via Managed Identity. NÃO grava flags (a compose é a fonte). `--with-pg` opcional injeta `ROLETA_PG_DSN`. |
+| `deploy-azure.sh` | Orquestra: preflight de disco persistente, resolve digest, `az acr login` via MI, `docker pull` por digest, seed de configs/.env/state, `compose up --no-build`, espera health. |
+| `backup-sqlite-to-blob.sh` | `sqlite3 .backup` + `state.json` → Blob `stroletaprod/backups` via MI (`--auth-mode login`). |
+| `README.md` | Runbook do operador (pré-requisitos RBAC, canário, validação, cutover, rollback). |
+
+**Paridade de flags auditada:** `docker-compose.yml` (produção, pós-merge) e
+`compose.azure.yml` têm **36 == 36** variáveis de ambiente, **zero lacunas / zero
+extras**. Inclui as novas `SDA_DNA_REALIZE`/`SDA_DNA_REALIZE_EVERY` (H1, default OFF)
+trazidas pelo merge. O canário roda o mesmo conjunto de comportamento da HostDime.
+
+### 16.2 Imagem publicada no ACR
+
+- `acrroletaprod.azurecr.io/roleta-cloud:azure-80fe40c` (+ `azure-latest`)
+- **digest** `sha256:a8bd8e0f80c971d2836fb3b6bc0d091ab4706c8948c415c119045c547e593133`
+- Build a partir do commit `80fe40c` (correções C1/C2/C5/C7/C8 já aplicadas).
+- Consumo **por digest** no compose → imutável e auditável (destrava G2/Z1).
+
+### 16.3 VM configurada — `vm-roleta-app-01` (brazilsouth)
+
+- **RBAC da Managed Identity** (`dde8d3c0-…`): `AcrPull` + `Storage Blob Data
+  Contributor` + **KV `get`/`list` de secrets** (o KV usa *access policies*,
+  `rbac=false`; a policy foi adicionada nesta rodada — era o elo que faltava).
+- **Base:** Debian 12, Docker 29.5.2, Compose v5, `az` 2.86.0; Caddy nativo
+  (v2.11.3) ativo em `:80/:443`.
+- **Disco:** `/opt` no OS disk persistente (57 G livres); Docker data em `/mnt`
+  (efêmero) → por isso o volume de dados é **bind em `/opt/roleta/data`**
+  (persistente), com preflight que recusa subir se cair em `/mnt`.
+- **Segredos:** `/opt/roleta/.env` gerado com permissão **600**.
+
+### 16.4 Canário validado (evidência end-to-end)
+
+Container **healthy** rodando o digest acima. Provas coletadas via Run Command:
+
+| Verificação | Resultado |
+|---|---|
+| `GET /healthz` (via Caddy) | **200** |
+| `GET /ws` (handshake) | **HTTP 101** — app aceitou conexão SLAVE (logs: "Conexão SLAVE" + fechamento do gateway `172.18.0.1` = Caddy do host) |
+| `GET /` | **200** (estático) |
+| `GET /metrics` | 404 (não exposto publicamente — correto) |
+| Portas 8765/8766 | apenas `127.0.0.1` (isoladas; só o Caddy alcança) |
+| `.env` | `-rw-------` (600) |
+| `dual_write_pg` | **OFF** (SQLite autoritativo; log "dual_write_pg disabled") |
+| Logs | limpos — engine v4.4.1, roleta V4 (21 números) |
+
+> **Observação C1 (fail-closed):** como `STATE_FILE` fica setado, `load()` faz
+> `raise FileNotFoundError` se o arquivo não existir no boot. Por isso o
+> `deploy-azure.sh` **semeia** um `state.json` sintético mínimo para o canário
+> subir. No **cutover real**, esse seed é substituído pela cópia do `state.json`
+> de produção (gate humano — ver 16.6).
+
+### 16.5 Estado do repositório / merge
+
+- Branch `ivandirfilho-project-health-overview` sincronizada com `origin/main`
+  via **merge commit real** (traz H1/decision_dna, migrations 0011–0013, wal-g e
+  correções de sprint). **Zero conflitos** (auto-merge dos 3 arquivos sobrepostos:
+  `Manutenabilidade_iso.md`, `app_config/settings.py`, `docker-compose.yml`).
+- **`graphify-out/` removido do versionamento** (`git rm --cached`; artefato
+  regenerável, inviolável) — preservado em disco e coberto pelo `.gitignore`.
+- **Suíte verde:** `740 passed, 9 skipped, 1 xfailed`.
+- **Branch: 0 atrás / à frente de `origin/main`** → PR **merge-ready** (sem BEHIND).
+
+> **Por que NÃO clicar o merge do PR agora:** `main` é produção — o *merge* dispara
+> o `deploy_pull` na HostDime em ~2 min, que é **fail-closed** e exigiria rodar
+> `migrate-state-to-volume.sh` **na HostDime** na mesma janela (ação de produção,
+> gate humano). "Parte de merge feita" = branch sincronizada, CI verde, sem
+> conflitos e artefatos versionados — **não** apertar o botão.
+
+### 16.6 Gates humanos restantes p/ o cutover (só troca de apontamento)
+
+A Azure está **100% pronta para servir**; faltam apenas ações que, por definição,
+são humanas e de produção:
+
+1. **Freeze + cópia de dados:** parar a escrita na HostDime, copiar `state.json` +
+   SQLite para `/opt/roleta/data` (usar `backup-sqlite-to-blob.sh` como veículo).
+2. **Domínio + TLS:** setar `SITE_ADDRESS=roleta.xma-ia.com` (+`www`) e
+   `CADDY_EMAIL` no `.env`; o Caddy emite o certificado sozinho.
+3. **NSG:** liberar 80/443 de entrada na VM.
+4. **Flip de DNS:** `187.45.181.75` (HostDime) → `20.226.77.194` (Azure).
+5. **(Opcional) dual-write PG:** rodar `deploy-azure.sh --with-pg` só quando
+   quiser exercitar o Postgres gerenciado (segue com SQLite autoritativo).
+6. **Rollback:** reapontar o DNS de volta; a HostDime permanece intacta até o
+   operador desativá-la.
+
+Nada acima liga o timer Azure automaticamente nem altera estratégia/stake/**INV-3**.
+
