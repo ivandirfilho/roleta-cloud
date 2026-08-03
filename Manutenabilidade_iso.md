@@ -1269,8 +1269,18 @@ rclone (cron diário, `OFFSITE OK` validado); retain wal-g FULL 7→**48** (24h 
 §6.4): (1) vocabulário `direction` sem normalizar no evento novo → espelho casava 0 rows; (2)
 imagem upstream sem `ca-certificates` → wal-g TLS quebrado ~1h (basebackup+WAL) → bind-mount de
 certs do host; (3) drill com imagem PG16 vs backups PG15 + `auto.conf` com aspas inválidas +
-falta de `recovery.signal` — nunca havia rodado até o fim. Pendência única: validar `session_id`
-no primeiro giro pós-deploy (mesa parada desde 13:49 UTC; coluna+código prontos).
+falta de `recovery.signal` — nunca havia rodado até o fim. ~~Pendência única: validar `session_id`
+no primeiro giro pós-deploy~~ → **validado ao vivo 18:01 UTC** (retomada da mesa): sessão
+`26172412` em 9/9 giros novos, cw e ccw.
+
+**Validação ao vivo pós-retomada + achado #5 (03/08 18h UTC):** com a mesa girando de novo, o
+fluxo completo foi confirmado com giros reais — 9 spins ingeridos, outbox 0 pendentes, CDC com
+`analyze_done` (H4), archiving vivo, docker novo (`def33c5`) healthy. Único gap: `ae_latent`
+dos giros novos ficava `NULL` (por design H5 o hot path não carrega ML libs; o backfill era
+one-shot). Fechado com **rotina permanente**: `scripts/ae-latent-nightly.sh` (container efêmero
+python:3.12-slim, numpy 1.26.4 pinado — CPU do host não suporta x86-64-v2 — e scikit-learn
+1.9.0 = versão dos .joblib) + cron `/etc/cron.d/roleta-ae-latent` 04:25. Testado 2× em produção;
+`ae_latent` de volta a **100%** (cw 3.604/3.604, ccw 3.383/3.383). Detalhe: `evolução_03_08.md` §6.6.
 
 **ISO/IEC 25010 pós-execução:** Analisabilidade **desbloqueada** (lift per-direction consultável,
 espaço latente comparável por sentido, k-NN indexado); Confiabilidade elevada (RPO PG 30min com

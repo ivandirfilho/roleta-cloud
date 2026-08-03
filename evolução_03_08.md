@@ -511,7 +511,7 @@ operador junto com R2/R3.
 | Containers | ✅ 7/7 healthy (node/pg-exporter não têm healthcheck — `Up` normal) |
 | Volume sem backups soltos | ✅ movidos p/ host |
 | Suíte + CI | ✅ 733 passed local; CI verde nos 4 PRs |
-| `session_id` fluindo ao vivo | ⏳ coluna+código prontos; mesa parada desde 13:49 UTC (sem spin novo p/ validar). Query de verificação: `SELECT COUNT(*) FROM cw.spin_features WHERE session_id IS NOT NULL;` — deve subir no 1º giro |
+| `session_id` fluindo ao vivo | ✅ validado na retomada (18:01 UTC): sessão `26172412` presente em cw **e** ccw em todos os giros novos |
 
 ### 6.4 Achados da auditoria (e correções aplicadas)
 
@@ -543,3 +543,27 @@ B2: basebackup 30min (FULL 48) + WAL contínuo + SQLite diário offsite
 **Fundação de dados COMPLETA e 100% em produção.** Próximo passo (sessão de estratégia):
 E1–E5 do §4.3 — começando pelo ranking de features por lift realizado per-direction, que o
 H1 destravou hoje.
+
+### 6.6 Validação AO VIVO pós-retomada (03/08 ~18:00–18:16 UTC)
+
+A mesa voltou a girar às 18:01 UTC e o fluxo completo foi validado com giros reais:
+
+| Check ao vivo | Resultado |
+|---|---|
+| Docker novo (`def33c5`, pós-#42) | ✅ imagem 17:17Z, container up 17:38Z, healthy |
+| Giros novos ingeridos | ✅ 9 giros (5 cw + 4 ccw) em spin_features, ts 18:01–18:08 |
+| **`session_id` ao vivo (pendência única)** | ✅ **RESOLVIDA** — `26172412` em 9/9 giros, cw e ccw |
+| Outbox → CDC → PG | ✅ 0 pendentes; 127 eventos processados (dna 104, spin 14, spin_result 9) |
+| ANALYZE pós-batch (H4) | ✅ `analyze_done tables=6` no log do worker |
+| WAL archiving | ✅ `last_archived 18:05Z`, sem falhas novas |
+| `ae_latent` dos giros novos | ⚠️→✅ achado #5 abaixo; corrigido e de volta a **100%** (cw 3.604/3.604, ccw 3.383/3.383) |
+
+**Achado #5 — `ae_latent` não é preenchido no ingest (gap operacional, não bug):** por design
+do H5, o hot path (app e CDC worker) **não** carrega joblib/scikit-learn; o embedding 6d→4d é
+batch. O backfill do rollout foi one-shot com deps efêmeras — giros novos ficavam `NULL` até
+alguém rodar de novo. **Fechado com rotina permanente:** `scripts/ae-latent-nightly.sh`
+(container efêmero `python:3.12-slim` na rede do PG, repo montado RO, idempotente) + cron
+`/etc/cron.d/roleta-ae-latent` (04:25, após o walg-backup). Detalhe de infra: numpy pinado em
+`1.26.4` (wheels numpy≥2 exigem x86-64-v2, que a CPU do host não suporta) e scikit-learn
+`1.9.0` (versão exata dos `.joblib`). Testado 2× em produção: `+22` e `+4` rows.
+
