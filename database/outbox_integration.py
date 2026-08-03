@@ -431,7 +431,9 @@ def _publish_dna_lift_bucket_sync(item: dict) -> bool:
             "event_type": "dna_lift_bucket",
             "feature_name": str(item["feature_name"]),
             "bucket": str(item["bucket"]),
-            "direction": item.get("direction"),
+            # Fix auditoria 03/08: SQLite guarda "horario"/"anti-horario";
+            # o PG guarda "cw"/"ccw" — sem normalizar, o UPDATE casa 0 rows.
+            "direction": _normalize_direction(item.get("direction") or ""),
             "realized_lift_pp": float(item["realized_lift_pp"]),
             "n": item.get("n"),
         }
