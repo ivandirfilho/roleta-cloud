@@ -980,3 +980,34 @@ descobrir no cutover.
 C3–C5 (destravam a Onda 2/3) → publicar imagem no ACR (A21) → H1 → soak do MIG-0
 → ensaio → cutover. Nada disso toca estratégia, stake, geometria ou INV-3.
 
+### 14.8 Verificação SSH da HostDime (H1 DESTRAVADO)
+
+Acesso SSH read-only à produção **confirmado funcionando** em 2026-08-03 via
+`ssh -i ~/.ssh/id_rsa root@187.45.181.75` (host já em `known_hosts`, autentica
+por chave, sem senha). Isso **destrava H1** — o gate que faltava para o soak do
+MIG-0. Inventário read-only coletado (nenhum comando destrutivo, nenhum deploy):
+
+| Fato | Valor observado | Impacto no plano |
+|------|-----------------|------------------|
+| SO / hostname | Debian **12.2**, `xmaiajpvm`, uptime 22h51 | confirma alvo lift-and-shift |
+| Recursos | **4 vCPU / 6.8 GiB** RAM, disco 79G (15% usado, 64G livre) | corrige "8 GB" assumido → dimensionar VM Azure p/ ~7 GB |
+| Código em prod | HEAD `f99847d`, **VERSION 4.4.1** (merge do PR #44) | baseline de cutover |
+| Deploy | `roleta-deploy.timer` **ativo**, ciclo ~2 min (puxa `origin/main`) | confirma que `main`=produção |
+| Containers | **8 healthy**: roleta-cloud, roleta-pg, roleta-cdc-worker, alertmanager, grafana, prometheus, node-exporter, pg-exporter | topologia = §4 do plano |
+| App | porta 8765 → `426 Upgrade Required` (WS OK), 8766 → `200` (health OK), atrás de **nginx** ativo | migrar reverse proxy junto |
+| Banco | **PostgreSQL 15**, db `roleta` = **65 MB** (user `roleta`) | trivial p/ migrar; candidato natural a Azure DB for PostgreSQL Flexible Server (Onda 2/3) |
+| Volumes | `roleta-cloud_roleta-data`, `roleta_pgdata_prod` + 3 de monitoração | replicar no cutover |
+| Segurança | `nft` presente (131 linhas — inclui chains do Docker), **117 updates** pendentes | SPR-SEC1 ainda pertinente (patching) |
+
+**Achado material — MIG-0 NÃO está aplicado em produção.** O
+`docker-compose.yml:21` ainda usa o bind `./state.json:/app/state.json`; o
+container escreve em `/app/state.json` (5243 bytes, mtime atual) e
+`/app/data/state.json` (o volume `roleta-data`) **não existe**. Não há
+`STATE_PATH` no env. Ou seja: o risco de atomicidade que o MIG-0 corrige (EBUSY
+no `os.replace` sobre bind, provado no T1) **continua vivo em produção**. O
+PR #43 (MIG-0) permanece **aberto**, fora da `main`.
+
+**Consequência para a ordem:** com H1 destravado, o gargalo agora é decisão
+humana — mergear o PR #43 (após C1/C2/C8) e acompanhar o soak. Nada mudou na
+estratégia; apenas o bloqueio de acesso deixou de existir.
+
