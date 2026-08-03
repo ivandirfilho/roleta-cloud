@@ -39,6 +39,7 @@ echo "=== [2/6] Sobe PG drill vazio (sem inicializar) ==="
 docker run -d --name "${DRILL_CONTAINER}" \
   -v "${DRILL_VOLUME}":/var/lib/postgresql/data \
   -v /etc/wal-g/env:/etc/wal-g/env:ro \
+  -v /etc/ssl/certs:/etc/ssl/certs:ro \
   -v "${WALG_BIN}":/usr/local/bin/wal-g:ro \
   -e POSTGRES_PASSWORD=drill_only \
   -p "127.0.0.1:${DRILL_PORT}:5432" \
