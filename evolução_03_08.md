@@ -1,8 +1,11 @@
-# Evolução 03/08 — Infra de dados estruturados p/ otimização de predição + imersão na estratégia
+# Evolução 03/08 — Fundação da arquitetura de dados: auditoria, higienização e prontidão p/ estratégia
 
-**Data:** 2026-08-03 · **Fonte:** produção `xmaiajpvm` (187.45.181.75), leitura read-only via SSH/Docker
-**Escopo:** (1) auditoria de população e formato dos bancos; (2) imersão nas jogadas de hoje; (3) proposta de evolução.
-**Referências:** `fluxo_mental_24.md` (blueprint), `evolução_24_junho.md` (metodologia), `resultados_bancos_junho.md`.
+**Data:** 2026-08-03 · **Fonte:** produção `xmaiajpvm` (187.45.181.75), auditoria via SSH/Docker
+**Escopo:** (1) auditoria de população e formato dos bancos; (2) auditoria pgvector camada básica;
+(3) imersão nas jogadas de hoje; (4) **plano de higienização servidor × git** (ADENDO 03/08 do
+`Manutenabilidade_iso.md`) para a fundação estar 100% antes da fase de estratégia.
+**Referências:** `fluxo_mental_24.md` (blueprint), `evolução_24_junho.md` (metodologia),
+`Manutenabilidade_iso.md` (ADENDOs 12/06 §D e **03/08**).
 
 ---
 
@@ -64,15 +67,15 @@ funcionando: cada `result_actual` confere com o `spin_number` do giro seguinte; 
 
 ### 2.3 Gaps estruturais que travam a otimização de predição
 
-1. **`decision_dna.realized_lift_pp` = NULL em 41.290/41.290 rows** (desde 26/05).
-   O DNA loga `feature_name`/`feature_value`/`estimated_lift_pp` a cada decisão (8 features/giro:
-   sda_score, tr_c4_rate, calibration_offset, kill_v4, region_C1/C2/C3, hit_region), mas o **feedback
-   do lift realizado nunca é escrito**. Sem ele não há como ranquear quais features realmente
-   discriminam hit/miss — o coração da proposta de otimização está cego.
+1. **F1 — ACHADO-RAIZ (3ª rodada): `dna_realize_lifts()` é código órfão.**
+   A função que popularia `realized_lift_pp` **existe, está implementada e testada**
+   (`database/dna_logger.py:203`, SP-08 DNA-03; `tests/test_sp08_dna_realize_lifts.py`) — mas
+   **nenhum código de produção a chama**. Resultado: 41.370/41.370 rows com lift NULL desde 26/05.
+   Não é falta de implementação; é **lacuna de integração** (falta o job/hook que a invoque).
 2. **`ae_latent` nunca preenchido** → a busca vetorial usa só as 6 features cruas; o espaço latente
    comprimido (v4) que reduziria ruído p/ regime-matching não existe na prática.
-3. **Grafo AGE vazio** → decisão pendente: popular (transições número→número por dealer/mesa) ou
-   despriorizar formalmente e remover do stack (custo de manutenção sem uso).
+3. **Grafo AGE vazio** → decisão já tomada no ADENDO 12/06 §D.3 (remover e voltar a
+   `pgvector/pgvector:pg15` oficial) **pendente de execução** há 50+ dias; imagem 1 GB.
 4. `round_id` 0% — impossibilita joins exatos com a casa; mitigação atual é `spin_seq` + dedup. OK.
 
 **Formato:** o desenho (SQLite normalizado + outbox transacional + réplica analítica com vetores/série
@@ -109,6 +112,21 @@ O problema não é formato, é **população parcial dos elos analíticos** (ite
 proposta analítica **~70% entregue** — os vetores chegam corretos, mas a *busca* por similaridade
 (razão de ser do pgvector) hoje seria enviesada (A2), lenta/imprecisa se ativada (A3) e ninguém a
 consome (idx_scan=0). A1/A4 são higiene barata; A2+P2 são o desbloqueio real da predição.
+
+### 2.5 Higiene de servidor confirmada na 3ª rodada (03/08 ~15:00 UTC)
+
+| Item | Estado |
+|---|---|
+| Backup SQLite diário | ✅ vivo — `decisions_20260803_031501.db.gz` (2,7 MB) |
+| wal-g 30 min | ✅ cron ativo (`/etc/cron.d/walg-backup`) + binário no container |
+| Restore drill | ❌ **nunca ensaiado** (gap 12/06 §D.5; `walg-restore-drill.sh` pronto) |
+| `spin_autoencoder.joblib` | ⚠️ segue **untracked no host** (hazard `git clean`; gap 12/06 §D.4) |
+| Disco | ✅ 14% usado, mas **5,5 GB de imagens reclamáveis + 1,8 GB build cache** |
+| Deploy timer | ✅ `roleta-deploy.timer` a cada 2 min, main `ac145c4` sincronizado |
+| **ANALYZE (ação executada hoje)** | ✅ 6 tabelas analíticas; `n_live_tup` 162→**3.591** (cw), `last_analyze=15:00 UTC` — sana A4 operacionalmente |
+
+> A única mutação da auditoria foi o `ANALYZE` (reversível, não toca schema/dados/caminho da aposta).
+> Registro formal: **ADENDO 03/08 §C** do `Manutenabilidade_iso.md`.
 
 ---
 
@@ -151,27 +169,59 @@ consome (idx_scan=0). A1/A4 são higiene barata; A2+P2 são o desbloqueio real d
 ### 3.4 Diagnóstico
 
 O motor preditivo (SDA V4 + calibração + visão) está **operacional e íntegro**, mas roda **sem o loop de
-feedback quantitativo**: DNA sem lift realizado, vetores sem latente, hit-rate global 9 p.p. abaixo do
-breakeven da aposta atual. Hoje o lucro veio de gestão de stake + sorte de sessão. Para a proposta
-(otimizar predição com dados estruturados), o dado bruto está pronto; falta **ligar a analítica**.
+feedback quantitativo**: DNA sem lift realizado (F1 — função pronta, sem caller), vetores sem latente,
+hit-rate global 9 p.p. abaixo do breakeven da aposta atual. Hoje o lucro veio de gestão de stake +
+sorte de sessão. O dado bruto está pronto; o plano do §4 liga a analítica.
 
 ---
 
-## 4. Próximos passos propostos (candidatos a sprint — decisão do Diretor)
+## 4. Plano de higienização da fundação (ADENDO 03/08 §D — divisão servidor × git)
 
-| # | Ação | Tipo | Por quê |
-|---|---|---|---|
-| P1 | Popular `realized_lift_pp` no `dna_logger` (janela rolante hit-rate por feature vs baseline) + backfill 41k rows | Flag default-OFF + migração aditiva | Destrava ranking de features com dado real; pré-requisito de qualquer otimização honesta |
-| P2 | Rodar `train_autoencoder.py` sobre `spin_features` e backfillar `ae_latent` (cw/ccw) | Job offline, sem tocar caminho da aposta | Ativa regime-matching por similaridade no espaço comprimido |
-| P3 | Estudo C2-dominância: hit% por região × dealer × direção nas últimas N sessões (query-only) | Análise | 61% dos hits em C2 hoje; se persistir, redesenho do par de aposta com evidência |
-| P4 | Painel "hit-rate vs breakeven por modo de aposta" no Grafana (47,2% force17) | Observabilidade | Torna visível quando o edge some, antes do PnL sentir |
-| P5 | Go/no-go do AGE: popular grafo de transições ou remover do stack | Decisão | Peça vazia há 70 dias custando manutenção |
-| P6 | Investigar queda de `vision_source` (60% hoje) na sessão madrugada | Bugfix leve | Metadata de visão alimenta P2/P3 |
+> Consolida e **substitui** a lista P1–P6 da 1ª rodada. Objetivo: fundação 100% funcional
+> **antes** da fase de estratégia. Rastreabilidade ISO: `Manutenabilidade_iso.md`, ADENDO 03/08.
 
-**Invioláveis respeitados em qualquer P#:** INV-3 (APOSTAR sempre; veto só via `min()` no stake),
-flags default-OFF na compose, migrações aditivas, round-trip `save/load/reset_session`, entrega por PR.
+### 4.1 No servidor Debian (operacional, sem PR — runbooks já existem)
+
+| # | Ação | Instrumento | Gap | Status |
+|---|---|---|---|---|
+| S1 | ANALYZE nas 6 tabelas analíticas | psql one-shot | A4 | ✅ **FEITO 03/08 15:00 UTC** |
+| S2 | Backfill dos 126 rows faltantes (era HOOK-1) — one-shot idempotente, padrão `scripts/backfill_dna_pg.py` | `docker exec roleta-cloud` | paridade histórica | pendente |
+| S3 | **Restore drill** wal-g ponta-a-ponta | `scripts/walg-restore-drill.sh` | 12/06 §D.5 | pendente |
+| S4 | Mover `spin_autoencoder.joblib` p/ volume Docker (parte git em H7) | mv + compose volume | 12/06 §D.4 | pendente |
+| S5 | `docker system prune`: imagens órfãs (5,5 GB) + build cache (1,8 GB) | docker | disco | pendente |
+
+### 4.2 No git / arquivos locais (via PR, 1 sprint cada — invioláveis respeitados)
+
+| # | Sprint | Conteúdo | Gap | Prioridade |
+|---|---|---|---|:--:|
+| H1 | `SPR-DATA1` | **Ligar `dna_realize_lifts()`** em job periódico no engine (flag `SDA_DNA_REALIZE` **default-OFF** na compose, leitura por-chamada) + publicar `dna_realized`→PG + backfill 41k rows | **F1** | 🔴 P1 |
+| H2 | `SPR-DATA2` | Migração Alembic **aditiva**: `UNIQUE(decision_id)` em `spins_vectors`/`spin_features` + `ON CONFLICT DO NOTHING` no cdc_worker | A1 | 🟠 P2 |
+| H3 | `SPR-DATA3` | `session_id` como coluna+filtro na window query do `spin_features` (lag-features por sessão; coluna ADITIVA, backfill best-effort) | A5b | 🟠 P2 |
+| H4 | `SPR-DATA4` | ANALYZE a cada N batches no cdc_worker (flag default-OFF) — persiste S1 | A4 | 🟡 P3 |
+| H5 | `SPR-DATA5` | `train_autoencoder.py` sobre `spin_features` + backfill `ae_latent` cw/ccw (job offline; embedding normalizado resolve A2 na raiz) | A2 | 🟠 P2 |
+| H6 | `SPR-DATA6` | Recriar índices vetoriais como **HNSW** (pgvector 0.8.2) junto com a ativação do consumidor de similaridade | A3 | 🟡 P3 |
+| H7 | `SPR-DATA7` | Docs+decisões: corrigir blueprint (Timescale citado mas não instalado), `.gitignore` do joblib, **executar decisão AGE** (12/06 §D.3: remover → imagem oficial `pgvector/pgvector:pg15`) | A5a | 🟡 P3 |
+
+**Dependências:** H1 é **pré-requisito da fase de estratégia** (sem `realized_lift_pp` qualquer ajuste
+de aposta é intuição, não dado). H2–H4 são higiene independente e barata. H5→H6 em sequência.
+S2/S3/S5 podem rodar imediatamente, sem janela.
+
+### 4.3 Análises de estratégia destravadas após H1/H5 (fase seguinte)
+
+| # | Estudo | Insumo |
+|---|---|---|
+| E1 | Ranking de features por lift realizado (qual sinal do DNA discrimina hit/miss de verdade) | H1 |
+| E2 | C2-dominância: hit% por região × dealer × direção nas últimas N sessões (61% dos hits hoje em C2) | dados atuais |
+| E3 | Regime-matching por similaridade no espaço latente (stake condicionado a regime favorável, via `min()` — INV-3 intacto) | H5+H6 |
+| E4 | Painel Grafana "hit-rate vs breakeven por modo de aposta" (47,2% no force17) — edge visível antes do PnL sentir | dados atuais |
+| E5 | Causa da queda de `vision_source` (60% hoje; sessão madrugada com dealer `unknown`) | bugfix leve |
+
+**Invioláveis em qualquer item:** INV-3 (APOSTAR sempre; veto só via `min()` no stake), flags
+default-OFF na compose, migrações Alembic ADITIVAS, round-trip `save/load/reset_session`,
+entrega por PR — `main` é produção (deploy automático em ~2 min).
 
 ---
 
-*Gerado em 2026-08-03 a partir de inspeção read-only da produção. Nenhuma configuração foi alterada.*
+*Rodadas 1–3 em 2026-08-03 sobre a produção. Única mutação no servidor: ANALYZE (§2.5/S1).*
+*Registro ISO formal: `Manutenabilidade_iso.md` → ADENDO 03/08/2026.*
 ````
