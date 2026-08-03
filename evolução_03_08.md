@@ -338,10 +338,34 @@ entrega por PR — `main` é produção (deploy automático em ~2 min).
 |---|---|---|---|
 | Python 3.12 + websockets/pydantic/structlog | container `roleta-cloud` | OSS, R$ 0 | ✅ healthy |
 | SQLite (built-in) | dentro do `roleta-cloud`, volume `roleta-data` | OSS, R$ 0 | ✅ 14 MB, vivo |
-| PostgreSQL 15 + pgvector 0.8.2 + AGE 1.5.0 | container `roleta-pg` (imagem custom) | OSS, R$ 0 | ✅ 51 MB |
-| Alembic + SQLAlchemy + psycopg2 | só p/ migrações do PG | OSS, R$ 0 | ✅ |
+| PostgreSQL 15 + pgvector 0.8.2 | container `roleta-pg` — **imagem upstream `pgvector/pgvector:pg15`** (pós-H7; AGE/Timescale removidos hoje) | OSS, R$ 0 | ✅ 51 MB |
+| Alembic + SQLAlchemy + psycopg2 | só p/ migrações do PG | OSS, R$ 0 | ✅ head=0013 |
 | RapidOCR-ONNX (vision da foto) | dentro do `roleta-cloud`, CPU | OSS, R$ 0 | ✅ |
 | Prometheus v2.51 + Grafana OSS 10.4 + Alertmanager | containers locais, retenção 30d | OSS, R$ 0 | ✅ local-only |
+| scikit-learn (PCA per-direction) | treino em container efêmero `python:3.12-slim`; inferência via joblib | OSS, R$ 0 | ✅ 2 modelos, evr ≈0,96 |
+| wal-g 3.x | binário no host, exec no container PG | OSS, R$ 0 | ✅ push+fetch validados |
+| rclone 1.60 | host (cron do backup SQLite) | OSS, R$ 0 | ✅ offsite OK |
+| **Backblaze B2** (bucket `roletacloubucket`) | SaaS externo — **único custo pago do stack** (centavos/GB·mês) | pago | ✅ basebackup + WAL + SQLite offsite |
+| Docker + compose + systemd (`roleta-deploy.timer`) | host Debian `xmaiajpvm` | OSS, R$ 0 | ✅ deploy ~2 min |
+
+**Auditoria SaaS:** nenhuma dependência de SaaS pago além do B2. Não há Workana/serviços de
+terceiros no runtime — apenas o cassino de origem (fonte dos dados via extensão) e o B2
+(armazenamento offsite). Tudo o mais é OSS rodando no próprio host.
+
+### 5.2 Onde vive cada alteração de hoje — e por quê naquele banco
+
+| Alteração | Banco/camada | Por quê ali |
+|---|---|---|
+| `realized_lift_pp` per-direction (H1) | SQLite (autoritativo) → espelho PG | a decisão nasce no engine; o PG só consome p/ análise |
+| Evento `dna_lift_bucket` | outbox (SQLite→PG) | contrato CDC já existente; 1 evento/bucket evita 41k updates |
+| UNIQUE `decision_id` (H2) | PG (0011) | dedup é preocupação do espelho analítico, não do engine |
+| `session_id` (H3) | PG `spin_features` (0012) | recorte analítico por sessão de mesa; engine já tinha o dado |
+| ANALYZE pós-batch (H4) | worker CDC | é o worker quem sabe quando o batch terminou |
+| AEs per-direction (H5) | joblib no host + `ae_latent` no PG | treino offline; inferência lê pgvector |
+| HNSW (H6) | PG (0013) | índice de similaridade é infra do plano vetorial |
+| Higiene de imagem PG (H7) | compose + host | infra, não dado |
+
+---
 | wal-g (binário) | host + montado no `roleta-pg` | OSS, R$ 0 | ✅ 0 falhas |
 | **Backblaze B2** (bucket `roletacloubucket`, S3-compatível) | **☁️ SaaS EXTERNO — único** | **freemium: 10 GB grátis, depois ~US$ 6/TB·mês** | ✅ 410 WALs archivados, 0 falhas, base 30/30min |
 | VPS Debian HostDime (`xmaiajpvm`) | hosting | infraestrutura própria (não SaaS de software) | ✅ |
@@ -436,3 +460,86 @@ operador junto com R2/R3.
 *4ª rodada: visão de banco de dados (§5) — grafo graphify + filesystem + verificação B2/cron ao vivo.*
 *Registro ISO formal: `Manutenabilidade_iso.md` → ADENDO 03/08/2026.*
 ````
+## 6. Execução 03/08 — closeout (tudo em produção, nada em shadow)
+
+> Registro final da execução dos sprints H1–H7 + S2/S3/S5/S6/S7. Todos os PRs mergeados em
+> `main`, deploy automático aplicado, flags LIGADAS no host, auditoria ponto a ponto executada
+> em produção. Documento-irmão: `arquitetura_dados_estrategia.md` (raiz) — mapa de onde vive
+> cada fase da estratégia e receita semântica para novas estratégias.
+
+### 6.1 PRs entregues (todos com CI 5/5 verde e mergeados)
+
+| PR | Conteúdo | Status |
+|---|---|---|
+| **#38** | H1–H7 completos: migrações 0011/0012/0013, lift per-direction + evento `dna_lift_bucket`, session_id, ANALYZE pós-batch, AEs per-direction + backfill, HNSW, imagem PG upstream, `.gitignore` graphify-out (52 arquivos removidos do índice), doc `arquitetura_dados_estrategia.md`, +4 testes (suíte 733 passed) | ✅ merge `4cd47d5` |
+| **#39** | Fix da auditoria: normaliza `direction` no payload `dna_lift_bucket` (SQLite `anti-horario` → PG `ccw`; sem isso o UPDATE casava 0 rows) | ✅ merge `1557451` |
+| **#40** | S7: retain wal-g FULL 7→48 (24h de janela com backup 30min); S6: upload offsite do SQLite p/ B2 via rclone (flag `RCLONE_REMOTE`); S3-fix: drill em `pgvector/pgvector:pg15` (era `postgres:16` — falso-negativo garantido) | ✅ merge `4b72885` |
+| **#41** | **Achado crítico da auditoria:** imagem upstream não traz `ca-certificates` → TODO upload wal-g ao B2 falhava com `x509 unknown authority` (basebackup E archive de WAL parados desde a troca de imagem). Fix: bind-mount RO `/etc/ssl/certs` do host | ✅ merge `2a41da7` |
+
+### 6.2 Rollout no servidor (Debian `xmaiajpvm`)
+
+1. Deploy timer aplicou `main` + `alembic upgrade head` (0013) automaticamente.
+2. Flags ligadas via `.env` do host (compose continua default-OFF — inviolável):
+   `SDA_DNA_REALIZE=1`, `SDA_DNA_REALIZE_EVERY=20`, `CDC_ANALYZE_EVERY_N=50`.
+3. `roleta-pg` recriado com imagem upstream + mount de certs; `DROP EXTENSION age CASCADE`
+   + `DROP SCHEMA ag_catalog` executados; pgvector 0.8.2 intacto.
+4. Treino dos 2 AEs em container efêmero (`python:3.12-slim`, numpy<2 por causa da CPU QEMU):
+   evr cw=0,9646 / ccw=0,9579; backfill `ae_latent` = 6.961/6.961 (100%).
+5. Backfill dos lifts: 33.411/38.229 rows no SQLite (restante = buckets com n<30, correto);
+   republicação pós-fix #39 espelhou os mesmos 33.411 no PG (paridade exata).
+6. Backups: 4 `.db` legados movidos do volume p/ `/root/backups/sqlite/legacy/`; rclone
+   instalado e configurado (creds do wal-g, `no_check_bucket` p/ key restrita); cron do
+   backup SQLite agora exporta `RCLONE_REMOTE` → upload B2 validado (`OFFSITE OK`);
+   basebackup wal-g pós-fix TLS OK; **restore drill completo**: basebackup restaurado do B2
+   em container isolado → 41.370 dna / 33.411 lifts íntegros.
+
+### 6.3 Auditoria ponto a ponto (produção, 03/08 ~17:30 UTC)
+
+| Check | Resultado |
+|---|---|
+| alembic head | ✅ `0013_hnsw_vectors` |
+| UNIQUE parciais decision_id (×4) | ✅ `uq_{cw,ccw}_{spin_features,spins_vectors}_decision` |
+| HNSW (×4) + uso real no plano | ✅ `Index Scan using idx_cw_spins_vectors_raw_cosine` |
+| Lifts per-direction no PG | ✅ 33.411 rows; média cw=−0,05pp / ccw=−0,02pp (segregados) |
+| `ae_latent` | ✅ cw 3.591/3.591, ccw 3.370/3.370 (100%) |
+| AGE removida / pgvector | ✅ 0 extensões age; vector 0.8.2 |
+| WAL archiving | ✅ `archiving_ok=t` pós-fix #41 (estava quebrado ~1h) |
+| Basebackup B2 + retain 48 | ✅ push 17:19Z; `keep FULL 48` ativo |
+| SQLite offsite B2 | ✅ `decisions_20260803_165009.db.gz` no bucket |
+| Restore drill | ✅ dados íntegros restaurados do B2 |
+| Outbox pendente | ✅ 0 |
+| Containers | ✅ 7/7 healthy (node/pg-exporter não têm healthcheck — `Up` normal) |
+| Volume sem backups soltos | ✅ movidos p/ host |
+| Suíte + CI | ✅ 733 passed local; CI verde nos 4 PRs |
+| `session_id` fluindo ao vivo | ⏳ coluna+código prontos; mesa parada desde 13:49 UTC (sem spin novo p/ validar). Query de verificação: `SELECT COUNT(*) FROM cw.spin_features WHERE session_id IS NOT NULL;` — deve subir no 1º giro |
+
+### 6.4 Achados da auditoria (e correções aplicadas)
+
+1. **Vocabulário de direção divergente** (bug real): SQLite guarda `horario/anti-horario`, PG
+   guarda `cw/ccw`. O evento novo `dna_lift_bucket` saiu sem normalizar → 30 eventos
+   processados, 0 rows atualizadas. Corrigido no publisher (#39) + republicação. *Lição:
+   qualquer payload novo do outbox DEVE passar por `_normalize_direction`.*
+2. **`ca-certificates` ausente na imagem upstream** (bug crítico silencioso): a troca H7
+   derrubou TLS do wal-g — basebackup e WAL pararam de subir ao B2 por ~1h. Corrigido com
+   bind-mount de certs (#41) e validado com push + drill. *Lição: troca de imagem base exige
+   smoke dos jobs que rodam DENTRO do container (backup, archive), não só do serviço.*
+3. **Drill com 3 bugs latentes** (nunca tinha rodado até o fim): imagem `postgres:16` vs
+   basebackups PG15; `postgresql.auto.conf` com aspas duplas (syntax error no PG); falta de
+   `recovery.signal` + espera fixa de 10s. Corrigidos (#40 + este PR). O drill agora é
+   executável e validou o ciclo completo backup→restore.
+4. **`hit_region` com lift uniforme +56,5pp** em todos os buckets: viés estrutural conhecido
+   (feature só é logada quando há atribuição de hit) — não é bug; excluir de rankings de lift.
+
+### 6.5 Estado final dos dados (03/08 ~17:30 UTC)
+
+```
+SQLite (autoritativo):  41.370 decision_dna · 38.229 com hit · 33.411 com lift (n≥30)
+PG cw:   3.591 spins_vectors (100% ae_latent) · spin_features com session_id pronto
+PG ccw:  3.370 spins_vectors (100% ae_latent)
+PG shared.decision_dna: 41.370 rows · 33.411 lifts espelhados (paridade exata)
+B2: basebackup 30min (FULL 48) + WAL contínuo + SQLite diário offsite
+```
+
+**Fundação de dados COMPLETA e 100% em produção.** Próximo passo (sessão de estratégia):
+E1–E5 do §4.3 — começando pelo ranking de features por lift realizado per-direction, que o
+H1 destravou hoje.

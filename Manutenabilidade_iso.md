@@ -1250,6 +1250,33 @@ Dependências: H1 é pré-requisito da fase de estratégia; H2–H4 são higiene
 
 > **Veredito:** a fundação de **escrita** está 100% funcional (paridade 1:1, zero backlog, backups vivos). A fundação **analítica** — razão de ser do PG stack — está ~70%: dados chegam corretos, mas o feedback (F1), a comparabilidade (A2) e o consumo (A3, `idx_scan=0`) não operam. **H1 (SPR-DATA1) é o próximo passo obrigatório antes de qualquer imersão séria em estratégia**; sem `realized_lift_pp`, qualquer ajuste de aposta será guiado por intuição, não por dado.
 
+### F. CLOSEOUT (03/08 noite) — execução completa H1–H7 + S2/S3/S5/S6/S7
+
+**Entregue por 4 PRs mergeados** (#38 H1–H7 `4cd47d5`; #39 fix direction `1557451`; #40 backup
+retain48+rclone+drill-pg15 `4b72885`; #41 fix ca-certificates `2a41da7`), CI 5/5 verde em todos,
+suíte **733 passed**. Rollout no Debian concluído no mesmo dia: alembic **0013**, flags LIGADAS
+via `.env` do host (`SDA_DNA_REALIZE=1/EVERY=20`, `CDC_ANALYZE_EVERY_N=50` — compose segue
+default-OFF), `roleta-pg` na imagem upstream `pgvector/pgvector:pg15` + `DROP EXTENSION age`,
+2 AEs per-direction treinados (evr ≈0,96) + `ae_latent` 100%, lifts 33.411 no SQLite **e** no PG
+(paridade exata pós-#39), 4 UNIQUE + 4 HNSW (uso confirmado por EXPLAIN).
+
+**Backups (S5/S6/S7/S3 fechados):** `.db` legados fora do volume; SQLite offsite no B2 via
+rclone (cron diário, `OFFSITE OK` validado); retain wal-g FULL 7→**48** (24h de janela);
+**restore drill executado com sucesso** — basebackup do B2 restaurado em container isolado com
+41.370 dna / 33.411 lifts íntegros.
+
+**3 bugs reais achados e corrigidos pela auditoria ponto a ponto** (detalhe: `evolução_03_08.md`
+§6.4): (1) vocabulário `direction` sem normalizar no evento novo → espelho casava 0 rows; (2)
+imagem upstream sem `ca-certificates` → wal-g TLS quebrado ~1h (basebackup+WAL) → bind-mount de
+certs do host; (3) drill com imagem PG16 vs backups PG15 + `auto.conf` com aspas inválidas +
+falta de `recovery.signal` — nunca havia rodado até o fim. Pendência única: validar `session_id`
+no primeiro giro pós-deploy (mesa parada desde 13:49 UTC; coluna+código prontos).
+
+**ISO/IEC 25010 pós-execução:** Analisabilidade **desbloqueada** (lift per-direction consultável,
+espaço latente comparável por sentido, k-NN indexado); Confiabilidade elevada (RPO PG 30min com
+retenção 24h, SQLite offsite, restore ensaiado). Fundação de dados **pronta para a fase de
+estratégia** (E1–E5, `evolução_03_08.md` §4.3; arquitetura: `arquitetura_dados_estrategia.md`).
+
 ---
 
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE

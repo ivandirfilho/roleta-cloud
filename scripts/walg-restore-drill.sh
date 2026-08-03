@@ -52,8 +52,11 @@ docker exec "${DRILL_CONTAINER}" bash -c '
   . /etc/wal-g/env
   rm -rf /var/lib/postgresql/data/*
   /usr/local/bin/wal-g backup-fetch /var/lib/postgresql/data '"${BACKUP_NAME}"'
-  echo "restore_command = \". /etc/wal-g/env && /usr/local/bin/wal-g wal-fetch %f %p\"" \
+  # Fix 03/08: PG exige aspas SIMPLES no valor (aspas duplas = syntax error
+  # no auto.conf) e recovery.signal para entrar em archive recovery.
+  printf "restore_command = '"'"'. /etc/wal-g/env && /usr/local/bin/wal-g wal-fetch %%f %%p'"'"'\n" \
     > /var/lib/postgresql/data/postgresql.auto.conf
+  touch /var/lib/postgresql/data/recovery.signal
   chown -R postgres:postgres /var/lib/postgresql/data
   chmod 700 /var/lib/postgresql/data
 '
@@ -61,11 +64,20 @@ docker exec "${DRILL_CONTAINER}" bash -c '
 echo "=== [4/6] Inicia PG em recovery ==="
 docker exec -d -u postgres "${DRILL_CONTAINER}" /usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/data
 
-sleep 10
+# Fix 03/08: espera ativa (replay de WAL do B2 pode passar de 10s fixos).
+for _ in $(seq 1 24); do
+  sleep 5
+  if docker exec -u postgres "${DRILL_CONTAINER}" pg_isready -q 2>/dev/null; then
+    break
+  fi
+done
 
-echo "=== [5/6] Smoke: lista databases + count outbox ==="
-docker exec -u postgres "${DRILL_CONTAINER}" psql -c "\l" || true
-docker exec -u postgres "${DRILL_CONTAINER}" psql -d roleta -c "SELECT COUNT(*) FROM shared.outbox;" || true
+echo "=== [5/6] Smoke: lista databases + counts ==="
+docker exec -u postgres "${DRILL_CONTAINER}" psql -U roleta -d roleta -c "\l" || true
+docker exec -u postgres "${DRILL_CONTAINER}" psql -U roleta -d roleta \
+  -c "SELECT COUNT(*) AS outbox FROM shared.outbox;" || true
+docker exec -u postgres "${DRILL_CONTAINER}" psql -U roleta -d roleta \
+  -c "SELECT COUNT(*) AS dna FROM shared.decision_dna;" || true
 
 echo "=== [6/6] Drill concluido. Container '${DRILL_CONTAINER}' deixado vivo na porta ${DRILL_PORT} para inspecao. ==="
 echo "Limpar manualmente: docker rm -f ${DRILL_CONTAINER} && docker volume rm ${DRILL_VOLUME}"
