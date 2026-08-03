@@ -13,7 +13,7 @@ com pgvector/Timescale/AGE) como base de **otimização de predição**, fechand
 provisionados mas **vazios**. O princípio: nenhuma peça nova — primeiro popular 100% do que foi desenhado,
 depois medir lift real por feature, e só então evoluir a estratégia com evidência.
 
-```
+````
 Extensão (spins + foto) ──WS──> Engine (SDA V4 + force17 + block_gale)
                                    │
                                    ├─> SQLite decisions.db  [autoritativo]  ✅ vivo
@@ -79,6 +79,37 @@ funcionando: cada `result_actual` confere com o `spin_number` do giro seguinte; 
 temporal) **está correto para a proposta** — separação write/read, sem acoplamento do caminho da aposta.
 O problema não é formato, é **população parcial dos elos analíticos** (itens 1–3).
 
+### 2.4 Auditoria pgvector — camada básica (addendum 03/08, 2ª rodada)
+
+**População: correta no nível linha.** Verificado em produção:
+
+| Checagem | Resultado |
+|---|---|
+| Paridade hoje (SQLite decisions ↔ PG vetores) | **230 = 230** (1:1 exato) ✅ |
+| Duplicatas por `decision_id` (vectors + features, cw/ccw) | **0** ✅ |
+| `decision_id` NULL / órfãos | **0** ✅ |
+| Vetores zerados/degenerados | **0** ✅ |
+| DNA espelhado (hit preenchido) | 38.229 = 38.229 nos dois lados ✅ |
+| Paridade histórica desde 24/05 | 7.087 vs 6.961 → **126 faltantes (1,8%)**, era do bug HOOK-1; backfill opcional |
+
+**Exactly-once:** o worker processa evento + `mark_processed` na **mesma transação** com
+`SKIP LOCKED` + SAVEPOINT por evento — sem janela de duplicação no caminho normal. ✅
+
+**Porém, 5 achados de arquitetura na camada mais básica (a proposta NÃO está 100%):**
+
+| # | Achado | Evidência | Sugestão (aditiva, default-OFF onde couber) |
+|---|---|---|---|
+| A1 | **Idempotência ausente** em `spins_vectors`/`spin_features` — INSERT puro; `spin_uuid UNIQUE` usa `gen_random_uuid()` (inútil p/ dedup). Replay manual do outbox duplicaria silenciosamente (o handler de DNA tem guard; estes não) | `cdc_worker.py:139-143,204-225` | Migração aditiva: `UNIQUE(decision_id)` + `ON CONFLICT DO NOTHING` |
+| A2 | **Cosine sobre escalas mistas**: f0 força ≈16 (máx 36) e f5 ≈14 dominam a métrica; taxas c4/m6/l12 (~0,39) quase não pesam na similaridade | média das dims em prod: `[16.2, 0.39, 0.39, 0.39, 3.6, 14.1]` | Normalizar (z-score) em coluna própria ou — melhor — concluir o `ae_latent` (P2), que é exatamente o embedding normalizado do desenho |
+| A3 | **Índice ivfflat mal dimensionado e nunca usado**: `lists=100` p/ ~3,5k rows (~35 vetores/lista) e `idx_scan = 0` nos dois índices — o único consumidor (`/api/regime_similarity`) nunca foi chamado | `pg_stat_user_indexes` | Ao ativar o consumo: recriar como **HNSW** (pgvector 0.8.2 suporta; sem treino, melhor p/ tabela que cresce) ou `lists≈sqrt(n)` |
+| A4 | **Estatísticas do planner congeladas**: `n_live_tup=162` vs 3,5k reais; `last_autoanalyze` vazio — thresholds de autovacuum não disparam em tabela pequena/append-only | `pg_stat_user_tables` | `ANALYZE` pós-batch no worker (a cada N batches) ou cron diário |
+| A5 | **Drift doc↔realidade**: TimescaleDB **não está instalado** (extensões ativas: `vector 0.8.2`, `age 1.5.0`); blueprint cita hypertables. `last_20_hits` em `spin_features` mistura sessões/dealers na window query (contaminação de lag-features entre mesas) | `pg_extension`; `cdc_worker.py:169-176` | Corrigir blueprint (ou instalar Timescale de fato); adicionar `session_id` como coluna filtrável na window query |
+
+**Veredito da 2ª rodada:** pipeline de população **100% funcional** (fluxo, atomicidade, paridade);
+proposta analítica **~70% entregue** — os vetores chegam corretos, mas a *busca* por similaridade
+(razão de ser do pgvector) hoje seria enviesada (A2), lenta/imprecisa se ativada (A3) e ninguém a
+consome (idx_scan=0). A1/A4 são higiene barata; A2+P2 são o desbloqueio real da predição.
+
 ---
 
 ## 3. Imersão — jogadas de hoje (03/08, UTC)
@@ -143,3 +174,4 @@ flags default-OFF na compose, migrações aditivas, round-trip `save/load/reset_
 ---
 
 *Gerado em 2026-08-03 a partir de inspeção read-only da produção. Nenhuma configuração foi alterada.*
+````
