@@ -43,7 +43,7 @@ docker run -d --name "${DRILL_CONTAINER}" \
   -e POSTGRES_PASSWORD=drill_only \
   -p "127.0.0.1:${DRILL_PORT}:5432" \
   --entrypoint sleep \
-  postgres:16 infinity >/dev/null
+  pgvector/pgvector:pg15 infinity >/dev/null
 
 echo "=== [3/6] Fetch basebackup ${BACKUP_NAME} via wal-g ==="
 docker exec "${DRILL_CONTAINER}" bash -c '
@@ -58,7 +58,7 @@ docker exec "${DRILL_CONTAINER}" bash -c '
 '
 
 echo "=== [4/6] Inicia PG em recovery ==="
-docker exec -d -u postgres "${DRILL_CONTAINER}" /usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/data
+docker exec -d -u postgres "${DRILL_CONTAINER}" /usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/data
 
 sleep 10
 

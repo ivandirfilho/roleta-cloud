@@ -38,6 +38,18 @@ log "BACKUP OK ${OUT}.gz (${SIZE} bytes)"
 # Rotacao
 find "$BACKUP_DIR" -name "decisions_*.db.gz" -mtime +"$KEEP_DAYS" -delete
 
+# S6 (03/08): copia offsite p/ B2 via rclone — best-effort, flag por env.
+# RCLONE_REMOTE vazio = skip (hosts sem rclone continuam funcionando).
+RCLONE_REMOTE="${RCLONE_REMOTE:-}"
+if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
+    if rclone copyto "${OUT}.gz" "${RCLONE_REMOTE}/decisions_${STAMP}.db.gz" 2>>"$LOG_FILE"; then
+        log "OFFSITE OK ${RCLONE_REMOTE}/decisions_${STAMP}.db.gz"
+        rclone delete --min-age "${KEEP_DAYS}d" "$RCLONE_REMOTE" 2>>"$LOG_FILE" || true
+    else
+        log "OFFSITE FAIL (rclone copyto) — backup local segue valido"
+    fi
+fi
+
 # Metrica textfile (padrao do gap-check) p/ alerta RoletaBackupStale.
 if [ -d "$TEXTFILE_DIR" ]; then
     {
