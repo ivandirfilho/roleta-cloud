@@ -1,0 +1,102 @@
+# Roleta Cloud — Compose STANDALONE para a VM Azure (canary → cutover).
+#
+# Difere do docker-compose.yml (produção HostDime) apenas no NECESSÁRIO para rodar
+# na Azure; a geometria/estratégia/INV-3 são IDÊNTICAS (mesmos defaults de flags).
+#
+#   1. `image:` fixado por DIGEST (imutável) em vez de `build:` — a imagem vem do
+#      ACR (acrroletaprod). Defina ROLETA_IMAGE no .env (o deploy-azure.sh resolve
+#      e grava o digest corrente). Sem build no host (C3/A1).
+#   2. Volume `roleta-data` faz bind no disco PERSISTENTE (/opt/roleta/data), para o
+#      state.json/decisions.db sobreviverem a realocação da VM (o resource disk local
+#      da série L é efêmero). os.replace() continua atômico (mesmo ext4).
+#   3. Reverse proxy é o Caddy NATIVO do host (/etc/caddy/Caddyfile) → 127.0.0.1:8765,
+#      exatamente como a HostDime usa nginx→loopback. Por isso as portas seguem só em
+#      loopback (nunca públicas); quem expõe 80/443 é o Caddy.
+#
+# Rationale completa de CADA flag: ver docker-compose.yml (fonte da verdade). Os
+# valores abaixo replicam 1:1 o flag-set de produção capturado na HostDime.
+services:
+  roleta-cloud:
+    image: ${ROLETA_IMAGE:?defina ROLETA_IMAGE=acrroletaprod.azurecr.io/roleta-cloud@sha256:<digest> no .env (use deploy-azure.sh)}
+    container_name: roleta-cloud
+    restart: unless-stopped
+    mem_limit: 512m
+    mem_reservation: 64m
+    # MIG-0: tempo para GameState.save() persistir antes do SIGKILL.
+    stop_grace_period: 60s
+    # VF-0: SYS_PTRACE para py-spy attach no PID 1.
+    cap_add:
+      - SYS_PTRACE
+    # Portas SÓ em loopback — o Caddy nativo do host publica 80/443 e faz proxy.
+    ports:
+      - "127.0.0.1:${WS_PORT:-8765}:8765"
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - roleta-data:/app/data
+      - ./server/configs:/app/server/configs:ro
+    environment:
+      - WS_HOST=0.0.0.0
+      - WS_PORT=8765
+      # MIG-0: state.json dentro do volume persistente (os.replace atômico).
+      - STATE_FILE=/app/data/state.json
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      - SSL_CERT=${SSL_CERT:-}
+      - SSL_KEY=${SSL_KEY:-}
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      # Secret (vem do Key Vault via kv-to-env.sh → .env). Vazio = auth desligada.
+      - ROLETA_API_KEY=${ROLETA_API_KEY:-}
+      # HOOK-1: DSN do Postgres. Vazio no canary = hook de publicação OFF (SQLite
+      # é a fonte autoritativa; dual_write permanece desligado até a Onda de PG).
+      - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      # 📸 Vision / OCR (LIGADO em produção).
+      - SDA_VISION_OCR=${SDA_VISION_OCR:-1}
+      - SDA_VISION_MODEL_ALIASES=${SDA_VISION_MODEL_ALIASES:-roletaaovivo=Roleta ao Vivo}
+      # V4: geometria 3 regiões (21 números). ON em produção.
+      - SDA_REGIONS_V4=${SDA_REGIONS_V4:-1}
+      # S-STAKE / Block-Gale TETO 1 (= flat, sem ruína). INV-3: veto nunca suprime aposta.
+      - SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}
+      - SDA_BET_PAIR=${SDA_BET_PAIR:-force17}
+      - SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-0}
+      - GALE_CAP=${GALE_CAP:-1}
+      - GALE_BANKROLL=${GALE_BANKROLL:-1000}
+      - GALE_ONLY_AFTER_GREEN=${GALE_ONLY_AFTER_GREEN:-0}
+      - C_SELECTION_AUTO_PROMOTE=${C_SELECTION_AUTO_PROMOTE:-0}
+      # Vision fill-forward (metadata; não toca aposta). ON em produção.
+      - SDA_DEALER_FILL_FORWARD=${SDA_DEALER_FILL_FORWARD:-1}
+      - SDA_DEALER_FORCE_PROFILE=${SDA_DEALER_FORCE_PROFILE:-0}
+      - SDA_VISION_ATTACH_MAX_AGE_S=${SDA_VISION_ATTACH_MAX_AGE_S:-0}
+      # Phantom dedup — OFF por padrão (toca aposta).
+      - SDA_DEDUP_PHANTOM=${SDA_DEDUP_PHANTOM:-0}
+      - SDA_DEDUP_PHANTOM_WINDOW_MS=${SDA_DEDUP_PHANTOM_WINDOW_MS:-20000}
+      # DIR2..DIR19 (sentido-fase) — estado de produção (ON onde a HostDime tem ON).
+      - SDA_HISTORICO_NAO_DIRECIONAL=${SDA_HISTORICO_NAO_DIRECIONAL:-1}
+      - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-1}
+      - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-1}
+      - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-1}
+      - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
+      - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
+      - SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}
+      - SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}
+      - SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}
+      - SDA_LOCK_TOTAL=${SDA_LOCK_TOTAL:-1}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Bind no disco PERSISTENTE. /opt/roleta/data DEVE estar em disco gerenciado
+  # (OS disk ou data disk), NUNCA no resource disk efêmero (/mnt) da série L.
+  roleta-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/roleta/data
