@@ -12,7 +12,7 @@ roleta-deploy.timer (systemd, 2min)
     ↓
 /usr/local/bin/roleta-deploy-pull.sh
     ↓ git fetch + compara hashes
-    ↓ se diff: reset --hard + build + up -d roleta-cloud
+    ↓ se diff: reset --hard + build + estado preflight + migrations + up -d roleta-cloud
     ↓ healthcheck 3× @ http://127.0.0.1:8766/health
     ↓ sync frontend/ → /var/www/roleta + reload nginx   (NOVO 17/06)
     ↓ falha → rollback automatico para HEAD anterior
@@ -25,7 +25,7 @@ PROD running
 
 | Arquivo | Local | Descricao |
 |---|---|---|
-| `tools/deploy_pull.sh` | repo | script idempotente com rollback |
+| `scripts/roleta-deploy-pull.sh` | repo | script canônico idempotente com rollback |
 | `tools/systemd/roleta-deploy.service` | repo | unit oneshot |
 | `tools/systemd/roleta-deploy.timer` | repo | dispara a cada 2min |
 | `/usr/local/bin/roleta-deploy-pull.sh` | servidor | symlink/copy do script |
@@ -38,7 +38,7 @@ PROD running
 ```bash
 ssh root@187.45.181.75 << 'EOF'
 cd /root/roleta-cloud
-install -m755 tools/deploy_pull.sh /usr/local/bin/roleta-deploy-pull.sh
+install -m755 scripts/roleta-deploy-pull.sh /usr/local/bin/roleta-deploy-pull.sh
 install -m644 tools/systemd/roleta-deploy.service /etc/systemd/system/
 install -m644 tools/systemd/roleta-deploy.timer /etc/systemd/system/
 systemctl daemon-reload
@@ -46,6 +46,46 @@ systemctl enable --now roleta-deploy.timer
 systemctl list-timers roleta-deploy.timer
 EOF
 ```
+
+## MIG-0 — migracao do `state.json` para o volume persistente
+
+O compose nao monta mais `./state.json` como arquivo isolado. O estado do motor
+passa a ser `/app/data/state.json`, dentro do volume nomeado `roleta-data`. Isso
+mantem `GameState.save()` atomico (`os.replace`) e evita perder o estado ao
+restaurar apenas o disco de dados.
+
+Execute uma vez, **antes** do primeiro deploy que contenha a mudanca:
+
+```bash
+cd /root/roleta-cloud
+docker compose stop -t 60 roleta-cloud
+bash scripts/migrate-state-to-volume.sh
+VOLUME_NAME="${VOLUME_NAME:-$(docker volume ls --quiet --filter 'label=com.docker.compose.volume=roleta-data')}"
+test "$(printf '%s\n' "$VOLUME_NAME" | sed '/^$/d' | wc -l)" -eq 1
+docker run --rm -v "$VOLUME_NAME:/data:ro" busybox test -f /data/state.json
+docker compose up -d roleta-cloud
+```
+
+O script tenta primeiro o nome normalizado pelo Compose e, se `--format json`
+não estiver disponível, usa o label `com.docker.compose.volume`. Em Compose
+antigo ou quando houver mais de um volume candidato, informe o nome físico:
+`VOLUME_NAME=projeto_roleta-data bash scripts/migrate-state-to-volume.sh`.
+Se o deploy automático também não resolver o volume, defina
+`STATE_VOLUME_NAME=projeto_roleta-data` no ambiente da unit systemd, execute
+`systemctl daemon-reload` e repita o deploy.
+
+O script falha se o container estiver rodando, se o JSON de origem for invalido
+ou se ja houver um destino diferente. Ele e idempotente quando os checksums
+coincidem. A origem `./state.json` nao deve ser apagada ate concluir o soak e
+um backup/restore do novo caminho.
+
+O deploy pull-based tambem falha fechado se `roleta-data/state.json` nao existir:
+isso impede que um merge automatico remova o bind legado e suba a aplicacao com
+estado default. O operador deve executar a migracao e repetir o deploy.
+
+Rollback do MIG-0: pare o container, reverta o commit do compose e suba a
+versao anterior. A copia de origem permanece intacta e o compose antigo volta a
+monta-la; nao remova `roleta-data/state.json` antes de validar o rollback.
 
 ## Operacao
 
@@ -98,15 +138,18 @@ curl -s https://roleta.xma-ia.com/ | grep -o 'app.js?v=[0-9.]*'      # confirma 
 ```
 
 > ℹ️ Há **dois** scripts de deploy no repo: `scripts/roleta-deploy-pull.sh` (canônico, com
-> passo `alembic`) e `tools/deploy_pull.sh` (duplicado mais antigo). Ambos receberam o sync do
-> frontend; **follow-up:** unificar num só e apontar a instalação para o canônico.
+> passo `alembic`) e `tools/deploy_pull.sh` (duplicado mais antigo). Ambos agora
+> falham fechado se o estado não foi migrado; a instalação deve apontar para o
+> canônico.
 
 ## Bypass (deploy SSH direto)
 
-Continua funcionando para hotfixes urgentes. O script detecta hash
-local divergente do remote e nao re-aplica:
+Continua disponível para hotfixes urgentes, mas **não contorna o MIG-0**:
+primeiro confirme que o volume `roleta-data` contém `state.json` ou execute a
+migração documentada acima. Depois, prefira o script canônico, que mantém o
+preflight de estado, migrations e rollback:
 
 ```powershell
-$bash = "cd /root/roleta-cloud && git pull && docker compose up -d --build roleta-cloud"
+$bash = "cd /root/roleta-cloud && git pull && bash scripts/roleta-deploy-pull.sh"
 ssh root@187.45.181.75 "$bash"
 ```

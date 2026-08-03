@@ -228,7 +228,9 @@ flowchart LR
 
 Essa mudança **não entra na janela**. Ela é entregue por PR próprio (`MIG-0`),
 aplicada primeiro na HostDime e observada em soak; a Azure só herda uma
-configuração já comprovada. O porquê está em §13, A3.
+configuração já comprovada. O porquê está em §13, A3. A alteração no código é
+somente a declaração explícita do alias de ambiente; nenhuma lógica do motor
+muda.
 
 ### 3.3 Mudanças proibidas no mesmo evento
 
@@ -356,7 +358,8 @@ Criar em sprint/PR separado:
 0. **`MIG-0` — mover `state.json` para o volume nomeado** (§3.2.1): definir
    `STATE_FILE=/app/data/state.json`, remover o bind `./state.json` e migrar o
    arquivo existente. Entregue e observado **na HostDime** antes de qualquer
-   passo Azure. Sem 1 linha de código alterada (§13, A3).
+   passo Azure. Sem alteração na lógica do motor; apenas configuração explícita
+   do alias `STATE_FILE` (§13, A3).
 1. `docker-compose.azure.yml` como arquivo **standalone**, nunca como overlay do
    compose base:
    - **sem chave `build:`** — a imagem vem só por digest do ACR;
@@ -789,7 +792,7 @@ ensaio correspondente na Onda 4.
 |---|---|---|---|---|
 | **A1** | O overlay `docker-compose.azure.yml` não removeria o `build:` do compose base | `docker compose -f docker-compose.yml -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo serviço — `PROVADO` | Arquivo **standalone**, `pull` + `up -d --no-build`, DoD checando ausência de `build:` | O objetivo nº1 do plano é runtime idêntico. Com `build:` presente, um `docker compose build` — que é literalmente o que o deploy atual faz — reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest. A garantia seria perdida em silêncio, sem nenhum passo do runbook falhando |
 | **A2** | Mascarar só `roleta-deploy.timer` deixa `roleta-deploy.service` startável | São duas units (`docs/DEPLOY.md:29-30`) e o `start` manual do `.service` é procedimento documentado (`docs/DEPLOY.md:57`) — `PROVADO` por leitura | Mascarar as duas units + `chmod 000` no executável (C-01/C-02) | O fence precisa cobrir o caminho que um humano usa por hábito sob pressão, não só o automático. Um `systemctl start roleta-deploy.service` durante a janela executaria `git reset --hard` + `up -d` e ressuscitaria o escritor congelado |
-| **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único (`docker-compose.yml:21`) espera-se `EBUSY`/`EXDEV` — `ESPERADO`. Que `STATE_FILE` sobrepõe `settings.state_file` foi testado e confirmou o override — `PROVADO` (no Windows) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` é campo de `Settings` sem `validation_alias`, então a correção é pura configuração — zero linha de código, zero risco de estratégia. Mas ela **não** entra na janela: a atomicidade dentro do volume ainda é `ESPERADO` em container Linux, e estrear uma superfície de persistência nova num evento irreversível é validar em produção |
+| **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único (`docker-compose.yml:21`) espera-se `EBUSY`/`EXDEV` — `ESPERADO`. Que `STATE_FILE` sobrepõe `settings.state_file` foi testado e confirmou o override — `PROVADO` (no Windows) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Deploy e retomada têm preflight; `GameState.load()` também falha fechado quando o override aponta para arquivo ausente. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` agora tem `validation_alias="STATE_FILE"` explícito em `Settings`; a mudança não altera a lógica de estratégia. O guard de aplicação cobre subida manual/restart, enquanto o preflight cobre deploy; a atomicidade dentro do volume ainda é `ESPERADO` em container Linux e precisa de ensaio antes do evento irreversível |
 | **A4** | `state.json` não é rastreado pelo Git, então uma VM nova sem restore faria o Docker criar um **diretório** com esse nome | `.gitignore` lista `state.json`; `git ls-files state.json` devolve vazio — `PROVADO` | C-19 exige `test -f` **no caminho efetivo** antes de qualquer `up` | Com `MIG-0` aplicado a armadilha do diretório desaparece, mas surge outra pior: restaurar no lugar antigo faz o app subir com estado **default**, sem crash e sem alerta. Um passo de verificação que aponta para o caminho errado é pior que nenhum, por isso C-19 é condicional ao estado de `MIG-0` |
 | **A5** | "Volumes no disco gerenciado" só valia para o volume nomeado | O bind `./state.json` vive no `REPO_DIR`, no disco de SO, não em `/mnt/docker` | Redação corrigida em §3.2.1 e no C-19; `MIG-0` resolve na raiz | Um backup só do data disk perderia o estado do motor. Depois de `MIG-0` os dois artefatos críticos ficam no mesmo volume, e a política de backup passa a ter um alvo só |
 | **A6** | O deploy sincroniza `frontend/` e recarrega **nginx**; com Caddy o passo vira no-op silencioso | `scripts/roleta-deploy-pull.sh:96-107`: `command -v nginx` falha e o script loga "reload pulado (não-fatal)" — `PROVADO` por leitura | Caddy com `root * /var/www/roleta`; deploy Azure faz só o `cp -a`; DoD exige alteração de teste chegando ao navegador | Foi exatamente esse gap que já quebrou o deploy do dashboard em 17/06 na HostDime. Repetir o erro na Azure daria um backend saudável servindo um frontend congelado — o pior tipo de falha, porque o healthcheck fica verde |

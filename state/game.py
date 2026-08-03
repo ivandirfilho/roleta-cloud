@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -1394,6 +1395,10 @@ class GameState:
         """
         path = path or settings.state_file
         if not path.exists():
+            if os.environ.get("STATE_FILE") and path == settings.state_file:
+                raise FileNotFoundError(
+                    f"STATE_FILE configurado, mas o estado persistente nao existe: {path}"
+                )
             return cls()
         
         try:

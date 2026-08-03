@@ -2345,3 +2345,48 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
 | v4.4.1 | 13/06/2026 | **Fix incidente MASTER:** deadlock de reeleição em `connection_manager.update_device_id` (grace expirado sem conexão → SLAVE permanente → ~16h sem spins, dashboard ONLINE porém vazio); reeleição corrigida + 5 testes (`tests/test_connection_manager_master.py`). **Observabilidade:** alerta `RoletaNoMaster` + métricas `roleta_master_present`/`roleta_ws_connections`. **Runbook** `docs/runbooks/sem-apostas-master-slave.md`. Suite 429 |
 | ext v3.3.0 | 14/06/2026 | **Auto-Start & Zero-Upload (Escuta Beat, client-side)** — ver ADENDO 14/06: auto-detecção de provider (`provider_router.js`, fingerprint por host dos frames), manifests empacotados (`extension/providers/` via web_accessible_resources), auto-start via `chrome.webNavigation` + `getAllFrames`, supressão pós-STOP (TTL 24h + revalidação de host + prune), badge + toggle. Auditoria em **3 rodadas de code-review** corrigiu 5 bugs (WS duplicado/race, STOP não segurava o auto-start, badge não limpo, 2ª aba sequestrava o `tabId`, política `'ask'` beco sem saída). Backend Python v4.4.1 **intacto**. Deploy `23c3490` (servidor Debian alinhado, 6 containers healthy). Suite **480**. Detalhes: `passos_escuta_junho.md` §4.9/§12 |
+
+---
+
+## ADENDO 03/08/2026 — MIG-0: `state.json` no volume persistente
+
+### A. Capacidade e correção
+
+- Removido o bind de arquivo único `./state.json:/app/state.json` do
+  `docker-compose.yml`.
+- Adicionado `STATE_FILE=/app/data/state.json`, apontando para o volume
+  nomeado `roleta-data`.
+- Adicionado `stop_grace_period: 60s` para que SIGTERM complete o salvamento
+  antes do Docker enviar SIGKILL.
+- Criado `scripts/migrate-state-to-volume.sh`, idempotente, com validação JSON,
+  checksum SHA-256, recusa de sobrescrita divergente e pré-condição de container
+  parado.
+- Os dois scripts de deploy recusam subir a aplicação se o volume não contiver
+  `state.json`, evitando que um deploy automático crie um estado default.
+- `GameState.load()` falha explicitamente quando `STATE_FILE` foi configurado e o
+  arquivo não existe; o caminho local sem override continua podendo iniciar vazio.
+- O preflight também cobre `scripts/resume_app.sh`, e o rollback do script
+  duplicado recompõe a imagem antiga antes de religar o serviço.
+- A resolução do volume tenta o JSON normalizado e cai para o label Docker,
+  permitindo Compose anterior ao suporte de `--format json`; ambiguidades exigem
+  `VOLUME_NAME`/`STATE_VOLUME_NAME` explícito.
+
+### B. Impacto ISO/IEC 25010
+
+| Característica | Impacto |
+|---|---|
+| Confiabilidade | Remove o fallback de escrita in-place causado pelo bind de arquivo único, recusa estado ausente em produção e mantém o estado no mesmo volume persistente do banco |
+| Portabilidade | O caminho é declarado por ambiente e o procedimento de migração é reproduzível em Debian/VM Azure |
+| Manutenibilidade | O script de migração, o teste de configuração e o rollback ficam versionados |
+
+### C. Obrigações e rollback
+
+1. Rodar o script somente após `docker compose stop -t 60 roleta-cloud`.
+2. Manter a origem `state.json` até o soak e o primeiro restore testado.
+3. Confirmar `test -f /data/state.json` no volume antes do `up`; Compose antigo
+   ou múltiplos candidatos exigem nome físico explícito.
+4. Em rollback, reverter o compose sem apagar a cópia de origem.
+
+Esta mudança é de persistência/infraestrutura, não altera estratégia, stake,
+geometria ou INV-3. A validação do comportamento atômico dentro do volume
+Linux continua sendo obrigatória no ensaio MIG-0 antes do cutover Azure.

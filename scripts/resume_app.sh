@@ -6,6 +6,51 @@ set -euo pipefail
 
 cd /root/roleta-cloud
 
+STATE_VOLUME_KEY="${STATE_VOLUME_KEY:-roleta-data}"
+STATE_VOLUME_NAME="${STATE_VOLUME_NAME:-}"
+
+resolve_state_volume_name() {
+  local candidates count volume_name
+  if [[ -n "$STATE_VOLUME_NAME" ]]; then
+    printf '%s\n' "$STATE_VOLUME_NAME"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1 &&
+    volume_name="$(
+      docker compose config --format json 2>/dev/null |
+        python3 -c 'import json, sys; print(json.load(sys.stdin)["volumes"][sys.argv[1]]["name"])' "$STATE_VOLUME_KEY" 2>/dev/null
+    )" &&
+    [[ -n "$volume_name" ]]; then
+    printf '%s\n' "$volume_name"
+    return 0
+  fi
+  candidates="$(docker volume ls --quiet --filter "label=com.docker.compose.volume=$STATE_VOLUME_KEY")" || return 1
+  count="$(printf '%s\n' "$candidates" | sed '/^$/d' | wc -l)"
+  if [[ "$count" == "1" ]]; then
+    printf '%s\n' "$candidates" | sed -n '1p'
+    return 0
+  fi
+  return 1
+}
+
+assert_state_volume_ready() {
+  local mountpoint volume_name
+  volume_name="$(resolve_state_volume_name)" || {
+    echo "[resume] ERRO: volume nao resolvido; use Compose >=2.6 ou STATE_VOLUME_NAME" >&2
+    return 1
+  }
+  mountpoint="$(docker volume inspect -f '{{.Mountpoint}}' "$volume_name" 2>/dev/null)" || {
+    echo "[resume] ERRO: volume Docker ausente: ${volume_name}" >&2
+    return 1
+  }
+  [[ -f "$mountpoint/state.json" ]] || {
+    echo "[resume] ERRO: migre state.json para o volume antes de subir o app" >&2
+    return 1
+  }
+}
+
+assert_state_volume_ready
+
 echo "[resume] T+0  subindo container roleta-cloud"
 docker compose up -d
 

@@ -21,11 +21,53 @@ HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8766/health}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-3}"
 HEALTH_INTERVAL="${HEALTH_INTERVAL:-5}"
 SERVICE="${SERVICE:-roleta-cloud}"
+STATE_VOLUME_NAME="${STATE_VOLUME_NAME:-}"
+STATE_VOLUME_KEY="${STATE_VOLUME_KEY:-roleta-data}"
 
 mkdir -p "$STATE_DIR"
 exec >> "$LOG_FILE" 2>&1
 
 log() { echo "[$(date -u +%FT%TZ)] $*"; }
+
+resolve_state_volume_name() {
+    local candidates count volume_name
+    if [[ -n "$STATE_VOLUME_NAME" ]]; then
+        printf '%s\n' "$STATE_VOLUME_NAME"
+        return 0
+    fi
+    if command -v python3 >/dev/null 2>&1 &&
+        volume_name="$(
+            docker compose config --format json 2>/dev/null |
+                python3 -c 'import json, sys; print(json.load(sys.stdin)["volumes"][sys.argv[1]]["name"])' "$STATE_VOLUME_KEY" 2>/dev/null
+        )" &&
+        [[ -n "$volume_name" ]]; then
+        printf '%s\n' "$volume_name"
+        return 0
+    fi
+    candidates="$(docker volume ls --quiet --filter "label=com.docker.compose.volume=$STATE_VOLUME_KEY")" || return 1
+    count="$(printf '%s\n' "$candidates" | sed '/^$/d' | wc -l)"
+    if [[ "$count" == "1" ]]; then
+        printf '%s\n' "$candidates" | sed -n '1p'
+        return 0
+    fi
+    return 1
+}
+
+assert_state_volume_ready() {
+    local mountpoint volume_name
+    volume_name="$(resolve_state_volume_name)" || {
+        log "STATE MIGRATION REQUIRED — volume nao resolvido; use Compose >=2.6 ou defina STATE_VOLUME_NAME"
+        return 1
+    }
+    mountpoint="$(docker volume inspect -f '{{.Mountpoint}}' "$volume_name" 2>/dev/null)" || {
+        log "STATE MIGRATION REQUIRED — volume ausente: $volume_name"
+        return 1
+    }
+    if [[ ! -f "$mountpoint/state.json" ]]; then
+        log "STATE MIGRATION REQUIRED — falta $mountpoint/state.json"
+        return 1
+    fi
+}
 
 cd "$REPO_DIR"
 
@@ -45,6 +87,14 @@ git reset --hard origin/main >/dev/null
 if ! docker compose build --quiet "$SERVICE"; then
     log "BUILD FAIL — rollback"
     git reset --hard "$LOCAL" >/dev/null
+    exit 1
+fi
+
+if ! assert_state_volume_ready; then
+    log "DEPLOY ABORTED — execute scripts/migrate-state-to-volume.sh antes do primeiro deploy"
+    git reset --hard "$LOCAL" >/dev/null
+    docker compose build --quiet "$SERVICE" || true
+    docker compose up -d "$SERVICE" || true
     exit 1
 fi
 
