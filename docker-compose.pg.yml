@@ -64,6 +64,10 @@ services:
       # S4-BAK-2: wal-g binary + creds (host-side, NEVER commit /etc/wal-g/env)
       - ./wal-g/wal-g:/usr/local/bin/wal-g:ro
       - /etc/wal-g:/etc/wal-g:ro
+      # Fix 03/08: imagem upstream pgvector/pgvector:pg15 NAO traz
+      # ca-certificates -> wal-g falhava TLS contra o B2 (x509 unknown
+      # authority) em backup-push E archive_command. Monta os certs do host.
+      - /etc/ssl/certs:/etc/ssl/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U roleta -d roleta"]
       interval: 15s
