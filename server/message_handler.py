@@ -669,14 +669,48 @@ class MessageHandler:
                     except Exception:  # noqa: BLE001
                         pass
                     # OBS-25-01: publicar spin_result no outbox para backtest offline
+                    # H3 (03/08): + session_id → worker isola janela de lag
+                    # features por sessão real (sem vazamento entre sessões).
                     try:
                         from database.outbox_integration import maybe_publish_spin_result
                         last_dir = getattr(self, "last_decision_direction", None) or direcao
                         maybe_publish_spin_result(
-                            self.last_decision_id, last_dir, hit_result, numero
+                            self.last_decision_id, last_dir, hit_result, numero,
+                            session_id=getattr(self, "current_session_id", None),
                         )
                     except Exception as exc:  # noqa: BLE001
                         logger.error("spin_result_hook_raise exc=%s", exc)
+                    # H1 (03/08): fecha o loop do DNA — realiza lifts per-direction
+                    # a cada N resultados. Flag default-OFF; idempotente (só rows
+                    # com realized_lift_pp NULL); roda em thread p/ não segurar o
+                    # handler (INCIDENT 12/06: DNA fora do caminho crítico).
+                    try:
+                        from app_config.settings import (
+                            dna_realize_enabled, dna_realize_every,
+                        )
+                        if dna_realize_enabled():
+                            self._dna_realize_counter = getattr(
+                                self, "_dna_realize_counter", 0) + 1
+                            if self._dna_realize_counter >= dna_realize_every():
+                                self._dna_realize_counter = 0
+                                import threading as _th
+                                from database import dna_logger as _dna_rl
+
+                                def _realize() -> None:
+                                    try:
+                                        _n = _dna_rl.dna_realize_lifts(min_n=30)
+                                        if _n:
+                                            logger.info(
+                                                "dna_realize_lifts_ok updated=%s", _n)
+                                    except Exception:  # noqa: BLE001
+                                        pass
+
+                                _th.Thread(
+                                    target=_realize, daemon=True,
+                                    name="dna-realize-lifts",
+                                ).start()
+                    except Exception:  # noqa: BLE001
+                        pass
                     # Evita dupla atualização no bloco de logging adiante.
                     result_updated_this_spin = True
                 except Exception as _ur_e:  # noqa: BLE001

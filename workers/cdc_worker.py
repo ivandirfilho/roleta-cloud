@@ -55,6 +55,15 @@ USE_LISTEN_NOTIFY = os.environ.get("CDC_USE_LISTEN_NOTIFY", "1") not in ("0", "f
 NOTIFY_CHANNEL = os.environ.get("CDC_NOTIFY_CHANNEL", "outbox_new")
 # S-OBS-2: porta para /metrics
 METRICS_PORT = int(os.environ.get("CDC_METRICS_PORT", "8767"))
+# H4 (03/08): ANALYZE periódico — a cada N batches não-vazios (0 = off).
+# Mantém estatísticas do planner frescas em tabelas de INSERT contínuo,
+# sem depender do autovacuum (thresholds altos p/ tabelas pequenas).
+ANALYZE_EVERY_N = int(os.environ.get("CDC_ANALYZE_EVERY_N", "0"))
+_ANALYZE_TABLES = (
+    "cw.spins_vectors", "ccw.spins_vectors",
+    "cw.spin_features", "ccw.spin_features",
+    "shared.decision_dna", "shared.outbox",
+)
 ALLOWED_DIRECTIONS = {"cw", "ccw"}
 EXPECTED_DIM = 6
 
@@ -135,10 +144,17 @@ def _apply_spin_features(cur: Any, payload: dict[str, Any]) -> None:
     meta = payload.get("meta") or {}
 
     # SQL fixo por direcao — sem string interpolation com input arbitrario.
+    # H2 (03/08): ON CONFLICT no unique parcial (0011) — replay/retry vira no-op.
     if direction == "cw":
-        sql = "INSERT INTO cw.spins_vectors (decision_id, raw_features, meta) VALUES (%s, %s::vector, %s)"
+        sql = (
+            "INSERT INTO cw.spins_vectors (decision_id, raw_features, meta) VALUES (%s, %s::vector, %s) "
+            "ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING"
+        )
     else:
-        sql = "INSERT INTO ccw.spins_vectors (decision_id, raw_features, meta) VALUES (%s, %s::vector, %s)"
+        sql = (
+            "INSERT INTO ccw.spins_vectors (decision_id, raw_features, meta) VALUES (%s, %s::vector, %s) "
+            "ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING"
+        )
 
     cur.execute(sql, (decision_id, raw, Json(meta)))
 
@@ -164,16 +180,34 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
     gale_level = (meta or {}).get("applied_gale_level") if isinstance(meta, dict) else None
 
     schema = "cw" if direction == "cw" else "ccw"
+    # H3 (03/08): sessão isola a janela de lag features — sem vazamento
+    # estatístico entre sessões (dealer/mesa/regime mudam no corte).
+    session_id = payload.get("session_id")
+    if not session_id and isinstance(meta, dict):
+        session_id = meta.get("session_id")
 
-    # Window query: pega últimos 50 hits do mesmo schema para computar lags.
-    cur.execute(
-        f"""
-        SELECT hit
-        FROM {schema}.spin_features
-        ORDER BY id DESC
-        LIMIT 50;
-        """
-    )
+    # Window query: últimos 50 hits do mesmo schema (e da mesma sessão,
+    # quando o payload a informa — payloads antigos seguem no modo global).
+    if session_id:
+        cur.execute(
+            f"""
+            SELECT hit
+            FROM {schema}.spin_features
+            WHERE session_id = %s
+            ORDER BY id DESC
+            LIMIT 50;
+            """,
+            (session_id,),
+        )
+    else:
+        cur.execute(
+            f"""
+            SELECT hit
+            FROM {schema}.spin_features
+            ORDER BY id DESC
+            LIMIT 50;
+            """
+        )
     rows = cur.fetchall()
     # cur usa RealDictCursor → cada row é dict-like
     hits_desc = [bool(r["hit"]) for r in rows if r.get("hit") is not None]
@@ -201,13 +235,15 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
 
     last_20_with_now = ([hit] + last_20)[:20]
 
+    # H2+H3 (03/08): session_id na linha + ON CONFLICT anti-replay.
     cur.execute(
         f"""
         INSERT INTO {schema}.spin_features
             (decision_id, spin_number, hit, centro_previsto, gale_level,
              recent_acc_10, recent_acc_50, streak_miss, streak_hit,
-             last_20_hits, meta)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+             last_20_hits, meta, session_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING;
         """,
         (
             decision_id,
@@ -221,6 +257,7 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
             streak_hit,
             last_20_with_now,
             Json(meta if isinstance(meta, dict) else {}),
+            session_id,
         ),
     )
 
@@ -287,11 +324,47 @@ def _apply_dna_realized(cur: Any, payload: dict[str, Any]) -> None:
     )
 
 
+def _apply_dna_lift_bucket(cur: Any, payload: dict[str, Any]) -> None:
+    """H1 (03/08): espelha lift realizado por (direction, feature, bucket).
+
+    1 evento por bucket (não por linha) — o UPDATE em massa replica no PG a
+    mesma semântica idempotente do SQLite (dna_realize_lifts): só preenche
+    onde realized_lift_pp IS NULL e hit IS NOT NULL.
+    direction usa IS NOT DISTINCT FROM para casar rows legadas (NULL=NULL).
+    """
+    feature_name = payload.get("feature_name")
+    bucket = payload.get("bucket")
+    lift_pp = payload.get("realized_lift_pp")
+    if not feature_name or bucket is None or lift_pp is None:
+        raise ValueError(
+            f"dna_lift_bucket invalido: feature={feature_name!r} "
+            f"bucket={bucket!r} lift={lift_pp!r}"
+        )
+    cur.execute(
+        """
+        UPDATE shared.decision_dna
+        SET realized_lift_pp = %s
+        WHERE feature_name = %s
+          AND feature_value->>'bucket' = %s
+          AND direction IS NOT DISTINCT FROM %s
+          AND hit IS NOT NULL
+          AND realized_lift_pp IS NULL;
+        """,
+        (
+            float(lift_pp),
+            feature_name,
+            str(bucket),
+            payload.get("direction"),
+        ),
+    )
+
+
 HANDLERS = {
     "spin_features": _apply_spin_features,
     "spin_result": _apply_spin_result,
     "dna_feature": _apply_dna_feature,
     "dna_realized": _apply_dna_realized,
+    "dna_lift_bucket": _apply_dna_lift_bucket,
 }
 
 
@@ -423,6 +496,22 @@ def _wait_for_notify(conn_listen: Optional[psycopg2.extensions.connection], time
         return False
 
 
+def _run_analyze(conn: psycopg2.extensions.connection) -> None:
+    """H4 (03/08): ANALYZE nas tabelas quentes. Best-effort, commit próprio."""
+    try:
+        with _cursor(conn) as cur:
+            for table in _ANALYZE_TABLES:
+                cur.execute(f"ANALYZE {table};")
+        conn.commit()
+        logger.info("analyze_done tables=%s", len(_ANALYZE_TABLES))
+    except Exception:  # noqa: BLE001
+        logger.exception("analyze_failed; continuing")
+        try:
+            conn.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def main_loop(dsn: str) -> None:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
@@ -444,6 +533,7 @@ def main_loop(dsn: str) -> None:
     idle_sleep = IDLE_SLEEP_INITIAL
     total = 0
     last_log_ts = 0.0
+    batches_since_analyze = 0
 
     while not _shutdown:
         # VF-5: liveness flag-file (compose healthcheck monitora mtime < 120s)
@@ -473,6 +563,13 @@ def main_loop(dsn: str) -> None:
             if processed:
                 if M_BATCH_PROCESSED is not None:
                     M_BATCH_PROCESSED.inc(processed)
+                # H4 (03/08): ANALYZE a cada N batches não-vazios (flag env,
+                # leitura no boot; 0 = desligado).
+                if ANALYZE_EVERY_N > 0:
+                    batches_since_analyze += 1
+                    if batches_since_analyze >= ANALYZE_EVERY_N:
+                        _run_analyze(conn)
+                        batches_since_analyze = 0
             if processed == 0:
                 woke = _wait_for_notify(conn_listen, idle_sleep)
                 if woke:

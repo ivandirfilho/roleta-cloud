@@ -40,7 +40,7 @@ manifestos da extensão. Stack MCP: graphify · filesystem · memory · sequenti
 │  block_gale)  strategies/ (sda17 M15-ADA + dormentes)  staking/ (flat/kelly)               │
 │        │                                                                                   │
 │        ▼ persiste:                                                                         │
-│  database/ → SQLite decisions.db (autoritativo)   [opcional/dormente: PG+AGE+Timescale     │
+│  database/ → SQLite decisions.db (autoritativo)   [ativo: PG+pgvector                      │
 │                                                     via outbox + workers/cdc_worker]        │
 │  Observabilidade: /health /metrics(8766) · obs/ Prometheus+Grafana+Alertmanager · DNA      │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
@@ -93,7 +93,7 @@ manifestos da extensão. Stack MCP: graphify · filesystem · memory · sequenti
 **Responsabilidade:** parametrizar comportamento sem redeploy. **Arquivos:** `app_config/settings.py` (flags `SDA_*` lidas por chamada, sem cache → toggláveis), `app_config/strategy_config.py` (carrega `config/strategy.toml` com **hot-reload por mtime** dentro do `analyze()`), `config/strategy.toml` (`[sda17]`, `[sda17.minimizer]`…). **Conexões:** `docker-compose.yml environment:` → env do container → `settings.py`. ⚠️ **A compose sobrepõe os defaults do código** (§4).
 
 ### I. Persistência (`database/`, `data/`, `workers/`)
-**Responsabilidade:** gravar cada decisão e séries derivadas. **Arquivos:** `database/sqlite_repo.py` (write-side **autoritativo**, SQLite `data/decisions.db`), `service.py` (sessões/decisões), `dna_logger.py` (`decision_dna`, 32k linhas), `repository.py` (abstração + `get_repository`), `models.py` (dataclasses). **Caminho PG opcional/DORMENTE:** `outbox_publisher.py`/`outbox_integration.py` (escreve `shared.outbox`), `feature_store.py` (lê `cw/ccw.spin_features`), `regime_similarity.py`, `workers/cdc_worker.py` (consome outbox → `spins_vectors`, container próprio em `docker-compose.pg.yml`), `docker/*.sql` (Postgres + **Apache AGE** grafo + **TimescaleDB**). Gate: `feature_flags.dual_write_pg` = OFF. **Conexões:** `message_handler`→`sqlite_repo`→(opcional) outbox→cdc_worker→PG.
+**Responsabilidade:** gravar cada decisão e séries derivadas. **Arquivos:** `database/sqlite_repo.py` (write-side **autoritativo**, SQLite `data/decisions.db`), `service.py` (sessões/decisões), `dna_logger.py` (`decision_dna`, 32k linhas), `repository.py` (abstração + `get_repository`), `models.py` (dataclasses). **Caminho PG ATIVO (desde 03/08):** `outbox_publisher.py`/`outbox_integration.py` (escreve `shared.outbox`), `feature_store.py` (lê `cw/ccw.spin_features`), `regime_similarity.py`, `workers/cdc_worker.py` (consome outbox → `spins_vectors`, container próprio em `docker-compose.pg.yml`), `docker/postgres/init/*.sql` (Postgres + **pgvector**; AGE/Timescale removidos 03/08 — nunca usados). Gate: `feature_flags.dual_write_pg` = ON em prod. **Conexões:** `message_handler`→`sqlite_repo`→outbox→cdc_worker→PG.
 
 ### J. Observabilidade (`server/health_server.py`, `obs/`, DNA)
 **Responsabilidade:** saúde, métricas e telemetria de decisão. **Arquivos:** `health_server.py` (`/health`,`/healthz`,`/metrics` Prometheus, `/api/strategy|state|dna_summary`, porta 8766, thread daemon), `obs/` (`prometheus.yml`, `alertmanager.yml`, `alerts.yml`, dashboards Grafana `roleta-overview/profit/dna-regions/shadow-grid`), `database/dna_logger.py` (lift por feature). **Conexões:** `docker-compose.obs.yml` sobe o stack; `scripts/install-grafana-agent.sh` para telemetria cloud.
@@ -141,7 +141,7 @@ Roleta Cloud/
 ├── migrations/       [DADOS]    Alembic 0001–0009
 │
 ├── obs/              [OBSERV.]  prometheus · alertmanager · grafana dashboards
-├── docker/           [INFRA]    Dockerfile(s) cron + PG init (AGE/Timescale)
+├── docker/           [INFRA]    Dockerfile(s) cron + PG init (pgvector)
 ├── scripts/ tools/   [DEVOPS]   deploy timer, backfills, backtests, lints, backups
 ├── tests/            [QA]       71 arquivos (cov≥70%)
 └── archive/          [LEGADO]   RoletaV11, historico_dev — NÃO é código ativo

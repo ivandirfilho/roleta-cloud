@@ -114,6 +114,12 @@ services:
       # DIR6 (sentido-fase): idempotencia por trace_id (reenvios/re-render chegam com
       # o mesmo trace_id). Mais robusto que numero+dir+ms. ATIVADO (default ON).
       - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-1}
+      # H1 (03/08): fecha o loop do decision_dna — dna_realize_lifts() roda a cada
+      # N resultados, calculando realized_lift_pp POR SENTIDO (cw/ccw) e espelhando
+      # cada bucket ao PG (evento dna_lift_bucket). Corrige F1 da auditoria 03/08
+      # (funcao orfa -> coluna 100% NULL). Default OFF; ligar via .env do host.
+      - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-0}
+      - SDA_DNA_REALIZE_EVERY=${SDA_DNA_REALIZE_EVERY:-20}
       # DIR7 (sentido-fase): fusao da fonte de VIDEO (stand-by acoplavel). O futuro
       # servico de video publica direction_event; se confiavel, confirma/sobrepoe o
       # toggle. Default OFF (video inerte). Ligar: SDA_DIRECTION_VISION=1.

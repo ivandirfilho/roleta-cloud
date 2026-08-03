@@ -201,32 +201,42 @@ def reset_for_tests() -> None:
 
 
 def dna_realize_lifts(feature_name: Optional[str] = None, min_n: int = 10) -> int:
-    """SP-08 DNA-03: calcula realized_lift_pp = (bucket_hit_rate - baseline_hit_rate) * 100
-    em pontos percentuais (pp) e UPDATE em todas as entradas decision_dna com
-    hit IS NOT NULL e realized_lift_pp IS NULL.
+    """SP-08 DNA-03 + H1 (03/08): calcula realized_lift_pp POR SENTIDO.
 
-    Baseline = hit_rate global das decisoes realizadas (todos buckets).
-    Bucket = feature_value extraido (JSON.bucket).
+    lift = (bucket_hit_rate − baseline_hit_rate) × 100 (pontos percentuais),
+    onde baseline e buckets são segregados por `direction` (cw/ccw) — CW e
+    CCW são fenômenos físicos distintos (§4.0 evolução_03_08.md); misturá-los
+    contaminaria o sinal com o delta de acurácia entre sentidos.
+    Rows com direction NULL (legado) formam um grupo próprio com baseline
+    próprio — nunca poluem cw/ccw.
+
+    UPDATE apenas onde hit IS NOT NULL e realized_lift_pp IS NULL
+    (idempotente, re-execução é no-op). Cada bucket atualizado é espelhado
+    para o PG via outbox (evento dna_lift_bucket — 1 por bucket).
 
     Args:
         feature_name: se fornecido, restringe ao feature. None = todas.
-        min_n: minimo de amostras por bucket para calcular lift (evita ruido).
+        min_n: mínimo de amostras por (direction, feature, bucket).
 
-    Retorna numero de linhas atualizadas. Best-effort.
+    Retorna número de linhas atualizadas. Best-effort.
     """
     if not _ENABLED or _DB_PATH is None:
         return 0
+    published: list[dict] = []
     try:
         with _LOCK:
             conn = sqlite3.connect(str(_DB_PATH))
             try:
-                row = conn.execute(
-                    "SELECT AVG(hit*1.0) FROM decision_dna WHERE hit IS NOT NULL"
-                ).fetchone()
-                baseline = float(row[0]) if row and row[0] is not None else None
-                if baseline is None:
+                # Baseline POR SENTIDO (NULL legado = grupo próprio).
+                baselines: dict[Any, float] = {}
+                for direction, hr in conn.execute(
+                    "SELECT direction, AVG(hit*1.0) FROM decision_dna "
+                    "WHERE hit IS NOT NULL GROUP BY direction"
+                ).fetchall():
+                    if hr is not None:
+                        baselines[direction] = float(hr)
+                if not baselines:
                     return 0
-                # Itera buckets unicos
                 where_feat = ""
                 params: list[Any] = []
                 if feature_name:
@@ -234,38 +244,61 @@ def dna_realize_lifts(feature_name: Optional[str] = None, min_n: int = 10) -> in
                     params.append(feature_name)
                 buckets = conn.execute(
                     f"""
-                    SELECT feature_name,
+                    SELECT direction,
+                           feature_name,
                            json_extract(feature_value, '$.bucket') AS bucket,
                            AVG(hit*1.0) AS hr,
                            COUNT(*) AS n
                     FROM decision_dna
                     WHERE hit IS NOT NULL{where_feat}
-                    GROUP BY feature_name, bucket
+                    GROUP BY direction, feature_name, bucket
                     HAVING n >= ?
                     """,
                     params + [min_n],
                 ).fetchall()
                 total = 0
-                for fn, bucket, hr, _n in buckets:
-                    if hr is None:
+                for direction, fn, bucket, hr, n in buckets:
+                    if hr is None or direction not in baselines:
                         continue
-                    lift_pp = (float(hr) - baseline) * 100.0
+                    lift_pp = (float(hr) - baselines[direction]) * 100.0
                     cur = conn.execute(
                         """
                         UPDATE decision_dna
                         SET realized_lift_pp = ?
                         WHERE feature_name = ?
                           AND json_extract(feature_value, '$.bucket') = ?
+                          AND direction IS ?
                           AND hit IS NOT NULL
                           AND realized_lift_pp IS NULL
                         """,
-                        (lift_pp, fn, bucket),
+                        (lift_pp, fn, bucket, direction),
                     )
-                    total += cur.rowcount
+                    if cur.rowcount:
+                        total += cur.rowcount
+                        published.append({
+                            "feature_name": fn,
+                            "bucket": bucket,
+                            "direction": direction,
+                            "realized_lift_pp": lift_pp,
+                            "n": n,
+                        })
                 conn.commit()
-                return total
             finally:
                 conn.close()
+        # H1: espelha cada bucket realizado para o PG (best-effort, fora do lock).
+        if published:
+            try:
+                from database.outbox_integration import maybe_publish_dna_lift_bucket
+                for item in published:
+                    maybe_publish_dna_lift_bucket(
+                        item["feature_name"], str(item["bucket"]),
+                        direction=item["direction"],
+                        realized_lift_pp=item["realized_lift_pp"],
+                        n=item["n"],
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+        return total
     except Exception:
         logger.exception("DNA: falha dna_realize_lifts feature=%s", feature_name)
         return 0

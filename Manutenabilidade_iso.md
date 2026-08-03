@@ -1168,6 +1168,90 @@ mudanças → 1 bug real (cold-start, corrigido) + 3 pontos validados corretos; 
 
 ---
 
+## ADENDO 03/08/2026 — Auditoria da fundação de dados (pgvector/CDC/DNA) + plano de higienização pré-estratégia
+
+> Auditoria **read-only** da camada de dados em produção (`xmaiajpvm`, 187.45.181.75) com foco em:
+> a infraestrutura analítica (pgvector/outbox/CDC/DNA) está populada, íntegra e pronta para servir
+> de fundação à próxima fase (otimização de predição)? Relatório completo e evidências: `evolução_03_08.md`.
+> **Uma única ação operacional foi executada no servidor** (ANALYZE — §C); todo o resto é plano por PR.
+
+### A. O que foi verificado ✅ (população e integridade)
+
+| Checagem | Resultado | Evidência |
+|---|---|---|
+| Paridade SQLite↔PG (03/08) | **230 = 230** (1:1) | count decisions vs cw+ccw.spins_vectors |
+| Duplicatas/órfãos/vetores zerados | **0 / 0 / 0** | queries agregadas em prod |
+| Exactly-once no CDC | ✅ evento+mark na mesma tx, `SKIP LOCKED` + SAVEPOINT | `workers/cdc_worker.py:332-361` |
+| Outbox | 56.466 processed / **0 pending / 0 error** | `shared.outbox` |
+| Backup SQLite diário | ✅ vivo (03/08 03:15, 2,7 MB) | `/root/backups/sqlite/` |
+| wal-g 30 min | ✅ cron ativo + binário presente | `/etc/cron.d/walg-backup` |
+| Fill-rate `decisions` (46 col) | ~100% exceto `round_id` (0%, fonte não fornece) e `vision_source` (60% hoje) | PRAGMA + counts |
+| INV-3 | ✅ 100% `final_action=APOSTAR` no dia | query decisions 03/08 |
+
+### B. Achados (A1–A5 + F1) — o que impede a fundação de estar 100%
+
+| # | Achado | Severidade | Evidência |
+|---|---|:--:|---|
+| **F1** | **`dna_realize_lifts()` (SP-08 DNA-03) é código órfão**: implementado e testado (`tests/test_sp08_dna_realize_lifts.py`) mas **nenhum caller em produção** → `realized_lift_pp` 100% NULL em 41.370 rows desde 26/05. O loop de feedback quantitativo do DNA nunca fechou | 🔴 P1 | `database/dna_logger.py:203`; grep sem callers |
+| A1 | INSERTs de `spins_vectors`/`spin_features` **sem idempotência** (replay manual duplicaria; `spin_uuid` é `gen_random_uuid()`, inútil p/ dedup; handler de DNA tem guard, estes não) | 🟠 P2 | `cdc_worker.py:139-143,204-225` |
+| A2 | **Cosine sobre escalas mistas**: dims força (~16) e pred_force (~14) dominam; taxas (~0,39) quase não pesam na similaridade | 🟠 P2 | médias em prod `[16.2, 0.39, 0.39, 0.39, 3.6, 14.1]` |
+| A3 | Índice ivfflat `lists=100` p/ ~3,5k rows e **`idx_scan=0`** (consumidor `/api/regime_similarity` nunca chamado) | 🟡 P3 | `pg_stat_user_indexes` |
+| A4 | Stats do planner congeladas (`n_live_tup=162` vs 3.591 reais; nunca autoanalyze) | 🟡 P3 → **sanado §C** | `pg_stat_user_tables` |
+| A5 | Drift doc↔realidade: **TimescaleDB não está instalado** (extensões: `vector 0.8.2` + `age 1.5.0`); `last_20_hits` da window query **mistura sessões/dealers** (contaminação de lag-features) | 🟡 P3 | `pg_extension`; `cdc_worker.py:169-176` |
+| — | Resíduo histórico: 126 decisões (1,8%, era do bug HOOK-1, 24/05→) sem espelho no PG | 🟢 P4 | 7.087 SQLite vs 6.961 PG desde 24/05 |
+
+Gaps do ADENDO 12/06 §D **reconfirmados sem evolução**: AGE instalado sem uso (decisão de remover pendente, imagem 1 GB); `models/spin_autoencoder.joblib` untracked no host (hazard `git clean`); restore drill nunca ensaiado. Disco ok (14%), mas `docker system df` acusa **5,5 GB de imagens reclamáveis + 1,8 GB de build cache**.
+
+### C. Ação operacional executada HOJE no servidor (única mutação; reversível, fora do caminho da aposta)
+
+```sql
+ANALYZE cw.spins_vectors; ANALYZE ccw.spins_vectors;
+ANALYZE cw.spin_features; ANALYZE ccw.spin_features;
+ANALYZE shared.decision_dna; ANALYZE shared.outbox;
+```
+Resultado: `n_live_tup` 162→**3.591** (cw) / 164→**3.370** (ccw), `last_analyze=2026-08-03 15:00 UTC`. Sana A4 operacionalmente; a persistência da correção (ANALYZE periódico) entra por PR (H4).
+
+### D. Plano de higienização — divisão servidor × git (candidatos a sprint, ordem recomendada)
+
+**No servidor Debian (operacional, sem PR — runbooks existentes):**
+
+| # | Ação | Instrumento | Gap que fecha |
+|---|---|---|---|
+| S1 | ✅ FEITO: ANALYZE nas 6 tabelas analíticas | psql one-shot | A4 |
+| S2 | Backfill dos 126 rows faltantes (padrão `scripts/backfill_dna_pg.py`: one-shot, idempotente, read-only no SQLite) | `docker exec roleta-cloud` | resíduo HOOK-1 |
+| S3 | **Restore drill** wal-g ponta-a-ponta (script pronto, nunca ensaiado) | `scripts/walg-restore-drill.sh` | 12/06 §D.5 |
+| S4 | Mover `spin_autoencoder.joblib` p/ volume + entrada no `.gitignore` (a parte git via PR H7) | mv + compose volume | 12/06 §D.4 |
+| S5 | Housekeeping Docker: `docker system prune` de imagens órfãs (5,5 GB) + build cache (1,8 GB) | docker | disco/portabilidade |
+
+**No git/arquivos locais (via PR, 1 sprint cada, invioláveis respeitados):**
+
+| # | Sprint proposto | Conteúdo | Gap |
+|---|---|---|---|
+| H1 | `SPR-DATA1` | Ligar `dna_realize_lifts()` em job periódico no engine (flag **`SDA_DNA_REALIZE` default-OFF** na compose; leitura por-chamada) + **baseline/buckets POR DIREÇÃO** (`GROUP BY direction`; hoje `dna_logger.py:224` calcula global misturando cw+ccw) + publicar `dna_realized` → PG + backfill 41k | **F1** (desbloqueio da fase de estratégia) |
+| H2 | `SPR-DATA2` | Migração Alembic **aditiva**: `UNIQUE(decision_id)` em `spins_vectors`/`spin_features` + `ON CONFLICT DO NOTHING` no worker | A1 |
+| H3 | `SPR-DATA3` | `session_id` como coluna + filtro na window query do `spin_features` (lag-features por sessão, não globais) — coluna nova ADITIVA, backfill best-effort | A5b |
+| H4 | `SPR-DATA4` | ANALYZE a cada N batches no cdc_worker (flag default-OFF) — persiste S1 | A4 |
+| H5 | `SPR-DATA5` | `train_autoencoder.py` com **2 modelos independentes (1 por sentido)** — hoje `train_autoencoder.py:36` treina 1 PCA único misturando cw+ccw — + backfill `ae_latent` com o modelo do sentido correspondente (job offline; z-score embutido resolve A2 na raiz) | A2 |
+| H6 | `SPR-DATA6` | Recriar índices como **HNSW** (pgvector 0.8.2) quando o consumidor de similaridade for ativado | A3 |
+| H7 | `SPR-DATA7` | Docs: corrigir blueprint (`fluxo_mental_24.md` cita Timescale inexistente) + `.gitignore` do joblib + executar decisão AGE (remover ou popular — go/no-go do Diretor) | A5a, 12/06 §D.3/D.4 |
+
+Dependências: H1 é pré-requisito da fase de estratégia; H2–H4 são higiene barata e independentes; H5→H6 em sequência. S2/S3/S5 podem rodar já.
+
+**Requisito transversal — isolamento por sentido (CW/CCW):** toda camada analítica deve permitir análise isolada por sentido de giro. Storage já segrega (schemas `cw`/`ccw`, `decision_dna.direction`, `regime_similarity` exige `direction ∈ {cw,ccw}`); as duas violações no processamento — baseline global do `dna_realize_lifts()` e autoencoder único — são corrigidas por H1 e H5 respectivamente (specs completas em `evolução_03_08.md` §4.0/§4.2).
+
+**4ª rodada (03/08 tarde) — visão de banco de dados e auditoria SaaS/conflitos** (`evolução_03_08.md` §5): (i) **inventário SaaS**: stack 100% OSS auto-hospedada; único serviço externo = **Backblaze B2** (wal-g, S3-compatível), verificado FUNCIONAL (410 WALs archivados, 0 falhas, base backups 30/30min); "workana" NÃO existe no repo nem no servidor (grep zero — provável confusão com o super-grafo graphify multi-repo que inclui o projeto "Genesis azure"); (ii) **riscos novos**: R1 = backup do SQLite autoritativo é local-only (réplica mais protegida que a fonte → **S6**); R2 = retenção wal-g de ~3,5 h (cron `*/30` + `retain FULL 7` → **S7**, decisão do operador); (iii) **conflitos do plano**: C1 = H7 (imagem PG oficial) quebraria o boot com `shared_preload_libraries=age` no compose → guarda incorporada ao H7 + S3 (restore drill) promovido a pré-requisito; C5 = H5 deve treinar após H3 (janelas contaminadas entre sessões). Ordem recomendada: `H2 → S2 → H3 → H1 → H4 → H5 → H6 → S3 → H7`.
+
+### E. Invariantes e conformidade
+
+- ✅ Auditoria **read-only**; única mutação = ANALYZE (§C), sem tocar schema, dados ou caminho da aposta.
+- ✅ Nenhum push em `main`; este ADENDO + relatório entram por PR (branch `ivandirfilho-animated-dollop`).
+- ✅ Plano D respeita: flags default-OFF na compose, migrações ADITIVAS, round-trip save/load/reset, INV-3 intocado.
+- **ISO/IEC 25010:** Confiabilidade — fundação de escrita confirmada sólida (exactly-once, backups vivos); Manutenibilidade — F1 evidencia gap de *feature completeness* (código testado sem caller: lacuna de integração, não de implementação); Analisabilidade — segue **bloqueada até H1/H5** (DNA sem lift realizado, vetores sem embedding utilizável). Scorecard inalterado até execução do plano.
+
+> **Veredito:** a fundação de **escrita** está 100% funcional (paridade 1:1, zero backlog, backups vivos). A fundação **analítica** — razão de ser do PG stack — está ~70%: dados chegam corretos, mas o feedback (F1), a comparabilidade (A2) e o consumo (A3, `idx_scan=0`) não operam. **H1 (SPR-DATA1) é o próximo passo obrigatório antes de qualquer imersão séria em estratégia**; sem `realized_lift_pp`, qualquer ajuste de aposta será guiado por intuição, não por dado.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
