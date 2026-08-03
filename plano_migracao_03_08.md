@@ -1011,3 +1011,100 @@ PR #43 (MIG-0) permanece **aberto**, fora da `main`.
 humana — mergear o PR #43 (após C1/C2/C8) e acompanhar o soak. Nada mudou na
 estratégia; apenas o bloqueio de acesso deixou de existir.
 
+---
+
+## 15. Consolidação de 03/08 (pós-SSH) — feito hoje, por que o merge não fechou e o que falta na Azure
+
+Esta seção **não introduz arquitetura nova**. Ela cruza o que já está estruturado
+(§2–§14) com os fatos verificados ao vivo hoje — SSH na HostDime (§14.8) e uma
+reconferência da Azure — para responder três perguntas objetivas: o que foi feito
+até agora, por que o merge do MIG-0 ainda não fechou, e o que precisa ser subido,
+melhorado ou configurado na Azure para ela receber o que roda na HostDime.
+
+### 15.1 O que foi feito hoje (03/08/2026)
+
+| Frente | Resultado | Evidência |
+|---|---|---|
+| **Acesso HostDime (H1)** | **Destravado.** SSH read-only por chave (`~/.ssh/id_rsa`, `root@187.45.181.75`), sem senha | §14.8; `hostname=xmaiajpvm`, uptime confirmado |
+| Inventário vivo da produção | Debian 12.2, 4 vCPU/**6.8 GiB** (não 8), disco 64 G livre, HEAD `f99847d`/**v4.4.1**, `roleta-deploy.timer` ativo (~2 min), **8 containers healthy** | §14.8 |
+| Banco em produção | **PostgreSQL 15**, db `roleta` = **65 MB** (era ~13 MB no snapshot de junho) | `pg_database_size` via SSH |
+| Estado do motor | `state.json` **ainda no bind** (`/app/state.json`, 5243 B, escrito ao vivo); `/app/data/state.json` inexistente ⇒ **MIG-0 não aplicado em produção** | `docker exec` via SSH |
+| Reconferência Azure | Login OK (`ivandir@…onmicrosoft.com`, sub `c7318da1…`); **31 recursos** no RG; VM `running`; **ACR ainda vazio** e `adminUserEnabled=true`; PG16 `Ready` B1ms HA `Disabled` | `az resource list`, `az acr`, `az vm`, `az postgres` |
+| Documentação | Esta §15 e a §14.8 escritas; nenhuma mudança de código nesta rodada | commits na branch do PR #43 |
+
+**Leitura:** o estado da Azure é **idêntico** ao auditado na §14.5 — nada regrediu
+nem avançou de lá para cá. O que mudou de fato hoje é o acesso (H1), que era o
+bloqueio nº 1 de toda a §2.4/§11.
+
+### 15.2 Por que o merge do MIG-0 (PR #43) ainda não fechou
+
+O PR **não** está travado por qualidade de código nem por CI. Os bloqueios são,
+em ordem de facilidade de resolução:
+
+| # | Bloqueio | Estado verificado hoje | Como sair |
+|---|---|---|---|
+| M1 | **Branch atrás do `main`** | `mergeStateStatus=BEHIND`, **17 commits atrás / 7 à frente**; `mergeable=MERGEABLE` (sem conflito) | *Update branch* (merge de `origin/main` na branch) antes de mergear |
+| M2 | **Sem review/aprovação** | `reviewDecision` vazio | Revisão humana do PR |
+| M3 | ~~CI~~ | **Verde** (ci-ok, iso-guardrails, lint-and-test 3.11/3.12/3.13) | Não é mais bloqueio |
+| M4 | **Correções pré-merge do próprio plano (§14.6) ainda não no código** | **C8** pendente: `VOLUME_NAME` e `STATE_VOLUME_NAME` coexistem nos scripts (veio do code-review deste PR); **C1** pendente: `GameState.load()` ainda faz `except Exception` e devolve default (A19); **C2** pendente: `0` ocorrências de `fsync` em `state/game.py` (A23) | Implementar C1, C2 e C8 (executável pelo agente, sem tocar produção) |
+| M5 | **Semântica de "mergear = deploy em produção"** | `main` é puxada pelo timer a cada ~2 min; mergear aplica o MIG-0 na HostDime **automaticamente** | O deploy **precisa** rodar `scripts/migrate-state-to-volume.sh` na mesma janela, senão o app sobe com estado vazio (A19). Ação **gated por humano** |
+| M6 | **DoD do MIG-0 exige soak** | §14.7: "implementado e validado em laboratório, **não** concluído segundo a DoD, que exige aplicação na HostDime e soak" | Após merge, observar soak na HostDime (agora possível — H1) |
+| M7 | **PR grande e misto** | 12 arquivos: MIG-0 (código+scripts+testes) **+** `plano_migracao_03_08.md` (1013 l.) + `balanco…` + ISO | Opcional: separar docs de código facilita a revisão M2 |
+
+**Resumo honesto:** o MIG-0 está pronto e provado em laboratório (58 asserções,
+§14.2), mas o merge é uma **ação de produção** que ainda depende de (a) três
+correções baratas de código (C1/C2/C8), (b) atualizar a branch, (c) revisão
+humana e (d) a decisão de aplicar+soak na HostDime. A ordem sugerida da §14.7
+continua válida: **C1 e C2 → C8 → update branch → review → merge → soak**.
+
+### 15.3 O que falta na Azure para receber a HostDime
+
+A infraestrutura Azure **existe e está paga** (VM ligada e ociosa, §14.5), mas a
+**aplicação não existe lá**. Os itens abaixo são os de §2.4 e das Ondas 2–3,
+reafirmados contra o estado vivo de hoje. Dono: **A** = agente autônomo (área não
+produtiva); **A+H** = agente após confirmação humana; **H** = humano.
+
+| # | Lacuna (verificada hoje) | O que fazer | Onda | Dono |
+|---|---|---|---|---|
+| Z1 | **ACR vazio** (`repository list` = `[]`) — bloqueante de G2 | Congelar/taguear a imagem que roda na HostDime, `docker save`+SHA-256, `docker load` na VM e publicar por **digest**; `AcrPush` temporário revogado depois | 3 | A+H |
+| Z2 | **App ausente na VM**; `/opt/roleta` só tem script preliminar | Criar `docker-compose.azure.yml` **standalone** (sem `build:`, C3), layout `/opt/roleta`, volumes no disco gerenciado, `stop_grace_period:60s`, health/metrics só loopback | 1–2 | A+H |
+| Z3 | **Sem TLS/vhost de produção** (Caddy só placeholder) | Caddyfile: `/` → `/var/www/roleta`, `/ws` proxy WS timeouts longos, `/healthz` mínimo; `/metrics`,`/api/*`,8766 **não** públicos | 1–2 | A+H (DNS) |
+| Z4 | **Secrets não injetados** | Script MI → Key Vault → `$REPO_DIR/.env` (`0600`), sem logar; reconciliar os **16 secrets** com o env da HostDime, sem exibir valores | 1–2 | A |
+| Z5 | **PG16 espelho vazio/não validado**; extensões diferem | Confirmar `pg_extension` ao vivo (sem `age`/`timescaledb`, A24) e **restore seletivo** dos schemas `shared/cw/ccw`; **`dual_write_pg` OFF**; SQLite permanece autoritativo | 3–4 | A |
+| Z6 | **Estado/SQLite/modelo/frontend não estão na VM** | Migrar **apenas sob freeze** (backup API + `wal_checkpoint`, C-14/C-15), com marcador de congelamento (C-13) reconciliado no destino (C-22) | 4–5 | A+H |
+| Z7 | **Timer de deploy Azure inativo** | Instalar unit/timer, **manter desabilitados**; habilitar só após 3 ciclos testados (T+24h) | 2/6 | A |
+| Z8 | **Alerta externo falhou no provisionamento** | Corrigir Action Group; **testar desligando a VM** e observando o disparo fora dela (A17) | 2 | A+H |
+| Z9 | **Backups não testados** | Backup SQLite via `.backup`→Blob + modelo com checksum; criar Azure Backup **após** o cutover | 2/7 | A+H (custo) |
+| Z10 | **Débito de segurança** | KV `public network ON` + purge protection OFF; Storage default `Allow`; **ACR admin ON** (desligar após provar pull por MI, A26); NSG SSH `/32` | 2/7 | A+H |
+| Z11 | **DNS ainda aponta para a HostDime** (`187.45.181.75`) | Reduzir TTL (T−48h); no cutover, `A` → **`20.226.77.194`** (C-25, ponto de não-retorno) | 5 | H (DNS) |
+
+**Ordem de dependência:** Z1 (ACR) e Z2–Z4 (compose/Caddy/secrets) são
+pré-requisito de qualquer ensaio; Z5–Z6 exigem o freeze da HostDime (logo,
+dependem de H1 — **já resolvido**); Z7–Z10 endurecem; Z11 é o flip final. Nada
+disso liga `dual_write_pg`, sobe o engine para Container Apps ou toca
+estratégia/stake/geometria/**INV-3**.
+
+### 15.4 Sequência imediata recomendada
+
+Ancorada nos fatos de hoje, sem inventar passos novos:
+
+1. **Código (agente, sem produção):** implementar **C1** (fail-closed de conteúdo
+   + validação nos preflights), **C2** (`fsync` de arquivo e diretório) e **C8**
+   (unificar o nome do volume) — fecham A19/A23 e o único apontamento de
+   code-review do PR.
+2. **Merge do MIG-0:** *update branch* a partir de `origin/main` (M1) → revisão
+   humana (M2) → merge. Isso dispara o deploy na HostDime; **exige** que
+   `migrate-state-to-volume.sh` rode na janela (M5).
+3. **Soak na HostDime** (agora viável por H1): observar `state.json` dentro do
+   volume, ausência de `*.corrupted`, `spin_seq` avançando.
+4. **Onda 3 (ACR):** publicar a imagem por digest — destrava G2 e todos os
+   ensaios de pull (Z1).
+5. **Ondas 2 e 4:** preparar VM/compose/Caddy/secrets (Z2–Z4, Z7–Z8) e ensaiar
+   paridade + restore + rollback no hostname canário (G3), sempre com a HostDime
+   ainda servindo produção.
+6. **Cutover (Onda 5):** só após G3 aprovado e janela assinada (H2/H3).
+
+O que **não** deve ser feito agora: mexer em DNS, ligar o timer Azure, publicar
+credencial de admin do ACR, apagar discos/snapshots residuais ou aplicar MIG-0
+sem o passo de migração de estado na mesma janela.
+
