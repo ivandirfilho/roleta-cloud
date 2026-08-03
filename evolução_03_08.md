@@ -3,7 +3,8 @@
 **Data:** 2026-08-03 · **Fonte:** produção `xmaiajpvm` (187.45.181.75), auditoria via SSH/Docker
 **Escopo:** (1) auditoria de população e formato dos bancos; (2) auditoria pgvector camada básica;
 (3) imersão nas jogadas de hoje; (4) **plano de higienização servidor × git** (ADENDO 03/08 do
-`Manutenabilidade_iso.md`) para a fundação estar 100% antes da fase de estratégia.
+`Manutenabilidade_iso.md`); (5) **visão de banco de dados** — tecnologias, onde vive cada
+alteração e por quê, auditoria SaaS e de conflitos do plano (§5).
 **Requisito reitor:** a infraestrutura deve suportar **análises isoladas por sentido de giro**
 (horário = `cw`, anti-horário = `ccw`) em todas as camadas — ver §4.0.
 **Referências:** `fluxo_mental_24.md` (blueprint), `evolução_24_junho.md` (metodologia),
@@ -209,6 +210,8 @@ Estado real verificado hoje:
 | S3 | **Restore drill** wal-g ponta-a-ponta | `scripts/walg-restore-drill.sh` | 12/06 §D.5 | pendente |
 | S4 | Mover `spin_autoencoder.joblib` p/ volume Docker (parte git em H7) | mv + compose volume | 12/06 §D.4 | pendente |
 | S5 | `docker system prune`: imagens órfãs (5,5 GB) + build cache (1,8 GB) | docker | disco | pendente |
+| S6 | **Backup do SQLite → B2** (hoje é local-only; ver §5.3-R1) | estender `roleta-backup-decisions.sh` c/ upload B2 | assimetria de proteção | pendente |
+| S7 | **Janela de restore PG**: base a cada 30 min + `retain FULL 7` = ~3,5 h de histórico (ver §5.3-R2) | ajustar cron `walg-backup-daily.sh` p/ diário OU `retain 30` | retenção curta | decidir |
 
 ### 4.2 No git — o que cada Pull Request solicita e qual o ganho
 
@@ -287,6 +290,10 @@ elimina o ivfflat mal dimensionado (`lists=100` p/ 3,5k rows) que nunca foi usad
 reais: `vector 0.8.2` + `age 1.5.0`); adicionar `models/*.joblib` ao `.gitignore` (par do S4);
 **executar a decisão AGE de 12/06 §D.3**: trocar imagem `roleta/postgres-stack:pg15-age15` →
 `pgvector/pgvector:pg15` oficial na `docker-compose.pg.yml` (remove grafo vazio há 70 dias).
+⚠️ **Guarda obrigatória (§5.4-C1):** no MESMO PR, remover `age` de
+`shared_preload_libraries=age,pg_stat_statements` no `command:` do compose — a imagem oficial
+não tem a lib e o postgres **não sobe** se o preload referenciar módulo inexistente. Pré-requisito
+operacional: S3 (restore drill) ANTES da troca de imagem.
 
 **Ganho:** blueprint volta a ser confiável como fonte de verdade; −1 GB de imagem custom sem uso;
 elimina o hazard de `git clean` apagar o modelo treinado.
@@ -294,11 +301,12 @@ elimina o hazard de `git clean` apagar o modelo treinado.
 ### Dependências e ordem
 
 ```
-S2, S3, S5 ──────────────► imediato, sem janela
+S2, S5, S6 ──────────────► imediato, sem janela
+S3 (restore drill) ──────► ANTES do H7 (valida backup antes de trocar imagem PG)
 H1 (por sentido) ────────► PRÉ-REQUISITO da fase de estratégia
 H2, H3, H4 ──────────────► higiene independente, barata
 H5 (por sentido) → H6 ───► sequência (modelo antes do índice)
-H7 ──────────────────────► independente (docs/infra)
+S3 → H7 ─────────────────► sequência (drill antes da troca de imagem; ver §5.4-C1)
 ```
 
 ### 4.3 Análises de estratégia destravadas após H1/H5 (fase seguinte)
@@ -317,6 +325,114 @@ entrega por PR — `main` é produção (deploy automático em ~2 min).
 
 ---
 
-*Rodadas 1–3 em 2026-08-03 sobre a produção. Única mutação no servidor: ANALYZE (§2.5/S1).*
+## 5. Visão de banco de dados — tecnologias, onde vive cada alteração e por quê (4ª rodada, 03/08)
+
+> Auditoria feita com grafo de conhecimento (graphify, 7.352 nós) + leitura do filesystem
+> (composes, requirements, scripts, cron) + verificação ao vivo no servidor. Objetivo: mapa
+> definitivo de ONDE cada dado vive, POR QUE naquele banco, quais tecnologias são externas
+> (SaaS) e se o plano §4 tem conflitos internos.
+
+### 5.1 Mapa de tecnologias — o que roda onde e o que custa
+
+| Tecnologia | Onde roda | Licença/custo | Verificado 03/08 |
+|---|---|---|---|
+| Python 3.12 + websockets/pydantic/structlog | container `roleta-cloud` | OSS, R$ 0 | ✅ healthy |
+| SQLite (built-in) | dentro do `roleta-cloud`, volume `roleta-data` | OSS, R$ 0 | ✅ 14 MB, vivo |
+| PostgreSQL 15 + pgvector 0.8.2 + AGE 1.5.0 | container `roleta-pg` (imagem custom) | OSS, R$ 0 | ✅ 51 MB |
+| Alembic + SQLAlchemy + psycopg2 | só p/ migrações do PG | OSS, R$ 0 | ✅ |
+| RapidOCR-ONNX (vision da foto) | dentro do `roleta-cloud`, CPU | OSS, R$ 0 | ✅ |
+| Prometheus v2.51 + Grafana OSS 10.4 + Alertmanager | containers locais, retenção 30d | OSS, R$ 0 | ✅ local-only |
+| wal-g (binário) | host + montado no `roleta-pg` | OSS, R$ 0 | ✅ 0 falhas |
+| **Backblaze B2** (bucket `roletacloubucket`, S3-compatível) | **☁️ SaaS EXTERNO — único** | **freemium: 10 GB grátis, depois ~US$ 6/TB·mês** | ✅ 410 WALs archivados, 0 falhas, base 30/30min |
+| VPS Debian HostDime (`xmaiajpvm`) | hosting | infraestrutura própria (não SaaS de software) | ✅ |
+
+**Sobre "workana": não existe** — `grep -ri workana` retornou **zero** ocorrências no repo E no
+servidor (código, composes, systemd, cron, bashrc). Nenhuma dependência de plataforma Workana no
+software. Provável origem da confusão: o grafo graphify servido via MCP é um **super-grafo
+multi-repo** que inclui o projeto "Genesis azure" (outro repo, com `AWSAdapter`/`AwsConnector` em
+Rust/Python) — nós de OUTRO projeto aparecendo em consultas deste. As referências "AWS" do
+roleta-cloud são apenas o **protocolo S3** que o wal-g usa para falar com o Backblaze
+(`AWS_ENDPOINT=https://s3.us-east-005.backblazeb2.com`) — não há conta AWS.
+
+**Veredito SaaS:** a stack é 100% OSS auto-hospedada com UM único serviço externo (B2), que está
+**funcional e sem falhas**. Alertmanager entrega só em webhook local (Telegram/Slack: previsto,
+não configurado — sem custo). Não há SendGrid/Twilio/Datadog/Sentry/etc.
+
+### 5.2 Onde vive cada alteração de dado — e POR QUE naquele banco
+
+```
+                         ┌─ POR QUE SQLite: transacional, zero-config, mesma máquina
+                         │  do engine → decisão gravada ANTES do resultado do giro
+                         │  (latência sub-ms); é a FONTE DA VERDADE
+   Extensão ──WS──► Engine ──► SQLite decisions.db  [transacional/autoritativo]
+                         │        ├─ decisions, decision_dna, gale_windows,
+                         │        │  window_plays, sessions
+                         │        └─ shared.outbox (padrão outbox: evento gravado
+                         │           NA MESMA TX da decisão → nunca diverge)
+                         │
+                         └─ POR QUE PG: pgvector (busca de similaridade), SQL
+                            concorrente p/ análise SEM travar o engine, schemas
+                            cw/ccw isolando sentidos FISICAMENTE
+              cdc-worker ──► Postgres roleta  [analítico/réplica derivada]
+                               ├─ cw.spins_vectors / ccw.spins_vectors  (vetores 6d)
+                               ├─ cw.spin_features / ccw.spin_features  (25 col)
+                               └─ shared.decision_dna                    (espelho)
+```
+
+| Tipo de alteração | Vive em | Por que ali (e não no outro) |
+|---|---|---|
+| Decisão/aposta/resultado do giro | SQLite | caminho crítico do engine; transação local sub-ms; sobrevive sem rede; PG cair NÃO pode parar aposta |
+| Evento de replicação | `shared.outbox` (SQLite) | mesma TX da decisão = exactly-once por construção; worker consome com SKIP LOCKED |
+| Vetores/features analíticas | PG `cw.*`/`ccw.*` | pgvector só existe no PG; schema por sentido = isolamento físico exigido no §4.0; query pesada não compete com o engine |
+| Lift realizado do DNA (H1) | **calcula no SQLite, espelha no PG** | fonte dos hits é o SQLite; PG recebe via evento `dna_realized` p/ análise |
+| Modelo autoencoder (H5) | arquivo `.joblib` em volume (S4) | artefato binário de ML não é linha de banco; versionar fora do git (pesado, regenerável) |
+| Schema PG (H2/H3) | migração Alembic ADITIVA | única via sancionada; rollback de deploy não faz downgrade |
+| Config/flags | `docker-compose.yml` (env) | comportamento novo = flag default-OFF, leitura por-chamada; auditável no git |
+| Métricas/alertas | Prometheus (30d) | efêmero por natureza; dado de negócio NUNCA vive só em métrica |
+| Backup PG | **B2 (externo)** | único dado que SAI da máquina — sobrevive à perda do VPS |
+
+Regra de ouro que o desenho respeita: **escreve-se onde a latência manda (SQLite); analisa-se
+onde o ferramental manda (PG); nada nasce direto no PG** — tudo chega lá pelo outbox. Toda
+mudança de comportamento entra por flag na compose; toda mudança de schema PG entra por Alembic.
+
+### 5.3 Riscos encontrados na auditoria de backup (novos)
+
+| # | Risco | Evidência | Correção |
+|---|---|---|---|
+| R1 | **Assimetria de proteção**: o SQLite (fonte da verdade!) tem backup só LOCAL (`/root/backups/sqlite/`, cron 03:15) — a RÉPLICA (PG) está no B2, o ORIGINAL não. Perda do VPS = perde o autoritativo, salva a cópia | `roleta-backup-decisions.sh` não tem upload; B2 só recebe WAL/base do PG | **S6**: acrescentar upload B2 ao script (mesmo bucket, prefixo `sqlite/`) |
+| R2 | **Retenção PG curtíssima**: cron roda `walg-backup-daily.sh` a cada **30 min** (não diário como o nome diz) e `delete retain FULL 7` mantém só 7 bases = **~3,5 h de janela de restore**. Corrupção detectada de manhã pode não ter mais backup bom | `/etc/cron.d/walg-backup` (`*/30`); script linha 33 | **S7**: OU volta cron p/ diário (7 dias de janela) OU `retain FULL 336` (7 dias em 30/30min; ~50 GB no B2 → sai do free tier) — decisão do operador |
+| R3 | Custo B2 pode crescer silenciosamente: base 150 MB × 48/dia × 7 = controlado hoje (WAL+bases ~poucos GB), mas R2 mal resolvido muda a conta | `backup-list --detail` | monitorar tamanho do bucket ao decidir S7 |
+
+### 5.4 Auditoria de conflitos — o plano §4 contra a visão do software como um todo
+
+Verificação item a item de H1–H7 e S1–S7 entre si e contra os invioláveis:
+
+| # | Conflito potencial | Análise | Veredito |
+|---|---|---|---|
+| C1 | **H7 (troca de imagem PG) × compose atual** | `docker-compose.pg.yml` linha 23 tem `shared_preload_libraries=age,...`; imagem oficial `pgvector/pgvector:pg15` NÃO tem AGE → postgres **não sobe** | ⚠️ **REAL — resolvido**: guarda adicionada ao H7 (remover `age` do preload no MESMO PR) + S3 vira pré-requisito |
+| C2 | H2 (UNIQUE) × S2 (backfill 126 rows) | backfill INSERT pode colidir com rows já replicadas | ✅ sem conflito SE S2 rodar com `ON CONFLICT DO NOTHING` (que o H2 introduz) — executar S2 DEPOIS de H2, ou usar guard manual |
+| C3 | H1 (lift por sentido) × INV-3 | lift é só LEITURA p/ análise; não toca indicação nem stake | ✅ sem conflito |
+| C4 | H5 (2 modelos joblib) × S4 (volume) | S4 move 1 arquivo; H5 cria 2 novos nomes (`_cw`/`_ccw`) | ✅ compatível — S4 deve montar o DIRETÓRIO `models/`, não o arquivo |
+| C5 | H3 (session_id por janela) × H5 (features de treino) | features geradas ANTES do H3 têm janelas contaminadas entre sessões | ⚠️ **sequenciamento**: treinar H5 preferencialmente APÓS H3 + re-materialização, senão o modelo aprende ruído de sessão |
+| C6 | H4 (ANALYZE no worker) × S7 (backup 30/30min) | ANALYZE gera WAL extra archivado no B2 | ✅ desprezível (tabelas pequenas) |
+| C7 | Estratégia (SDA no SQLite) × plano de dados (PG) | TODO o plano §4 é na camada analítica; caminho da aposta não é tocado | ✅ por construção |
+
+**Síntese:** o plano é internamente consistente com 2 ajustes já incorporados — **C1** (guarda do
+preload no H7 + S3 antes) e **C5** (H3 antes do treino do H5). A ordem recomendada final fica:
+`H2 → S2 → H3 → H1 → H4 → H5 → H6 → S3 → H7`, com S5/S6 a qualquer momento e S7 decidido pelo
+operador junto com R2/R3.
+
+### 5.5 A proposta está 100% funcional?
+
+- **Escrita/replicação/backup PG**: ✅ 100% (verificado ao vivo: 0 pending, 0 falhas de archive).
+- **SaaS**: ✅ 1 único (B2), funcional; nada órfão pago; "workana" inexistente.
+- **Análise**: ~70% — segue bloqueada pelos gaps F1/A2/A3 até H1/H5/H6.
+- **Backup do autoritativo**: ❌ gap novo R1 (SQLite local-only) — S6 criado.
+- **Restauração**: ⚠️ janela de 3,5 h (R2) e drill nunca ensaiado (S3) — S7 criado.
+
+---
+
+*Rodadas 1–4 em 2026-08-03 sobre a produção. Única mutação no servidor: ANALYZE (§2.5/S1).*
+*4ª rodada: visão de banco de dados (§5) — grafo graphify + filesystem + verificação B2/cron ao vivo.*
 *Registro ISO formal: `Manutenabilidade_iso.md` → ADENDO 03/08/2026.*
 ````

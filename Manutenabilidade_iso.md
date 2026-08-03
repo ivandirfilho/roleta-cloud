@@ -1239,6 +1239,8 @@ Dependências: H1 é pré-requisito da fase de estratégia; H2–H4 são higiene
 
 **Requisito transversal — isolamento por sentido (CW/CCW):** toda camada analítica deve permitir análise isolada por sentido de giro. Storage já segrega (schemas `cw`/`ccw`, `decision_dna.direction`, `regime_similarity` exige `direction ∈ {cw,ccw}`); as duas violações no processamento — baseline global do `dna_realize_lifts()` e autoencoder único — são corrigidas por H1 e H5 respectivamente (specs completas em `evolução_03_08.md` §4.0/§4.2).
 
+**4ª rodada (03/08 tarde) — visão de banco de dados e auditoria SaaS/conflitos** (`evolução_03_08.md` §5): (i) **inventário SaaS**: stack 100% OSS auto-hospedada; único serviço externo = **Backblaze B2** (wal-g, S3-compatível), verificado FUNCIONAL (410 WALs archivados, 0 falhas, base backups 30/30min); "workana" NÃO existe no repo nem no servidor (grep zero — provável confusão com o super-grafo graphify multi-repo que inclui o projeto "Genesis azure"); (ii) **riscos novos**: R1 = backup do SQLite autoritativo é local-only (réplica mais protegida que a fonte → **S6**); R2 = retenção wal-g de ~3,5 h (cron `*/30` + `retain FULL 7` → **S7**, decisão do operador); (iii) **conflitos do plano**: C1 = H7 (imagem PG oficial) quebraria o boot com `shared_preload_libraries=age` no compose → guarda incorporada ao H7 + S3 (restore drill) promovido a pré-requisito; C5 = H5 deve treinar após H3 (janelas contaminadas entre sessões). Ordem recomendada: `H2 → S2 → H3 → H1 → H4 → H5 → H6 → S3 → H7`.
+
 ### E. Invariantes e conformidade
 
 - ✅ Auditoria **read-only**; única mutação = ANALYZE (§C), sem tocar schema, dados ou caminho da aposta.
