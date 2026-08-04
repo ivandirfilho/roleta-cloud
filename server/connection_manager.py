@@ -170,9 +170,16 @@ class ConnectionManager:
         async with self.master_lock:
             # Verificar se ainda precisa promover (pode ter reconectado)
             if self.master_id is None and self.connections:
-                # Promover último SLAVE (mais recente = LIFO)
+                # 🔧 04/08: promover APENAS conexões registradas (device_id real).
+                # Dashboards/probes nunca enviam REGISTER (ficam "unknown") e não
+                # alimentam spins — promovê-los deixa a escuta SLAVE eterna
+                # (variante do incidente 13/06: Glass Box congelado em 04/08).
+                candidatos = [
+                    c for c in self.connections.values() if c.device_id != "unknown"
+                ]
+                # Promover último SLAVE registrado (mais recente = LIFO)
                 slaves = sorted(
-                    self.connections.values(),
+                    candidatos,
                     key=lambda c: c.connected_at,
                     reverse=True
                 )
@@ -231,6 +238,22 @@ class ConnectionManager:
             info = self.connections[conn_id]
             info.device_id = device_id
             logger.info(f"📝 Device ID atualizado para {conn_id}: {device_id}")
+
+            # 🔧 04/08: dispositivo REGISTRADO tem precedência sobre um MASTER
+            # passivo (conexão que nunca registrou — dashboard/probe "unknown").
+            # Sem isto, um dashboard promovido indevidamente segura o slot e a
+            # escuta fica SLAVE eterna (spins descartados, Glass Box congelado).
+            if (
+                self.master_id is not None
+                and self.master_id != conn_id
+                and self.master_id in self.connections
+                and self.connections[self.master_id].device_id == "unknown"
+            ):
+                await self._demote_master(
+                    "dispositivo registrado assumiu (master passivo sem REGISTER)"
+                )
+                self.master_id = None
+                self.master_device_id = None
 
             # Se ainda não tem MASTER, decidir se este registro assume o papel.
             if self.master_id is None:

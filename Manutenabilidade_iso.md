@@ -1348,6 +1348,50 @@ estratégia** (E1–E5, `evolução_03_08.md` §4.3; arquitetura: `arquitetura_d
 
 ---
 
+## ADENDO 04/08/2026 (noite) — HOTFIX: eleição de MASTER promovia cliente passivo (Glass Box congelado)
+
+> Incidente pós go-live V5 (mesmo dia): dono reportou "a escuta recebe o resultado mas o Glass Box /
+> painel minimizável não populam". Diagnóstico 100% passivo (sem ssh): probe WS em produção recebeu
+> **146 `state_sync` (1Hz) e ZERO `trace` em 150s** com mesa ativa — servidor saudável emitindo
+> heartbeat com meta V5 completo, porém **nenhum spin sendo aceito**. Variante do incidente 13/06
+> (runbook `docs/runbooks/sem-apostas-master-slave.md`).
+
+### Causa-raiz
+
+1. `websocket.py` conecta TODO cliente sem `device_id` (fica `"unknown"`); só a escuta envia `register`.
+2. Quando o MASTER (escuta) cai — p.ex. service worker MV3 suspenso ou restart de deploy — o
+   `handle_grace_period` promovia o SLAVE **mais recente sem filtrar passivos**: um dashboard
+   Glass Box aberto virava MASTER.
+3. Dashboard nunca envia `novo_resultado` e **ignora** `role_changed`; quando a escuta re-registrava,
+   `update_device_id` via `master_id` ocupado → escuta ficava **SLAVE eterna** → `background.js`
+   nem envia o giro (gate local) → pipeline mudo, Glass Box/overlay congelados, sem erros no log.
+
+### Fix (cirúrgico, 2 pontos em `server/connection_manager.py`)
+
+| Ponto | Regra nova |
+|---|---|
+| `handle_grace_period` | Promove APENAS conexões **registradas** (`device_id != "unknown"`); dashboards/probes nunca assumem |
+| `update_device_id` | Dispositivo que envia REGISTER **destrona** um master passivo (`device_id == "unknown"`) via `_demote_master` e assume; master registrado continua protegido (sem mudança) |
+
+- INV preservada: `force_master` (botão 🎯 do overlay) intocado; grace period de 10s intocado;
+  gate `NOT_MASTER` intocado.
+- Sem flag: é correção de defeito na eleição (comportamento correto único), não comportamento novo.
+- Zero schema/estado; zero mudança de protocolo; extensão NÃO precisa de reload para este fix
+  (correção é server-side; o reload p/ 3.8.0 continua pendente pela V5).
+
+### Regressão
+
+`tests/test_connection_manager_master.py`: **5→9 testes** — grace não promove "unknown" (2 cenários,
+inclusive com registrado mais antigo presente), REGISTER destrona master passivo, REGISTER não
+destrona master registrado. Suíte completa: **768 passed, 9 skipped, 1 xfailed**.
+
+### Recuperação em produção
+
+Deploy do fix (PR → main → timer ~2 min) + reconexão automática da escuta: ao re-registrar, ela
+destrona o master passivo e o fluxo volta sozinho (sem restart manual). Runbook §7 atualizado.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
