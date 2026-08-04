@@ -1338,6 +1338,13 @@ default `:80` do `{$SITE_ADDRESS::80}`). Para que o cutover seja **trocar um val
 5. **Hardening `kv-to-env.sh`:** monta o `ROLETA_PG_DSN` com a senha **crua** na URI
    (linha 42). Funciona hoje (senha do `roleta_app` sem caractere especial de URI),
    mas convém **URL-encodar** a senha para robustez futura — anotado, não bloqueante.
+6. **Paridade de imagem (novo, 04/08):** durante esta execução o `main` avançou com o
+   **PR #46 — "V5 17/21 por sentido"** (mudança de estratégia já em produção). A
+   imagem do canário Azure (`azure-80fe40c`, digest `…593133`) é **anterior ao V5**.
+   Antes do cutover é preciso **rebuildar a imagem a partir do `main` atual** (com V5)
+   e re-resolver o digest no `.env`, senão a Azure serviria uma estratégia defasada.
+   O PR #43 ficou **3 commits atrás** do `main` (ainda `MERGEABLE`, sem conflito);
+   sincronizar a branch + rodar a suíte é passo à parte (envolve estratégia/INV-3).
 
 ### 17.7 Veredito do Passo 1
 
