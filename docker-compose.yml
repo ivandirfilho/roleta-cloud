@@ -58,13 +58,16 @@ services:
       # que gale só sangra; cap=1 é o único seguro). Rollback total: no host,
       # SDA_BET_PAIR=full + SDA_STAKING_MODE=flat + redeploy, ou git revert.
       - SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}
-      # Cobertura (atualizado 18/06): force17 = C1=ForceLast + geometria 17# =
-      # C2(±3)=7 ∪ C3(±2)=5 ∪ C1=ForceLast(±2)=5 (3 regiões, união real ~15),
-      # isolado por sentido. É a SAÍDA NOVA de produção (analise_400 PARTES VII–XV:
-      # menor breakeven 47% e menor variância). Histórico: c2c3 (14#, 17/06) e
-      # var_c1c2_c3 (voto, DESATIVADO). "full"=3 centros (21#); c1c3/c2c3 estáticos.
-      # Rollback: SDA_BET_PAIR=c2c3 (ou full) no host + redeploy, ou git revert.
-      - SDA_BET_PAIR=${SDA_BET_PAIR:-force17}
+      # Cobertura (GO-LIVE 04/08): v5_1721 = V5 "17/21 por sentido"
+      # (estrategia_proposta_03_08.md) — 3 regiões assinatura-primeiro POR SENTIDO:
+      # R1=cluster gravidade-7 (8 forças) ∪ R2=2º cluster c/ tendência Theil–Sen ∪
+      # R3=zona fria do MESMO sentido. Saída SEMPRE 17 (7+5+5) ou 21 (7+7+7)
+      # distintos, C17⊂C21 (mesmos centros); seletor por sentido: miss→21, hit→17,
+      # teto 5×21/sessão/sentido. Breakevens: 17#=47,2% · 21#=58,3% · escalada
+      # paga se r>11,1pp nos 4 extras (E[Δ]=36r−4). Contrafactuais v5_would_hit_17/21
+      # no decision_dna (validação §5). Anterior: force17 (união ~15, 18/06).
+      # Rollback: SDA_BET_PAIR=force17 no host + redeploy (~3 min), ou git revert.
+      - SDA_BET_PAIR=${SDA_BET_PAIR:-v5_1721}
       # force17 EXATO "sempre 17 números" — **default OFF** (realinhado ao estudo
       # 18/06). O estudo (analise_400 L940) recomenda a UNIÃO real ~15 (overlap
       # benéfico: breakeven 42,8% < 47,2%); forçar 17 PIORA (alarga a aposta). OFF =

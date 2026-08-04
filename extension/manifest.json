@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.7.0",
-  "description": "Monitor de resultados - v3.7.0 DIR13: lock total da fase (operador trava direcao; servidor respeita: nao auto-seed nem reanchora). v3.6.0 DIR1: cliente sobrevive minimizacao + consome sentido autoritativo. v3.4.2 FIX: frame sem sinal real nao publica dealMeta. v3.4.1: provider sem host:* (recupera marca do dominio ou 'unknown'). v3.4 VISION: foto->dados (captura 1 frame/giro + OCR no servidor).",
+  "version": "3.8.0",
+  "description": "Monitor de resultados - v3.8.0 V5: regioes r1/r2/r3 payload-driven + badge 17/21 + cold-start via data.regioes. v3.7.0 DIR13: lock total da fase (operador trava direcao; servidor respeita: nao auto-seed nem reanchora). v3.6.0 DIR1: cliente sobrevive minimizacao + consome sentido autoritativo. v3.4.2 FIX: frame sem sinal real nao publica dealMeta. v3.4.1: provider sem host:* (recupera marca do dominio ou 'unknown'). v3.4 VISION: foto->dados (captura 1 frame/giro + OCR no servidor).",
   "permissions": [
     "activeTab",
     "tabs",
