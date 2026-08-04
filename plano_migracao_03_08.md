@@ -1207,3 +1207,142 @@ são humanas e de produção:
 
 Nada acima liga o timer Azure automaticamente nem altera estratégia/stake/**INV-3**.
 
+## 17. Passo 1 executado — preparação da Azure sem afetar produção (04/08)
+
+Execução do **"Passo 1: o LLM prepara a Azure (sem afetar a produção)"**. Objetivo:
+deixar a Azure recebendo dados reais, com Postgres gerenciado provisionado e o
+apontamento de domínio **pré-configurado**, de modo que o cutover final seja apenas
+freeze + cópia final + flip de DNS. **Nada tocou a HostDime, o DNS, o `dual_write_pg`
+ou o INV-3.** Toda ação foi via `az vm run-command` + Managed Identity (sem SSH de
+escrita na produção). A HostDime foi acessada **somente leitura** para o backup.
+
+### 17.1 Sub-passos e status
+
+| Sub-passo | Ação pedida | Status |
+|---|---|---|
+| (a) | Copiar `state.json` + SQLite HostDime → `/opt/roleta/data/` na Azure | **FEITO (ensaio)** — verificado |
+| (b) | Setar variáveis de ambiente (`SITE_ADDRESS`, `CADDY_EMAIL`) | **FEITO** — staged, canário intacto em `:80` |
+| (c) | Liberar portas 80/443 no NSG via `az cli` | **JÁ ESTAVA** — nenhuma ação necessária |
+| (d) | Subir a aplicação com `./deploy-azure.sh --with-pg` | **FEITO** — schema+grants aplicados, container healthy |
+
+### 17.2 (a) Cópia de dados — ENSAIO consistente (HostDime → Azure)
+
+Caminho: **HostDime → local (scp) → Blob `stroletaprod/backups/migration-rehearsal/`
+(chave de conta) → VM (MI `--auth-mode login`)**. Escolhido porque o `decisions.db`
+(~15,9 MB) estoura o limite de base64 do Run Command e o SSH de entrada da VM não é
+garantido. **SHA256 conferido ponta-a-ponta** (origem → Blob → VM).
+
+- **Cópia consistente:** `decisions.db` está *vivo* (sendo escrito) → usei
+  `sqlite3.connect(src).backup(dst)` (online backup, sem *torn read*). `state.json`
+  é escrito atômico (`os.replace`) → `cp` simples é seguro.
+- **Ordem obrigatória (senão o motor sobrescreve):** `docker stop` → instalar os
+  arquivos → `docker start`. O engine carrega `state.json` no boot e o reescreve
+  periodicamente; copiar com o container de pé perderia os dados. O seed sintético do
+  canário foi preservado em `/opt/roleta/data/_canary_bak_<TS>/`.
+
+**Provas pós-instalação (reconferidas nesta rodada, container recriado):**
+
+| Item | Valor |
+|---|---|
+| `decisions.db` | 15 912 960 B · `PRAGMA integrity_check = ok` |
+| `decisions` | **10 949** linhas |
+| `decision_dna` | **43 594** linhas |
+| `window_plays` / `sessions` / `gale_windows` | 9 136 / 348 / 2 168 |
+| `state.json` | 19 269 B · **v2.0.0** · `__canary_seed__` = **False** (dado real) |
+
+> **Ressalva-chave:** isto é um **ENSAIO** (a HostDime **não** foi congelada). Os
+> dados ficam *stale* na hora do cutover real — a cópia **final** exige a janela de
+> freeze humana. O ensaio prova que o veículo de transporte e o round-trip funcionam.
+
+### 17.3 (c) NSG 80/443 — já aberto (verificado)
+
+`nsg-app-prod` já continha `allow-http` (dst 80/`*`) e `allow-https` (dst 443/`*`)
+como regras de entrada. **Nenhuma alteração** foi necessária. (O acesso externo real
+só passa a importar no flip de DNS; hoje o canário responde por IP na `:80`.)
+
+### 17.4 (d) Postgres gerenciado — schema, grants e `--with-pg`
+
+Estado inicial: `pg-roleta-prod` acessível (privado, `publicNetworkAccess=Disabled`;
+a VM alcança), porém **schema vazio** (só `pg_stat_statements`). Passos:
+
+1. **`alembic upgrade head`** rodado como `roleta_admin` (owner; o app usa o
+   `roleta_app` de menor privilégio, sem `CREATE`). **RC=0**, `current` final =
+   **`0010_dir3_phase_columns (head)`** — 10 migrations aplicadas (baseline, extensões
+   guardadas, schemas `cw`/`ccw`/`shared`, `outbox`, `feature_flags`, vetores, DNA,
+   colunas de fase DIR3).
+   - *Bug corrigido no caminho:* a senha admin URL-encodada injeta `%` que quebra o
+     `configparser` do Alembic (`env.py:24 set_main_option`). Solução: DSN **sem
+     senha** na URL + `PGPASSWORD` no ambiente (libpq/psycopg2 resolve). Sem isso o
+     `upgrade` falha com `ValueError: invalid interpolation syntax`.
+2. **Grants + `search_path`** (como `roleta_admin`): `USAGE` nos schemas, DML em
+   `ALL TABLES`, `USAGE,SELECT` em `ALL SEQUENCES`, `ALTER DEFAULT PRIVILEGES` (p/
+   objetos futuros) e `ALTER DATABASE roleta SET search_path TO shared, public`.
+   Tabelas por schema: **`cw`=2 · `ccw`=2 · `shared`=5**.
+3. **Verificação como `roleta_app`** (papel real do app, via URI e via kwargs):
+   `search_path = shared, public`; `SELECT shared.feature_flags` = **5 flags**;
+   `INSERT`+`SELECT`+`DELETE` em `shared.outbox` = **OK** (`WRITE_ACCESS_CONFIRMED`).
+   DSN em formato **URI** (como `outbox_publisher.py` usa) conecta tanto *raw* quanto
+   *url-encoded* — a senha do `roleta_app` não tem caracteres especiais de URI.
+4. **`./deploy-azure.sh --with-pg`**: resolve o digest, `kv-to-env.sh --with-pg`
+   grava `ROLETA_PG_DSN` no `.env` (0600), recria o container (`up -d --no-build`,
+   volume preservado). Resultado:
+
+| Verificação pós-deploy | Resultado |
+|---|---|
+| Container | **healthy** em ~6 s (mesmo digest `…593133`) |
+| `.env` | contém `ROLETA_PG_DSN` (0600) |
+| Dados reais | **intactos** (decisions=10 949, dna=43 594, state v2.0.0) |
+| `8766/health` | **200** · `8765` (WS) → 426 *Upgrade Required* (esperado) |
+| **`dual_write_pg`** | **`enabled=False, pct=0`** — dual-write **OFF** (nenhuma escrita em PG) |
+| Flags em `shared.feature_flags` | 5, **todas OFF** (`shadow_predictor`, `new_decision_engine`, `cold_regions`, `outlier_filter`, `dual_write_pg`) |
+
+> **Por que a DSN está setada mas o flag fica OFF:** ter `ROLETA_PG_DSN` no `.env`
+> **não** liga o dual-write; quem governa é o flag `dual_write_pg` (fail-safe: erro/
+> ausência ⇒ `False`, "PG offline NUNCA quebra o app"). Deixamos a DSN pronta e o
+> flag OFF — ligar o dual-write pertence ao cutover (junto do `cdc-worker`).
+
+### 17.5 (b) `SITE_ADDRESS` / `CADDY_EMAIL` — pré-configurados sem quebrar o canário
+
+O Caddy **nativo** da VM não tinha `EnvironmentFile` (por isso `SITE_ADDRESS` caía no
+default `:80` do `{$SITE_ADDRESS::80}`). Para que o cutover seja **trocar um valor +
+`systemctl restart caddy`**, foi cabeado o mecanismo **sem alterar o comportamento**:
+
+- `/etc/caddy/caddy.env` (0600): `SITE_ADDRESS=:80` (canário inalterado) +
+  `CADDY_EMAIL=<KV CADDY-EMAIL>` (staged).
+- drop-in `…/caddy.service.d/10-roleta.conf`: `EnvironmentFile=-/etc/caddy/caddy.env`.
+- `daemon-reload` + `restart caddy` → **caddy `active`**, `:80 /healthz` = **200**
+  (canário sobreviveu; rollback automático embutido caso quebrasse).
+- `/opt/roleta/caddy.cutover.env` (0600): valores prontos + runbook. Note que
+  `ROLETA-DOMAIN` no KV hoje é o **FQDN Azure** `roleta-app-01.brazilsouth.cloudapp.azure.com`
+  (já resolve → serve de **ensaio de TLS**); o domínio de produção (`roleta.xma-ia.com`
+  +`www`) fica como `SITE_ADDRESS_PROD` para ajuste no flip.
+
+> **Perigo evitado (ACME):** **não** ativar o domínio antes do flip de DNS — o Caddy
+> tentaria emitir Let's Encrypt e **falharia** enquanto o domínio resolver para a
+> HostDime. Por isso o canário segue em `:80` e o domínio fica apenas *staged*.
+
+### 17.6 O que ainda falta (fora do escopo do Passo 1) e ressalvas
+
+1. **Cópia final consistente:** a atual é ensaio; a de produção exige **freeze**
+   humano da HostDime (janela curta) — só então os dados param de ficar *stale*.
+2. **TLS do domínio real:** só ativa **após** o flip de DNS (registro A → IP da VM).
+   O FQDN Azure já resolve e pode ser usado para **ensaiar** o TLS antes, se desejado.
+3. **Histórico do Postgres (65 MB na HostDime):** **não** migrado (fora do escopo — o
+   Passo 1 cobre só `state.json` + SQLite, que é a fonte autoritativa). Se quiser
+   continuidade do histórico PG na Azure, é preciso `pg_dump`/`restore` à parte
+   (decisão do operador).
+4. **`cdc-worker` ausente no `compose.azure.yml`:** com o dual-write ligado no
+   cutover, a `outbox` encheria mas **não drenaria** sem o worker (`workers/cdc_worker.py`,
+   container `roleta-cdc-worker` na produção). Adicionar o serviço é pré-requisito da
+   "Onda PG" pós-cutover.
+5. **Hardening `kv-to-env.sh`:** monta o `ROLETA_PG_DSN` com a senha **crua** na URI
+   (linha 42). Funciona hoje (senha do `roleta_app` sem caractere especial de URI),
+   mas convém **URL-encodar** a senha para robustez futura — anotado, não bloqueante.
+
+### 17.7 Veredito do Passo 1
+
+A Azure está **recebendo dados reais**, com **Postgres gerenciado migrado
+(schema+grants), dual-write pronto porém OFF**, **NSG aberto** e **domínio/TLS
+pré-cabeados** — tudo sem tocar produção. O cutover reduz-se a: **freeze + cópia
+final + flip de DNS (+ opcional: ligar `dual_write_pg` com `cdc-worker`).**
+
