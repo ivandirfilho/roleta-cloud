@@ -189,6 +189,61 @@ Derivados analíticos (via `dna_summary`/SQL, por sentido): `ring_only = would_h
 
 ---
 
+## 12. Auditoria UX/frontend + registro de implantação (04/08 — V5A+V5B colapsados, GO-LIVE)
+
+> Ordem do dono (04/08): 17 usa os MESMOS centros do 21 (só R2/R3 encolhem 7→5 — já era o §2.2);
+> auditar a organização frontend/UX contra os contratos desta proposta nas 4 superfícies; implantar
+> tudo live num único ciclo. SPR-V5A e V5B foram executados juntos nesta branch (1 PR).
+
+### 12.1 Superfícies auditadas e veredito
+
+| Superfície | Arquivo | Contrato consumido | Veredito pré-fix |
+|---|---|---|---|
+| Extensão — expandida | `extension/content.js` `buildForce17HTML` | `sugestao.regioes[{label,center,radius,status}]` + `force17.{coverage_n,dir_bias}` | ✅ payload-driven (nº de regiões e cobertura derivam do payload) — só a classe CSS era hardcoded c1/c2/c3 (gap 2) |
+| Extensão — minimizada | `content.js` heartbeat `state_sync` | `centrosFromSugestao(lastSugestao)` → fallback | ⚠️ gap 3: cold-start caía direto em `pending_prediction.centers` ([C1,C2,C3] V4 crus) |
+| Extensão — botão nativo (popup) | `popup.html/js` | resumo (não desenha regiões) | ✅ sem mudança necessária |
+| Glass Box / dashboard | `frontend/app.js` `updateForce17` + `frontend/index.html` | `force17` block do overlay (`engine_overlay_fields`) | ⚠️ gap 1: cores por label fixas c1/c2/c3; rótulo estático "(17#)" mentiria no modo 21 |
+
+**Contrato de saída (decisão de arquitetura):** o meta V5 REUSA o bloco `force17` do overlay
+(`regioes`/`c1_force`/`coverage_n`/`numeros`) com labels novos `r1/r2/r3` + campo aditivo
+`v5_mode` (17|21). Nenhum canal novo, nenhum campo removido → force17 clássico byte-idêntico
+(coberto por teste `test_force17_classico_sem_v5_mode`).
+
+### 12.2 Fixes aplicados (3 gaps → fechados)
+
+1. **`frontend/app.js`**: paleta por mapa `{c1,c2,c3,r1,r2,r3}` com fallback `#e0e0e0` — r1=verde `#06d6a0` (primário), r2=azul `#118ab2` (tendência), r3=amarelo `#ffd166` (fria).
+2. **`extension/content.js`**: classe dinâmica `eb-rc-${label}`; badge `V5·17#/21#` no header quando `force17.v5_mode` presente; cold-start do minimizado prefere `data.regioes` (estratégia ATIVA) antes de `pending_prediction.centers`.
+3. **`frontend/index.html`**: "Região (17#):"→"Região:"; `#f17-cov` inicia `(--)` (populado por `coverage_n` real: 17 ou 21).
+4. **`extension/manifest.json`**: **3.7.0 → 3.8.0** (changelog V5 no description). ⚠️ Extensão é unpacked local — **o operador precisa recarregar em `chrome://extensions`** (não vai pelo deploy Debian).
+
+Warmup: o composer marca `status:"aquecendo"` nas 3 regiões → as vistas já exibem ⏳ sem código novo.
+
+### 12.3 O que foi implantado (diff real desta branch)
+
+| Camada | Arquivo | Mudança |
+|---|---|---|
+| Motor | `strategies/regions_v5.py` **(novo)** | composer puro §2 completo: gravity_scan, Theil–Sen, cold_center por sentido, disjunção gap 7, nesting C17⊂C21, warmup tríade INV-3 |
+| Seletor | `strategies/sda17.py` | `_v5_mode`/`_v5_count21` + 3 métodos + adaptive_state **v1.9** (get/load validado/reset) |
+| Enum | `app_config/settings.py` | `bet_pair_mode()` aceita `v5_1721` |
+| Wiring | `server/message_handler.py` | ramo v5 auto-contido em `_engine_apply_selection` (early-return, centers V4 preservados); stash stop-loss→LOCK17; inject `v5_mode/cov17/cov21` + contagem de emissão real; flip pós-hit-real; 3 features DNA (`v5_would_hit_17/21`, `v5_coverage_mode`); fallback calibração raio 8; passthrough `v5_mode` no overlay |
+| Overlay | `state/game.py` | passthrough `v5_mode` (aditivo) em `engine_overlay_fields` |
+| Go-live | `docker-compose.yml` | default `SDA_BET_PAIR=v5_1721` + breakevens/rollback no comentário |
+| UI | 4 arquivos §12.2 | gaps 1–3 + manifest 3.8.0 |
+| Testes | `tests/test_regions_v5.py` **(novo)** | 31 testes (fuzz 5k, Theil–Sen, seletor, enum, wiring); pins atualizados (`test_dir13_lock_total`, `test_quick_wins`); suíte **764 passed** |
+| Docs | `Manutenabilidade_iso.md` | ADENDO 04/08 (A–E) |
+
+**Arquitetura de povoamento de dados: INALTERADA** (zero migração; DNA/outbox/PG byte-idênticos — invariante da ordem do dono verificado: `database/`, `workers/`, `alembic/` sem diff).
+
+### 12.4 Validação econômica no momento da aposta (recap §5)
+
+Os contrafactuais `v5_would_hit_17/21` são congelados no pending ANTES do giro e realizados com o
+número real — a comparação 17×21 é **pareada por giro** (mesmos centros, mesma jogada), exatamente
+a validação que o dono pediu ("após uma jogada miss tenho certeza que a jogada com 21 tem mais
+força"): se os 4 números extras do modo-21 capturarem >11,1pp de hit-rate nas jogadas pós-miss,
+o seletor está pagando; senão, desligamento §5.3 (`SDA_BET_PAIR=force17`, ~3 min, sem revert de código).
+
+---
+
 ## 8. Conformidade ISO (o que cada sprint DEVE cumprir — `Manutenabilidade_iso.md`)
 
 Lista canônica = Obrigações do ADENDO 17/06 (l.235-258) + deltas 18/06 (l.460-471) + template (`sprints/_BRIEF_TEMPLATE.md` l.37-70):

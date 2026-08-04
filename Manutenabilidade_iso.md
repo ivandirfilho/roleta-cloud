@@ -1289,6 +1289,65 @@ estratégia** (E1–E5, `evolução_03_08.md` §4.3; arquitetura: `arquitetura_d
 
 ---
 
+## ADENDO 04/08/2026 — GO-LIVE V5 "17/21 por sentido" (composer assinatura-primeiro + seletor pós-miss + UI 3.8.0)
+
+> Implantação completa da estratégia especificada em `estrategia_proposta_03_08.md` (SPR-V5A+V5B
+> colapsados em 1 PR por ordem do dono: "implante tudo para que fique live e funcional").
+> Motor novo `strategies/regions_v5.py`, seletor 17↔21 no SDA17, wiring no message_handler,
+> contrafactuais no `decision_dna`, go-live na compose e ajustes de UI nas 4 superfícies
+> (dashboard + extensão 3 vistas). Zero migração de schema; arquitetura de povoamento INALTERADA.
+
+### A. Capacidades novas ✅
+
+| Capacidade | Onde | Evidência |
+|---|---|---|
+| Composer V5 puro/determinístico por sentido: R1=cluster gravidade-7 (janela 8 forças), R2=2º cluster condicionado à tendência Theil–Sen (janela 5, deadband 1,0, clamp ±8), R3=zona fria do MESMO sentido (heatmap triangular, 12 resultados) — saída SEMPRE 17 (3/2/2) ou 21 (3/3/3) distintos, MESMOS centros, C17 ⊂ C21, disjunção gap 7 | `strategies/regions_v5.py` (novo, ~290 LOC) | fuzz 5k seeds em `tests/test_regions_v5.py` (31 testes) |
+| Seletor 17↔21 por sentido: default 17; miss real→21; hit real→17; teto 5 jogadas-21/sessão×sentido → LOCK17; stop-loss de sessão força 17 | `strategies/sda17.py` (`v5_select_mode`/`v5_note_emitted`/`v5_note_outcome`) | testes seletor + wiring |
+| Round-trip do estado do seletor: `adaptive_state` v1.8→**v1.9** (`v5_mode`, `v5_count21`) em `get/load/reset_adaptive` — restauração VALIDADA (dk∈{17,21}, int≥0), backward-compat com v1.8 | `sda17.py` | `test_round_trip_v19`, `test_backward_compat_estado_v18`, `test_load_valida_lixo` |
+| Modo `v5_1721` no enum `SDA_BET_PAIR` + ramo auto-contido no `_engine_apply_selection` (early-return; `details['centers']` segue V4 → continuidade DNA/atribuição) | `app_config/settings.py`, `server/message_handler.py` | `test_warmup_emite_17_com_meta_v5` |
+| Contrafactuais pareados congelados ANTES do resultado: `v5_mode`/`v5_cov17`/`v5_cov21` no pending + 3 features novas no `decision_dna` (`v5_would_hit_17`, `v5_would_hit_21`, `v5_coverage_mode`) — validação econômica §5.1 sem schema novo | `message_handler.py` (inject/resolução) | `test_inject_pending_congela_contrafactuais_e_conta_emissao` |
+| Contagem-21 só em EMISSÃO REAL (fallback de calibração não queima crédito) + flip só com HIT REAL da cobertura apostada | `_engine_inject_pending` / bloco M15-ADA | `test_sem_pending_nao_conta` |
+| Warmup INV-3: <3 resultados no sentido → tríade-prior `apply_force(last, 10+{0,12,24})` (gaps 12/12/13 ⇒ disjunta) — SEMPRE há indicação | `regions_v5.compose_v5` | `test_warmup_triade_disjunta_inv3` |
+| Go-live: default `SDA_BET_PAIR=v5_1721` na compose (comentário com breakevens 17#=47,2% / 21#=58,3% / limiar 11,1pp e rollback force17) | `docker-compose.yml` | diff |
+| UI payload-driven nas 4 superfícies: labels r1/r2/r3 dinâmicos + badge `V5·17#/21#` (extensão expandida), cold-start do minimizado prefere `data.regioes` (centros da estratégia ATIVA) antes do `pending_prediction.centers` V4, paleta r1/r2/r3 no dashboard, rótulos estáticos "(17#)" removidos (`(--)` até payload), manifest **3.8.0** | `extension/content.js`, `frontend/app.js`, `frontend/index.html`, `extension/manifest.json` | auditoria UX §12 da proposta |
+
+### B. Bugs corrigidos no caminho
+
+| # | Bug | Fix |
+|---|---|---|
+| 1 | Cold-start do overlay minimizado usava `pending_prediction.centers` ([C1,C2,C3] V4 crus) mesmo quando a estratégia ativa era outra (ordem/estratégia divergente) | fallback intermediário `data.regioes` (gap 3 da auditoria UX) |
+| 2 | Rótulo estático "(17#)" no dashboard mentiria no modo 21 | `#f17-cov` inicia `(--)` e é populado por `coverage_n` real |
+| 3 | Classe CSS da região hardcoded p/ c1/c2/c3 (labels novos cairiam todos em c3) | classe dinâmica `eb-rc-${label}` + paleta por mapa com fallback |
+
+### C. Impacto arquitetural
+
+- **Zero migração Alembic** — estado do seletor viaja no `adaptive_state` (JSON já persistido); contrafactuais usam `decision_dna` existente (EAV). Povoamento SQLite→outbox→PG **byte-idêntico**.
+- **force17 clássico intocado** (`c_selection.py` sem diff) = rollback vivo: `SDA_BET_PAIR=force17` no host + redeploy ~3 min.
+- Meta v5 reusa o **contrato force17-block** do overlay (`regioes/c1_force/coverage_n/numeros`): as 3 vistas da extensão + Glass Box acendem sem mudança de protocolo; `v5_mode` é aditivo (ausente no force17 clássico — clientes velhos byte-idênticos, verificado por teste).
+- Fallback de calibração no modo v5 = raio 8 (17#) — consistente com o default do seletor.
+
+### D. Scorecard (delta vs 03/08)
+
+| Característica | Antes | Depois | Nota |
+|---|:--:|:--:|---|
+| Adequação Funcional | 9 | 9 | estratégia nova coberta por 31 testes novos; suíte 764 passed |
+| Manutenibilidade | 8,5 | **9** | composer puro isolado (testável sem I/O); seletor com round-trip completo; enum fechado |
+| Confiabilidade | 9 | 9 | INV-3 preservado (warmup tríade); stop-loss integra seletor sem suprimir indicação |
+| Analisabilidade | 8,5 | **9** | contrafactuais 17/21 pareados no DNA desde o 1º giro (decisão §5.3 pré-registrada: 50/150/600 jogadas-21, limiar 11,1pp) |
+
+### E. Obrigações de ciclo e rollback
+
+- ✅ Suíte completa: **764 passed, 9 skipped, 1 xfailed** (31 novos em `test_regions_v5.py`; pins atualizados: manifest 3.8.0, adaptive v1.9).
+- ✅ `tools/lint_silent_except.py --update` (1 `except ValueError` novo e justificado em `regions_v5._wheel_index`).
+- ✅ Flag na compose com comentário de rollback; leitura por-chamada; nada hardcoded.
+- ✅ Round-trip `save()`/`load()`/`reset_session()` do campo novo de motor.
+- ✅ Entrega por PR (sem push direto em `main`); merge autorizado pelo dono ("live e funcional").
+- ⚠️ **Ação manual do operador**: recarregar a extensão unpacked no Chrome (v3.8.0 não vai pelo deploy Debian).
+- **Rollback**: `SDA_BET_PAIR=force17` no `.env` do host + `docker compose up -d` (~3 min), ou `git revert` do PR. Estado v1.9 é backward-compat (v1.8 ignora as chaves novas).
+- **Desligamento pré-registrado** (§5.3 da proposta): se `v5_would_hit_21 − v5_would_hit_17 < 11,1pp` após 150 jogadas-21 (ou hit-rate 17# < 40% após 600 giros), voltar `SDA_BET_PAIR=force17` e reavaliar.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

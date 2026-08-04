@@ -146,13 +146,15 @@ def bet_pair_mode() -> str:
     rodava "c2c3" desde 17/06), "var_c1c2_c3" (voto C1/C2 móvel pelas últimas 3 não-C3
     + C3 fixo — DESATIVADO por resultados desfavoráveis), "force17" (C1=ForceLast +
     geometria 17# = C2-7 ∪ C3-5 ∪ C1-5; 3 regiões, isolado por sentido — proposta
-    validada analise_400 PARTES VII–XV). Valor inválido cai em "full".
+    validada analise_400 PARTES VII–XV), "v5_1721" (V5 04/08: 3 regiões
+    assinatura-primeiro R1/R2/R3 por sentido + seletor 17↔21 pós-miss —
+    estrategia_proposta_03_08.md). Valor inválido cai em "full".
 
     Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
     """
     import os
     v = os.environ.get("SDA_BET_PAIR", "full").strip().lower()
-    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17") else "full"
+    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17", "v5_1721") else "full"
 
 
 def force17_exact_enabled() -> bool:

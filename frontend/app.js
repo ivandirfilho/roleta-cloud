@@ -405,7 +405,11 @@ function updateForce17(f17, regioes) {
     if (!regs.length) return;
     const centros = regs.map(r => {
         const warm = r.status === 'aquecendo' ? ' ⏳' : '';
-        const color = r.label === 'c1' ? '#ffd166' : (r.label === 'c2' ? '#06d6a0' : '#118ab2');
+        // Paleta por label: force17 clássico (c1/c2/c3) e V5 (r1=primário verde,
+        // r2=tendência azul, r3=fria amarelo). Fallback branco p/ labels novos.
+        const COLORS = { c1: '#ffd166', c2: '#06d6a0', c3: '#118ab2',
+                         r1: '#06d6a0', r2: '#118ab2', r3: '#ffd166' };
+        const color = COLORS[r.label] || '#e0e0e0';
         return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:0 10px;">`
             + `<span style="font-size:26px;font-weight:bold;color:${color};line-height:1.1;">${r.center}${warm}</span>`
             + `<span style="font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.8;">${r.label}</span>`
