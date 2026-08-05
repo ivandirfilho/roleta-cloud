@@ -2,8 +2,33 @@
 // 🆕 v2.7: Integração WebSocket com RoletaV11
 // 🆕 v2.6: CORREÇÃO DE PERSISTÊNCIA - Usa chrome.alarms em vez de setInterval
 // Compatível com Extrator Beat v17.1
+//
+// ============================================================================
+// INVARIANTE SPR-V2 (DIR20) — O BACKGROUND É O ÚNICO ESCRITOR DO ESTADO
+// ----------------------------------------------------------------------------
+// 1. Toda mutação de `escutaState` / `currentDirection` / `directionSeed` passa por
+//    `mutateState(fn)` — uma fila SERIAL. `getState()`/`saveState()` fora dela é
+//    read-modify-write concorrente e faz o "último a escrever ganha" apagar baseline
+//    e contadores. O popup NÃO grava estado: ele envia comandos (mensagens).
+// 2. Nenhuma chamada longa (`executeScript`, WebSocket, rede) dentro da seção crítica:
+//    computa-se FORA, aplica-se DENTRO.
+// 3. A fase (`currentDirection`) é re-hidratada do storage por uma PROMISE DE TOPO
+//    (`hydrationReady()`), aguardada por todos os consumidores. Sem isso o 1º envio
+//    pós-wake do service worker sai com a literal 'horario'.
+// 4. Uma leitura que não alinha é LEITURA SUSPEITA, não "1 giro novo": não envia,
+//    não flipa, não mexe no baseline — e é CONTADA (`state.dir20`), nunca silenciosa.
+// ============================================================================
 
 console.log('🎧 Escuta Beat v2.7 - Background iniciado (Persistente + WebSocket!)');
+
+// SPR-V2: lógica pura de alinhamento de fase (sem APIs do Chrome, testada com `node --test`).
+let phaseAlignLoadError = null;
+try {
+  importScripts('phase_align.js');
+} catch (e) {
+  phaseAlignLoadError = e?.message || String(e);
+  console.error('❌ Falha ao carregar phase_align.js:', phaseAlignLoadError);
+}
 
 try {
   importScripts('extractor_meta.js');
@@ -92,8 +117,71 @@ const DEFAULT_STATE = {
   currentMesa: null,
   mesaConfig: null,
   detectedProvider: null,
-  autoStarted: false
+  autoStarted: false,
+  // 🆕 SPR-V2 (DIR20): telemetria da perda. Persistida porque o SW dorme entre ticks —
+  // um contador global não sobrevive e a perda vira "parada silenciosa".
+  dir20: {
+    baselineVersion: 0,      // 0 = hash legado de 5; 2 = fingerprint de 12
+    unalignedStreak: 0,
+    skippedUnaligned: 0,
+    rebaselines: 0,
+    flipsReverted: 0,
+    lastReason: null,
+    lastFrameId: null,
+    lastRoundId: null,
+    lastTable: null,
+    baselineTable: null,
+    lastGoodFrameId: null,
+    paLastSeq: null,         // último spin_seq visto no phase_authority
+    paSeqBeforeSend: null,
+    paAwaitingAck: false,
+    paSentAtMs: 0
+  }
 };
+
+// 🆕 SPR-V2 (DIR20) — kill-switch client-side (rollback de 1ª camada).
+// `false` + reload restaura o comportamento v3.9.1 em ~30s, sem git.
+// Analogia do default-OFF: a extensão não tem docker-compose; o "nasce OFF" aqui é que
+// NADA muda em produção até o operador instalar/recarregar a 3.10.0 manualmente.
+const DIR20_ENABLED = true;
+// Skips consecutivos tolerados antes de re-ancorar o baseline (≈10s no tick de 2s).
+const DIR20_MAX_SKIPS = 5;
+// Janela mínima entre o envio de um giro e a avaliação do eco `phase_authority`
+// (o `state_sync` roda a 1s e o snapshot em voo pode ser anterior ao nosso envio).
+const DIR20_PA_ACK_GRACE_MS = 2500;
+
+function dir20Defaults() { return { ...DEFAULT_STATE.dir20 }; }
+
+// Normaliza o bloco de telemetria (instalações antigas não o têm).
+function ensureDir20(state) {
+  if (!state.dir20 || typeof state.dir20 !== 'object') state.dir20 = dir20Defaults();
+  else state.dir20 = { ...dir20Defaults(), ...state.dir20 };
+  return state.dir20;
+}
+
+// DIR20 só opera com o módulo puro carregado. Fail-CLOSED: sem ele NÃO há como ler
+// (voltar ao algoritmo que fabricava giros derrotaria o sprint inteiro).
+function dir20Active() {
+  return DIR20_ENABLED && typeof PhaseAlign !== 'undefined' && !!PhaseAlign;
+}
+
+// O módulo puro é obrigatório em QUALQUER modo (com DIR20_ENABLED=false ele apenas
+// roda em `strict:false`, reproduzindo o algoritmo v3.9.1).
+function phaseAlignReady() {
+  return typeof PhaseAlign !== 'undefined' && !!PhaseAlign;
+}
+
+function extVersion() {
+  try { return chrome.runtime.getManifest().version; } catch (e) { return 'unknown'; }
+}
+
+// Fingerprint do baseline: 12 números (a MESMA janela de `allNumbers` enviada ao
+// servidor). Com o kill-switch OFF volta ao hash legado de 5.
+function baselineFingerprint(numbers) {
+  if (dir20Active()) return PhaseAlign.fingerprint(numbers);
+  return Array.isArray(numbers) ? numbers.slice(0, 5).join(',') : '';
+}
+
 
 // 🆕 v2.6: Removido readIntervalId - não persiste em MV3 Service Workers
 // Agora usa chrome.alarms para persistência
@@ -110,36 +198,220 @@ let directionSeed = 'horario';
 let pendingPhaseResync = false;
 
 function phaseFlip(d) { return d === 'horario' ? 'anti-horario' : 'horario'; }
-// Conta quantos giros NOVOS entraram no topo da leitura, alinhando a cauda da
-// leitura nova com a cabeça da anterior (subsequência ordenada, robusto a repetição).
-// Se k>1 giros caíram entre dois ticks (ou no minimizar), a fase precisa avançar k
-// vezes, não 1, senão a paridade defasa. Conservador (=1) quando não há alinhamento.
-function countNewSpins(newArr, oldArr) {
-  if (!Array.isArray(newArr) || newArr.length === 0) return 1;
-  if (!Array.isArray(oldArr) || oldArr.length === 0) return 1;
-  const maxK = Math.min(newArr.length, 12);
-  for (let k = 1; k <= maxK; k++) {
-    const overlapLen = Math.min(oldArr.length, newArr.length - k);
-    if (overlapLen <= 0) break;
-    let match = true;
-    for (let i = 0; i < overlapLen; i++) {
-      if (newArr[k + i] !== oldArr[i]) { match = false; break; }
+
+// ===== 🆕 SPR-V2: SINGLE-WRITER (fila serial) + GATE DE RE-HIDRATAÇÃO =====
+// Fallbacks locais mantêm o service worker funcional mesmo se `phase_align.js` não
+// carregar (nesse caso DIR20 fica inativo, mas a serialização continua valendo).
+const _stateQueue = (typeof PhaseAlign !== 'undefined' && PhaseAlign)
+  ? PhaseAlign.createSerialQueue()
+  : (function () {
+      let chain = Promise.resolve();
+      return {
+        run(fn) {
+          const result = chain.then(() => fn());
+          chain = result.then(() => { }, () => { });
+          return result;
+        }
+      };
+    })();
+
+const _readGuard = (typeof PhaseAlign !== 'undefined' && PhaseAlign)
+  ? PhaseAlign.createReentrancyGuard()
+  : (function () {
+      let busy = false;
+      return {
+        run(fn) {
+          if (busy) return Promise.resolve({ skipped: true });
+          busy = true;
+          return Promise.resolve().then(fn).then(
+            (value) => { busy = false; return { skipped: false, value }; },
+            (err) => { busy = false; throw err; }
+          );
+        },
+        isBusy: () => busy
+      };
+    })();
+
+// Promise de topo, recriada a cada wake do service worker. `storage.get` resolve `{}`
+// se vazio — sem deadlock. Todo consumidor da FASE espera por ela.
+function _loadPhaseFromStorage() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get(['currentDirection', 'directionSeed'], (data) => {
+        const d = data || {};
+        if (d.directionSeed === 'horario' || d.directionSeed === 'anti-horario') {
+          directionSeed = d.directionSeed;
+        }
+        if (d.currentDirection === 'horario' || d.currentDirection === 'anti-horario') {
+          currentDirection = d.currentDirection;
+          console.log(`🔄 DIR1: fase re-hidratada do storage no boot: ${currentDirection}`);
+        }
+        resolve({ currentDirection, directionSeed });
+      });
+    } catch (e) {
+      console.warn('⚠️ Re-hidratação da fase falhou:', e?.message || e);
+      resolve(null);
     }
-    if (match) return k;
-  }
-  return 1;
+  });
 }
+
+const _hydrationGate = (typeof PhaseAlign !== 'undefined' && PhaseAlign)
+  ? PhaseAlign.createHydrationGate(_loadPhaseFromStorage)
+  : (function () {
+      let p = null;
+      return { ready: () => (p || (p = _loadPhaseFromStorage())), reset: () => { p = null; } };
+    })();
+
+function hydrationReady() { return _hydrationGate.ready(); }
+
+/**
+ * Seção crítica do estado. `fn(state)` recebe o estado PERSISTIDO (sem campos
+ * voláteis) e pode mutá-lo; ao final `saveState` grava uma única vez.
+ * Retorne `{ skipSave: true, value }` para sair sem gravar.
+ */
+function mutateState(fn) {
+  return _stateQueue.run(async () => {
+    const state = await readPersistedState();
+    const out = await fn(state);
+    if (out && out.skipSave === true) return out.value;
+    await saveState(state);
+    return out && Object.prototype.hasOwnProperty.call(out, 'value') ? out.value : out;
+  });
+}
+
+// O servidor fala "cw"/"ccw" em `phase_authority` e "horario"/"anti-horario" em
+// `sentido`. Normaliza ambos para o vocabulário do cliente; null se desconhecido.
+function normalizePhaseDir(d) {
+  if (d === 'horario' || d === 'cw') return 'horario';
+  if (d === 'anti-horario' || d === 'ccw' || d === 'anti_horario') return 'anti-horario';
+  return null;
+}
+
+/**
+ * 🆕 SPR-V2 Bloco 4.4 — reconciliação de fase com a autoridade do servidor.
+ *
+ * CONDICIONADA POR CAPABILITY: só age com `state_sync.phase_authority.enabled === true`
+ * (entregue pelo SPR-V1, Bloco 4.5, e verdadeiro apenas quando autoridade E buffer-sync
+ * estão ligados). Servidor sem o campo, ou com `enabled=false` ⇒ reconciliação
+ * DESARMADA — auto-desarme em qualquer rollback do servidor.
+ *
+ * HEURÍSTICA DECLARADA (não é ACK determinístico): o contrato atual do `state_sync`
+ * não correlaciona o giro enviado (`trace_id`) com o que o servidor aceitou. Detectamos
+ * a rejeição por `spin_seq` inalterado após uma janela de graça. Falso negativo é
+ * possível (heartbeat atrasado); falso positivo é corrigido no ciclo seguinte pela
+ * reconciliação contínua. A correlação por `trace_id` fica registrada como dívida.
+ */
+async function handleStateSyncPhase(payload) {
+  if (!payload) return;
+  const sentido = payload.sentido || null;
+  const pa = payload.phase_authority || null;
+  const paEnabled = !!(pa && pa.enabled === true);
+
+  if (sentido && sentido.resync_advised) pendingPhaseResync = true;
+
+  const srvNext = normalizePhaseDir(
+    (sentido && sentido.next_direction) ? sentido.next_direction : payload.target_direction
+  );
+  const paDir = paEnabled ? normalizePhaseDir(pa.direction) : null;
+  const paSeq = paEnabled && Number.isFinite(Number(pa.spin_seq)) ? Number(pa.spin_seq) : null;
+
+  await mutateState(async (state) => {
+    const d = ensureDir20(state);
+    let changed = false;
+    let newDir = currentDirection;
+
+    // 1) Giro rejeitado pelo servidor: desfaz o flip local (senão servidor fica certo
+    //    e o popup espelhado — o operador vê a fase errada).
+    if (paEnabled && d.paAwaitingAck && paSeq !== null && d.paSeqBeforeSend !== null) {
+      const elapsed = Date.now() - (d.paSentAtMs || 0);
+      if (paSeq > d.paSeqBeforeSend) {
+        d.paAwaitingAck = false;      // servidor contou o giro: nada a desfazer
+        d.paSeqBeforeSend = paSeq;
+        changed = true;
+      } else if (paSeq === d.paSeqBeforeSend && elapsed >= DIR20_PA_ACK_GRACE_MS) {
+        d.paAwaitingAck = false;
+        changed = true;
+        // O contador é a MÉTRICA DE PERDA do sprint (popup + client_health): só sobe
+        // quando um flip foi de fato desfeito. Servidor sem `direction`, ou já na mesma
+        // fase, é rejeição sem reversão — incrementar aqui inverteria o sinal.
+        if (paDir && paDir !== currentDirection) {
+          console.log(`↩️ SPR-V2: giro não contado pelo servidor — revertendo fase ${currentDirection} → ${paDir}`);
+          addLog('warning', `Flip local revertido (servidor não contou o giro): ${currentDirection} → ${paDir}`, {
+            spin_seq: paSeq
+          });
+          newDir = paDir;
+          d.flipsReverted = (d.flipsReverted || 0) + 1;
+        }
+      }
+    }
+
+    // 2) Reconciliação contínua — fora da seção crítica de envio (não há giro em voo).
+    if (paEnabled && !d.paAwaitingAck && srvNext && srvNext !== newDir) {
+      console.log(`🔄 SPR-V2: reconciliação contínua da fase: ${newDir} → ${srvNext} (autoridade)`);
+      newDir = srvNext;
+      changed = true;
+    }
+
+    // 3) Resync pontual pós-(re)conexão — vale mesmo SEM a capability (DIR1/DIR5).
+    if (pendingPhaseResync && srvNext) {
+      if (srvNext !== newDir) {
+        console.log(`🔄 DIR1 resync de fase: ${newDir} → ${srvNext} (servidor)`);
+        newDir = srvNext;
+        changed = true;
+      }
+      pendingPhaseResync = false;
+    }
+
+    if (newDir !== currentDirection) {
+      currentDirection = newDir;
+      await chrome.storage.local.set({ currentDirection });
+      changed = true;
+    }
+    // Memória do último seq observado — é ela que dá a "foto antes do envio".
+    if (paSeq !== null && d.paLastSeq !== paSeq) {
+      d.paLastSeq = paSeq;
+      changed = true;
+    }
+    if (!changed) return { skipSave: true };
+  });
+}
+
+
 
 // ===== 🆕 v2.7: WEBSOCKET CLIENT PARA INTEGRAÇÃO =====
 const WS_CONFIG = {
   url: 'wss://roleta.xma-ia.com/ws',
-  reconnectInterval: 5000,  // 5 segundos entre reconexões
-  maxReconnectAttempts: 10
+  reconnectInterval: 5000,  // base do backoff exponencial
+  maxReconnectAttempts: 10, // teto do EXPOENTE (não desiste depois disso — satura)
+  maxBackoffMs: 60000       // teto do intervalo entre tentativas
 };
 
 let wsConnection = null;
 let wsReconnectAttempts = 0;
 let wsConnected = false;
+let _reconnectTimer = null;
+
+// 🆕 SPR-V2 Bloco 4.1 — snapshot da PERDA. Vai como bloco aditivo no `register` e no
+// `novo_resultado`; o servidor antigo simplesmente ignora a chave desconhecida.
+async function buildClientHealth(stateArg) {
+  let state = stateArg;
+  if (!state) {
+    try { state = await readPersistedState(); } catch (e) { state = null; }
+  }
+  const d = state ? ensureDir20(state) : dir20Defaults();
+  return {
+    ext_version: extVersion(),
+    dir20_enabled: dir20Active(),
+    unaligned_streak: d.unalignedStreak || 0,
+    skipped_unaligned: d.skippedUnaligned || 0,
+    rebaselines: d.rebaselines || 0,
+    flips_reverted: d.flipsReverted || 0,
+    last_reason: d.lastReason || null,
+    frame_id: d.lastGoodFrameId === null || d.lastGoodFrameId === undefined ? null : d.lastGoodFrameId,
+    round_id: d.lastRoundId || null,
+    ts_ms: Date.now()
+  };
+}
 
 async function seedDealMetaFromExtractorData(extractorData) {
   if (typeof extractDealMetaFromExtractorData !== 'function') return null;
@@ -380,34 +652,44 @@ function setBadge(text, color) {
 
 // Núcleo compartilhado de start (usado por auto-start e pelo botão manual).
 async function startListeningInternal(tabId, manifest, providerId, origin) {
-  const state = await getState();
-  if (state.isListening && state.tabId === tabId) return false;
+  if (manifest) await seedDealMetaFromExtractorData(manifest);
 
-  if (manifest) {
-    state.extractorData = manifest;
-    await seedDealMetaFromExtractorData(manifest);
-    if (manifest?.data?.results?.lastNumbers) {
-      state.results = manifest.data.results.lastNumbers.slice(0, 12);
-      state.lastHash = state.results.slice(0, 5).join(',');
+  // 🆕 SPR-V2: read-modify-write serializado (antes, dois auto-starts concorrentes
+  // podiam sobrescrever baseline/contadores um do outro).
+  const started = await mutateState((state) => {
+    if (state.isListening && state.tabId === tabId) return { value: false, skipSave: true };
+
+    if (manifest) {
+      state.extractorData = manifest;
+      if (manifest?.data?.results?.lastNumbers) {
+        state.results = manifest.data.results.lastNumbers.slice(0, 12);
+        state.lastHash = baselineFingerprint(state.results);
+        const d = ensureDir20(state);
+        d.baselineTable = state.sessionData?.table || null;
+        d.unalignedStreak = 0;
+        d.baselineVersion = dir20Active() ? 2 : 0;
+      }
     }
-  }
-  state.detectedProvider = providerId || state.detectedProvider || null;
-  state.autoStarted = origin === 'auto';
-  state.isListening = true;
-  state.tabId = tabId;
-  state.error = null;
-  state.lastUpdate = Date.now();
-  readCount = 0;
+    state.detectedProvider = providerId || state.detectedProvider || null;
+    state.autoStarted = origin === 'auto';
+    state.isListening = true;
+    state.tabId = tabId;
+    state.error = null;
+    state.lastUpdate = Date.now();
+    return { value: true, autoStarted: state.autoStarted, detectedProvider: state.detectedProvider };
+  });
 
-  await saveState(state);
+  if (started === false) return false;
+  readCount = 0;
 
   startReadLoopAlarm();
   startKeepAliveAlarm();
   connectWebSocket();
   setBadge('●', '#1a7f37');
+  const snapshot = await getState();
   broadcastToTabs({
     action: 'stateSync',
-    data: { isListening: true, autoStarted: state.autoStarted, detectedProvider: state.detectedProvider },
+    data: { isListening: true, autoStarted: snapshot.autoStarted, detectedProvider: snapshot.detectedProvider },
   });
   addLog('info', `Escuta ${origin === 'auto' ? 'AUTO-iniciada' : 'iniciada'} (${providerId || 'manual'}) tab ${tabId}`);
   console.log(`✅ Escuta ${origin} iniciada — tab ${tabId} provider ${providerId}`);
@@ -517,10 +799,16 @@ function connectWebSocket() {
       chrome.storage.session?.set({ wsReconnectAttempts: 0 });
 
       // 🆕 v3.5: Enviar registro com device_id
+      // 🆕 SPR-V2: `client_health` viaja como bloco ADITIVO na mensagem `register` que
+      // já existe (o servidor ignora chaves desconhecidas). NÃO criamos mensagem nem
+      // endpoint novo — a extensão não emite keepalive/ping WS periódico hoje (ver Log
+      // do brief SPR-V2: pendência levada ao Diretor, o heartbeat contínuo é SPR-V6A).
       const deviceId = await getDeviceId();
       socket.send(JSON.stringify({
         type: 'register',
-        device_id: deviceId
+        device_id: deviceId,
+        ext_version: extVersion(),
+        client_health: await buildClientHealth()
       }));
 
       // 🆕 DIR1: ao (re)conectar, pedir reconciliação de fase no primeiro state_sync.
@@ -581,23 +869,10 @@ function connectWebSocket() {
           // reiniciou e voltou currentDirection a 'horario' ao minimizar o Chrome.
           // 🆕 DIR6: se o servidor sinaliza ambiguidade de fase (gap/troca de mesa),
           // re-arma a reconciliação para o próximo ciclo.
-          if (data.data && data.data.sentido && data.data.sentido.resync_advised) {
-            pendingPhaseResync = true;
-          }
-          if (pendingPhaseResync && data.data) {
-            // 🆕 DIR5: prefere o bloco autoritativo `sentido.next_direction`; cai em
-            // target_direction (DIR1) se um servidor antigo não enviar o bloco.
-            const _s = data.data.sentido;
-            const srvDir = (_s && _s.next_direction) ? _s.next_direction : data.data.target_direction;
-            if (srvDir === 'horario' || srvDir === 'anti-horario') {
-              if (srvDir !== currentDirection) {
-                console.log(`🔄 DIR1 resync de fase: ${currentDirection} → ${srvDir} (servidor)`);
-                currentDirection = srvDir;
-                chrome.storage.local.set({ currentDirection });
-              }
-              pendingPhaseResync = false;
-            }
-          }
+          // 🆕 SPR-V2: TUDO isto passa pela fila serial e espera a re-hidratação —
+          // senão um state_sync no meio do flip regrava a direção velha.
+          await hydrationReady();
+          await handleStateSyncPhase(data.data);
           // Enviar para o content script para manter overlay sincronizado
           sendStateSyncToContentScript(data.data);
         }
@@ -608,8 +883,15 @@ function connectWebSocket() {
           // 🆕 DIR1 (sentido-fase): o reset zera last_direction no servidor; a fase do
           // cliente deve voltar à semente do operador para não dessincronizar na cadência
           // pós-reset (1ª calibração). Reconcilia com o servidor no próximo state_sync.
-          currentDirection = directionSeed || 'horario';
-          chrome.storage.local.set({ currentDirection });
+          await hydrationReady();
+          await mutateState(async (state) => {
+            currentDirection = directionSeed || 'horario';
+            await chrome.storage.local.set({ currentDirection });
+            const d = ensureDir20(state);
+            // O reset invalida qualquer expectativa de eco do giro em voo.
+            d.paAwaitingAck = false;
+            d.paSeqBeforeSend = null;
+          });
           pendingPhaseResync = true;
           sendSessionResetToContentScript(data.data);
         }
@@ -642,42 +924,49 @@ function connectWebSocket() {
         }
         else if (data.type === 'mesa_configurada' || data.type === 'config_mesa') {
           console.log(`✅ Configuração recebida para: ${data.mesa_id}`);
-          const state = await getState();
-          state.currentMesa = data.mesa_id;
-          state.mesaConfig = data.config;
-          state.extractorData = data.config; // Retrocompatibilidade
           await seedDealMetaFromExtractorData(data.config);
 
-          if (data.config && data.config.data && data.config.data.results) {
-            state.results = data.config.data.results.lastNumbers?.slice(0, 12) || [];
-          }
-
-          // 🆕 v3.1: CORREÇÃO BUG #3 - Obter tabId da aba ativa se não tiver
-          if (!state.tabId) {
-            try {
-              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-              if (tab && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-                state.tabId = tab.id;
-                console.log('📍 tabId obtido da aba ativa:', state.tabId);
-                addLog('info', `Aba detectada: ${tab.title?.substring(0, 30)}`);
-              }
-            } catch (e) {
-              console.warn('⚠️ Não foi possível obter tabId:', e.message);
+          // 🆕 v3.1: CORREÇÃO BUG #3 - Obter tabId da aba ativa se não tiver (fora da
+          // seção crítica: chamada longa não entra na fila).
+          let activeTab = null;
+          try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+              activeTab = tab;
             }
+          } catch (e) {
+            console.warn('⚠️ Não foi possível obter tabId:', e.message);
           }
 
-          await chrome.storage.local.set({ escutaState: state });
+          const applied = await mutateState((state) => {
+            state.currentMesa = data.mesa_id;
+            state.mesaConfig = data.config;
+            state.extractorData = data.config; // Retrocompatibilidade
+
+            if (data.config && data.config.data && data.config.data.results) {
+              state.results = data.config.data.results.lastNumbers?.slice(0, 12) || [];
+            }
+
+            if (!state.tabId && activeTab) {
+              state.tabId = activeTab.id;
+              console.log('📍 tabId obtido da aba ativa:', state.tabId);
+              addLog('info', `Aba detectada: ${activeTab.title?.substring(0, 30)}`);
+            }
+
+            const shouldStart = !!(data.auto_start && !state.isListening && state.tabId);
+            if (shouldStart) state.isListening = true;
+            return { value: { shouldStart, hasTab: !!state.tabId } };
+          });
+
           addLog('success', `Mesa ${data.mesa_id} configurada`);
 
           // Se auto_start, iniciar escuta
-          if (data.auto_start && !state.isListening && state.tabId) {
+          if (applied.shouldStart) {
             console.log('🚀 Auto-start ativado!');
             startReadLoopAlarm();
             startKeepAliveAlarm();
-            state.isListening = true;
-            await chrome.storage.local.set({ escutaState: state });
             addLog('success', 'Escuta iniciada automaticamente');
-          } else if (data.auto_start && !state.tabId) {
+          } else if (data.auto_start && !applied.hasTab) {
             console.warn('⚠️ Auto-start solicitado mas tabId não disponível');
             addLog('warning', 'Não foi possível iniciar automaticamente - abra a página da roleta');
           }
@@ -698,17 +987,28 @@ function connectWebSocket() {
 }
 
 function scheduleReconnect() {
-  if (wsReconnectAttempts >= WS_CONFIG.maxReconnectAttempts) {
-    console.log('⚠️ Máximo de tentativas de reconexão atingido');
-    return;
-  }
+  // 🆕 SPR-V2: backoff exponencial com jitter e TETO — o intervalo fixo de 5s
+  // martelava o servidor durante uma queda longa. Timer ÚNICO (um reconnect agendado
+  // por vez) e SEM desistência definitiva: após o teto de tentativas o intervalo
+  // satura em WS_CONFIG.maxBackoffMs e a extensão continua tentando (senão a escuta
+  // morre em silêncio e só volta com reload manual).
+  if (_reconnectTimer !== null) return;
 
   wsReconnectAttempts++;
   chrome.storage.session?.set({ wsReconnectAttempts });
-  setTimeout(() => {
-    console.log(`🔄 Tentativa de reconexão ${wsReconnectAttempts}/${WS_CONFIG.maxReconnectAttempts}`);
+
+  const capped = Math.min(wsReconnectAttempts, WS_CONFIG.maxReconnectAttempts);
+  const base = Math.min(
+    WS_CONFIG.reconnectInterval * Math.pow(2, Math.max(0, capped - 1)),
+    WS_CONFIG.maxBackoffMs
+  );
+  const delay = Math.round(base * (0.75 + Math.random() * 0.5)); // jitter ±25%
+
+  _reconnectTimer = setTimeout(() => {
+    _reconnectTimer = null;
+    console.log(`🔄 Tentativa de reconexão ${wsReconnectAttempts} (delay ${delay}ms)`);
     connectWebSocket();
-  }, WS_CONFIG.reconnectInterval);
+  }, delay);
 }
 
 function sendToWebSocket(data) {
@@ -935,15 +1235,46 @@ async function capturarMesaRemota() {
 // ===== FIM WEBSOCKET =====
 
 // ===== INICIALIZAÇÃO =====
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('Extensão instalada/atualizada');
-  chrome.storage.local.set({ escutaState: DEFAULT_STATE });
+chrome.runtime.onInstalled.addListener(async (details) => {
+  const reason = details?.reason || 'unknown';
+  console.log(`Extensão instalada/atualizada (${reason})`);
+  // 🆕 SPR-V2: em UPDATE não se apaga o estado. O reset incondicional zerava baseline,
+  // contadores e a escuta ativa a cada recarga da extensão — e anulava qualquer
+  // migração. Instalação nova ancora os defaults; upgrade só completa o que falta.
+  await mutateState((state) => {
+    if (reason === 'install') {
+      Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+      return;
+    }
+    for (const [k, v] of Object.entries(DEFAULT_STATE)) {
+      if (state[k] === undefined) state[k] = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v;
+    }
+    migrateBaseline(state);
+  });
   // 🆕 v3.3: política de auto-start default = 'auto' (responde §8 #7 do plano)
   const pol = await chrome.storage.local.get(['autoStartPolicy']);
   if (!pol.autoStartPolicy) await chrome.storage.local.set({ autoStartPolicy: 'auto' });
   registerAutoDetectListeners();
   scanOpenTabsForProviders();
 });
+
+// 🆕 SPR-V2: migração explícita do baseline (hash de 5 → fingerprint de 12).
+// Sem enviar giro e sem flipar: só re-ancora a PROVA sobre os mesmos números já
+// persistidos. `baselineVersion` evita reexecutar e evita depender do formato antigo.
+function migrateBaseline(state) {
+  const d = ensureDir20(state);
+  if (!dir20Active() || d.baselineVersion >= 2) return false;
+  if (Array.isArray(state.results) && state.results.length > 0) {
+    state.lastHash = PhaseAlign.fingerprint(state.results);
+  } else {
+    state.lastHash = '';
+  }
+  d.baselineVersion = 2;
+  d.unalignedStreak = 0;
+  console.log('🔁 SPR-V2: baseline migrado para fingerprint de 12 —', state.lastHash || '(vazio)');
+  return true;
+}
+
 
 // 🆕 v2.6: Listener para quando o Chrome inicia
 chrome.runtime.onStartup.addListener(async () => {
@@ -961,25 +1292,25 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.storage.local.get(['escutaState'], (data) => {
   if (!data.escutaState) {
     chrome.storage.local.set({ escutaState: DEFAULT_STATE });
-  } else if (data.escutaState.isListening && data.escutaState.tabId) {
-    console.log('🔄 Worker reiniciado - retomando escuta ativa');
-    startReadLoopAlarm();
-    connectWebSocket(); // Garantir que WS está conectado
+  } else {
+    // 🆕 SPR-V2: migração é idempotente e roda também quando o SW acorda sem
+    // passar por onInstalled (instalação já existente + reload do worker).
+    mutateState((state) => { migrateBaseline(state); });
+    if (data.escutaState.isListening && data.escutaState.tabId) {
+      console.log('🔄 Worker reiniciado - retomando escuta ativa');
+      startReadLoopAlarm();
+      connectWebSocket(); // Garantir que WS está conectado
+    }
   }
 });
 
-// 🆕 DIR1 (sentido-fase): re-hidratar a FASE do storage no boot do service worker.
-// Sem isto, o SW MV3 reinicia com currentDirection='horario' (literal) ao acordar de
-// uma minimização, perdendo a paridade — causa do "dois números no mesmo sentido".
-chrome.storage.local.get(['currentDirection', 'directionSeed'], (data) => {
-  if (data.directionSeed === 'horario' || data.directionSeed === 'anti-horario') {
-    directionSeed = data.directionSeed;
-  }
-  if (data.currentDirection === 'horario' || data.currentDirection === 'anti-horario') {
-    currentDirection = data.currentDirection;
-    console.log(`🔄 DIR1: fase re-hidratada do storage no boot: ${currentDirection}`);
-  }
-});
+// 🆕 DIR1 (sentido-fase) + SPR-V2: re-hidratar a FASE do storage no boot do service
+// worker. Sem isto, o SW MV3 reinicia com currentDirection='horario' (literal) ao
+// acordar de uma minimização, perdendo a paridade — causa do "dois números no mesmo
+// sentido". Agora é uma PROMISE de topo (`hydrationReady()`) que readResults,
+// state_sync/sessao_resetada e setDirection AGUARDAM antes de ler/gravar a fase.
+hydrationReady();
+
 
 // 🆕 v3.3: registra a auto-detecção sempre que o service worker carrega
 // (event-driven MV3). Guard interno evita listener duplicado; o scan cobre
@@ -1060,7 +1391,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'readLoop') {
     const state = await getState();
     if (state.isListening && state.tabId) {
-      readResults();
+      // 🆕 SPR-V2: com `await` + guard de reentrância, um tick atrasado (frame
+      // throttled) não sobrepõe o seguinte — antes, duas execuções liam o mesmo
+      // baseline, "detectavam" o mesmo giro e enviavam 2× com 2 flips.
+      await readResults();
     } else {
       stopReadLoopAlarm();
     }
@@ -1117,28 +1451,35 @@ async function handleMessage(message, sender = null) {
   }
 
   if (action === 'setExtractorData') {
-    const state = await getState();
-    state.extractorData = message.data;
-    state.error = null;
     await seedDealMetaFromExtractorData(message.data);
-
-    if (message.data?.data?.results?.lastNumbers) {
-      state.results = message.data.data.results.lastNumbers.slice(0, 12);
-      state.lastHash = state.results.slice(0, 5).join(',');
-    }
-
-    await saveState(state);
+    await mutateState((state) => {
+      state.extractorData = message.data;
+      state.error = null;
+      // Carregamento manual de manifest tem prioridade sobre a mesa do servidor.
+      if (message.clearMesa === true) state.currentMesa = null;
+      if (message.data?.data?.results?.lastNumbers) {
+        state.results = message.data.data.results.lastNumbers.slice(0, 12);
+        state.lastHash = baselineFingerprint(state.results);
+        const d = ensureDir20(state);
+        d.baselineTable = state.sessionData?.table || null;
+        d.unalignedStreak = 0;
+        d.baselineVersion = dir20Active() ? 2 : 0;
+      }
+    });
     console.log('✅ Dados do extrator salvos');
     return { success: true };
   }
 
   if (action === 'startListening') {
+    await hydrationReady();
     const state = await getState();
 
     // 🆕 v3.3: ZERO-UPLOAD — sem extractorData, carrega o manifest EMPACOTADO do
     // provider detectado na aba (ou Evolution por default). Conserta o template
     // mínimo legado, que vinha em formato antigo (selectors:{}) incompatível com o
     // readResults data-driven (data.session/monitoring/results).
+    let bundledManifest = null;
+    let bundledProvider = null;
     if (!state.extractorData) {
       const tabId = message.tabId || sender?.tab?.id || state.tabId;
       let providerId = 'evolution';
@@ -1147,27 +1488,33 @@ async function handleMessage(message, sender = null) {
         if (det && det.providerId) providerId = det.providerId;
       } catch (e) { /* mantém evolution */ }
 
-      const bundled = await loadBundledManifest(providerId);
-      if (bundled) {
-        state.extractorData = bundled;
-        state.detectedProvider = providerId;
+      bundledManifest = await loadBundledManifest(providerId);
+      if (bundledManifest) {
+        bundledProvider = providerId;
         addLog('info', `Manifest empacotado '${providerId}' carregado automaticamente (zero-upload)`);
       } else {
         addLog('error', 'Zero-upload falhou: nenhum manifest empacotado disponível');
       }
     }
 
-    await seedDealMetaFromExtractorData(state.extractorData);
+    await seedDealMetaFromExtractorData(bundledManifest || state.extractorData);
 
-    state.isListening = true;
-    // 🆕 v4.0: Usar sender.tab.id como fallback se tabId não for passado (ex: control_panel.js)
-    state.tabId = message.tabId || sender?.tab?.id || state.tabId;
-    state.error = null;
-    state.lastUpdate = Date.now();
+    // 🆕 SPR-V2: mutação serializada (o start pode competir com um tick em voo).
+    const tabId = await mutateState((s) => {
+      if (bundledManifest) {
+        s.extractorData = bundledManifest;
+        s.detectedProvider = bundledProvider;
+      }
+      s.isListening = true;
+      // 🆕 v4.0: Usar sender.tab.id como fallback se tabId não for passado (ex: control_panel.js)
+      s.tabId = message.tabId || sender?.tab?.id || s.tabId;
+      s.error = null;
+      s.lastUpdate = Date.now();
+      return { value: s.tabId };
+    });
     readCount = 0;
 
-    await saveState(state);
-    await unsuppressTab(state.tabId); // início explícito remove a supressão (achado #1)
+    await unsuppressTab(tabId); // início explícito remove a supressão (achado #1)
 
     // 🆕 v2.6: Usar alarms persistentes
     startReadLoopAlarm();
@@ -1180,17 +1527,17 @@ async function handleMessage(message, sender = null) {
     // 🆕 v4.0: Broadcast para atualizar UIs
     broadcastToTabs({ action: 'stateSync', data: { isListening: true } });
 
-    console.log('✅ Escuta iniciada para tab:', state.tabId);
+    console.log('✅ Escuta iniciada para tab:', tabId);
     return { success: true };
   }
 
   if (action === 'stopListening') {
-    const state = await getState();
-    const stoppedTab = state.tabId;
-    state.isListening = false;
-    state.error = null;
-
-    await saveState(state);
+    const stoppedTab = await mutateState((state) => {
+      const tab = state.tabId;
+      state.isListening = false;
+      state.error = null;
+      return { value: tab };
+    });
 
     // Teardown PRIMEIRO — não pode ser pulado se o suppress (storage) falhar (achado #c)
     stopAllAlarms();
@@ -1242,39 +1589,53 @@ async function handleMessage(message, sender = null) {
   // Só envia correção se for mudança MANUAL do usuário
   if (action === 'setDirection') {
     const isManualCorrection = message.manual === true;  // 🔧 Flag para distinguir
-    currentDirection = message.direction || 'horario';
-    // 🆕 DIR8 (sentido-fase): a definição manual ANCORA a fase-semente (operador) e a
-    // propaga ao servidor (autoridade), que re-ancora a projeção determinística.
-    // 🆕 DIR13 (sentido-fase): le directionLocked do storage e propaga ao servidor.
-    //    Com SDA_LOCK_TOTAL=1, lock impede auto-seed/reanchoragem no servidor.
-    directionSeed = currentDirection;
+    // 🆕 SPR-V2: espera a re-hidratação e serializa — o toggle manual chegando durante
+    // um state_sync divergente não pode regravar a direção velha.
+    await hydrationReady();
     const _stored = await chrome.storage.local.get(['directionLocked']);
     const _locked = !!_stored.directionLocked;
-    chrome.storage.local.set({ directionSeed, currentDirection });
-    if (isManualCorrection) {
-      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: _locked });
-    }
-    console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection}, locked: ${_locked})`);
-    addLog('info', `Direção alterada: ${currentDirection}${_locked ? ' 🔒' : ''}`);
 
-    // Só recalcula e envia se for correção MANUAL do usuário
-    if (isManualCorrection) {
-      const state = await getState();
-      if (state.resultsWithDir && state.resultsWithDir.length > 0) {
+    const recalculado = await mutateState(async (state) => {
+      currentDirection = message.direction || 'horario';
+      // 🆕 DIR8 (sentido-fase): a definição manual ANCORA a fase-semente (operador) e a
+      // propaga ao servidor (autoridade), que re-ancora a projeção determinística.
+      // 🆕 DIR13 (sentido-fase): le directionLocked do storage e propaga ao servidor.
+      //    Com SDA_LOCK_TOTAL=1, lock impede auto-seed/reanchoragem no servidor.
+      directionSeed = currentDirection;
+      await chrome.storage.local.set({ directionSeed, currentDirection });
+
+      const d = ensureDir20(state);
+      // Só a âncora MANUAL do operador invalida a expectativa de eco do giro em voo.
+      // O popup também emite `setDirection` de forma automática (eco do
+      // `storage.onChanged` disparado pelo próprio flip, e ao abrir a janela); se esse
+      // eco desarmasse o PA-ACK, o flip de um giro rejeitado nunca seria revertido —
+      // o entregável do Bloco 4.4 ficaria inerte em produção.
+      if (isManualCorrection) {
+        d.paAwaitingAck = false;
+        d.paSeqBeforeSend = null;
+      }
+
+      // Só recalcula se for correção MANUAL do usuário
+      if (isManualCorrection && Array.isArray(state.resultsWithDir) && state.resultsWithDir.length > 0) {
         let tempDir = currentDirection;
         for (let i = 0; i < state.resultsWithDir.length; i++) {
           state.resultsWithDir[i].direcao = tempDir;
-          tempDir = tempDir === 'horario' ? 'anti-horario' : 'horario';
+          tempDir = phaseFlip(tempDir);
         }
-        await saveState(state);
+        return { value: state.resultsWithDir.map((r) => ({ ...r })) };
+      }
+      return { value: null };
+    });
 
+    console.log(`🔄 Direção alterada para: ${currentDirection} (manual: ${isManualCorrection}, locked: ${_locked})`);
+    addLog('info', `Direção alterada: ${currentDirection}${_locked ? ' 🔒' : ''}`);
+
+    // Envio ao servidor FORA da seção crítica (nada de rede dentro do lock).
+    if (isManualCorrection) {
+      sendToWebSocket({ type: 'set_seed', direction: currentDirection, locked: _locked });
+      if (recalculado) {
         console.log('📊 Histórico recalculado (correção manual)');
-
-        // Enviar correção para Python
-        sendToWebSocket({
-          type: 'correcao_historico',
-          resultados: state.resultsWithDir
-        });
+        sendToWebSocket({ type: 'correcao_historico', resultados: recalculado });
       }
     }
 
@@ -1297,9 +1658,21 @@ async function handleMessage(message, sender = null) {
 }
 
 // ===== FUNÇÕES DE ESTADO =====
-async function getState() {
+// Campos de APRESENTAÇÃO injetados por getState(): nunca podem ser persistidos, senão
+// congelam no storage e passam a mentir (ex.: isConnected=true com o WS caído).
+const VOLATILE_STATE_KEYS = ['isConnected', 'deviceRole', 'wsUrl'];
+
+// Estado PERSISTIDO cru — é sobre ele que `mutateState` opera.
+async function readPersistedState() {
   const data = await chrome.storage.local.get(['escutaState']);
-  const state = data.escutaState || { ...DEFAULT_STATE };
+  const state = data.escutaState ? { ...data.escutaState } : { ...DEFAULT_STATE };
+  ensureDir20(state);
+  return state;
+}
+
+// Visão do estado para leitores (popup, painel, logs): persistido + voláteis.
+async function getState() {
+  const state = await readPersistedState();
   return {
     ...state,
     isConnected: wsConnected,
@@ -1309,8 +1682,11 @@ async function getState() {
 }
 
 async function saveState(state) {
-  await chrome.storage.local.set({ escutaState: state });
+  const clean = { ...state };
+  for (const k of VOLATILE_STATE_KEYS) delete clean[k];
+  await chrome.storage.local.set({ escutaState: clean });
 }
+
 
 // ===== LOOP DE LEITURA (v2.6 - PERSISTENTE) =====
 // 🆕 Usa chrome.alarms em vez de setInterval
@@ -1454,26 +1830,66 @@ function buildBroadcastState(state, pageNumbers, rawMonitoring) {
 }
 
 // ===== LEITURA DE RESULTADOS =====
-async function readResults() {
-  const state = await getState();
+// 🆕 SPR-V2: escolha do frame com preferência PEGAJOSA (sticky). Antes pegávamos o
+// PRIMEIRO frame com números — a ordem dos frames do Chrome não é estável, então o
+// lobby (outra lista de números) podia ganhar do jogo e disparar "leitura não alinhada".
+// Regra: 1) o frame que já funcionou (lastGoodFrameId); 2) a lista mais longa.
+function selectNumbersFrame(injectionResults, stickyFrameId) {
+  const candidates = [];
+  for (const r of (injectionResults || [])) {
+    const numbers = r && r.result && Array.isArray(r.result.numbers) ? r.result.numbers : null;
+    if (!numbers || numbers.length === 0) continue;
+    candidates.push({
+      frameId: (r.frameId === undefined || r.frameId === null) ? 0 : r.frameId,
+      numbers: numbers,
+      elementsFound: (r.result.elementsFound || 0)
+    });
+  }
+  if (candidates.length === 0) return { frameId: null, numbers: [], elementsFound: 0 };
 
+  if (stickyFrameId !== null && stickyFrameId !== undefined) {
+    const sticky = candidates.find((c) => c.frameId === stickyFrameId);
+    if (sticky) return sticky;
+  }
+  return candidates.reduce((a, b) => (b.numbers.length > a.numbers.length ? b : a));
+}
+
+async function readResults() {
+  // Guard de reentrância: um tick atrasado NÃO se sobrepõe ao seguinte.
+  const outcome = await _readGuard.run(readResultsInner);
+  if (outcome && outcome.skipped) {
+    console.log('⏭️ SPR-V2: tick ignorado (leitura anterior ainda em curso)');
+  }
+  return outcome ? outcome.value : undefined;
+}
+
+async function readResultsInner() {
+  // Nenhuma decisão de FASE antes do estado persistido voltar do storage.
+  await hydrationReady();
+
+  // Fail-closed: sem o módulo puro (importScripts falhou) NÃO lemos — cair no
+  // algoritmo inline legado que fabricava giros derrotaria o sprint inteiro.
+  if (!phaseAlignReady()) {
+    console.error('🛑 SPR-V2: phase_align.js indisponível — leitura suspensa (fail-closed).', phaseAlignLoadError || '');
+    addLog('error', 'phase_align.js não carregou — leitura suspensa (fail-closed)');
+    return;
+  }
+
+  const state = await getState();
   if (!state.isListening || !state.tabId) {
     console.log('❌ Leitura cancelada - isListening:', state.isListening, 'tabId:', state.tabId);
     return;
   }
-
+  const tabId = state.tabId;
   readCount++;
 
   try {
     // Verificar se aba existe
-    let tab;
     try {
-      tab = await chrome.tabs.get(state.tabId);
+      await chrome.tabs.get(tabId);
     } catch (e) {
-      console.log('❌ Aba não existe mais:', state.tabId);
-      state.isListening = false;
-      state.error = 'Aba fechada';
-      await saveState(state);
+      console.log('❌ Aba não existe mais:', tabId);
+      await mutateState((s) => { s.isListening = false; s.error = 'Aba fechada'; });
       stopAllAlarms();
       setBadge(''); // limpa o badge quando a aba some (achado #2)
       return;
@@ -1481,187 +1897,116 @@ async function readResults() {
 
     // Executar script na página
     const injectionResults = await chrome.scripting.executeScript({
-      target: { tabId: state.tabId, allFrames: true },
+      target: { tabId, allFrames: true },
       func: extractResultsFromPage
     });
 
-    // Debug: mostrar o que foi encontrado
-    let totalElementsFound = 0;
-    let newNumbers = [];
-
-    for (const result of injectionResults) {
-      if (result.result) {
-        if (result.result.numbers && result.result.numbers.length > 0) {
-          newNumbers = result.result.numbers;
-          totalElementsFound = result.result.elementsFound;
-          break;
-        }
-      }
-    }
+    const picked = selectNumbersFrame(injectionResults, ensureDir20(state).lastGoodFrameId);
+    const newNumbers = picked.numbers;
+    const totalElementsFound = picked.elementsFound;
+    const pickedFrameId = picked.frameId;
 
     // Log a cada 10 leituras
     if (readCount % 10 === 1) {
-      console.log(`📊 Leitura #${readCount}: ${totalElementsFound} elementos, ${newNumbers.length} números:`, newNumbers.slice(0, 5));
+      console.log(`📊 Leitura #${readCount}: ${totalElementsFound} elementos, ${newNumbers.length} números (frame ${pickedFrameId}):`, newNumbers.slice(0, 5));
     }
 
+    // ===== COLETA DE MONITORAMENTO E SESSÃO (I/O FORA DA SEÇÃO CRÍTICA) =====
+    let combinedMonitoring = null;
+    let combinedSession = null;
+
     if (newNumbers.length > 0) {
-      const newHash = newNumbers.slice(0, 5).join(',');
-
-      // Atualizar debug no estado
-      state.debug = {
-        lastRead: new Date().toISOString(),
-        readCount: readCount,
-        elementsFound: totalElementsFound,
-        numbersFound: newNumbers.length,
-        currentHash: newHash,
-        lastHash: state.lastHash
-      };
-
-      // ===== NOVA SEÇÃO: COLETA DE DADOS DE MONITORAMENTO (PARALELA) =====
       // 🆕 v2.3: Sempre tentar monitoramento, mesmo sem config (usa fallbacks)
       const monitoringConfig = state.extractorData?.data?.monitoring || {};
-
       try {
         // Executar segunda injeção APENAS para monitoramento
         const monitoringResults = await chrome.scripting.executeScript({
-          target: { tabId: state.tabId, allFrames: true }, // Procurar em todos os frames (iframe Evolution)
+          target: { tabId, allFrames: true }, // Procurar em todos os frames (iframe Evolution)
           func: extractMonitoringData,
           args: [monitoringConfig]
         });
 
         // 🆕 v2.5: CORREÇÃO CRÍTICA - Acumular dados de TODOS os frames!
         // O saldo pode estar em um frame, a ficha em outro, etc.
-        let combinedMonitoring = {
-          gameStatus: null,
-          gameStatusRaw: null,
-          gameStatusMethod: null,
-          isOpen: null,
-          balance: null,
-          currentBet: null,
-          activeChip: null,
-          frameUrl: null,
-          debug: {}
+        const acc = {
+          gameStatus: null, gameStatusRaw: null, gameStatusMethod: null, isOpen: null,
+          balance: null, currentBet: null, activeChip: null, frameUrl: null, debug: {}
         };
 
         for (const result of monitoringResults) {
-          if (result.result) {
-            const data = result.result;
+          if (!result.result) continue;
+          const data = result.result;
 
-            // 🆕 v2.5: Log estruturado de cada frame com info de gameStatus
-            if (readCount % 10 === 1) {
-              addLog('monitoring', 'Frame analisado', {
-                gameStatus: data.gameStatus,
-                isOpen: data.isOpen,
-                method: data.gameStatusMethod,
-                balance: data.balance,
-                currentBet: data.currentBet,
-                activeChip: data.activeChip,
-                frameUrl: data.frameUrl?.substring(0, 60),
-                debug: data.debug
-              });
-            }
-
-            // Acumular dados - pegar o primeiro não-nulo de cada campo
-            // 🆕 v2.5: Priorizar gameStatus que tem isOpen definido
-            if (combinedMonitoring.isOpen === null && data.isOpen !== null) {
-              combinedMonitoring.gameStatus = data.gameStatus;
-              combinedMonitoring.gameStatusRaw = data.gameStatusRaw;
-              combinedMonitoring.gameStatusMethod = data.gameStatusMethod;
-              combinedMonitoring.isOpen = data.isOpen;
-              combinedMonitoring.debug = data.debug;
-              addLog('success', 'gameStatus detectado', {
-                status: data.gameStatus,
-                isOpen: data.isOpen,
-                method: data.gameStatusMethod,
-                raw: data.gameStatusRaw?.substring(0, 40)
-              });
-            }
-            if (!combinedMonitoring.balance && data.balance) {
-              combinedMonitoring.balance = data.balance;
-              addLog('success', 'balance encontrado', { value: data.balance });
-            }
-            if (!combinedMonitoring.currentBet && data.currentBet) {
-              combinedMonitoring.currentBet = data.currentBet;
-              addLog('success', 'currentBet encontrado', { value: data.currentBet });
-            }
-            if (!combinedMonitoring.activeChip && data.activeChip) {
-              combinedMonitoring.activeChip = data.activeChip;
-              addLog('success', 'activeChip encontrado', { value: data.activeChip });
-            }
-          }
-        }
-
-
-        // Verificar se encontramos algo útil
-        const hasData = combinedMonitoring.balance || combinedMonitoring.gameStatus ||
-          combinedMonitoring.activeChip || combinedMonitoring.currentBet ||
-          combinedMonitoring.isOpen !== null;
-
-        if (hasData) {
-          // Construir BroadcastState
-          const broadcast = buildBroadcastState(state, newNumbers, combinedMonitoring);
-
-          // 🆕 v2.5: Atualizar estado com dados de monitoramento INCLUINDO isOpen
-          state.monitoringData = {
-            gameStatus: combinedMonitoring.gameStatus,
-            gameStatusRaw: combinedMonitoring.gameStatusRaw,
-            gameStatusMethod: combinedMonitoring.gameStatusMethod,
-            isOpen: combinedMonitoring.isOpen,  // ⬅️ CRÍTICO: true = pode apostar!
-            balance: broadcast.liveState.balance,
-            currentBet: broadcast.liveState.currentRoundBet,
-            activeChip: broadcast.liveState.activeChipValue,
-            debug: combinedMonitoring.debug
-          };
-
-          state.broadcastState = broadcast;
-
-          // 🆕 v2.5: Log com emoji diferente para ABERTO/FECHADO
-          const statusEmoji = combinedMonitoring.isOpen === true ? '🟢' :
-            combinedMonitoring.isOpen === false ? '🔴' : '⚪';
-
-          // Log apenas se status mudou ou a cada 10 leituras
-          if (readCount % 10 === 1 || state.lastGameStatus !== broadcast.liveState.status) {
-            console.log(`${statusEmoji} Status: ${combinedMonitoring.gameStatus} (isOpen: ${combinedMonitoring.isOpen}) | Saldo: R$ ${broadcast.liveState.balance.toFixed(2)} | Ficha: ${broadcast.liveState.activeChipValue}`);
-            state.lastGameStatus = broadcast.liveState.status;
-
-            // 🆕 v2.5: Log estruturado da mudança de status
-            addLog('info', `Status mudou para ${combinedMonitoring.gameStatus}`, {
-              isOpen: combinedMonitoring.isOpen,
-              method: combinedMonitoring.gameStatusMethod,
-              balance: broadcast.liveState.balance
+          // 🆕 v2.5: Log estruturado de cada frame com info de gameStatus
+          if (readCount % 10 === 1) {
+            addLog('monitoring', 'Frame analisado', {
+              gameStatus: data.gameStatus, isOpen: data.isOpen, method: data.gameStatusMethod,
+              balance: data.balance, currentBet: data.currentBet, activeChip: data.activeChip,
+              frameUrl: data.frameUrl?.substring(0, 60), debug: data.debug
             });
           }
 
-          // Salvar estado com dados de monitoramento atualizados
-          await saveState(state);
-        } else {
-          console.log('⚠️ Nenhum frame retornou dados de monitoramento');
+          // Acumular dados - pegar o primeiro não-nulo de cada campo
+          // 🆕 v2.5: Priorizar gameStatus que tem isOpen definido
+          if (acc.isOpen === null && data.isOpen !== null) {
+            acc.gameStatus = data.gameStatus;
+            acc.gameStatusRaw = data.gameStatusRaw;
+            acc.gameStatusMethod = data.gameStatusMethod;
+            acc.isOpen = data.isOpen;
+            acc.debug = data.debug;
+            addLog('success', 'gameStatus detectado', {
+              status: data.gameStatus, isOpen: data.isOpen,
+              method: data.gameStatusMethod, raw: data.gameStatusRaw?.substring(0, 40)
+            });
+          }
+          if (!acc.balance && data.balance) {
+            acc.balance = data.balance;
+            addLog('success', 'balance encontrado', { value: data.balance });
+          }
+          if (!acc.currentBet && data.currentBet) {
+            acc.currentBet = data.currentBet;
+            addLog('success', 'currentBet encontrado', { value: data.currentBet });
+          }
+          if (!acc.activeChip && data.activeChip) {
+            acc.activeChip = data.activeChip;
+            addLog('success', 'activeChip encontrado', { value: data.activeChip });
+          }
         }
 
+        // Verificar se encontramos algo útil
+        const hasData = acc.balance || acc.gameStatus || acc.activeChip ||
+          acc.currentBet || acc.isOpen !== null;
+        if (hasData) combinedMonitoring = acc;
+        else console.log('⚠️ Nenhum frame retornou dados de monitoramento');
       } catch (monitoringError) {
         // Erro no monitoramento não quebra a funcionalidade principal
         console.warn('⚠️ Erro ao coletar monitoramento:', monitoringError.message);
       }
-      // ===== FIM DA NOVA SEÇÃO =====
 
-      // ===== NOVA SEÇÃO v18.2 (14/06): COLETA DE DADOS DE SESSÃO (dealer/round/table) =====
-      // Data-driven: usa seletores de state.extractorData.data.session do extrator_completo.json.
-      // Tudo opcional: se o JSON nao tiver bloco session, simplesmente nao popula sessionData
-      // e o caminho legacy (deal_capture.js + latestDealMeta) continua sendo a fonte.
+      // ===== SESSÃO (dealer/round/table) — v18.2, data-driven =====
       const sessionConfig = state.extractorData?.data?.session || null;
       if (sessionConfig && typeof extractSessionData === 'function') {
         try {
-          const sessionResults = await chrome.scripting.executeScript({
-            target: { tabId: state.tabId, allFrames: true },
+          const rawSession = await chrome.scripting.executeScript({
+            target: { tabId, allFrames: true },
             func: extractSessionData,
             args: [sessionConfig, { collectCandidates: (readCount % 5 === 1) }]
           });
 
-          const combinedSession = (typeof combineSessionFrames === 'function')
+          // 🆕 SPR-V2: o frame escolhido para os NÚMEROS vem primeiro — a combinação
+          // pega "o primeiro não-nulo", então a mesa/round precisam ser da MESMA
+          // realidade que gerou o baseline (senão o re-baseline usa a mesa do lobby).
+          const sessionResults = (rawSession || []).slice().sort((a, b) => {
+            const av = (a && a.frameId === pickedFrameId) ? 0 : 1;
+            const bv = (b && b.frameId === pickedFrameId) ? 0 : 1;
+            return av - bv;
+          });
+
+          combinedSession = (typeof combineSessionFrames === 'function')
             ? combineSessionFrames(sessionResults)
             : (function () {
                 const out = { dealer: null, round_id: null, table: null, frameUrl: null };
-                for (const r of (sessionResults || [])) {
+                for (const r of sessionResults) {
                   const d = r && r.result;
                   if (!d) continue;
                   if (!out.dealer && d.dealer) out.dealer = d.dealer;
@@ -1672,21 +2017,11 @@ async function readResults() {
                 return out;
               })();
 
-          if (combinedSession.dealer || combinedSession.round_id || combinedSession.table) {
-            state.sessionData = {
-              dealer: combinedSession.dealer,
-              round_id: combinedSession.round_id,
-              table: combinedSession.table,
-              frameUrl: combinedSession.frameUrl,
-              lastUpdate: new Date().toISOString()
-            };
-            if (readCount % 10 === 1) {
-              addLog('monitoring', 'Sessão capturada (data-driven)', state.sessionData);
-            }
+          if (readCount % 10 === 1 && (combinedSession.dealer || combinedSession.round_id || combinedSession.table)) {
+            addLog('monitoring', 'Sessão capturada (data-driven)', combinedSession);
           }
           // DEAL-AUDIT 15/06: se o dealer NAO casou nenhum seletor, logar os candidatos
-          // do DOM (coletados sob demanda) para afinar evolution.json > data.session.dealer
-          // sem chute. Aparece nos logs da Escuta (popup) a cada ~5 leituras.
+          // do DOM para afinar evolution.json > data.session.dealer sem chute.
           if (!combinedSession.dealer && Array.isArray(combinedSession.dealerCandidates)
               && combinedSession.dealerCandidates.length && readCount % 5 === 1) {
             addLog('monitoring', 'Dealer NAO capturado — candidatos no DOM (afinar seletores)', {
@@ -1699,151 +2034,242 @@ async function readResults() {
           console.warn('⚠️ Erro ao coletar sessão:', sessionError.message);
         }
       }
-      // ===== FIM DA SEÇÃO SESSION =====
+    }
 
-      if (newHash !== state.lastHash && state.lastHash !== '') {
-        // NOVO RESULTADO!
-        const newNumber = newNumbers[0];
-        // 🆕 DIR1 (sentido-fase): quantos giros novos entraram desde a última leitura
-        // (antes de sobrescrever state.results). A fase do número mais recente e a próxima
-        // fase derivam dessa contagem. Quando k=1 (caso normal) sendDir==currentDirection
-        // e tudo fica idêntico ao comportamento anterior; só difere quando k>1 (corrige gap).
-        const _prevResults = Array.isArray(state.results) ? state.results.slice() : [];
-        const _novos = countNewSpins(newNumbers, _prevResults);
-        const sendDir = (_novos % 2 === 1) ? currentDirection : phaseFlip(currentDirection);
-        if (_novos > 1) {
-          console.log(`🔄 DIR1: ${_novos} giros novos detectados — fase do envio = ${sendDir}`);
-        }
-        state.totalRead++;
-        state.results = newNumbers.slice(0, 12);
-        state.lastHash = newHash;
-        state.lastUpdate = Date.now();
-        state.error = null;
+    // ===== SEÇÃO CRÍTICA ÚNICA: decide + persiste (sem I/O de rede/DOM aqui) =====
+    const plan = await mutateState((s) => {
+      const d = ensureDir20(s);
 
-        // 🆕 v2.8: Armazenar resultado COM direção para exibir setas no popup
-        if (!state.resultsWithDir) state.resultsWithDir = [];
-        state.resultsWithDir.unshift({ numero: newNumber, direcao: sendDir });
-        if (state.resultsWithDir.length > 12) {
-          state.resultsWithDir = state.resultsWithDir.slice(0, 12);
-        }
+      if (combinedSession && (combinedSession.dealer || combinedSession.round_id || combinedSession.table)) {
+        s.sessionData = {
+          dealer: combinedSession.dealer,
+          round_id: combinedSession.round_id,
+          table: combinedSession.table,
+          frameUrl: combinedSession.frameUrl,
+          lastUpdate: new Date().toISOString()
+        };
+      }
 
-        console.log(`🎯 NOVO RESULTADO: ${newNumber} (Total: ${state.totalRead})`);
+      if (combinedMonitoring) {
+        const broadcast = buildBroadcastState(s, newNumbers, combinedMonitoring);
+        // 🆕 v2.5: Atualizar estado com dados de monitoramento INCLUINDO isOpen
+        s.monitoringData = {
+          gameStatus: combinedMonitoring.gameStatus,
+          gameStatusRaw: combinedMonitoring.gameStatusRaw,
+          gameStatusMethod: combinedMonitoring.gameStatusMethod,
+          isOpen: combinedMonitoring.isOpen,  // ⬅️ CRÍTICO: true = pode apostar!
+          balance: broadcast.liveState.balance,
+          currentBet: broadcast.liveState.currentRoundBet,
+          activeChip: broadcast.liveState.activeChipValue,
+          debug: combinedMonitoring.debug
+        };
+        s.broadcastState = broadcast;
 
-        // 🆕 v2.7: Enviar para servidor Python via WebSocket
-        // SP-11 DEAL-01 (27/05): incluir dealer/table/provider via deal_meta capturado por content.js
-        // FIX 2 (27/05 audit pos-reload): MV3 service worker dorme e perde
-        // latestDealMeta. Le do storage.local.dealMeta de forma SINCRONA via await.
-        let _dm = (typeof latestDealMeta === 'object' && latestDealMeta) ? latestDealMeta : null;
-        if (!_dm) {
-          try {
-            const stored = await new Promise((res) => chrome.storage.local.get(['dealMeta'], res));
-            _dm = stored.dealMeta || {};
-            if (stored.dealMeta) latestDealMeta = stored.dealMeta; // re-hidrata cache
-          } catch (_) { _dm = {}; }
-        }
-        // v18.2 (14/06): data-driven session capture tem prioridade sobre deal_capture legacy.
-        // state.sessionData vem do bloco data.session do extrator_completo.json (Etapa 2-4).
-        // Se nao tiver dado, cai para latestDealMeta (deal_capture.js).
-        const _sd = (state.sessionData && typeof state.sessionData === 'object') ? state.sessionData : {};
-        console.log('🎯 DEAL meta no envio:', { sessionData: _sd, dealMeta: _dm });
-        const sent = sendToWebSocket({
-          type: 'novo_resultado',
-          numero: newNumber,
-          direcao: sendDir,  // 🆕 v2.7 + DIR1: fase do giro (corrigida por shift local)
-          trace_id: `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,  // 🆕 v3.1: ID único
-          t_client: Date.now(),  // 🆕 v3.1: Timestamp cliente
-          timestamp: Date.now(),
-          allNumbers: newNumbers.slice(0, 12),
-          monitoringData: state.monitoringData,
-          dealer: _sd.dealer || _dm.dealer || null,         // SP-11 + v18.2 data-driven first
-          table: _sd.table || _dm.table || null,            // SP-11 + v18.2 data-driven first
-          provider: _dm.provider || null,                   // SP-11 (provider continua do deal_meta - URL-based)
-          round_id: _sd.round_id || _dm.round_id || null    // SP-11 + v18.2 data-driven first
-        });
-
-        if (sent) {
-          const dirLabel = sendDir === 'horario' ? '⬅️' : '➡️';
-          addLog('result', `Enviado: ${newNumber} ${dirLabel}`, { wsConnected: true, direcao: sendDir });
-        }
-
-        // 📸 Vision (foto_roleta): apos enviar o numero, tira UMA foto da tela e
-        // envia ao servidor para OCR (foto->dados). Gated por flag, defensivo
-        // (try/catch nunca quebra o read-loop). 1 frame por giro.
-        try {
-          await captureAndSendFrame(state);
-        } catch (e) {
-          console.warn('📸 captura de frame falhou (ignorado):', e && e.message);
-        }
-
-        // 🆕 v2.8 + DIR1: a próxima fase é o oposto da fase do número recém-enviado.
-        // Quando k=1 (caso normal) sendDir==currentDirection, então isto é idêntico ao
-        // comportamento anterior; só difere quando k>1, corrigindo o gap de paridade.
-        const previousDir = currentDirection;
-        currentDirection = phaseFlip(sendDir);
-        console.log(`🔄 Direção alternada: ${previousDir} → ${currentDirection} (k=${_novos})`);
-
-        // Salvar direção no storage para sincronizar com popup
-        await chrome.storage.local.set({ currentDirection: currentDirection });
-
-        await saveState(state);
-
-      } else if (state.lastHash === '') {
-        // Primeira leitura - definir hash inicial
-        state.results = newNumbers.slice(0, 12);
-        state.lastHash = newHash;
-        state.lastUpdate = Date.now();
-
-        // 🆕 v2.8: Engenharia reversa de direção para histórico inicial
-        // O número mais recente (índice 0) assume a direção atual
-        // Os anteriores alternam retroativamente
-        if (!state.resultsWithDir) state.resultsWithDir = [];
-        state.resultsWithDir = [];
-
-        let tempDir = currentDirection;
-        for (let i = 0; i < newNumbers.length && i < 12; i++) {
-          state.resultsWithDir.push({
-            numero: newNumbers[i],
-            direcao: tempDir
+        // 🆕 v2.5: Log com emoji diferente para ABERTO/FECHADO
+        const statusEmoji = combinedMonitoring.isOpen === true ? '🟢'
+          : combinedMonitoring.isOpen === false ? '🔴' : '⚪';
+        if (readCount % 10 === 1 || s.lastGameStatus !== broadcast.liveState.status) {
+          console.log(`${statusEmoji} Status: ${combinedMonitoring.gameStatus} (isOpen: ${combinedMonitoring.isOpen}) | Saldo: R$ ${broadcast.liveState.balance.toFixed(2)} | Ficha: ${broadcast.liveState.activeChipValue}`);
+          s.lastGameStatus = broadcast.liveState.status;
+          addLog('info', `Status mudou para ${combinedMonitoring.gameStatus}`, {
+            isOpen: combinedMonitoring.isOpen,
+            method: combinedMonitoring.gameStatusMethod,
+            balance: broadcast.liveState.balance
           });
-          // Alternar para o próximo (mais antigo)
-          tempDir = tempDir === 'horario' ? 'anti-horario' : 'horario';
+        }
+      }
+
+      if (newNumbers.length === 0) {
+        // Nenhum número encontrado — nada de fase muda.
+        s.debug = Object.assign({}, s.debug, {
+          lastRead: new Date().toISOString(), readCount,
+          elementsFound: 0, numbersFound: 0, error: 'Nenhum elemento encontrado'
+        });
+        if (readCount % 10 === 1) console.log('⚠️ Nenhum elemento [data-role="recent-number"] encontrado');
+        return { value: null };
+      }
+
+      const decision = PhaseAlign.decideTick({
+        numbers: newNumbers,
+        baseline: Array.isArray(s.results) ? s.results : [],
+        baselineHash: s.lastHash || '',
+        currentDirection,
+        unalignedStreak: d.unalignedStreak,
+        maxSkips: DIR20_MAX_SKIPS,
+        tableNow: s.sessionData?.table || null,
+        tableAtBaseline: d.baselineTable || null,
+        strict: dir20Active()   // kill-switch: false ⇒ semântica v3.9.1
+      });
+
+      // 🆕 SPR-V2: TODA leitura fica observável, inclusive a descartada.
+      s.debug = Object.assign({}, s.debug, {
+        lastRead: new Date().toISOString(), readCount,
+        elementsFound: totalElementsFound, numbersFound: newNumbers.length,
+        currentHash: baselineFingerprint(newNumbers), lastHash: s.lastHash,
+        frameId: pickedFrameId, alignAction: decision.action, alignReason: decision.reason,
+        alignK: decision.k, alignOverlap: decision.overlap, error: null
+      });
+      d.unalignedStreak = decision.streak;
+      d.lastReason = decision.reason;
+      d.lastFrameId = pickedFrameId;
+      d.lastRoundId = s.sessionData?.round_id || null;
+      d.lastTable = s.sessionData?.table || null;
+      s.lastUpdate = Date.now();
+
+      if (decision.action === 'skip') {
+        // ⛔ NÃO envia, NÃO flipa, NÃO toca no baseline, NÃO promove o frame.
+        d.skippedUnaligned++;
+        console.warn(`⛔ SPR-V2: leitura descartada (${decision.reason}) — streak=${d.unalignedStreak}, frame=${pickedFrameId}`);
+        addLog('warning', `Leitura não alinhada descartada (${decision.reason})`, {
+          streak: d.unalignedStreak, frameId: pickedFrameId, numbers: newNumbers.slice(0, 5)
+        });
+        return { value: null };
+      }
+
+      if (decision.action === 'noop') {
+        // Mesmo DOM (ou releitura truncada com mesmo prefixo): frame é bom, fase intacta.
+        d.lastGoodFrameId = pickedFrameId;
+        return { value: null };
+      }
+
+      if (decision.action === 'baseline_init' || decision.action === 'rebaseline') {
+        s.results = decision.newBaseline;
+        s.lastHash = decision.newHash;
+        d.baselineVersion = 2;
+        d.baselineTable = s.sessionData?.table || null;
+        d.lastGoodFrameId = pickedFrameId;
+        if (decision.action === 'rebaseline') {
+          d.rebaselines++;
+          console.warn(`♻️ SPR-V2: baseline re-ancorado após ${DIR20_MAX_SKIPS} leituras não alinhadas (mesa mudou: ${decision.tableChanged})`);
+          addLog('warning', 'Baseline re-ancorado (sem inventar giro)', {
+            tableChanged: decision.tableChanged, table: d.baselineTable
+          });
         }
 
-        console.log('📌 Hash inicial definido com direções retroativas:', newHash);
-        console.log('   Direções atribuídas:', state.resultsWithDir.slice(0, 5).map(r => `${r.numero}${r.direcao === 'horario' ? '⬅️' : '➡️'}`).join(' '));
-
-        // 🆕 v2.8: Enviar histórico inicial para Python processar em batch
-        sendToWebSocket({
-          type: 'historico_inicial',
-          resultados: state.resultsWithDir
-        });
-
-        await saveState(state);
-      } else {
-        // Mesmo hash - apenas atualizar debug
-        await saveState(state);
+        // 🆕 v2.8: engenharia reversa de direção para o histórico ancorado.
+        // O número mais recente (índice 0) assume a direção atual; os anteriores alternam.
+        s.resultsWithDir = [];
+        let tempDir = currentDirection;
+        for (let i = 0; i < decision.newBaseline.length && i < 12; i++) {
+          s.resultsWithDir.push({ numero: decision.newBaseline[i], direcao: tempDir });
+          tempDir = phaseFlip(tempDir);
+        }
+        // `historico_inicial` só com evidência (1ª ancoragem ou troca de mesa).
+        return { value: decision.sendHistorico ? { kind: 'historico', resultados: s.resultsWithDir.map((r) => ({ ...r })) } : null };
       }
-    } else {
-      // Nenhum número encontrado
-      state.debug = {
-        lastRead: new Date().toISOString(),
-        readCount: readCount,
-        elementsFound: 0,
-        numbersFound: 0,
-        error: 'Nenhum elemento encontrado'
+
+      // action === 'send' — giro(s) real(is), com prova de overlap.
+      const newNumber = newNumbers[0];
+      s.totalRead++;
+      s.results = decision.newBaseline;
+      s.lastHash = decision.newHash;
+      s.error = null;
+      d.baselineVersion = 2;
+      d.baselineTable = s.sessionData?.table || null;
+      d.lastGoodFrameId = pickedFrameId;
+
+      // 🆕 v2.8: Armazenar resultado COM direção para exibir setas no popup
+      if (!Array.isArray(s.resultsWithDir)) s.resultsWithDir = [];
+      s.resultsWithDir.unshift({ numero: newNumber, direcao: decision.sendDir });
+      if (s.resultsWithDir.length > 12) s.resultsWithDir = s.resultsWithDir.slice(0, 12);
+
+      if (decision.k > 1) console.log(`🔄 DIR1: ${decision.k} giros novos detectados — fase do envio = ${decision.sendDir}`);
+      console.log(`🎯 NOVO RESULTADO: ${newNumber} (Total: ${s.totalRead})`);
+
+      // 🆕 v2.8 + DIR1: a próxima fase é o oposto da fase do número recém-enviado.
+      const previousDir = currentDirection;
+      currentDirection = decision.nextDir;
+      console.log(`🔄 Direção alternada: ${previousDir} → ${currentDirection} (k=${decision.k})`);
+
+      // Guard do PA-ACK armado ATOMICAMENTE com o flip: entre o flip e o envio pela rede
+      // existem awaits (storage, dealMeta, client_health) e o heartbeat de 1 s do servidor
+      // cabe nessa janela. Se `paAwaitingAck` ainda fosse false ali, a reconciliação
+      // contínua veria um snapshot PRÉ-giro e desfaria a fase recém-avançada. Pelo mesmo
+      // motivo `paSeqBeforeSend` é fotografado aqui: depois do envio o valor já poderia
+      // ser o PÓS-giro, e um giro aceito seria classificado como rejeitado.
+      d.paSeqBeforeSend = d.paLastSeq;
+      d.paAwaitingAck = true;
+      d.paSentAtMs = Date.now();
+
+      return {
+        value: {
+          kind: 'resultado',
+          numero: newNumber,
+          sendDir: decision.sendDir,
+          k: decision.k,
+          allNumbers: decision.newBaseline,
+          monitoringData: s.monitoringData,
+          sessionData: (s.sessionData && typeof s.sessionData === 'object') ? { ...s.sessionData } : {}
+        }
       };
+    });
 
-      if (readCount % 10 === 1) {
-        console.log('⚠️ Nenhum elemento [data-role="recent-number"] encontrado');
-      }
+    // ===== EFEITOS (rede / captura) FORA DA SEÇÃO CRÍTICA =====
+    if (!plan) return;
 
-      await saveState(state);
+    if (plan.kind === 'historico') {
+      // 🆕 v2.8: Enviar histórico inicial para Python processar em batch
+      sendToWebSocket({ type: 'historico_inicial', resultados: plan.resultados });
+      return;
+    }
+
+    // Persistir a fase para o popup (fora do lock: storage próprio, chave própria).
+    await chrome.storage.local.set({ currentDirection });
+
+    // 🆕 v2.7: Enviar para servidor Python via WebSocket
+    // SP-11 DEAL-01 (27/05): incluir dealer/table/provider via deal_meta capturado por content.js
+    // FIX 2 (27/05 audit pos-reload): MV3 service worker dorme e perde latestDealMeta.
+    let _dm = (typeof latestDealMeta === 'object' && latestDealMeta) ? latestDealMeta : null;
+    if (!_dm) {
+      try {
+        const stored = await new Promise((res) => chrome.storage.local.get(['dealMeta'], res));
+        _dm = stored.dealMeta || {};
+        if (stored.dealMeta) latestDealMeta = stored.dealMeta; // re-hidrata cache
+      } catch (_) { _dm = {}; }
+    }
+    // v18.2 (14/06): data-driven session capture tem prioridade sobre deal_capture legacy.
+    const _sd = plan.sessionData || {};
+    console.log('🎯 DEAL meta no envio:', { sessionData: _sd, dealMeta: _dm });
+    const sent = sendToWebSocket({
+      type: 'novo_resultado',
+      numero: plan.numero,
+      direcao: plan.sendDir,  // 🆕 v2.7 + DIR1: fase do giro (corrigida por shift local)
+      trace_id: `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,  // 🆕 v3.1: ID único
+      t_client: Date.now(),  // 🆕 v3.1: Timestamp cliente
+      timestamp: Date.now(),
+      allNumbers: plan.allNumbers,
+      monitoringData: plan.monitoringData,
+      dealer: _sd.dealer || _dm.dealer || null,         // SP-11 + v18.2 data-driven first
+      table: _sd.table || _dm.table || null,            // SP-11 + v18.2 data-driven first
+      provider: _dm.provider || null,                   // SP-11 (provider continua do deal_meta - URL-based)
+      round_id: _sd.round_id || _dm.round_id || null,   // SP-11 + v18.2 data-driven first
+      k_novos: plan.k,                                  // 🆕 SPR-V2 (aditivo, ignorado por servidor antigo)
+      client_health: await buildClientHealth()          // 🆕 SPR-V2 Bloco 4.1
+    });
+
+    if (sent) {
+      const dirLabel = plan.sendDir === 'horario' ? '⬅️' : '➡️';
+      addLog('result', `Enviado: ${plan.numero} ${dirLabel}`, { wsConnected: true, direcao: plan.sendDir });
+    } else {
+      // O giro não saiu: não há eco a esperar. Desarma o guard armado com o flip, senão
+      // a graça expira e o flip local (correto, o número existiu) seria revertido.
+      await mutateState((s) => {
+        const d = ensureDir20(s);
+        d.paAwaitingAck = false;
+        d.paSeqBeforeSend = null;
+      });
+    }
+
+    // 📸 Vision (foto_roleta): apos enviar o numero, tira UMA foto da tela e envia ao
+    // servidor para OCR. Gated por flag, defensivo (try/catch nunca quebra o read-loop).
+    try {
+      await captureAndSendFrame(await getState());
+    } catch (e) {
+      console.warn('📸 captura de frame falhou (ignorado):', e && e.message);
     }
 
   } catch (error) {
     console.error('❌ Erro ao ler:', error.message);
-
-    const state = await getState();
 
     // 🆕 v2.3: Detectar se é erro de iFrame (Evolution Gaming)
     const isIframeError = error.message.includes('Cannot access') ||
@@ -1851,21 +2277,21 @@ async function readResults() {
       error.message.includes('Execution context') ||
       error.message.includes('No frame');
 
-    state.debug = {
-      lastRead: new Date().toISOString(),
-      error: error.message,
-      isIframeError: isIframeError,
-      suggestion: isIframeError ?
-        'iFrame indisponível - Aguarde "FAÇAM SUAS APOSTAS"' :
-        'Erro geral de leitura'
-    };
+    await mutateState((s) => {
+      s.debug = Object.assign({}, s.debug, {
+        lastRead: new Date().toISOString(),
+        error: error.message,
+        isIframeError,
+        suggestion: isIframeError
+          ? 'iFrame indisponível - Aguarde "FAÇAM SUAS APOSTAS"'
+          : 'Erro geral de leitura'
+      });
+    });
 
     // Se erro de iFrame nas primeiras leituras, apenas logar
     if (isIframeError && readCount <= 5) {
       console.log('⚠️ iFrame temporariamente indisponível, aguardando próxima fase de apostas...');
     }
-
-    await saveState(state);
   }
 }
 
@@ -2143,17 +2569,21 @@ function extractMonitoringData(monitoringConfig) {
 
 // ===== EVENTOS DE ABA =====
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  const state = await getState();
+  const closed = await mutateState((state) => {
+    if (tabId === state.tabId && state.isListening) {
+      state.isListening = false;
+      state.error = 'Aba fechada';
+      return { value: true };
+    }
+    return { value: false, skipSave: true };
+  });
 
-  if (tabId === state.tabId && state.isListening) {
+  if (closed) {
     console.log('🚫 Aba monitorada fechada');
-    state.isListening = false;
-    state.error = 'Aba fechada';
-    await saveState(state);
     stopAllAlarms();
     setBadge(''); // limpa o badge (achado #2)
   }
   await unsuppressTab(tabId); // limpa supressão da aba fechada (após o teardown)
 });
 
-console.log('🎧 Background v2.6 (Persistente) pronto');
+console.log(`🎧 Background ${extVersion()} (SPR-V2 single-writer) pronto`);

@@ -40,12 +40,19 @@ def test_lock_total_decision_matrix():
 
 
 def test_manifest_bumpado_para_3_9_1():
-    """Cliente em 3.9.1 (V5.2 badge dourado + minimizado único) — DIR13 preservado."""
+    """Cliente >= 3.9.1 (V5.2 badge dourado + minimizado único) — DIR13 preservado.
+
+    SPR-V2: o piso de versão passou a ser comparado por tupla em vez de igualdade
+    literal, senão todo bump de extensão quebra este lock sem nenhum sinal real de
+    regressão. O que o teste protege é (a) não regredir abaixo de 3.9.1 e (b) o
+    DIR13 continuar declarado na descrição do manifesto.
+    """
     import json
     from pathlib import Path
     repo = Path(__file__).parent.parent
     manifest = json.loads((repo / "extension" / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "3.9.1"
+    versao = tuple(int(p) for p in manifest["version"].split("."))
+    assert versao >= (3, 9, 1), f"manifesto regrediu para {manifest['version']}"
     assert "DIR13" in manifest["description"]
 
 
