@@ -13,9 +13,12 @@ final seja só **(1)** copiar os dados reais e **(2)** apontar o DNS.
 |---|---|---|
 | `compose.azure.yml` | Compose standalone; imagem por **digest** do ACR; volume no disco persistente; portas só em loopback; flags 1:1 com produção (INV-3). | VM |
 | `Caddyfile` | Reverse proxy nativo (`/ws`→8765, `/healthz`→8766, estático). `:80` no canary; domínio + auto‑TLS no cutover. | VM |
-| `kv-to-env.sh` | Lê segredos do Key Vault via Managed Identity → `/opt/roleta/.env` (0600). | VM |
-| `deploy-azure.sh` | Resolve digest, `docker pull`, seed de configs/.env/state, `compose up --no-build`, espera health. | VM |
-| `backup-sqlite-to-blob.sh` | Snapshot consistente do `decisions.db` + `state.json` → Blob (via MI). | VM |
+| `caddy.service.d/10-roleta.conf` | Carrega `/etc/caddy/caddy.env` via systemd sem colocar segredo no unit. | VM |
+| `kv-to-env.sh` | Lê segredos do Key Vault via Managed Identity → `.env` (0600) e prepara domínio/e-mail do Caddy em arquivo staged. | VM |
+| `deploy-azure.sh` | Resolve digest, valida estado, sincroniza frontend, `compose up --no-build` e espera health. | VM |
+| `backup-sqlite-to-blob.sh` | Snapshot consistente, `integrity_check`, manifesto SHA-256 e upload → Blob (via MI). | VM |
+| `restore-sqlite-from-blob.sh` | Restaura um par DB/estado sem sobrescrever sem `--force`; exige app parada. | VM |
+| `set-blob-lifecycle.sh` | Preserva regras existentes e aplica retenção dos backups SQLite. | VM |
 
 ## Recursos (RG `maquina_roleta_cloud`)
 
@@ -35,14 +38,21 @@ final seja só **(1)** copiar os dados reais e **(2)** apontar o DNS.
 Na VM (root), em `/opt/roleta` com os arquivos deste diretório copiados:
 
 ```bash
-chmod +x kv-to-env.sh deploy-azure.sh backup-sqlite-to-blob.sh
+chmod +x kv-to-env.sh deploy-azure.sh backup-sqlite-to-blob.sh \
+  restore-sqlite-from-blob.sh set-blob-lifecycle.sh
 
-# 1) Caddy nativo no modo canary (HTTP :80, sem TLS) e recarrega.
+# 1) Buscar o e-mail/domínio no KV e instalar somente o e-mail no canário.
+sudo ./kv-to-env.sh
+sudo install -m 0600 caddy.cutover.env /etc/caddy/caddy.env
+sudo sed -i 's/^SITE_ADDRESS=.*/SITE_ADDRESS=:80/' /etc/caddy/caddy.env
+sudo install -D -m 0644 caddy.service.d/10-roleta.conf \
+  /etc/systemd/system/caddy.service.d/10-roleta.conf
 sudo install -m 0644 Caddyfile /etc/caddy/Caddyfile
+sudo systemctl daemon-reload
 sudo systemctl reload caddy   # ou: caddy reload --config /etc/caddy/Caddyfile
 
 # 2) Sobe o app (resolve digest da tag azure-latest, pull, up --no-build).
-sudo ./deploy-azure.sh
+sudo ./deploy-azure.sh --allow-canary-seed
 # tag específica:  sudo ROLETA_TAG=azure-<commit> ./deploy-azure.sh
 ```
 
@@ -72,12 +82,13 @@ Depois do canary validado, o dono executa, em janela de manutenção:
 1. **Freeze + cópia dos dados reais** (evita split‑brain): parar a escrita na HostDime,
    copiar `decisions.db` (~65 MB) e `state.json` para `/opt/roleta/data` na Azure
    (ex.: `sqlite3 .backup` + `rsync`), conferir contagem de linhas/`PRAGMA integrity_check`.
-2. **Ativar domínio + TLS no Caddy:** exportar `SITE_ADDRESS=roleta.xma-ia.com` e o
-   e‑mail ACME (`CADDY-EMAIL`) para o serviço do Caddy e recarregar. O certificado
-   Let's Encrypt só emite **depois** que o DNS resolver para a VM.
+2. **Ativar domínio + TLS no Caddy:** instalar o arquivo staged
+   (`sudo install -m 0600 caddy.cutover.env /etc/caddy/caddy.env`) e recarregar.
+   O certificado Let's Encrypt só emite **depois** que o DNS resolver para a VM.
 3. **Apontar o DNS** (`roleta.xma-ia.com` + `www`) para o IP público da VM Azure.
-4. (Opcional, Onda PG) `sudo ./deploy-azure.sh --with-pg` para ligar o `dual_write`
-   após a migração do schema no Postgres — **não** faz parte do canary.
+4. (Opcional, Onda PG) `sudo ./deploy-azure.sh --with-pg --with-cdc` prepara
+   o DSN e o worker, mas **não** liga `dual_write_pg`; o flag continua exigindo
+   gate próprio e soak observado.
 
 ## Rollback
 
@@ -90,12 +101,27 @@ Depois do canary validado, o dono executa, em janela de manutenção:
 ```bash
 sudo ./backup-sqlite-to-blob.sh
 # cron diário (03:10 UTC):
-# 10 3 * * * cd /opt/roleta && ./backup-sqlite-to-blob.sh >> /var/log/roleta-backup.log 2>&1
+# 10 3 * * * cd /opt/roleta && REQUIRE_DB=1 ./backup-sqlite-to-blob.sh >> /var/log/roleta-backup.log 2>&1
+```
+
+Aplicar a retenção preservando regras já existentes:
+
+```bash
+sudo ./set-blob-lifecycle.sh
+```
+
+Teste de restore com a aplicação parada (sem `--force`, o script recusa
+sobrescrever dados existentes):
+
+```bash
+sudo ./restore-sqlite-from-blob.sh --stamp 20260805T031000Z
 ```
 
 ## Notas de segurança
 
 - `.env` é 0600 e **nunca** é commitado; segredos vêm do Key Vault em tempo de deploy.
 - Imagem fixada por **digest** (imutável) — sem `latest` mutável no runtime.
-- `ROLETA_PG_DSN` fica **vazio** no canary → `dual_write_pg` desligado (SQLite é a fonte
-  autoritativa até a Onda PG).
+- `ROLETA_PG_DSN` fica **ausente** no canary; `--with-pg` é opt-in e a senha é
+  URL-encoded. Isso não liga `dual_write_pg`, que continua flag-controlado.
+- O profile `cdc` só sobe com `--with-pg --with-cdc` e imagem publicada pelo
+  workflow `Publish Azure images`; por padrão ele fica inerte.

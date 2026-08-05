@@ -30,3 +30,15 @@ execucoes_em_19_03.md
 id_rsa*
 *.secret
 secrets/
+# Runtime state and databases must be mounted at runtime, never baked into layers.
+data/
+**/data/
+*.db
+*.db-wal
+*.db-shm
+# Keep model source code, but exclude generated/binary artifacts from the image context.
+models/*.joblib
+models/*.pkl
+models/*.onnx
+models/*.pt
+models/*.bin

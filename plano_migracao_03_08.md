@@ -360,7 +360,7 @@ Criar em sprint/PR separado:
    arquivo existente. Entregue e observado **na HostDime** antes de qualquer
    passo Azure. Sem alteração na lógica do motor; apenas configuração explícita
    do alias `STATE_FILE` (§13, A3).
-1. `docker-compose.azure.yml` como arquivo **standalone**, nunca como overlay do
+1. `compose.azure.yml` como arquivo **standalone**, nunca como overlay do
    compose base:
    - **sem chave `build:`** — a imagem vem só por digest do ACR;
    - PG externo;
@@ -389,7 +389,7 @@ Criar em sprint/PR separado:
 5. Deploy Azure que **puxa digest ACR** autenticando pela MI em dois comandos —
    `az login --identity` e depois `az acr login -n acrroletaprod` (§14, A20:
    `az acr login` **não** aceita `--identity`) — seguido de
-   `docker compose -f docker-compose.azure.yml pull` +
+   `docker compose -f compose.azure.yml pull` +
    `up -d --no-build`; nunca `docker compose build` e nunca a credencial de
    admin do ACR. Antes do `alembic upgrade head`, o script **aborta** se
    `ROLETA_PG_DSN` estiver vazio (§13, A7).
@@ -529,7 +529,7 @@ passo novo não pode invalidar as referências do runbook, da DoD e do rollback.
 | **C-17** | Preservar a cópia `hostdime-pre-cutover`, que nunca será sobrescrita | cópia em Blob com nome imutável |
 | **C-18** | Transferir para Blob/Azure; validar SHA-256 e permissões | hash de destino == hash de origem |
 | **C-19** | Restaurar SQLite, estado e modelo **no caminho efetivo do destino** | se `MIG-0` estiver aplicado, o estado vai para dentro do volume `roleta-data` (`/app/data/state.json`); caso contrário, para `$REPO_DIR/state.json`. Verificar com `test -f` no caminho correto **antes** de qualquer `up` |
-| **C-20** | Autenticar no ACR pela MI e puxar a imagem por digest | `az login --identity` → `az acr login -n acrroletaprod` → `docker compose -f docker-compose.azure.yml pull` (§14/A20) |
+| **C-20** | Autenticar no ACR pela MI e puxar a imagem por digest | `az login --identity` → `az acr login -n acrroletaprod` → `docker compose -f compose.azure.yml pull` (§14/A20) |
 | **C-21** | Subir com `up -d --no-build`; validar container, `/healthz` e logs | `docker compose config` do arquivo Azure sem `build:` |
 | **C-22** | Reconciliar o marcador de C-13 no destino | contagem e `spin_seq` idênticos |
 | **C-23** | Testar WSS pelo hostname canário e validar continuidade de `spin_seq` | handshake e primeiro frame OK |
@@ -673,7 +673,7 @@ pode executar quase toda a operação; o humano continua Accountable nos gates.
 ### Paridade
 
 - [ ] Imagem ACR por digest = imagem HostDime verificada.
-- [ ] `docker compose -f docker-compose.azure.yml config` **não contém** `build:`.
+- [ ] `docker compose -f compose.azure.yml config` **não contém** `build:`.
 - [ ] Diff entre o `config` renderizado da Azure e o de produção só mostra
       `build`/`image`, PG externo, `stop_grace_period` e proxy — nada de flags.
 - [ ] Pull do ACR feito pela Managed Identity; credencial de admin nunca usada.
@@ -796,7 +796,7 @@ ensaio correspondente na Onda 4.
 
 | ID | Achado | Evidência | Decisão adotada | Por quê |
 |---|---|---|---|---|
-| **A1** | O overlay `docker-compose.azure.yml` não removeria o `build:` do compose base | `docker compose -f docker-compose.yml -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo serviço — `PROVADO` | Arquivo **standalone**, `pull` + `up -d --no-build`, DoD checando ausência de `build:` | O objetivo nº1 do plano é runtime idêntico. Com `build:` presente, um `docker compose build` — que é literalmente o que o deploy atual faz — reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest. A garantia seria perdida em silêncio, sem nenhum passo do runbook falhando |
+| **A1** | Um overlay Azure não removeria o `build:` do compose base | `docker compose -f docker-compose.yml -f overlay.yml config` devolve `build.context` **e** `image:` no mesmo serviço — `PROVADO` | Arquivo `compose.azure.yml` **standalone**, `pull` + `up -d --no-build`, DoD checando ausência de `build:` | O objetivo nº1 do plano é runtime idêntico. Com `build:` presente, um `docker compose build` — que é literalmente o que o deploy atual fazia — reconstruiria na VM com dependências `>=` e sobrescreveria a tag do digest. |
 | **A2** | Mascarar só `roleta-deploy.timer` deixa `roleta-deploy.service` startável | São duas units (`docs/DEPLOY.md:29-30`) e o `start` manual do `.service` é procedimento documentado (`docs/DEPLOY.md:57`) — `PROVADO` por leitura | Mascarar as duas units + `chmod 000` no executável (C-01/C-02) | O fence precisa cobrir o caminho que um humano usa por hábito sob pressão, não só o automático. Um `systemctl start roleta-deploy.service` durante a janela executaria `git reset --hard` + `up -d` e ressuscitaria o escritor congelado |
 | **A3** | A mitigação de `state.json` era só "testar o bind" — detecta, não corrige | `state/game.py:1371-1382`: `os.replace()` com `except OSError` caindo em escrita in-place não atômica. Com bind de arquivo único, `os.replace()` falha com `EBUSY` (errno 16) e a produção grava pelo caminho não atômico — **`PROVADO` em 03/08 com o código real de produção em container Linux** (§14.2/T1: inode do alvo inalterado antes/depois no bind; inode trocando a cada escrita dentro do volume) | `MIG-0`: `STATE_FILE=/app/data/state.json`, arquivo dentro do volume `roleta-data`, bind removido. Deploy e retomada têm preflight; `GameState.load()` também falha fechado quando o override aponta para arquivo ausente. Entregue **antes** do cutover, na HostDime, com soak | Se toda escrita de estado em produção usa o caminho não atômico, um crash no meio do `json.dump` trunca o JSON. O `STATE_FILE` agora tem `validation_alias="STATE_FILE"` explícito em `Settings`; a mudança não altera a lógica de estratégia. O guard de aplicação cobre subida manual/restart, enquanto o preflight cobre deploy. **Ressalvas apuradas em §14:** a atomicidade provada é de *namespace* (`rename`), não de durabilidade — não há `fsync` (A23); e o fail-closed cobre ausência, não corrupção (A19) |
 | **A4** | `state.json` não é rastreado pelo Git, então uma VM nova sem restore faria o Docker criar um **diretório** com esse nome | `.gitignore` lista `state.json`; `git ls-files state.json` devolve vazio — `PROVADO` | C-19 exige `test -f` **no caminho efetivo** antes de qualquer `up` | Com `MIG-0` aplicado a armadilha do diretório desaparece, mas surge outra pior: restaurar no lugar antigo faz o app subir com estado **default**, sem crash e sem alerta. Um passo de verificação que aponta para o caminho errado é pior que nenhum, por isso C-19 é condicional ao estado de `MIG-0` |
@@ -952,7 +952,7 @@ custo já existe e a migração não o cria.
 |---|---|---|
 | C1 | Fail-closed de **conteúdo**: repropagar erro de leitura com `STATE_FILE` definido + validação nos preflights | A19 |
 | C2 | `fsync` do arquivo e do diretório em `save()`; instrumentar o fallback | A23 |
-| C3 | `docker-compose.azure.yml` **standalone**, sem `build:` | A1 |
+| C3 | `compose.azure.yml` **standalone**, sem `build:` | A1 |
 | C4 | Fail-fast se `ROLETA_PG_DSN` vazio, antes do `alembic upgrade head` | A7 |
 | C5 | Remover o default hardcoded de `migrations/env.py:18-21` e rotacionar a credencial | A8 |
 | C6 | Corrigir rollback do MIG-0 em `docs/DEPLOY.md` | A22 |
@@ -1067,7 +1067,7 @@ produtiva); **A+H** = agente após confirmação humana; **H** = humano.
 | # | Lacuna (verificada hoje) | O que fazer | Onda | Dono |
 |---|---|---|---|---|
 | Z1 | **ACR vazio** (`repository list` = `[]`) — bloqueante de G2 | Congelar/taguear a imagem que roda na HostDime, `docker save`+SHA-256, `docker load` na VM e publicar por **digest**; `AcrPush` temporário revogado depois | 3 | A+H |
-| Z2 | **App ausente na VM**; `/opt/roleta` só tem script preliminar | Criar `docker-compose.azure.yml` **standalone** (sem `build:`, C3), layout `/opt/roleta`, volumes no disco gerenciado, `stop_grace_period:60s`, health/metrics só loopback | 1–2 | A+H |
+| Z2 | **App ausente na VM**; `/opt/roleta` só tem script preliminar | Criar `compose.azure.yml` **standalone** (sem `build:`, C3), layout `/opt/roleta`, volumes no disco gerenciado, `stop_grace_period:60s`, health/metrics só loopback | 1–2 | A+H |
 | Z3 | **Sem TLS/vhost de produção** (Caddy só placeholder) | Caddyfile: `/` → `/var/www/roleta`, `/ws` proxy WS timeouts longos, `/healthz` mínimo; `/metrics`,`/api/*`,8766 **não** públicos | 1–2 | A+H (DNS) |
 | Z4 | **Secrets não injetados** | Script MI → Key Vault → `$REPO_DIR/.env` (`0600`), sem logar; reconciliar os **16 secrets** com o env da HostDime, sem exibir valores | 1–2 | A |
 | Z5 | **PG16 espelho vazio/não validado**; extensões diferem | Confirmar `pg_extension` ao vivo (sem `age`/`timescaledb`, A24) e **restore seletivo** dos schemas `shared/cw/ccw`; **`dual_write_pg` OFF**; SQLite permanece autoritativo | 3–4 | A |
@@ -1122,9 +1122,12 @@ HostDime, DNS, `dual_write_pg`, o timer Azure ou **INV-3**.
 |---|---|
 | `compose.azure.yml` | Compose standalone canário→cutover. Imagem por **digest** (`${ROLETA_IMAGE:?}`), volume **bind** `/opt/roleta/data`, portas de app só em loopback (8765/8766), **paridade 1:1** de flags com o `docker-compose.yml` de produção. |
 | `Caddyfile` | Reverse-proxy. `{$SITE_ADDRESS::80}` (canário em `:80`; no cutover vira domínio + TLS automático), `/ws`→8765, `/healthz`→8766, estático em `/var/www/roleta`. |
-| `kv-to-env.sh` | Materializa `/opt/roleta/.env` (0600) com os 16 secrets do `kv-roleta-prod` via Managed Identity. NÃO grava flags (a compose é a fonte). `--with-pg` opcional injeta `ROLETA_PG_DSN`. |
-| `deploy-azure.sh` | Orquestra: preflight de disco persistente, resolve digest, `az acr login` via MI, `docker pull` por digest, seed de configs/.env/state, `compose up --no-build`, espera health. |
-| `backup-sqlite-to-blob.sh` | `sqlite3 .backup` + `state.json` → Blob `stroletaprod/backups` via MI (`--auth-mode login`). |
+| `kv-to-env.sh` | Materializa `/opt/roleta/.env` (0600), URL-encoda a senha PG, preserva DSN por padrão e prepara domínio/e-mail staged do Caddy via Managed Identity. |
+| `deploy-azure.sh` | Orquestra preflight de disco, resolve digest, extrai configs/frontend da mesma imagem, bloqueia seed canário por padrão, faz `compose up --no-build` e espera health. |
+| `backup-sqlite-to-blob.sh` | `sqlite3 .backup` + `integrity_check` + manifesto SHA-256 + `state.json` → Blob via MI. |
+| `restore-sqlite-from-blob.sh` | Restore pareado DB/estado, sem overwrite sem `--force`, com validação e app parada. |
+| `set-blob-lifecycle.sh` | Reconciliador idempotente de retenção Blob, preservando regras de outras equipes. |
+| `cdc-worker` (profile `cdc`) | Worker publicado no ACR, mas inerte por padrão; exige `--with-pg --with-cdc`. |
 | `README.md` | Runbook do operador (pré-requisitos RBAC, canário, validação, cutover, rollback). |
 
 **Paridade de flags auditada:** `docker-compose.yml` (produção, pós-merge) e
@@ -1331,13 +1334,12 @@ default `:80` do `{$SITE_ADDRESS::80}`). Para que o cutover seja **trocar um val
    Passo 1 cobre só `state.json` + SQLite, que é a fonte autoritativa). Se quiser
    continuidade do histórico PG na Azure, é preciso `pg_dump`/`restore` à parte
    (decisão do operador).
-4. **`cdc-worker` ausente no `compose.azure.yml`:** com o dual-write ligado no
-   cutover, a `outbox` encheria mas **não drenaria** sem o worker (`workers/cdc_worker.py`,
-   container `roleta-cdc-worker` na produção). Adicionar o serviço é pré-requisito da
-   "Onda PG" pós-cutover.
-5. **Hardening `kv-to-env.sh`:** monta o `ROLETA_PG_DSN` com a senha **crua** na URI
-   (linha 42). Funciona hoje (senha do `roleta_app` sem caractere especial de URI),
-   mas convém **URL-encodar** a senha para robustez futura — anotado, não bloqueante.
+4. **`cdc-worker` no Azure:** corrigido nesta auditoria como profile `cdc`, com
+   imagem própria no ACR e execução somente via `--with-pg --with-cdc`. O worker
+   continua inerte no canário e não altera `dual_write_pg`.
+5. **Hardening `kv-to-env.sh`:** corrigido nesta auditoria: senha PG URL-encoded,
+   DSN preservada por padrão e limpeza somente com `--without-pg`; argumentos
+   desconhecidos falham fechado.
 6. **Paridade de imagem (novo, 04/08):** durante esta execução o `main` avançou com o
    **PR #46 — "V5 17/21 por sentido"** (mudança de estratégia já em produção). A
    imagem do canário Azure (`azure-80fe40c`, digest `…593133`) é **anterior ao V5**.
@@ -1352,4 +1354,3 @@ A Azure está **recebendo dados reais**, com **Postgres gerenciado migrado
 (schema+grants), dual-write pronto porém OFF**, **NSG aberto** e **domínio/TLS
 pré-cabeados** — tudo sem tocar produção. O cutover reduz-se a: **freeze + cópia
 final + flip de DNS (+ opcional: ligar `dual_write_pg` com `cdc-worker`).**
-

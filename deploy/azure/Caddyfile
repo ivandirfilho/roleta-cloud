@@ -9,6 +9,10 @@
 #   SITE_ADDRESS="roleta.xma-ia.com, www.roleta.xma-ia.com" e recarrega o Caddy;
 #   o HTTPS (com redirect 80→443) passa a ser emitido/renovado automaticamente,
 #   aposentando o certbot.
+{
+	email {$CADDY_EMAIL}
+}
+
 {$SITE_ADDRESS::80} {
 	root * /var/www/roleta
 	encode gzip

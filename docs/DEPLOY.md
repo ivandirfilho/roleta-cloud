@@ -7,7 +7,7 @@ dev push main
     ↓
 GitHub Actions CI (lint+test+schema+silent-except)
     ↓ verde
-[ servidor Debian 187.45.181.75 ]
+[ servidor Debian HostDime ]
 roleta-deploy.timer (systemd, 2min)
     ↓
 /usr/local/bin/roleta-deploy-pull.sh
@@ -112,6 +112,17 @@ Se `curl http://127.0.0.1:8766/health` falhar 3× consecutivas apos
 `docker compose up -d`, o script reverte para o SHA salvo em
 `/var/lib/roleta-deploy/last_good` e religa o container. O log fica em
 `/var/log/roleta-deploy.log` com a tag `DEPLOY FAIL — rollback`.
+
+## Fencing da HostDime após o cutover Azure
+
+O workflow `.github/workflows/deploy.yml` **não** possui mais gatilho por tag.
+Mesmo manualmente, o job remoto só executa quando o operador confirma
+`DEPLOY_HOSTDIME` e a variável de repositório `HOSTDIME_DEPLOY_ENABLED` está
+explicitamente em `true`. Após o C-25, revogue `SERVER_HOST`, `SERVER_USER`,
+`SERVER_PORT` e `SSH_PRIVATE_KEY` e mantenha a variável ausente/`false`.
+
+O workflow `.github/workflows/acr-image.yml` é a esteira de imagens Azure: publica
+tags rastreáveis (`azure-<sha>`) e `azure-latest`, mas não faz deploy nem altera DNS.
 
 ## Frontend (nginx do host) — IMPORTANTE
 

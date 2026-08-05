@@ -95,6 +95,31 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Onda PG/CDC: profile explicitamente inerte no canário.
+  # deploy-azure.sh --with-pg --with-cdc resolve CDC_IMAGE por digest.
+  cdc-worker:
+    profiles: ["cdc"]
+    image: ${CDC_IMAGE:-acrroletaprod.azurecr.io/roleta-cdc-worker:disabled}
+    container_name: roleta-cdc-worker
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      - CDC_BATCH_SIZE=${CDC_BATCH_SIZE:-100}
+      - CDC_LOG_LEVEL=${CDC_LOG_LEVEL:-INFO}
+      - CDC_ANALYZE_EVERY_N=${CDC_ANALYZE_EVERY_N:-0}
+    healthcheck:
+      test: ["CMD-SHELL", "test $(($(date +%s) - $(stat -c %Y /tmp/cdc_alive 2>/dev/null || echo 0))) -lt 120"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   # Bind no disco PERSISTENTE. /opt/roleta/data DEVE estar em disco gerenciado
   # (OS disk ou data disk), NUNCA no resource disk efêmero (/mnt) da série L.
