@@ -18,7 +18,7 @@ final seja só **(1)** copiar os dados reais e **(2)** apontar o DNS.
 | `deploy-azure.sh` | Resolve digest, valida estado, sincroniza frontend, `compose up --no-build` e espera health. | VM |
 | `backup-sqlite-to-blob.sh` | Snapshot consistente, `integrity_check`, manifesto SHA-256 e upload → Blob (via MI). | VM |
 | `restore-sqlite-from-blob.sh` | Restaura um par DB/estado sem sobrescrever sem `--force`; exige app parada. | VM |
-| `set-blob-lifecycle.sh` | Preserva regras existentes e aplica retenção dos backups SQLite. | VM |
+| `set-blob-lifecycle.sh` | Preserva regras existentes e aplica retenção dos backups SQLite. | Operador/CI com acesso de plano de controle |
 
 ## Recursos (RG `maquina_roleta_cloud`)
 
@@ -98,16 +98,24 @@ Depois do canary validado, o dono executa, em janela de manutenção:
 
 ## Backups
 
+O backup roda na VM e precisa de `az`, `sqlite3`, `python3` e `jq`. A Managed
+Identity da VM tem somente acesso de dados ao Blob; ela **não** deve receber
+permissão ampla para alterar políticas da conta.
+
 ```bash
 sudo ./backup-sqlite-to-blob.sh
 # cron diário (03:10 UTC):
 # 10 3 * * * cd /opt/roleta && REQUIRE_DB=1 ./backup-sqlite-to-blob.sh >> /var/log/roleta-backup.log 2>&1
 ```
 
-Aplicar a retenção preservando regras já existentes:
+Aplicar a retenção preservando regras já existentes a partir de uma sessão
+Azure autenticada como operador/CI com permissão de plano de controle
+(`Storage Account Contributor` ou equivalente). O modo `user` não faz login
+nem usa a Managed Identity da VM:
 
 ```bash
-sudo ./set-blob-lifecycle.sh
+az login
+AZURE_AUTH_MODE=user ./set-blob-lifecycle.sh
 ```
 
 Teste de restore com a aplicação parada (sem `--force`, o script recusa
