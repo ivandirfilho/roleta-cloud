@@ -143,6 +143,52 @@ flowchart TD
     CLIENT -. "direcao proposta" .-> AUTH
 ```
 
+### 2.5.4 Fontes tecnológicas: o que observa a direção hoje, o que garante, e o caminho para garantia física
+
+Resposta direta à pergunta do operador — *"foto, vídeo ou dados? o que garante?"* — verificada
+componente a componente no código:
+
+| Fonte | Status hoje | O que entrega | Por que NÃO entrega direção |
+|---|---|---|---|
+| **Dados (DOM)** | ✅ ativa | números do histórico (`allNumbers`), 12 últimos | a Evolution **não expõe o sentido no DOM** — não há atributo/classe/elemento com a direção. `dom_hint` (peso 20 na fusão) existe só como slot: **nenhum código produz esse sinal** |
+| **Foto** (`foto_roleta`) | ✅ ativa (`SDA_VISION_OCR=1`) | dealer, mesa, modelo da roda via OCR (`handle_foto_frame` → `vision_ocr.py`) | é **1 frame estático tirado APÓS o resultado** (`background.js` l.1769–1773). Uma foto única não contém movimento — direção exige ≥2 frames para medir deslocamento angular |
+| **Vídeo** (DIR7) | 🟡 stand-by (`SDA_DIRECTION_VISION=0`) | endpoint `handle_direction_event` (l.1535–1554) pronto para receber `{source:"vision", direction, confidence}`; fusão por prioridade implementada e testada | **não existe produtor**: nenhum módulo captura frames em sequência nem calcula o sentido. A tomada está na parede; falta o aparelho |
+| **Operador** (humano) | ✅ ativa | âncora via popup (`set_seed`) — ele olha a mesa e informa a fase 1× | é o **único sensor físico real do sistema hoje**. Custo: 1 clique; risco: errar o clique (espelho consistente, §2.5.1) |
+
+**Então o que GARANTE, tecnologicamente?** A garantia atual é uma cadeia de 3 elos + 1 alarme:
+
+1. **Invariante física da mesa** (premissa): o lançamento alterna a cada giro. É regra de procedimento
+   da Evolution — o sistema não a verifica, **assume**.
+2. **Âncora humana correta** (confiança): o operador informa a fase inicial olhando a mesa.
+3. **Contagem íntegra** (é isso que esta proposta blinda): se `spin_seq` conta exatamente 1 por giro
+   real — sem fantasma (gate DIR21), sem gap mal recuperado (fix A), sem giro duplicado (guard C2) —
+   a projeção `seed XOR paridade` é matematicamente correta para sempre.
+4. **Alarme de violação** (DIR22): se a premissa 1 quebrar (mesa muda de procedimento) ou os elos 2–3
+   falharem, a alternância viola no PG e o alerta dispara em ~30min. **Não previne — detecta.**
+
+> **Em uma frase:** hoje a direção não é observada por nenhum sensor; é *derivada* de uma âncora
+> humana + contagem de giros, e o que esta proposta garante é que **a contagem não minta**. A âncora
+> continua sendo o operador.
+
+**Caminho para garantia física de verdade (fechar o loop sem humano)** — proposto como fase
+posterior, fora do escopo deste PR, mas com a infraestrutura JÁ pronta:
+
+1. **Captura em burst**: a extensão já tem `captureVisibleTab` funcionando (foto_roleta). Mudança:
+   além da foto pós-resultado, capturar **2–3 frames com ~300–500ms de intervalo no início do giro**
+   (a janela em que a bolinha está em movimento). O trigger de início de giro é o ponto de projeto a
+   resolver — hoje só detectamos o *fim* (número no DOM).
+2. **Detector de movimento angular**: comparar os frames na ROI da roda — optical flow simples ou
+   diferença de fase angular (não precisa de ML pesado; a roda tem marcadores de alto contraste).
+   Sinal de saída: `horario|anti-horario` + confidence.
+3. **Publicar no endpoint que já existe**: `{type:"direction_event", direction, confidence}` →
+   `handle_direction_event` guarda o sinal efêmero.
+4. **Ligar a flag que já existe**: `SDA_DIRECTION_VISION=1` (compose l.126, default OFF) → a fusão
+   DIR7 passa a usar o vídeo: `vision` (50, conf ≥ 0.7) **vence o toggle** (10) e **perde do
+   operador** (100) — ou seja, o vídeo corrige defasagem e espelho automaticamente, mas nunca briga
+   com um lock explícito do operador.
+5. **Ganho final**: com vídeo confiável, o espelho da âncora invertida (hoje indetectável, §2.5.1)
+   passa a ser detectado e corrigido em 1 giro — o sistema se auto-ancora de verdade.
+
 ## 3. Causa-raiz — a cadeia completa (4 furos que se retroalimentam)
 
 ### Furo A (servidor, o mais grave): assimetria de buffer na recuperação de gap — DIR4/DIR19
