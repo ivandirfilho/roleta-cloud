@@ -146,13 +146,70 @@ def bet_pair_mode() -> str:
     rodava "c2c3" desde 17/06), "var_c1c2_c3" (voto C1/C2 móvel pelas últimas 3 não-C3
     + C3 fixo — DESATIVADO por resultados desfavoráveis), "force17" (C1=ForceLast +
     geometria 17# = C2-7 ∪ C3-5 ∪ C1-5; 3 regiões, isolado por sentido — proposta
-    validada analise_400 PARTES VII–XV). Valor inválido cai em "full".
+    validada analise_400 PARTES VII–XV), "v5_1721" (V5 04/08: 3 regiões
+    assinatura-primeiro R1/R2/R3 por sentido + seletor 17↔21 pós-miss —
+    estrategia_proposta_03_08.md). Valor inválido cai em "full".
 
     Lido por chamada (não cacheado) para permitir toggle em testes/runtime.
     """
     import os
     v = os.environ.get("SDA_BET_PAIR", "full").strip().lower()
-    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17") else "full"
+    return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17", "v5_1721") else "full"
+
+
+def v5_sig4_enabled() -> bool:
+    """V5.1 "assinatura-4" (05/08 — spec exata do operador). **Default OFF**.
+
+    Com `SDA_V5_SIG4=1`, o composer v5_1721 muda para a spec revisada:
+      R1 = cluster gravidade-7 das últimas **4** forças do sentido-alvo (era 8);
+      R2 = **projeção de tendência** — o MESMO centro R1 deslocado por
+           clamp(round(slope Theil–Sen janela 4), ±8) casas de força
+           (acelerando → adiante; freando → atrás; era "2º cluster do resíduo");
+      R3 = região **menos visitada** da divisão FIXA da roda em 6 regiões
+           (5×6 + 1×7, ordem física), placar contando TODOS os giros dos DOIS
+           sentidos (era zona fria heatmap de 12 do mesmo sentido).
+    Geometria/seletor 17↔21 intactos (mesmos centros, C17 ⊂ C21).
+    OFF = composer v5_1721 byte-idêntico ao go-live 04/08.
+    Rollback: SDA_V5_SIG4=0 no host + redeploy. Lido por chamada (não cacheado).
+    """
+    import os
+    return os.environ.get("SDA_V5_SIG4", "0").strip().lower() in ("1", "true", "on")
+
+
+def v5_flip_puro_enabled() -> bool:
+    """Seletor 17/21 PURO pela última jogada do sentido-alvo. **Default OFF**.
+
+    Regra do dono (05/08, tarde): "o sistema deve analisar a última derrota ou
+    vitória do SENTIDO-ALVO para sugerir 17 ou 21 de forma isolada" — a última
+    jogada resolvida do sentido da PRÓXIMA jogada decide: vitória → 17,
+    derrota → 21. Sem overrides de cobertura.
+
+    Com `SDA_V5_FLIP_PURO=1`:
+      - o stop-loss de sessão (B5) deixa de travar o seletor em 17 (LOCK17);
+        segue vetando o STAKE (mínimo 1u — INV-3: indicação sempre mantida);
+      - o teto de jogadas-21 por sessão×sentido deixa de forçar 17.
+    OFF = comportamento do go-live 04/08 (flip + LOCK17 por B5/teto).
+    Motivo: em produção o B5 ficou ativo a sessão toda → modo 17 permanente
+    mesmo após derrotas (probe 05/08), mascarando a regra do flip.
+    Rollback: SDA_V5_FLIP_PURO=0 no host + restart. Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_V5_FLIP_PURO", "0").strip().lower() in ("1", "true", "on")
+
+
+def sugestao_broadcast_enabled() -> bool:
+    """Broadcast da mensagem `sugestao` a TODOS os clientes. **Default OFF**.
+
+    Hoje a `sugestao` por-giro vai SÓ ao websocket do MASTER; viewers/Glass Box
+    dependem do state_sync (1 s) — a vista EXPANDIDA de um viewer nunca recebe
+    a sugestão por-giro (gap de UX percebido como "sugestão sumiu na rodada").
+    Com `SDA_SUGESTAO_BROADCAST=1`, o servidor REPLICA a mesma `sugestao` aos
+    demais clientes conectados (master continua recebendo a dele primeiro; a
+    cópia broadcast o exclui — zero duplicação). Aditivo: clientes ignoram
+    mensagens desconhecidas. Rollback: =0 + redeploy. Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_SUGESTAO_BROADCAST", "0").strip().lower() in ("1", "true", "on")
 
 
 def force17_exact_enabled() -> bool:

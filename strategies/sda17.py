@@ -116,6 +116,11 @@ class SDA17Strategy(StrategyBase):
         self._last_offset: Dict[str, int] = {}
         # v4.3: M02-PctSigmoid — offsets float independentes por direção
         self._sigmoid_off: Dict[str, float] = {}
+        # V5 (04/08): seletor 17↔21 por sentido (estrategia_proposta_03_08.md §3).
+        # miss→21 (permanece enquanto miss), hit→17; teto de jogadas-21 por
+        # sessão×sentido → LOCK17. Round-trip no adaptive_state (v1.9).
+        self._v5_mode: Dict[str, int] = {"cw": 17, "ccw": 17}
+        self._v5_count21: Dict[str, int] = {"cw": 0, "ccw": 0}
 
         # ===== v4.4 Quick Wins =====
         # Buffer rolling de hits por direção (INV-1: estado dual isolado).
@@ -1376,8 +1381,40 @@ class SDA17Strategy(StrategyBase):
             logger.exception("[BATCH-TUNE-ERR] dk=%s err=%s", dk, exc)
             self._batch_last_action[dk] = "error"
     
+    # ---- V5 (04/08): seletor 17↔21 por sentido (estrategia_proposta_03_08.md §3) ----
+
+    def v5_select_mode(self, direction: str, pure: bool = False) -> int:
+        """Modo de cobertura do sentido p/ a PRÓXIMA aposta V5 (17 ou 21).
+
+        Regra do dono: pós-miss → 21 (permanece enquanto miss); pós-hit → 17.
+        Guardrail: teto de jogadas-21 por sessão×sentido (LOCK17 ao atingir).
+        ``pure=True`` (SDA_V5_FLIP_PURO, 05/08 tarde): ignora o teto — a última
+        jogada resolvida do sentido decide sozinha (vitória→17, derrota→21).
+        Leitura pura — a contagem só avança em ``v5_note_emitted`` (aposta REAL
+        registrada), então fallback de calibração não queima crédito-21.
+        """
+        from strategies.regions_v5 import V5_MAX_21_PER_SESSION_DIR, V5_MODE_DEFAULT
+        dk = self._dk(direction)
+        m = self._v5_mode.get(dk, V5_MODE_DEFAULT)
+        if (not pure) and m == 21 \
+                and self._v5_count21.get(dk, 0) >= V5_MAX_21_PER_SESSION_DIR:
+            return 17  # LOCK17: teto de sessão atingido
+        return 21 if m == 21 else 17
+
+    def v5_note_emitted(self, direction: str, mode: int) -> None:
+        """Conta a jogada-21 EMITIDA (pending registrado) contra o teto de sessão."""
+        if int(mode) == 21:
+            dk = self._dk(direction)
+            self._v5_count21[dk] = self._v5_count21.get(dk, 0) + 1
+
+    def v5_note_outcome(self, direction: str, hit: bool) -> None:
+        """Flip 17↔21 com o HIT REAL da cobertura apostada (disciplina ISO #3:
+        hit real, não proxy de distância; giro fantasma não chega aqui)."""
+        dk = self._dk(direction)
+        self._v5_mode[dk] = 17 if hit else 21
+
     def get_adaptive_state(self) -> Dict[str, Any]:
-        """Retorna estado adaptativo para persistência (v1.8 — S-STRAT-7 batch tune)."""
+        """Retorna estado adaptativo para persistência (v1.9 — V5 seletor 17/21)."""
         return {
             "cw_history": self.cw_history,
             "ccw_history": self.ccw_history,
@@ -1407,7 +1444,10 @@ class SDA17Strategy(StrategyBase):
                     for dk in ("cw", "ccw")
                 },
             },
-            "version": "1.8",
+            # V5 (04/08): seletor 17/21 por sentido (round-trip obrigatório).
+            "v5_mode": dict(self._v5_mode),
+            "v5_count21": dict(self._v5_count21),
+            "version": "1.9",
         }
 
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
@@ -1566,6 +1606,22 @@ class SDA17Strategy(StrategyBase):
                                 except (ValueError, TypeError):
                                     continue
                         self._batch_acc_history[dk] = validated
+        # V5 (04/08): restaurar seletor 17/21 (backward-compat: ausente → 17/0).
+        raw_vm = state.get("v5_mode", {})
+        if isinstance(raw_vm, dict):
+            for dk in ("cw", "ccw"):
+                try:
+                    v = int(raw_vm.get(dk, 17))
+                    self._v5_mode[dk] = v if v in (17, 21) else 17
+                except (ValueError, TypeError):
+                    pass
+        raw_vc = state.get("v5_count21", {})
+        if isinstance(raw_vc, dict):
+            for dk in ("cw", "ccw"):
+                try:
+                    self._v5_count21[dk] = max(0, int(raw_vc.get(dk, 0)))
+                except (ValueError, TypeError):
+                    pass
 
     def reset_adaptive(self) -> Dict[str, Any]:
         """B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).
@@ -1617,6 +1673,9 @@ class SDA17Strategy(StrategyBase):
             "cw": deque(maxlen=self.REGION_ERR_HIST_MAX),
             "ccw": deque(maxlen=self.REGION_ERR_HIST_MAX),
         }
+        # V5 (04/08): dealer novo → seletor volta a 17/17 e zera o teto de 21s.
+        self._v5_mode = {"cw": 17, "ccw": 17}
+        self._v5_count21 = {"cw": 0, "ccw": 0}
         logger.info(
             "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",
             discarded["cw_history_len"], discarded["ccw_history_len"],

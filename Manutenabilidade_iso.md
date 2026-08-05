@@ -1289,6 +1289,217 @@ estratégia** (E1–E5, `evolução_03_08.md` §4.3; arquitetura: `arquitetura_d
 
 ---
 
+## ADENDO 04/08/2026 — GO-LIVE V5 "17/21 por sentido" (composer assinatura-primeiro + seletor pós-miss + UI 3.8.0)
+
+> Implantação completa da estratégia especificada em `estrategia_proposta_03_08.md` (SPR-V5A+V5B
+> colapsados em 1 PR por ordem do dono: "implante tudo para que fique live e funcional").
+> Motor novo `strategies/regions_v5.py`, seletor 17↔21 no SDA17, wiring no message_handler,
+> contrafactuais no `decision_dna`, go-live na compose e ajustes de UI nas 4 superfícies
+> (dashboard + extensão 3 vistas). Zero migração de schema; arquitetura de povoamento INALTERADA.
+
+### A. Capacidades novas ✅
+
+| Capacidade | Onde | Evidência |
+|---|---|---|
+| Composer V5 puro/determinístico por sentido: R1=cluster gravidade-7 (janela 8 forças), R2=2º cluster condicionado à tendência Theil–Sen (janela 5, deadband 1,0, clamp ±8), R3=zona fria do MESMO sentido (heatmap triangular, 12 resultados) — saída SEMPRE 17 (3/2/2) ou 21 (3/3/3) distintos, MESMOS centros, C17 ⊂ C21, disjunção gap 7 | `strategies/regions_v5.py` (novo, ~290 LOC) | fuzz 5k seeds em `tests/test_regions_v5.py` (31 testes) |
+| Seletor 17↔21 por sentido: default 17; miss real→21; hit real→17; teto 5 jogadas-21/sessão×sentido → LOCK17; stop-loss de sessão força 17 | `strategies/sda17.py` (`v5_select_mode`/`v5_note_emitted`/`v5_note_outcome`) | testes seletor + wiring |
+| Round-trip do estado do seletor: `adaptive_state` v1.8→**v1.9** (`v5_mode`, `v5_count21`) em `get/load/reset_adaptive` — restauração VALIDADA (dk∈{17,21}, int≥0), backward-compat com v1.8 | `sda17.py` | `test_round_trip_v19`, `test_backward_compat_estado_v18`, `test_load_valida_lixo` |
+| Modo `v5_1721` no enum `SDA_BET_PAIR` + ramo auto-contido no `_engine_apply_selection` (early-return; `details['centers']` segue V4 → continuidade DNA/atribuição) | `app_config/settings.py`, `server/message_handler.py` | `test_warmup_emite_17_com_meta_v5` |
+| Contrafactuais pareados congelados ANTES do resultado: `v5_mode`/`v5_cov17`/`v5_cov21` no pending + 3 features novas no `decision_dna` (`v5_would_hit_17`, `v5_would_hit_21`, `v5_coverage_mode`) — validação econômica §5.1 sem schema novo | `message_handler.py` (inject/resolução) | `test_inject_pending_congela_contrafactuais_e_conta_emissao` |
+| Contagem-21 só em EMISSÃO REAL (fallback de calibração não queima crédito) + flip só com HIT REAL da cobertura apostada | `_engine_inject_pending` / bloco M15-ADA | `test_sem_pending_nao_conta` |
+| Warmup INV-3: <3 resultados no sentido → tríade-prior `apply_force(last, 10+{0,12,24})` (gaps 12/12/13 ⇒ disjunta) — SEMPRE há indicação | `regions_v5.compose_v5` | `test_warmup_triade_disjunta_inv3` |
+| Go-live: default `SDA_BET_PAIR=v5_1721` na compose (comentário com breakevens 17#=47,2% / 21#=58,3% / limiar 11,1pp e rollback force17) | `docker-compose.yml` | diff |
+| UI payload-driven nas 4 superfícies: labels r1/r2/r3 dinâmicos + badge `V5·17#/21#` (extensão expandida), cold-start do minimizado prefere `data.regioes` (centros da estratégia ATIVA) antes do `pending_prediction.centers` V4, paleta r1/r2/r3 no dashboard, rótulos estáticos "(17#)" removidos (`(--)` até payload), manifest **3.8.0** | `extension/content.js`, `frontend/app.js`, `frontend/index.html`, `extension/manifest.json` | auditoria UX §12 da proposta |
+
+### B. Bugs corrigidos no caminho
+
+| # | Bug | Fix |
+|---|---|---|
+| 1 | Cold-start do overlay minimizado usava `pending_prediction.centers` ([C1,C2,C3] V4 crus) mesmo quando a estratégia ativa era outra (ordem/estratégia divergente) | fallback intermediário `data.regioes` (gap 3 da auditoria UX) |
+| 2 | Rótulo estático "(17#)" no dashboard mentiria no modo 21 | `#f17-cov` inicia `(--)` e é populado por `coverage_n` real |
+| 3 | Classe CSS da região hardcoded p/ c1/c2/c3 (labels novos cairiam todos em c3) | classe dinâmica `eb-rc-${label}` + paleta por mapa com fallback |
+
+### C. Impacto arquitetural
+
+- **Zero migração Alembic** — estado do seletor viaja no `adaptive_state` (JSON já persistido); contrafactuais usam `decision_dna` existente (EAV). Povoamento SQLite→outbox→PG **byte-idêntico**.
+- **force17 clássico intocado** (`c_selection.py` sem diff) = rollback vivo: `SDA_BET_PAIR=force17` no host + redeploy ~3 min.
+- Meta v5 reusa o **contrato force17-block** do overlay (`regioes/c1_force/coverage_n/numeros`): as 3 vistas da extensão + Glass Box acendem sem mudança de protocolo; `v5_mode` é aditivo (ausente no force17 clássico — clientes velhos byte-idênticos, verificado por teste).
+- Fallback de calibração no modo v5 = raio 8 (17#) — consistente com o default do seletor.
+
+### D. Scorecard (delta vs 03/08)
+
+| Característica | Antes | Depois | Nota |
+|---|:--:|:--:|---|
+| Adequação Funcional | 9 | 9 | estratégia nova coberta por 31 testes novos; suíte 764 passed |
+| Manutenibilidade | 8,5 | **9** | composer puro isolado (testável sem I/O); seletor com round-trip completo; enum fechado |
+| Confiabilidade | 9 | 9 | INV-3 preservado (warmup tríade); stop-loss integra seletor sem suprimir indicação |
+| Analisabilidade | 8,5 | **9** | contrafactuais 17/21 pareados no DNA desde o 1º giro (decisão §5.3 pré-registrada: 50/150/600 jogadas-21, limiar 11,1pp) |
+
+### E. Obrigações de ciclo e rollback
+
+- ✅ Suíte completa: **764 passed, 9 skipped, 1 xfailed** (31 novos em `test_regions_v5.py`; pins atualizados: manifest 3.8.0, adaptive v1.9).
+- ✅ `tools/lint_silent_except.py --update` (1 `except ValueError` novo e justificado em `regions_v5._wheel_index`).
+- ✅ Flag na compose com comentário de rollback; leitura por-chamada; nada hardcoded.
+- ✅ Round-trip `save()`/`load()`/`reset_session()` do campo novo de motor.
+- ✅ Entrega por PR (sem push direto em `main`); merge autorizado pelo dono ("live e funcional").
+- ⚠️ **Ação manual do operador**: recarregar a extensão unpacked no Chrome (v3.8.0 não vai pelo deploy Debian).
+- **Rollback**: `SDA_BET_PAIR=force17` no `.env` do host + `docker compose up -d` (~3 min), ou `git revert` do PR. Estado v1.9 é backward-compat (v1.8 ignora as chaves novas).
+- **Desligamento pré-registrado** (§5.3 da proposta): se `v5_would_hit_21 − v5_would_hit_17 < 11,1pp` após 150 jogadas-21 (ou hit-rate 17# < 40% após 600 giros), voltar `SDA_BET_PAIR=force17` e reavaliar.
+
+---
+
+## ADENDO 04/08/2026 (noite) — HOTFIX: eleição de MASTER promovia cliente passivo (Glass Box congelado)
+
+> Incidente pós go-live V5 (mesmo dia): dono reportou "a escuta recebe o resultado mas o Glass Box /
+> painel minimizável não populam". Diagnóstico 100% passivo (sem ssh): probe WS em produção recebeu
+> **146 `state_sync` (1Hz) e ZERO `trace` em 150s** com mesa ativa — servidor saudável emitindo
+> heartbeat com meta V5 completo, porém **nenhum spin sendo aceito**. Variante do incidente 13/06
+> (runbook `docs/runbooks/sem-apostas-master-slave.md`).
+
+### Causa-raiz
+
+1. `websocket.py` conecta TODO cliente sem `device_id` (fica `"unknown"`); só a escuta envia `register`.
+2. Quando o MASTER (escuta) cai — p.ex. service worker MV3 suspenso ou restart de deploy — o
+   `handle_grace_period` promovia o SLAVE **mais recente sem filtrar passivos**: um dashboard
+   Glass Box aberto virava MASTER.
+3. Dashboard nunca envia `novo_resultado` e **ignora** `role_changed`; quando a escuta re-registrava,
+   `update_device_id` via `master_id` ocupado → escuta ficava **SLAVE eterna** → `background.js`
+   nem envia o giro (gate local) → pipeline mudo, Glass Box/overlay congelados, sem erros no log.
+
+### Fix (cirúrgico, 2 pontos em `server/connection_manager.py`)
+
+| Ponto | Regra nova |
+|---|---|
+| `handle_grace_period` | Promove APENAS conexões **registradas** (`device_id != "unknown"`); dashboards/probes nunca assumem |
+| `update_device_id` | Dispositivo que envia REGISTER **destrona** um master passivo (`device_id == "unknown"`) via `_demote_master` e assume; master registrado continua protegido (sem mudança) |
+
+- INV preservada: `force_master` (botão 🎯 do overlay) intocado; grace period de 10s intocado;
+  gate `NOT_MASTER` intocado.
+- Sem flag: é correção de defeito na eleição (comportamento correto único), não comportamento novo.
+- Zero schema/estado; zero mudança de protocolo; extensão NÃO precisa de reload para este fix
+  (correção é server-side; o reload p/ 3.8.0 continua pendente pela V5).
+
+### Regressão
+
+`tests/test_connection_manager_master.py`: **5→9 testes** — grace não promove "unknown" (2 cenários,
+inclusive com registrado mais antigo presente), REGISTER destrona master passivo, REGISTER não
+destrona master registrado. Suíte completa: **768 passed, 9 skipped, 1 xfailed**.
+
+### Recuperação em produção
+
+Deploy do fix (PR → main → timer ~2 min) + reconexão automática da escuta: ao re-registrar, ela
+destrona o master passivo e o fluxo volta sozinho (sem restart manual). Runbook §7 atualizado.
+
+---
+
+## ADENDO 05/08/2026 — V5.1 "assinatura-4" (spec exata do operador) + badge circular 17/21 + broadcast da sugestão (ext 3.9.0)
+
+> Terceira rodada do ciclo V5. O dono revisou a spec estratégica dos 3 centros e pediu: (a) badge
+> **circular verde brilhante** com o modo 17/21 junto aos 3 números em TODAS as vistas; (b) diagnóstico
+> de "sugestão não aparece em toda rodada"; (c) auditoria do motor vs a spec revisada. Probes passivos
+> em produção provaram que o servidor DECIDE toda rodada (decision log contínuo, INV-3 ok) e que
+> trace/state_sync carregam o meta V5 — o gap era a msg `sugestao` ser enviada **só ao MASTER**.
+
+### A. Motor V5.1 (flag `SDA_V5_SIG4`, default OFF no código, ON na compose)
+
+| Centro | Go-live 04/08 (`spec4=False`) | V5.1 spec4 (`SDA_V5_SIG4=1`) |
+|---|---|---|
+| R1 | cluster gravidade-7, janela **8** forças do sentido | idem, janela **4** ("últimas 4 jogadas") |
+| R2 | 2º cluster do resíduo condicionado à tendência | **projeção do PRÓPRIO R1**: `r1_force + clamp(round(slope TS janela 4), ±8)` — acelerando→adiante, freando→atrás; neutro→disjunção empurra +7 |
+| R3 | zona fria (heatmap 12 do MESMO sentido) | região **menos visitada** da divisão FIXA da roda em **6 regiões** (5×6+1×7, ordem física; centros idx 3/9/15/21/27/33); sobrepôs → snap p/ região disjunta mais PRÓXIMA da indicada |
+
+- Isolamento por sentido preservado em R1/R2 (INV-1); R3 conta **ambos os sentidos** (spec do dono).
+- Placar `GameState.region6_counts` (novo campo de motor): incrementado em `process_spin` E
+  `register_history_number` (espelha `recent_results`), **round-trip completo** save/load/reset_session
+  (compat: `[0]*6` se ausente — snapshot legado não trava boot). População sempre-on e inerte;
+  o USO é flag-gated (padrão shadow DIR-x). Zero migração Alembic (snapshot JSON, não schema).
+- Caminho default (`spec4=False`) **byte-idêntico** ao go-live: fuzz 5000 iterações do 04/08 intacto.
+- Geometria/seletor intocados: mesmos raios 3/2/2 vs 3/3/3, C17 ⊂ C21, 17/21 EXATOS, LOCK17,
+  contrafactuais DNA e flip pós-miss (regra literal do dono) — nada mudou fora do composer.
+
+### B. Transporte — `SDA_SUGESTAO_BROADCAST` (default OFF, ON na compose)
+
+Causa-raiz do "sugestão some": `sugestao` ia SÓ ao websocket do master (l.1446); viewers/Glass Box
+dependiam do `state_sync` 1 Hz. Agora o handler **replica a mesma `sugestao`** aos demais clientes
+(exclui o socket do master — zero duplicata; viewer morto não trava o giro; aditivo — clientes
+antigos ignoram). Rollback: `SDA_SUGESTAO_BROADCAST=0` + redeploy.
+
+### C. UI — badge circular 17/21 (ext **3.9.0**)
+
+- `buildModeBadge()` no content.js: círculo ⌀22px (16px no minimizado), borda+texto `#39ff14` com
+  glow, MESMA fonte/tamanho/cor p/ 17 e 21 (spec do dono), menor que os números dos centros; na
+  linha dos 3 centros (expandida), no status minimizado e no Glass Box (`frontend/app.js`).
+- Fonte do valor: `force17.v5_mode` (sugestão > state_sync no minimizado). Header mantém `· V5`.
+- Manifest 3.8.0 → **3.9.0** + changelog. Operador: `git pull` no Desktop + ↻ na extensão.
+
+### D. Observabilidade
+
+Meta `force17` ganhou `spec4`/`r2_delta`/`r3_region` (aditivo — flui em sugestao/state_sync/trace
+p/ auditoria ao vivo da projeção R2 e da região fria R3 sem probe de código).
+
+### E. Regressão e arquivos
+
+- Suíte **791 passed** (+23: TestRegion6 6, TestSpec4Composer 9 c/ fuzz 3000, TestRegion6State 5,
+  TestWiringSpec4 2, manifest 3.9.0) · lint silent-except baseline atualizado (2 handlers novos
+  documentados) · CI 5/5.
+- Tocados: `strategies/regions_v5.py` (+região6/spec4), `state/game.py` (+placar), `server/message_handler.py`
+  (spec4 wiring + broadcast), `app_config/settings.py` (2 flags), `docker-compose.yml` (2 envs),
+  `extension/content.js`+`manifest.json` (badge, 3.9.0), `frontend/app.js` (badge Glass Box),
+  `tests/` (+23). Rollback integral: flags `=0` no host (~3 min) ou `git revert` do PR.
+
+---
+
+## ADENDO 05/08/2026 (tarde) — V5.2: seletor 17/21 PURO por sentido + badge DOURADO + minimizado unificado (ext 3.9.1)
+
+> Quarta rodada do ciclo V5. Feedback do dono após operar a V5.1: (a) "mesmo após derrotas continua
+> sugerindo 17"; (b) o quadro minimizável mostra **3 telas diferentes** e o 17/21 não aparece bem em
+> todas; (c) badge difícil de ver — **negrito + dourado** combinando com a paleta; (d) regra nova do
+> seletor: **a última derrota/vitória do SENTIDO-ALVO decide 17 ou 21, de forma isolada**.
+
+### A. Diagnóstico — por que "17 mesmo após derrotas"
+
+O flip pós-miss→21 (`v5_note_outcome`) SEMPRE funcionou. Ele era **mascarado por dois overrides
+LOCK17** legítimos do go-live: (1) stop-loss de sessão B5 (`_v5_stop_loss`) trava o seletor em 17
+enquanto pnl ≤ −limite — e em produção o B5 ficou ativo a sessão inteira (probe 05/08: TODA decisão
+com "STOP-LOSS sessão (B5)"); (2) teto de 5 jogadas-21 por sessão×sentido. Resultado: modo 17
+permanente, aparentando seletor quebrado. Não era bug — era design que o dono agora substituiu.
+
+### B. Motor — flag `SDA_V5_FLIP_PURO` (default OFF no código, ON na compose)
+
+- `v5_select_mode(direction, pure=False)`: com `pure=True` ignora o teto-21 — devolve o flip cru.
+- Wiring `_engine_apply_selection`: flag ON (leitura por-chamada) → `pure=True` e o `_v5_stop_loss`
+  **deixa de travar a cobertura**; B5 continua vetando o STAKE (mínimo 1u — INV-3: indicação sempre).
+- Semântica final (flag ON): última jogada resolvida do sentido-alvo = vitória → **17**; derrota →
+  **21**. Sentidos 100% isolados (`_v5_mode["cw"/"ccw"]`); `v5_note_outcome` já resolvia com o HIT
+  REAL do pending pelo `bet_direction` — nada mudou na resolução.
+- OFF = comportamento do go-live (flip + LOCK17 por B5/teto). Rollback: `SDA_V5_FLIP_PURO=0` + restart.
+
+### C. Front — "3 telas" unificadas + badge dourado (ext **3.9.1**)
+
+- Causa das 3 telas: o status minimizado tinha **3 writers com formatos distintos** — `toggleMinimize`
+  (centros+gale, SEM badge), `updateOverlay` minimizado (SEM badge) e o heartbeat `state_sync` (COM
+  badge) → a tela "trocava sozinha" a cada fonte. Agora `minimizedStatusHTML()` é a fonte ÚNICA
+  ([centros] + badge + gale) usada pelos 3 writers; `v5ModeFromSugestao()` resolve o modo do cache.
+- Badge (content.js `buildModeBadge` + Glass Box `frontend/app.js`): **#ffd700 dourado** (combina com
+  o gold #ffd166 da paleta de labels), `font-weight:900`, fonte maior (0.55d; ⌀24px expandida/Glass
+  Box, 18px minimizado), fundo `rgba(255,215,0,0.12)` e glow dourado — legibilidade pedida pelo dono.
+- Manifest 3.9.0 → **3.9.1** + changelog. Operador: `git pull` + ↻ na extensão.
+
+### D. Observabilidade — passthrough spec4 no state_sync
+
+`engine_overlay_fields()` (state/game.py) cherry-pickava o meta e **descartava**
+`spec4`/`r2_delta`/`r3_region` (só iam no trace/sugestao — probe 05/08 mostrou `spec4=None` no
+state_sync). Agora os 3 campos passam quando presentes (aditivo).
+
+### E. Regressão e arquivos
+
+- Suíte **796 passed** (+5: pure ignora teto, wiring flip-puro ×3, passthrough spec4; manifest 3.9.1).
+- Tocados: `strategies/sda17.py` (pure), `server/message_handler.py` (wiring flag), `app_config/settings.py`
+  (flag), `state/game.py` (passthrough), `docker-compose.yml` (env), `extension/content.js`+`manifest.json`
+  (3.9.1), `frontend/app.js`, `tests/` (+5, manifest). Rollback: `SDA_V5_FLIP_PURO=0` no host (~3 min).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

@@ -405,12 +405,29 @@ function updateForce17(f17, regioes) {
     if (!regs.length) return;
     const centros = regs.map(r => {
         const warm = r.status === 'aquecendo' ? ' ⏳' : '';
-        const color = r.label === 'c1' ? '#ffd166' : (r.label === 'c2' ? '#06d6a0' : '#118ab2');
+        // Paleta por label: force17 clássico (c1/c2/c3) e V5 (r1=primário verde,
+        // r2=tendência azul, r3=fria amarelo). Fallback branco p/ labels novos.
+        const COLORS = { c1: '#ffd166', c2: '#06d6a0', c3: '#118ab2',
+                         r1: '#06d6a0', r2: '#118ab2', r3: '#ffd166' };
+        const color = COLORS[r.label] || '#e0e0e0';
         return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:0 10px;">`
             + `<span style="font-size:26px;font-weight:bold;color:${color};line-height:1.1;">${r.center}${warm}</span>`
             + `<span style="font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.8;">${r.label}</span>`
             + `</div>`;
     }).join('');
+    // V5.2 (05/08): badge circular 17/21 DOURADO + negrito (pedido do operador:
+    // "difícil de ver" — peso 900, fonte maior, fundo sutil; dourado combina
+    // com a paleta: #ffd166 é o gold dos labels c1/r3).
+    const v5m = f17 && f17.v5_mode;
+    const modeBadge = (v5m === 17 || v5m === 21)
+        ? `<span title="Modo V5: apostar ${v5m} números" style="display:inline-flex;`
+          + `align-items:center;justify-content:center;width:24px;height:24px;`
+          + `border-radius:50%;border:2px solid #ffd700;color:#ffd700;flex:0 0 auto;`
+          + `font-size:13px;font-weight:900;line-height:1;align-self:center;`
+          + `background:rgba(255,215,0,0.12);`
+          + `box-shadow:0 0 8px rgba(255,215,0,0.7);text-shadow:0 0 4px rgba(255,215,0,0.85);`
+          + `margin:0 6px;">${v5m}</span>`
+        : '';
     // fix BUG-FRONT #2: preferir os números do próprio meta force17 (mesma fonte das
     // regiões) — só cai no state.lastResult quando o meta não trouxer cobertura.
     const nums = (f17 && f17.numeros && f17.numeros.length
@@ -419,7 +436,7 @@ function updateForce17(f17, regioes) {
     const numsHTML = nums.length
         ? `<div style="margin-top:8px;font-size:12px;opacity:0.85;line-height:1.6;">${nums.join(' · ')}</div>`
         : '';
-    body.innerHTML = `<div style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centros}</div>${numsHTML}`;
+    body.innerHTML = `<div style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centros}${modeBadge}</div>${numsHTML}`;
     if (cov && f17 && f17.coverage_n) cov.textContent = `(${f17.coverage_n}#)`;
     if (bias && f17 && f17.dir_bias) {
         bias.textContent = f17.dir_bias === 'favoravel' ? '✅ favorável' : '⚠️ desfavorável';

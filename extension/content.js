@@ -35,9 +35,42 @@ function centrosFromSugestao(s) {
   return s.centro != null ? [s.centro] : [];
 }
 
-// === force17 (18/06): 3 regiões rotuladas c2/c3/c1 + 17 números ===
+// === V5.2 (05/08): badge circular do modo 17/21 — DOURADO + NEGRITO (pedido
+// do operador: "difícil de ver"); MESMA fonte/tamanho/cor nos dois valores;
+// menor que os números dos 3 centros. ⑰ = apostar 17, ㉑ = apostar 21.
+function buildModeBadge(mode, size) {
+  if (mode !== 17 && mode !== 21) return '';
+  const d = size || 24;
+  const fs = Math.round(d * 0.55);
+  return `<span class="eb-v5-badge" title="Modo V5: apostar ${mode} números" style="`
+    + `display:inline-flex;align-items:center;justify-content:center;`
+    + `width:${d}px;height:${d}px;border-radius:50%;flex:0 0 auto;`
+    + `border:2px solid #ffd700;color:#ffd700;font-size:${fs}px;font-weight:900;`
+    + `background:rgba(255,215,0,0.12);`
+    + `line-height:1;box-shadow:0 0 8px rgba(255,215,0,0.7);`
+    + `text-shadow:0 0 4px rgba(255,215,0,0.85);align-self:center;`
+    + `margin:0 4px;">${mode}</span>`;
+}
+
+// === Fonte ÚNICA do HTML do status MINIMIZADO (05/08 tarde) ===
+// As "3 telas" divergentes que o operador via eram 3 writers com formatos
+// diferentes: toggleMinimize (sem badge), updateOverlay (sem badge) e o
+// heartbeat state_sync (com badge). Este helper é o ÚNICO formato permitido:
+// [centros] + badge 17/21 dourado + gale. Qualquer writer novo DEVE usá-lo.
+function minimizedStatusHTML(centros, galeText, v5m) {
+  const centroDisplay = buildCentroHTML(centros);
+  const badge = buildModeBadge(v5m, 18);
+  return `${centroDisplay}${badge} ${galeText || 'G1 0/0'}`;
+}
+
+// v5_mode da sugestão em cache (fallback p/ writers sem state_sync à mão).
+function v5ModeFromSugestao(s) {
+  return (s && s.force17 && s.force17.v5_mode) || null;
+}
+
+// === force17/v5 (18/06, V5 04/08): 3 regiões rotuladas + números cobertos ===
 // Cada centro de região exibe o número grande e, EMBAIXO, um rótulo pequeno
-// (c2/c3/c1) indicando a qual indicação aquele número central se refere.
+// (c2/c3/c1 no force17; r1/r2/r3 no V5) indicando a indicação de origem.
 function buildForce17HTML(sugestao) {
   const regioes = sugestao.regioes || [];
   const numeros = sugestao.numeros || [];
@@ -45,8 +78,12 @@ function buildForce17HTML(sugestao) {
   const coverageN = f17.coverage_n || numeros.length;
   const bias = f17.dir_bias === 'favoravel' ? '✅ favorável'
              : (f17.dir_bias === 'desfavoravel' ? '⚠️ desfavorável' : '');
+  // V5.1 (05/08): modo do seletor vira badge CIRCULAR verde na linha dos centros
+  // (spec do operador). Mantém marcador curto no header p/ auditoria textual.
+  const v5badge = f17.v5_mode ? ` · V5` : '';
+  const modeBadge = buildModeBadge(f17.v5_mode, 24);
   const centrosHTML = regioes.map(r => {
-    const cls = r.label === 'c1' ? 'eb-rc-c1' : (r.label === 'c2' ? 'eb-rc-c2' : 'eb-rc-c3');
+    const cls = 'eb-rc-' + (r.label || 'reg');  // c1/c2/c3 ou r1/r2/r3 (payload-driven)
     const warming = (r.status === 'aquecendo') ? '<span style="font-size:9px;"> ⏳</span>' : '';
     return `<div class="eb-rc ${cls}" style="display:inline-flex;flex-direction:column;align-items:center;margin:0 8px;">`
       + `<span class="eb-rc-num" style="font-size:22px;font-weight:bold;line-height:1.1;">${r.center}${warming}</span>`
@@ -61,9 +98,9 @@ function buildForce17HTML(sugestao) {
   const nReg = regioes.length;
   const regLabel = nReg ? `${nReg} ${nReg > 1 ? 'regiões' : 'região'}` : 'calibração';
   const header = `<div class="eb-regioes-head" style="font-size:10px;opacity:0.75;margin-bottom:3px;">`
-    + `🎯 ${regLabel} · ${coverageN} números${bias ? ' · ' + bias : ''}</div>`;
+    + `🎯 ${regLabel} · ${coverageN} números${v5badge}${bias ? ' · ' + bias : ''}</div>`;
   return header
-    + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}</div>`
+    + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}${modeBadge}</div>`
     + numerosHTML;
 }
 
@@ -437,13 +474,12 @@ function toggleMinimize() {
 
   if (overlayState.isMinimized) {
     overlay.classList.add('minimized');
-    // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
+    // Quando minimizado: formato ÚNICO [centros] + badge 17/21 + gale (helper).
     if (status && galeDisplay && overlayState.lastSugestao) {
       const s = overlayState.lastSugestao;
       const centros = centrosFromSugestao(s);
-      const centroDisplay = buildCentroHTML(centros);
       const galeText = galeDisplay.textContent;
-      status.innerHTML = `${centroDisplay} ${galeText}`;
+      status.innerHTML = minimizedStatusHTML(centros, galeText, v5ModeFromSugestao(s));
       // Copiar classe de cor
       status.classList.remove('g1', 'g2', 'g3', 'apostar', 'pular', 'aguardando');
       if (galeDisplay.classList.contains('g1')) status.classList.add('g1');
@@ -564,12 +600,12 @@ function updateOverlay(sugestao) {
   // a vista expandida; senão cai nos centros geométricos do SDA.
   // Fonte ÚNICA (c2,c3,c1) — idêntica à vista expandida e ao minimizado/heartbeat.
   const centros = centrosFromSugestao(sugestao);
-  const centroDisplay = buildCentroHTML(centros);
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
 
   if (overlayState.isMinimized) {
-    status.innerHTML = `${centroDisplay} ${galeText}`;
+    // Formato ÚNICO do minimizado (badge 17/21 incluído) — ver minimizedStatusHTML.
+    status.innerHTML = minimizedStatusHTML(centros, galeText, v5ModeFromSugestao(sugestao));
   } else {
     if (acao === 'APOSTAR') {
       status.classList.add('apostar');
@@ -875,12 +911,20 @@ function handleStateSync(data) {
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
       let centros = centrosFromSugestao(overlayState.lastSugestao);
+      // V5 (04/08, auditoria UX): cold-start prefere data.regioes (centros da
+      // ESTRATÉGIA ATIVA, ordem r1/r2/r3 ou c2/c3/c1) antes do pending_prediction
+      // .centers ([C1,C2,C3] V4 crus — ordem/estratégia divergente no V5).
+      if (!centros.length && data.regioes && data.regioes.length) {
+        centros = data.regioes.map(r => r.center);
+      }
       if (!centros.length && data.pending_prediction && data.pending_prediction.centers) {
         centros = data.pending_prediction.centers;
       }
       if (status && centros.length) {
-        const centroDisplay = buildCentroHTML(centros);
-        status.innerHTML = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
+        // Formato ÚNICO do minimizado (badge 17/21 dourado) — minimizedStatusHTML.
+        const v5m = v5ModeFromSugestao(overlayState.lastSugestao)
+                  || (data.force17 && data.force17.v5_mode) || null;
+        status.innerHTML = minimizedStatusHTML(centros, data.gale_display, v5m);
         status.className = `eb-status g${data.gale_level || 1}`;
       }
     }

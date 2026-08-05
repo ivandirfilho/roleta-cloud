@@ -190,7 +190,8 @@ class MessageHandler:
 
     def _engine_apply_selection(self, result) -> None:
         """SDA_BET_PAIR: var_c1c2_c3 (voto C1/C2 + C3 fixo) OU c2c3/c1c3 (par
-        ESTÁTICO fixo, sem voto) OU force17 (C1=ForceLast + 17#, 3 regiões).
+        ESTÁTICO fixo, sem voto) OU force17 (C1=ForceLast + 17#, 3 regiões) OU
+        v5_1721 (R1/R2/R3 assinatura-primeiro + seletor 17↔21 por sentido).
         Substitui a cobertura. Mantém details['centers']=3 (continuidade de
         DNA/atribuição). Stasha _cs_meta."""
         self._cs_meta = None
@@ -198,13 +199,77 @@ class MessageHandler:
         try:
             from app_config.settings import bet_pair_mode
             mode = bet_pair_mode()
-            if mode not in ("var_c1c2_c3", "c1c3", "c2c3", "force17"):
+            if mode not in ("var_c1c2_c3", "c1c3", "c2c3", "force17", "v5_1721"):
                 return
             centers = list((getattr(result, "details", {}) or {}).get("centers") or [])
             if len(centers) < 3:
                 return
             gs = self.game_state
             eng = gs.c_selection_engine
+            if mode == "v5_1721":
+                # V5 (04/08, estrategia_proposta_03_08.md): composer assinatura-
+                # -primeiro POR SENTIDO + seletor 17↔21. Ramo auto-contido:
+                # details['centers'] permanece V4 (continuidade DNA/atribuição);
+                # só a COBERTURA (result.numbers) e o meta de overlay mudam.
+                from strategies import regions_v5 as rv5
+                from app_config.settings import v5_sig4_enabled
+                dk = self._engine_dk()
+                forces = gs.target_timeline.get_last_n(rv5.V5_R1_WINDOW)
+                raw = getattr(self.strategy, "cw_history" if dk == "cw" else "ccw_history", []) or []
+                results_chrono = [int(h[1]) for h in list(raw)
+                                  if isinstance(h, (list, tuple)) and len(h) >= 2]
+                # V5.1 sig4 (flag por-chamada): R1 janela 4 (compose fatia), R2 =
+                # projeção de tendência, R3 = região menos visitada das 6 fixas
+                # (placar de AMBOS os sentidos). OFF → byte-idêntico ao go-live.
+                spec4 = v5_sig4_enabled()
+                comp = rv5.compose_v5(dk, forces, results_chrono,
+                                      gs.last_number, roulette.WHEEL_SEQUENCE,
+                                      spec4=spec4,
+                                      region6_counts=list(getattr(
+                                          gs, "region6_counts", None) or []) or None)
+                # Seletor por sentido; stop-loss de sessão força 17 (LOCK17 —
+                # veto nunca vira cobertura mais cara; INV-3: indicação mantém).
+                # FLIP PURO (05/08 tarde, flag por-chamada): a ÚLTIMA jogada
+                # resolvida do sentido-alvo decide sozinha (vitória→17, derrota
+                # →21) — B5 segue vetando só o STAKE; teto-21 ignorado.
+                from app_config.settings import v5_flip_puro_enabled
+                if v5_flip_puro_enabled():
+                    sel_mode = self.strategy.v5_select_mode(dk, pure=True)
+                else:
+                    sel_mode = 17 if getattr(self, "_v5_stop_loss", False) \
+                        else self.strategy.v5_select_mode(dk)
+                nums = comp["numbers17"] if sel_mode == 17 else comp["numbers21"]
+                regioes = comp["regioes17"] if sel_mode == 17 else comp["regioes21"]
+                if nums:
+                    result.numbers = list(nums)
+                self._cs_meta = {
+                    "chosen": "R1", "pair": "R1+R2+R3", "rule": "v5_1721",
+                    "n": len(nums), "freeze": {},  # sem shadow (determinístico)
+                    "centers3": centers,
+                    # Contrafactuais congelados ANTES do resultado (validação §5.1).
+                    "v5": {"mode": sel_mode, "cov17": comp["numbers17"],
+                           "cov21": comp["numbers21"], "direction": dk},
+                    # Reuso do bloco meta force17: TODAS as vistas (extensão 3
+                    # modos + Glass Box) já consomem regioes/coverage_n/numeros
+                    # deste bloco — labels novos r1/r2/r3 (auditoria UX 04/08).
+                    "force17": {
+                        "regioes": regioes,
+                        "c1_force": {"value": comp["centers"][0],
+                                     "forca": comp["r1_force"],
+                                     "status": "aquecendo" if comp["warmup"] else "ok"},
+                        "coverage_n": len(nums),
+                        "centros": list(comp["centers"]),
+                        "numeros": list(nums),
+                        "v5_mode": sel_mode,
+                        "trend": comp["trend"],
+                        # V5.1: observabilidade da spec4 no trace/overlay (aditivo).
+                        "spec4": bool(comp.get("spec4")),
+                        "r2_delta": comp.get("r2_delta"),
+                        "r3_region": comp.get("r3_region"),
+                    },
+                }
+                self.game_state.last_force17_meta = self._cs_meta.get("force17")
+                return
             if mode == "var_c1c2_c3":
                 hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
                 sel = eng.select(gs.target_direction, centers, hist, roulette.WHEEL_SEQUENCE)
@@ -310,6 +375,17 @@ class MessageHandler:
             if self._cs_meta:
                 p["shadow_candidates"] = self._cs_meta["freeze"]
                 p["cs_chosen"] = self._cs_meta["chosen"]
+                v5 = self._cs_meta.get("v5")
+                if v5:
+                    # V5 (§5.1): congela modo + AMBAS as coberturas ANTES do
+                    # resultado (contrafactual pareado; sobrevive a restart).
+                    p["v5_mode"] = v5["mode"]
+                    p["v5_cov17"] = list(v5["cov17"])
+                    p["v5_cov21"] = list(v5["cov21"])
+                    # Jogada-21 EMITIDA conta contra o teto de sessão×sentido;
+                    # snapshot imediato p/ o contador sobreviver a restart.
+                    self.strategy.v5_note_emitted(v5["direction"], v5["mode"])
+                    self.game_state._adaptive_state = self.strategy.get_adaptive_state()
             if self._bg_meta is not None:
                 p["bg_placed"] = self._bg_meta["placed"]
         except Exception:  # noqa: BLE001
@@ -372,6 +448,10 @@ class MessageHandler:
                         "numeros": f17.get("numeros", []),
                         "dir_bias": "favoravel" if self._engine_dk() == "ccw" else "desfavoravel",
                     }
+                    # V5: modo do seletor (17/21) viaja no mesmo bloco — aditivo,
+                    # ausente no force17 clássico (byte-idêntico p/ clientes velhos).
+                    if f17.get("v5_mode"):
+                        out["force17"]["v5_mode"] = f17["v5_mode"]
                     # Espelha as 3 regiões rotuladas no topo (consumo direto pelo overlay).
                     out["regioes"] = f17.get("regioes", [])
             st_cw = gs.block_gale_engine.states["cw"]
@@ -612,6 +692,14 @@ class MessageHandler:
             # ★ M15-ADA: Atualizar estado adaptativo com resultado real
             if pending and hit_result is not None:
                 bet_direction = pending.get("direction", "")
+                # V5 (04/08): flip 17↔21 com o HIT REAL da cobertura apostada
+                # (miss→21, hit→17) — ANTES do snapshot p/ persistir junto.
+                if pending.get("v5_mode") is not None and bet_direction:
+                    try:
+                        self.strategy.v5_note_outcome(bet_direction, bool(hit_result))
+                        self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+                    except Exception as _v5e:  # noqa: BLE001
+                        logger.warning(f"[V5 flip] falha: {_v5e}")
                 # BUG-A (12/06): era `if c1_predicted > 0` — ZERO é número
                 # válido da roleta; predições com C1=0 (~2.7% dos spins)
                 # nunca alimentavam o feedback adaptativo.
@@ -664,6 +752,35 @@ class MessageHandler:
                                 },
                                 spin_number=numero,
                                 direction=(getattr(self, "last_decision_direction", None) or direcao),
+                                hit=bool(hit_result),
+                            )
+                    except Exception:  # noqa: BLE001
+                        pass
+                    # V5 (§5.1): contrafactuais pareados 17/21 no decision_dna
+                    # existente (zero mudança de schema) — validação no momento
+                    # da aposta: coberturas congeladas ANTES do resultado.
+                    try:
+                        if pending and pending.get("v5_mode") is not None:
+                            from database import dna_logger as _dna_v5
+                            _v5dir = (getattr(self, "last_decision_direction", None)
+                                      or pending.get("direction") or direcao)
+                            _w17 = numero in (pending.get("v5_cov17") or [])
+                            _w21 = numero in (pending.get("v5_cov21") or [])
+                            _vm = int(pending.get("v5_mode"))
+                            _dna_v5.dna_log_feature(
+                                self.last_decision_id, "v5_would_hit_17",
+                                {"raw": int(_w17), "bucket": "hit" if _w17 else "miss"},
+                                spin_number=numero, direction=_v5dir, hit=_w17,
+                            )
+                            _dna_v5.dna_log_feature(
+                                self.last_decision_id, "v5_would_hit_21",
+                                {"raw": int(_w21), "bucket": "hit" if _w21 else "miss"},
+                                spin_number=numero, direction=_v5dir, hit=_w21,
+                            )
+                            _dna_v5.dna_log_feature(
+                                self.last_decision_id, "v5_coverage_mode",
+                                {"raw": _vm, "bucket": str(_vm)},
+                                spin_number=numero, direction=_v5dir,
                                 hit=bool(hit_result),
                             )
                     except Exception:  # noqa: BLE001
@@ -886,6 +1003,9 @@ class MessageHandler:
                     )
         except Exception as _b5_e:  # noqa: BLE001 — gate nunca quebra fluxo
             logger.warning(f"[B5] gates indisponíveis: {_b5_e}")
+        # V5 (04/08): stop-loss de sessão trava o seletor em 17 (LOCK17) —
+        # stash lido por _engine_apply_selection (veto nunca amplia cobertura).
+        self._v5_stop_loss = _stop_loss_active
 
         try:
             _cut_frac = float(self.strategy._cfg.get("sda17.minimizer", "stake_fraction", 0.10))
@@ -964,7 +1084,8 @@ class MessageHandler:
                 # 18/06: desacopla do exact — antes 21# em prod com EXACT=0].
                 try:
                     from app_config.settings import bet_pair_mode
-                    _fb_radius = 8 if bet_pair_mode() == "force17" else 10
+                    # v5_1721 idem: fallback 17# (raio 8) — modo default do seletor.
+                    _fb_radius = 8 if bet_pair_mode() in ("force17", "v5_1721") else 10
                 except Exception:  # noqa: BLE001
                     _fb_radius = 10
                 fallback_nums = sorted(
@@ -1331,6 +1452,25 @@ class MessageHandler:
 
         await websocket.send(json.dumps(overlay_response))
         trace.step("sent")
+
+        # V5.1 (05/08, flag SDA_SUGESTAO_BROADCAST): replica a MESMA `sugestao`
+        # aos DEMAIS clientes (viewers/Glass Box). Hoje só o MASTER a recebe; a
+        # vista expandida de um viewer nunca vê a sugestão por-giro (gap de UX
+        # "sugestão sumiu"). Exclui o master (já recebeu acima — zero duplicata).
+        # Aditivo: clientes ignoram tipos/campos desconhecidos. Rollback: =0.
+        try:
+            from app_config.settings import sugestao_broadcast_enabled
+            if sugestao_broadcast_enabled():
+                _payload = json.dumps(overlay_response)
+                _others = [c for c in list(connection_manager.connections.values())
+                           if c.websocket is not websocket]
+                for _c in _others:
+                    try:
+                        await _c.websocket.send(_payload)
+                    except Exception:  # noqa: BLE001 — viewer morto não trava o giro
+                        pass
+        except Exception as _e:  # noqa: BLE001
+            logger.warning(f"[V5.1 sugestao broadcast] falha: {_e}")
 
         # Broadcast trace para dashboards conectados
         trace_broadcast = {
