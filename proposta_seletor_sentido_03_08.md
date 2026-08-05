@@ -32,6 +32,117 @@ A alternância cw⇄ccw é uma lei física da mesa (um giro por sentido). Qualqu
 **Conclusão da auditoria:** o sistema DIR1–DIR19 (sentido-fase) já blindou a maior parte do fluxo,
 mas **quatro furos específicos** deixam o bug passar — dois no servidor, dois no cliente.
 
+## 2.5 Verificação técnica (05/08): como o sentido é identificado e como o sistema se auto-sincroniza
+
+> Seção adicionada em 05/08 respondendo às duas perguntas fundamentais do operador, com cada
+> afirmação verificada no código real (arquivo:linha). É o "manual do mecanismo" que os furos do §3
+> exploram e que os fixes do §4 blindam.
+
+### 2.5.1 Como o sentido é identificado — não é leitura, é INFERÊNCIA determinística
+
+**O DOM da Evolution NÃO expõe o sentido.** O extrator lê apenas os números do histórico
+(`allNumbers`, 12 últimos) — e o próprio código documenta isso: `state/game.py` l.459–464 marca o
+histórico como "contexto NÃO-DIRECIONAL. O histórico do DOM não carrega o sentido real". Não existe
+sensor; existe uma **invariante física da mesa**: a roleta gira UM sentido por vez, alternando a cada
+giro (horário → anti-horário → horário…).
+
+Disso deriva o modelo de **fase alternada** (DIR3, `state/phase.py` l.1–13):
+
+```
+fase(n) = seed_parity            se (n − seed_n) é par
+        = oposto(seed_parity)    se (n − seed_n) é ímpar
+```
+
+A cadeia de identificação em produção (`SDA_SENTIDO_AUTORITATIVO=1`), na ordem:
+
+| Etapa | Onde vive | O que faz |
+|---|---|---|
+| **1. Âncora (seed)** | `handle_set_seed`, `message_handler.py` l.1556–1575 | Operador define a fase UMA vez no popup → `seed_parity`+`seed_n`+`source="operator_seed"` (+lock opcional). Persistido (round-trip save/load). |
+| **1b. Auto-seed** (fallback) | `message_handler.py` l.782–786 | Sem seed do operador: a **primeira direção observada do cliente** vira âncora (`source="auto_seed"`). |
+| **2. Contador** | `spin_seq` (`game.py` l.246), incrementado em l.824 do handler | Conta giros REAIS ao vivo. É o `n` da fórmula. |
+| **3. Projeção** | `project_phase`, `phase.py` l.34–44 | Fase determinística de qualquer giro a partir de (seed, n). Função pura, 100% testável. |
+| **4. Fusão de fontes** (DIR7) | `fuse_direction`, `phase.py` l.80–122 | Prioridades: `operator_seed`/`manual_fix`=100 > `vision`=50 (conf ≥ 0.7) > `dom_hint`=20 > `deterministic_toggle`=10. O módulo de vídeo ainda NÃO publica sinais — estrutura em stand-by. |
+| **5. Autoridade** | `message_handler.py` l.811–818 | Se a projeção divergir do `direcao` enviado pelo cliente → **substitui** e incrementa `direction_divergence_total`. O cliente apenas *propõe*; o servidor *decide*. |
+
+**Papel do cliente na identificação:** `currentDirection` local flipa após cada envio
+(`background.js` l.1782) e corrige por paridade quando detecta k giros num tick
+(l.1713: `sendDir = k ímpar ? currentDirection : flip`). Mas com autoridade ligada isso é só a
+proposta — o valor gravado no SQLite/PG é o projetado pelo servidor.
+
+**Limite honesto do modelo (importante):** se a âncora estiver invertida (operador clicou o sentido
+errado no seed), o sistema inteiro fica **espelhado de forma consistente** — a alternância continua
+perfeita, nenhuma violação aparece, e nada interno detecta. Os únicos corretores de espelho são
+**externos**: (a) o operador re-ancorando com 1 clique (`set_seed` re-ancora sem reset — é
+re-ancoragem, não recálculo cego); (b) o futuro módulo de visão (DIR7 pronto para recebê-lo). O gate
+DIR21/DIR22 desta proposta detecta **quebra de alternância** (fantasma/duplicata), não espelho.
+
+### 2.5.2 Como se auto-sincroniza — 6 camadas hoje, cada uma com gatilho e alcance próprios
+
+| # | Camada | Onde | Gatilho | O que corrige | Latência |
+|---|---|---|---|---|---|
+| 1 | **Shift/gap** (DIR4) | servidor, a cada giro | `reconcile_shift` acha k≥2 (`phase.py` l.47–77) | contagem: `spin_seq += gap` → a paridade avança sozinha pelos giros perdidos (handler l.739–747) | imediata |
+| 2 | **Re-âncora** (DIR17) | servidor | `phase_uncertain` (shift sem alinhamento) | âncora: zera `seed_parity` → próximo giro alinhado faz auto-seed (l.753–762) | 1 giro |
+| 3 | **Autoridade** (DIR5) | servidor, a cada giro | projeção ≠ direção do cliente | a direção do spin individual (l.811–818) | imediata |
+| 4 | **Resync por state_sync** (DIR1/DIR6) | cliente | conexão, reset, ou `resync_advised=true` | `currentDirection` ← `sentido.next_direction` do servidor (`background.js` l.576–599) | ≤1s **quando armado** |
+| 5 | **Paridade de k local** | cliente, a cada leitura | k par no `countNewSpins` | fase do envio (flip local, l.1713) | imediata |
+| 6 | **Re-hidratação do SW** | cliente, boot | service worker acorda | `currentDirection`/`directionSeed` do storage (l.971–976) | no boot |
+
+**Por que mesmo com 6 camadas o seletor quebra** (o elo com o §3):
+
+- A camada 2 re-ancora **na fonte errada**: quando o `uncertain` foi fabricado pelo Furo A (buffer
+  `_phase_results` dessincronizado gera uncertain FALSO em série), o DIR17 zera o seed e adota a
+  direção do **cliente defasado** como nova verdade. A autoridade passa a projetar a fase invertida
+  — com convicção.
+- A camada 4 **não é contínua**: só arma em 3 eventos. Se o cliente perder o `resync_advised` (SW
+  dormindo no instante do state_sync), fica defasado indefinidamente — exatamente o sintoma
+  relatado ("o seletor era para mudar e não muda").
+- O giro fantasma (Furos B/C/C2) **incrementa `spin_seq`** — quebra a paridade de TODAS as camadas
+  que dependem da contagem (1, 2, 3 e 5 de uma vez).
+
+### 2.5.3 O que a proposta muda em cada camada
+
+| Camada | Hoje | Com a proposta (§4) |
+|---|---|---|
+| 1 (shift) | recupera gap mas dessincroniza o próprio buffer de comparação (Furo A) | `sync_phase_buffer()` fecha a assimetria → uncertain falso desaparece |
+| 2 (re-âncora) | dispara em rajada por uncertain falso; re-ancora no cliente contaminado | volta a disparar **só em troca de mesa real** → âncora estável |
+| 3 (autoridade) | projeta certo, mas sobre `spin_seq` corrompível por fantasma | gate DIR21 (relógio monotônico do servidor) barra o fantasma **antes** de incrementar → contador íntegro |
+| 4 (resync cliente) | eventual (3 gatilhos) | **contínua**: reconcilia a cada state_sync (1s), condicionada ao capability handshake `sentido.buffer_sync` — auto-desarma em rollback do servidor (fix G) |
+| 5 (paridade k) | `countNewSpins` retorna "1 conservador" sem alinhamento → flip errado | retorna `{k, matched}`; sem matched → re-baseline sem flipar às cegas (fix D) |
+| 6 (boot SW) | corrida: alarme lê antes da re-hidratação completar | gate de boot: 1º tick espera a re-hidratação (fix F) |
+
+**Hierarquia final de autoridade (quem manda, em ordem):** operador (seed/lock) → vídeo futuro
+(conf ≥ 0.7) → projeção determinística do servidor → cliente (apenas propõe). E a
+auto-sincronização passa a ter **fechamento de malha em ≤1s** (camada 4 contínua) com fonte de
+verdade que não se contamina (camadas 1–3 blindadas).
+
+```mermaid
+flowchart TD
+    subgraph FISICA["Invariante física"]
+        ALT["Mesa alterna sentido a cada giro"]
+    end
+    subgraph ID["Identificação (servidor)"]
+        SEED["Âncora: operator_seed (popup, 1×)<br/>ou auto_seed (1ª direção observada)"]
+        SEQ["Contador spin_seq<br/>(giros reais)"]
+        PROJ["project_phase(seed, n)<br/>fase determinística"]
+        FUSE["fuse_direction (DIR7)<br/>operador 100 > visão 50 > toggle 10"]
+        AUTH["Autoridade DIR5:<br/>substitui direção do cliente se divergir"]
+    end
+    subgraph SYNC["Auto-sincronização"]
+        GAP["DIR4: gap k≥2 → spin_seq += gap<br/>(+ sync_phase_buffer, fix A)"]
+        GATE["DIR21: gate monotônico<br/>barra fantasma antes de contar"]
+        REANC["DIR17: uncertain real →<br/>re-âncora no próximo giro"]
+        SS["state_sync 1s: next_direction →<br/>cliente reconcilia (fix G: contínuo)"]
+    end
+    CLIENT["Cliente: currentDirection<br/>(propõe, não decide)"]
+    ALT --> SEED --> PROJ
+    SEQ --> PROJ --> FUSE --> AUTH
+    GATE --> SEQ
+    GAP --> SEQ
+    REANC --> SEED
+    AUTH --> SS --> CLIENT
+    CLIENT -. "direcao proposta" .-> AUTH
+```
+
 ## 3. Causa-raiz — a cadeia completa (4 furos que se retroalimentam)
 
 ### Furo A (servidor, o mais grave): assimetria de buffer na recuperação de gap — DIR4/DIR19
