@@ -90,6 +90,11 @@ def test_blob_snapshots_commit_manifest_last_and_restore_by_manifest():
     assert "PRAGMA journal_mode=DELETE" in restore
     assert "restore deixou sidecar SQLite" in restore
     assert "PRAGMA wal_checkpoint(TRUNCATE)" not in restore
+    assert '--prefix "${BLOB_PREFIX}manifest_"' in restore
+    assert "--num-results '*'" in restore
+    assert "PRAGMA quick_check" in restore
+    assert "recusando rollback automático" in restore
+    assert "MAX_SNAPSHOT_AGE_SEC" in restore
 
 
 def test_pre_cutover_units_and_probe_artifacts_exist():
@@ -106,6 +111,21 @@ def test_pre_cutover_units_and_probe_artifacts_exist():
     )
     for relative in expected:
         assert (AZURE / relative).is_file(), relative
+
+    hostdime_timer = (AZURE / "systemd/roleta-hostdime-snapshot.timer").read_text(
+        encoding="utf-8"
+    )
+    standby_timer = (AZURE / "systemd/roleta-standby-sync.timer").read_text(
+        encoding="utf-8"
+    )
+    standby_service = (AZURE / "systemd/roleta-standby-sync.service").read_text(
+        encoding="utf-8"
+    )
+    assert "OnCalendar=*:0/10 UTC" in hostdime_timer
+    assert "OnCalendar=*:0/2 UTC" in standby_timer
+    assert "AccuracySec=1s" in hostdime_timer
+    assert "AccuracySec=1s" in standby_timer
+    assert "MAX_SNAPSHOT_AGE_SEC=900" in standby_service
 
     probe = (AZURE / "probe-realtime-persistence.sh").read_text(encoding="utf-8")
     assert "/opt/roleta/probe-data" in probe

@@ -13,8 +13,10 @@ ACTIVE_DATA_DIR="${ACTIVE_DATA_DIR:-/opt/roleta/data}"
 BLOB_PREFIX="${BLOB_PREFIX:-azure-local/}"
 STATUS_FILE="${STATUS_FILE:-}"
 APPLIED_STAMP_FILE="${APPLIED_STAMP_FILE:-}"
+MAX_SNAPSHOT_AGE_SEC="${MAX_SNAPSHOT_AGE_SEC:-0}"
 BACKUP_EXISTING="${BACKUP_EXISTING:-1}"
 STAMP=""
+STAMP_EXPLICIT=0
 FORCE="${ALLOW_OVERWRITE:-0}"
 
 while (($# > 0)); do
@@ -22,6 +24,7 @@ while (($# > 0)); do
     --stamp)
       [ "$#" -ge 2 ] || { echo "ERRO: --stamp exige valor" >&2; exit 2; }
       STAMP="$2"
+      STAMP_EXPLICIT=1
       shift
       ;;
     --target-dir)
@@ -63,6 +66,10 @@ case "$FORCE:$BACKUP_EXISTING" in
   0:0|0:1|1:0|1:1) ;;
   *) echo "ERRO: ALLOW_OVERWRITE/BACKUP_EXISTING devem ser 0 ou 1" >&2; exit 2 ;;
 esac
+[[ "$MAX_SNAPSHOT_AGE_SEC" =~ ^[0-9]+$ ]] || {
+  echo "ERRO: MAX_SNAPSHOT_AGE_SEC deve ser inteiro >= 0" >&2
+  exit 2
+}
 
 BLOB_PREFIX="${BLOB_PREFIX#/}"
 case "$BLOB_PREFIX" in
@@ -148,9 +155,10 @@ mapfile -t MANIFEST_BLOBS < <(
   az storage blob list \
     --account-name "$STORAGE_ACCOUNT" \
     --container-name "$CONTAINER" \
-    --prefix "$BLOB_PREFIX" \
+    --prefix "${BLOB_PREFIX}manifest_" \
+    --num-results '*' \
     --auth-mode login \
-    --query "[?contains(name, 'manifest_') && ends_with(name, '.sha256')].name" \
+    --query "[?ends_with(name, '.sha256')].name" \
     -o tsv | sort
 )
 [ "${#MANIFEST_BLOBS[@]}" -gt 0 ] || {
@@ -169,6 +177,19 @@ fi
   echo "ERRO: manifesto remoto contém stamp inválido" >&2
   exit 1
 }
+SNAPSHOT_AGE_SEC="$(python3 - "$STAMP" <<'PY'
+import datetime as dt
+import sys
+
+stamp = dt.datetime.strptime(sys.argv[1], "%Y%m%dT%H%M%SZ").replace(tzinfo=dt.timezone.utc)
+print(max(0, int((dt.datetime.now(dt.timezone.utc) - stamp).total_seconds())))
+PY
+)"
+if [ "$MAX_SNAPSHOT_AGE_SEC" -gt 0 ] &&
+  [ "$SNAPSHOT_AGE_SEC" -gt "$MAX_SNAPSHOT_AGE_SEC" ]; then
+  echo "ERRO: snapshot $STAMP está stale (${SNAPSHOT_AGE_SEC}s > ${MAX_SNAPSHOT_AGE_SEC}s)" >&2
+  exit 1
+fi
 MANIFEST_EXISTS="$(az storage blob exists \
   --account-name "$STORAGE_ACCOUNT" --container-name "$CONTAINER" \
   --name "$MANIFEST_BLOB" --auth-mode login --query exists -o tsv)"
@@ -177,16 +198,28 @@ MANIFEST_EXISTS="$(az storage blob exists \
   exit 1
 }
 
+APPLIED_STAMP=""
+if [ -n "$APPLIED_STAMP_FILE" ] && [ -f "$APPLIED_STAMP_FILE" ]; then
+  APPLIED_STAMP="$(sed -n '1p' "$APPLIED_STAMP_FILE")"
+  [[ "$APPLIED_STAMP" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
+    echo "ERRO: applied stamp inválido em $APPLIED_STAMP_FILE" >&2
+    exit 1
+  }
+  if [ "$STAMP_EXPLICIT" != "1" ] && [[ "$STAMP" < "$APPLIED_STAMP" ]]; then
+    echo "ERRO: recusando rollback automático de $APPLIED_STAMP para $STAMP" >&2
+    exit 1
+  fi
+fi
+
 if [ -n "$APPLIED_STAMP_FILE" ] &&
-  [ -f "$APPLIED_STAMP_FILE" ] &&
-  [ "$(sed -n '1p' "$APPLIED_STAMP_FILE")" = "$STAMP" ] &&
+  [ "$APPLIED_STAMP" = "$STAMP" ] &&
   [ -f "$TARGET_RESOLVED/decisions.db" ] &&
   [ -f "$TARGET_RESOLVED/state.json" ]; then
-  NOOP_CHECK="$(sqlite3 "$TARGET_RESOLVED/decisions.db" 'PRAGMA integrity_check;' 2>/dev/null || true)"
+  NOOP_CHECK="$(sqlite3 "$TARGET_RESOLVED/decisions.db" 'PRAGMA quick_check;' 2>/dev/null || true)"
   if [ "$NOOP_CHECK" = "ok" ] &&
     python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' \
       "$TARGET_RESOLVED/state.json" 2>/dev/null; then
-    echo "[restore] stamp $STAMP já aplicado e íntegro; nada a fazer" >&2
+    echo "[restore] stamp $STAMP já aplicado e íntegro; age=${SNAPSHOT_AGE_SEC}s" >&2
     exit 0
   fi
   echo "[restore] stamp aplicado está corrompido; reaplicando snapshot" >&2
@@ -281,7 +314,7 @@ done
 
 if [ -n "$STATUS_FILE" ]; then
   python3 - "$TARGET_RESOLVED/decisions.db" "$TARGET_RESOLVED/state.json" \
-    "$STATUS_FILE" "$STAMP" "$CONTAINER" "$BLOB_PREFIX" <<'PY'
+    "$STATUS_FILE" "$STAMP" "$CONTAINER" "$BLOB_PREFIX" "$SNAPSHOT_AGE_SEC" <<'PY'
 import datetime as dt
 import json
 import os
@@ -289,7 +322,7 @@ import sqlite3
 import sys
 import tempfile
 
-db_path, state_path, status_path, stamp, container, prefix = sys.argv[1:]
+db_path, state_path, status_path, stamp, container, prefix, snapshot_age = sys.argv[1:]
 with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
     count, max_id, max_ts = conn.execute(
         "SELECT COUNT(*), MAX(id), MAX(timestamp) FROM decisions"
@@ -305,6 +338,7 @@ payload = {
     "decisions_max_id": max_id,
     "decisions_max_timestamp": max_ts,
     "state_spin_seq": state.get("spin_seq"),
+    "snapshot_age_sec": int(snapshot_age),
     "integrity_check": "ok",
 }
 parent = os.path.dirname(status_path) or "."
@@ -330,4 +364,4 @@ if [ -n "$APPLIED_STAMP_FILE" ]; then
   install -m 0640 "$TMP/applied-stamp" "$APPLIED_STAMP_FILE"
 fi
 
-echo "[restore] OK: stamp=$STAMP source=$CONTAINER/$BLOB_PREFIX target=$TARGET_RESOLVED (integrity_check=ok)" >&2
+echo "[restore] OK: stamp=$STAMP age=${SNAPSHOT_AGE_SEC}s source=$CONTAINER/$BLOB_PREFIX target=$TARGET_RESOLVED (integrity_check=ok)" >&2

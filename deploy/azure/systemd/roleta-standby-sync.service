@@ -14,6 +14,7 @@ Environment=ALLOW_OVERWRITE=1
 Environment=BACKUP_EXISTING=0
 Environment=STATUS_FILE=/var/lib/roleta/standby-status.json
 Environment=APPLIED_STAMP_FILE=/var/lib/roleta/standby-applied-stamp
+Environment=MAX_SNAPSHOT_AGE_SEC=900
 ExecStart=/usr/bin/flock -n /run/lock/roleta-standby-sync.lock /opt/roleta/restore-sqlite-from-blob.sh
 Nice=10
 IOSchedulingClass=idle
