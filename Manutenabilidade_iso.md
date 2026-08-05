@@ -1500,6 +1500,152 @@ state_sync). Agora os 3 campos passam quando presentes (aditivo).
 
 ---
 
+## ADENDO 05/08/2026 (noite) — SPR-V2 "DIR20": a extensão parou de FABRICAR giros e de inverter a fase (ext 3.10.0)
+
+> Quinta rodada do ciclo. Sintoma reportado: o servidor recebia giros que **não aconteceram** e, com
+> eles, a fase (`horario`/`anti-horario`) invertia — corrompendo a seleção por sentido que a V5.2
+> acabara de entregar. A causa não estava no motor Python: estava no **cliente MV3**.
+
+### A. Diagnóstico — 4 defeitos que se somavam no service worker
+
+| # | Defeito | Consequência |
+|---|---------|--------------|
+| 1 | Baseline persistia `results.slice(0,5)` enquanto o payload do site traz **12** números | Qualquer variação além dos 5 primeiros "parecia" giro novo |
+| 2 | `countNewSpins` devolvia **1 conservador** quando NADA alinhava | Leitura de frame errado/parcial virava 1 giro + 1 flip de fase |
+| 3 | `chrome.alarms.onAlarm` chamava `readResults()` **sem `await`** | Dois ticks liam o mesmo baseline, "detectavam" o mesmo giro e enviavam 2× com 2 flips |
+| 4 | Re-hidratação do storage por callback perdia a corrida do boot | O 1º tick após acordar o worker decidia com a fase literal `horario` do `DEFAULT_STATE` |
+
+Nenhum deles era observável: o giro fabricado entrava no pipeline como um giro legítimo e a perda
+nunca aparecia em lugar nenhum. Este ADENDO conserta os 4 **e** torna o descarte contável.
+
+### B. Lógica de alinhamento virou módulo puro (`extension/phase_align.js`, UMD)
+
+Zero dependência nova; carregado por `importScripts` no worker e por `require` no `node --test`.
+
+- `fingerprint(numbers)` — assinatura dos **12** itens (era 5).
+- `countNewSpins(novos, antigos, strict)` → **`{k, matched, overlap, reason}`**. Em `strict`: exige
+  `overlap >= 2` para qualquer `k >= 1`, aceita **`k === 0`** (leitura idêntica = noop legítimo) e,
+  quando nada casa, devolve `matched:false` — nunca mais o "1 conservador".
+- `decideTick(input)` — decisão pura do tick: `send | skip | rebaseline | baseline_init | noop`.
+- `createSerialQueue` / `createReentrancyGuard` / `createHydrationGate` — as três primitivas de
+  concorrência, testáveis fora do Chrome.
+
+### C. Single-writer, fail-closed e frame pegajoso (`extension/background.js`)
+
+- **`mutateState(fn)`**: todo read-modify-write do estado passa por uma fila serial. Os efeitos
+  (envio WS, captura de frame) ficam **fora** do lock — a fila nunca reentra.
+- **`_readGuard`**: o tick atrasado **desiste** em vez de enfileirar; `onAlarm` agora dá `await`.
+- **`_hydrationGate`**: nenhuma decisão de fase ocorre antes de o storage responder (uma vez só).
+- **Fail-closed**: se `phase_align.js` não carregar, a leitura é **suspensa** — não existe caminho
+  de degradação para o algoritmo antigo.
+- **`selectNumbersFrame`** sticky-first: o frame que já funcionou vence a "lista mais longa" de um
+  frame vizinho (lobby), e os dados de sessão são reordenados para virem do **mesmo** frame.
+- **Kill-switch `DIR20_ENABLED`**: `false` passa `strict:false` para o módulo e reproduz bit-a-bit a
+  semântica da v3.9.1 — **um único caminho de código**, e o rollback é ele próprio testado.
+
+### D. A perda virou número (`state.dir20` + `client_health` + popup)
+
+`unalignedStreak`, `skippedUnaligned`, `rebaselines`, `flipsReverted`, `lastReason`, `lastFrameId`,
+`lastRoundId`, `baselineTable` — persistidos (round-trip em `save`/`load`/`reset`) e transmitidos no
+bloco **aditivo** `client_health` (dentro do `register` e de cada `novo_resultado`), junto de
+`ext_version`. O popup ganhou o painel "SPR-V2" com os mesmos contadores + a versão.
+
+Após `DIR20_MAX_SKIPS` (5) descartes seguidos a extensão **re-ancora** o baseline: não inventa giro,
+não flipa fase, e só reenvia `historico_inicial` quando há **evidência de troca de mesa**
+(`sessionData.table` ≠ `baselineTable`). Desvio documentado: `round_id` **não** serve de evidência —
+na Evolution ele muda a cada giro.
+
+### E. Consumo retrocompatível do `phase_authority` (SPR-V1)
+
+Só age com `state_sync.phase_authority.enabled === true`. Servidor antigo (campo ausente) ou com a
+capability desligada ⇒ reconciliação **desarmada** — auto-desarme em qualquer rollback do servidor.
+Com ela ligada: (1) reconciliação contínua da fase pela autoridade e (2) reversão do flip local de um
+giro que o servidor **não contou**. Ressalva declarada: a detecção da rejeição é **heurística por
+`spin_seq` inalterado após 2,5 s**, porque o `state_sync` não correlaciona o `trace_id` do giro
+enviado. Falso positivo é corrigido no ciclo seguinte pela reconciliação contínua. **Dívida:**
+correlação por `trace_id` no contrato do SPR-V1.
+
+### F. Impacto ISO/IEC 25010
+
+| Característica | Antes | Depois | Por quê |
+|---|---|---|---|
+| **Confiabilidade** | 8.0 | **9.0** | O dado de entrada deixa de ser fabricado: sem alinhamento não há envio, flip nem re-baseline silencioso. Corrida de reentrância e de boot eliminadas por construção (fila serial + gate), não por ordenação sortuda |
+| **Manutenibilidade** | 8.5 | **9.0** | A decisão de fase saiu de 300 linhas de service worker para um módulo puro de 338 linhas com 49 testes; o harness `node:vm` executa o `background.js` **real** com fakes de `chrome.*` — o worker MV3 deixou de ser território não-testável |
+| **Adequação funcional** | 8.5 | 8.5 | Nenhuma regra de negócio mudou; o que muda é a fidelidade da entrada |
+| **Usabilidade** | 8.5 | **8.7** | A perda passou a ser visível ao operador (painel + versão no popup) em vez de silenciosa |
+| **Compatibilidade** | 7.0 | 7.0 | Campos estritamente aditivos; servidor ignora chaves desconhecidas — nenhuma mudança em `server/` |
+| Segurança / Desempenho / Portabilidade | — | — | Sem alteração |
+
+**Scorecard: 8.5 → 8.7/10.**
+
+### G. Obrigações assumidas
+
+1. `phase_align.js` é **pré-requisito de execução**: qualquer refactor que quebre o `importScripts`
+   deixa a extensão inerte (por design). O log de erro diz `fail-closed`.
+2. Todo novo write de estado nasce dentro de `mutateState` — escrita direta em `chrome.storage.local`
+   para chaves do `escutaState` é regressão.
+3. Todo campo novo em `dir20` entra em `dir20Defaults()` (round-trip garantido por `ensureDir20`).
+4. **Premissa MV3 a verificar em campo:** `periodInMinutes: 0.0333` (~2 s) só é honrado com a extensão
+   **unpacked**; empacotada, o Chrome faz clamp para 30 s. O roteiro de instalação usa unpacked.
+5. **Gap declarado (não entregue):** o `client_health` *contínuo* pedido no Bloco 4.2 do brief. A
+   extensão **não possui keepalive/ping WS** — o alarme `keepAlive` apenas recria o `readLoop`. Enviar
+   um `register` periódico reavaliaria a eleição de MASTER (`connection_manager.update_device_id`,
+   incidente de 13/06). A telemetria viaja no `register` do `onopen` e em cada `novo_resultado`; o
+   heartbeat dedicado fica para um sprint que crie a mensagem no contrato.
+
+### H. Rollback — 3 camadas, da mais barata para a mais cara
+
+| # | Camada | Ação | Efeito |
+|---|--------|------|--------|
+| 1 | **Kill-switch** | `DIR20_ENABLED = false` em `extension/background.js` + ↻ na extensão | `strict:false` ⇒ semântica v3.9.1 bit-a-bit; telemetria e single-writer permanecem |
+| 2 | **Binário anterior** | `git archive <sha-3.9.1> extension/ -o ext-3.9.1.zip` e carregar essa pasta | Extensão 3.9.1 íntegra |
+| 3 | **Código** | `git revert` do PR | Base restaurada |
+
+Nenhuma camada exige ação no servidor: `server/`, `state/`, `app_config/` e o schema **não foram
+tocados** — não há migração para desfazer.
+
+### I. Code-review pós-implantação — 4 achados, todos corrigidos e travados por teste
+
+O review encontrou três defeitos que tornariam o Bloco 4.4 **inerte ou enganoso em produção**
+(passavam nos testes originais porque nenhum deles emitia o eco do popup):
+
+1. **O eco automático do popup desarmava o PA-ACK.** O `storage.onChanged` disparado pelo próprio
+   flip voltava ao worker como `setDirection(manual:false)` e limpava a expectativa de eco — o flip
+   de um giro rejeitado nunca seria revertido. Correção em duas frentes: o handler só limpa quando
+   `isManualCorrection`, e o popup passou a distinguir **`reflectDirection` (pinta)** de
+   **`setDirection` (comanda)**. Abrir o popup também deixou de contar como âncora do operador.
+2. **O guard era armado DEPOIS do envio pela rede.** Entre o flip e o `sendToWebSocket` há awaits
+   (storage, dealMeta, `client_health`) e o heartbeat de 1 s cabe nessa janela: a reconciliação
+   contínua via um snapshot **pré-giro** e desfazia a fase recém-avançada. Pior, `paSeqBeforeSend`
+   era fotografado após o envio — um heartbeat já contabilizado classificaria um giro **aceito**
+   como rejeitado. Agora flip e guard são gravados na **mesma `mutateState`**, e o guard é desarmado
+   quando o envio falha.
+3. **`flipsReverted` subia sem reversão.** O incremento estava fora do `if` que de fato reverte:
+   servidor sem `direction`, ou já na mesma fase, inflava a métrica de perda que alimenta o popup e
+   o `client_health`. Movido para dentro do ramo que atribui a fase.
+4. **A suíte `tests/js/` não rodava em CI.** Nenhum workflow tinha Node e o `pytest.ini` só coleta
+   `test_*.py`. Novo job `extension-tests` em `.github/workflows/ci.yml`, incluído no gate agregador
+   `ci-ok`. (Detalhe fixado no step: `node --test tests/js/` falha ao resolver o diretório — o glob
+   `tests/js/*.test.js` é obrigatório.)
+
+Cada correção ganhou um teste de regressão (`REVIEW#1..#3` + envio-que-falha), e cada um foi
+**verificado falhando** contra o código pré-correção antes de ser aceito.
+
+### J. Regressão e arquivos
+
+- **`node --test "tests/js/*.test.js"` → 53 passed / 0 failed** (28 do módulo puro + 25 de fluxo no `background.js` real).
+  Agora executados em CI pelo job `extension-tests` (gate `ci-ok`).
+- **`pytest tests/` → 796 passed, 9 skipped, 1 xfailed.**
+- `tools/lint_silent_except.py` → OK.
+- Tocados: **novos** `extension/phase_align.js`, `tests/js/{chrome_harness,phase_align.test,background_flow.test}.js`;
+  **alterados** `extension/background.js`, `extension/popup.js`, `extension/popup.html`,
+  `extension/manifest.json` (3.9.1 → **3.10.0**), `.github/workflows/ci.yml` (job `extension-tests`),
+  `tests/test_dir13_lock_total.py` (o lock de versão
+  passou de igualdade literal para piso por tupla `>= (3,9,1)` — igualdade quebrava a cada bump sem
+  sinalizar regressão alguma). Backend Python **intacto**.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 
