@@ -87,6 +87,9 @@ def test_blob_snapshots_commit_manifest_last_and_restore_by_manifest():
     assert "restore no caminho ativo exige --stamp" in restore
     assert "sidecar SQLite presente" in restore
     assert "stamp $STAMP já aplicado e íntegro" in restore
+    assert "PRAGMA journal_mode=DELETE" in restore
+    assert "restore deixou sidecar SQLite" in restore
+    assert "PRAGMA wal_checkpoint(TRUNCATE)" not in restore
 
 
 def test_pre_cutover_units_and_probe_artifacts_exist():

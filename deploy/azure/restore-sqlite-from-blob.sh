@@ -239,6 +239,11 @@ done < "$TMP/files.txt"
 DB_ARCHIVE="$TMP/decisions_${STAMP}.db.gz"
 STATE_SNAPSHOT="$TMP/state_${STAMP}.json"
 gzip -dc "$DB_ARCHIVE" > "$TMP/decisions.db"
+JOURNAL_MODE="$(sqlite3 "$TMP/decisions.db" 'PRAGMA journal_mode=DELETE;')"
+[ "$JOURNAL_MODE" = "delete" ] || {
+  echo "ERRO: nao foi possivel normalizar journal_mode do snapshot: $JOURNAL_MODE" >&2
+  exit 1
+}
 CHECK="$(sqlite3 "$TMP/decisions.db" 'PRAGMA integrity_check;')"
 [ "$CHECK" = "ok" ] || { echo "ERRO: restore integrity_check retornou: $CHECK" >&2; exit 1; }
 python3 -c 'import json, sys; json.load(open(sys.argv[1], encoding="utf-8"))' "$STATE_SNAPSHOT"
@@ -262,12 +267,17 @@ install -m 0600 "$STATE_SNAPSHOT" "$TARGET_RESOLVED/state.json.new"
 mv -f "$TARGET_RESOLVED/decisions.db.new" "$TARGET_RESOLVED/decisions.db"
 mv -f "$TARGET_RESOLVED/state.json.new" "$TARGET_RESOLVED/state.json"
 sync -f "$TARGET_RESOLVED" 2>/dev/null || sync
-POST_CHECK="$(sqlite3 "$TARGET_RESOLVED/decisions.db" \
-  'PRAGMA wal_checkpoint(TRUNCATE); PRAGMA integrity_check;' | tail -n 1)"
+POST_CHECK="$(sqlite3 "$TARGET_RESOLVED/decisions.db" 'PRAGMA integrity_check;')"
 [ "$POST_CHECK" = "ok" ] || {
   echo "ERRO: integrity_check pós-instalação retornou: $POST_CHECK" >&2
   exit 1
 }
+for sidecar in "$TARGET_RESOLVED/decisions.db-wal" "$TARGET_RESOLVED/decisions.db-shm"; do
+  [ ! -e "$sidecar" ] || {
+    echo "ERRO: restore deixou sidecar SQLite em $sidecar" >&2
+    exit 1
+  }
+done
 
 if [ -n "$STATUS_FILE" ]; then
   python3 - "$TARGET_RESOLVED/decisions.db" "$TARGET_RESOLVED/state.json" \
