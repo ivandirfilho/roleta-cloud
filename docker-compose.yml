@@ -142,6 +142,12 @@ services:
       # DIR7 (sentido-fase): fusao da fonte de VIDEO (stand-by acoplavel). O futuro
       # servico de video publica direction_event; se confiavel, confirma/sobrepoe o
       # toggle. Default OFF (video inerte). Ligar: SDA_DIRECTION_VISION=1.
+      # SPR-V1 (05/08) — CONGELADA EM 0: enquanto nao existir produtor de visao
+      # AUTENTICADO (SPR-V7 / AUTH_ENABLED), o sinal 'vision' NAO entra mais na fusao
+      # do giro (fail-close no message_handler). Um direction_event forjado invertia a
+      # fase autoritativa por mensagem nao autenticada. NAO LIGUE esta flag antes do V7:
+      # com o fail-close no codigo ela nao tem efeito sobre o giro. Rollback do
+      # fail-close = git revert do SPR-V1 (nao ha flag para reabrir o vetor).
       - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
       - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
       # DIR16 (sentido-fase): FIX CRITICO #S/#W/#X — reset_session zera seed_parity
@@ -168,6 +174,37 @@ services:
       # da DIR5 e reanchoragem da DIR17. Quando operador trava a fase, ela FICA travada.
       # ATIVADO (default ON). Rollback: SDA_LOCK_TOTAL=0.
       - SDA_LOCK_TOTAL=${SDA_LOCK_TOTAL:-1}
+      # ===== SPR-V1 (05/08): blindagem do servidor (fase/autoridade) =====
+      # Todas DEFAULT-OFF: com elas em 0 o comportamento e byte-identico ao anterior
+      # (comprovado pelo replay congelado tests/fixtures/spr_v1_replay_baseline.json).
+      # B1 — FURO A: sincroniza o BUFFER DE FASE (_phase_results, DIR19) nos gaps do
+      # DIR4. Sem isto, qualquer gap deixava o buffer permanentemente defasado e TODO
+      # giro seguinte virava phase_uncertain (re-ancorando na direcao do cliente).
+      # Tambem limpa o buffer na correcao/reanchoragem de historico.
+      # Ligar 1o (maior ganho, menor risco). Rollback: SDA_PHASE_BUFFER_SYNC=0.
+      - SDA_PHASE_BUFFER_SYNC=${SDA_PHASE_BUFFER_SYNC:-0}
+      # B2 — evidencia minima para aceitar um shift de fase. Com janela 12 do cliente,
+      # min_overlap=3 recupera gaps ate k=9; acima disso a evidencia acaba e
+      # phase_uncertain e a resposta CORRETA (pedir resync > inventar giros). Tambem
+      # rejeita k ambiguo em sequencias periodicas. 0 = comportamento legado.
+      # Ligar DEPOIS do B1 estabilizar. Rollback: SDA_PHASE_MIN_OVERLAP=0.
+      - SDA_PHASE_MIN_OVERLAP=${SDA_PHASE_MIN_OVERLAP:-0}
+      # B3 — DIR21: intervalo minimo (ms) entre giros aceitos, medido no relogio
+      # MONOTONICO DO SERVIDOR (imune a NTP/relogio de cliente adulterado). A roleta
+      # real cicla em ~42-48s; um giro que chega antes disso e fisicamente impossivel
+      # e so serve para avancar spin_seq e flipar a fase. Sugestao de producao: 15000
+      # (folga de 3x sobre o pior caso legitimo). 0 = desligado.
+      # LIGAR POR ULTIMO - so DEPOIS da extensao 3.10.0 (SPR-V2) instalada e confirmada.
+      # Motivo: o gate faz o SERVIDOR rejeitar o giro fantasma, mas um cliente antigo NAO
+      # desfaz o flip local - servidor certo e popup/local phase espelhado. Reverter esse
+      # flip rejeitado e a razao de existir do V2. Ver o runbook em sprints/SPR-V1.md.
+      # Rollback: SDA_MIN_SPIN_INTERVAL_MS=0.
+      - SDA_MIN_SPIN_INTERVAL_MS=${SDA_MIN_SPIN_INTERVAL_MS:-0}
+      # B5 — DIR22: metrica de alternancia (alternancia_violada_total). A fase e um
+      # toggle: dois giros consecutivos com o MESMO sentido, fora de gap/reset,
+      # denunciam fase corrompida. Puramente observavel (nao muda aposta) — pode ir
+      # a 1 junto com o B1. Rollback: SDA_PHASE_ALT_METRIC=0.
+      - SDA_PHASE_ALT_METRIC=${SDA_PHASE_ALT_METRIC:-0}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

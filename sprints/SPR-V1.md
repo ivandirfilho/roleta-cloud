@@ -253,16 +253,32 @@ O fail-close da visão (Bloco 4.3) é **remoção de caminho**, não flag: seu r
 
 ## Ordem de ativação em produção (runbook do **Diretor/operador** — **NÃO** é DoD nem tarefa deste sprint)
 > ⚠️ O executor **não executa nada desta seção**. Ela vai colada no corpo do PR, para o operador.
-1. Merge com **todas as flags OFF** (comportamento byte-idêntico).
-2. `SDA_PHASE_BUFFER_SYNC=1` (+ `SDA_PHASE_MIN_OVERLAP=3`) → 48h com ≥5 gaps provocados
-   (minimizar a janela 5-8min, 2-3×/dia, ausência ≤11 giros). Passa se: zero `phase_uncertain` nos
-   gaps com overlap suficiente, zero rajada DIR17 ≥3 giros.
-3. **Instalar a extensão do SPR-V2** e confirmar a reconciliação contínua no cliente.
-4. **Só então** `SDA_MIN_SPIN_INTERVAL_MS=15000`. *Motivo:* com cliente antigo, o servidor rejeita o
-   fantasma mas o cliente **não desfaz o flip local** — servidor certo, popup espelhado. O passo 3
-   fecha essa janela. +48h: descartes visíveis, zero descarte com delta >20s, `spins_received` em
-   24h dentro de ±10% do baseline.
-5. `SDA_PHASE_ALT_METRIC=1` (telemetria) e auditoria D+1/D+3/D+7 particionada por sessão.
+> 🔁 **Ordem corrigida pelo Diretor (05/08, pré-merge).** A versão anterior deste runbook ligava o
+> gate temporal ANTES de instalar a extensão V2 — invertido em relação ao risco operacional. O gate
+> temporal é o **último** passo; o motivo está no passo 4.
+
+**Pré-requisito:** merge/deploy com todas as flags novas **OFF** (comportamento byte-idêntico ao `main`).
+
+1. `SDA_PHASE_BUFFER_SYNC=1` **+** `SDA_PHASE_ALT_METRIC=1` → 48h com ≥5 gaps provocados (minimizar a
+   janela 5-8min, 2-3×/dia, ausência ≤11 giros). Passa se: `roleta_phase_uncertain_total` **cai** nos
+   gaps com overlap suficiente, `roleta_alternancia_violada_total` em **0**, zero rajada DIR17 ≥3 giros.
+   *Nota:* `SDA_SENTIDO_AUTORITATIVO` já é **default-ON** na compose, e `enabled` do `phase_authority`
+   é a conjunção dos dois — então é **aqui** que a capability passa a ser anunciada, bem antes de a
+   extensão chegar. É o que torna o passo 3 verificável.
+2. `SDA_PHASE_MIN_OVERLAP=3` → observar `roleta_phase_ambiguo_total`: esperado baixo e correlacionado
+   a gaps grandes (com janela 12, os gaps recuperáveis vão até `k=9`; acima disso `phase_uncertain` é
+   o comportamento correto, não regressão).
+3. **Instalar/recarregar a extensão 3.10.0 do SPR-V2** → confirmar no cliente que o `phase_authority`
+   chega no `state_sync` e que a reconciliação contínua está funcionando (telemetria DIR20 do V2).
+4. **Somente depois** `SDA_MIN_SPIN_INTERVAL_MS=15000`. *Motivo — é o cerne da ordem:* o gate temporal
+   faz o servidor **rejeitar** o giro fantasma, mas um cliente antigo **não desfaz o flip local** —
+   servidor certo, popup/local phase **espelhado**. Reverter esse flip rejeitado é exatamente a razão
+   de existir do V2, então ele precisa estar **instalado e confirmado** (passo 3) antes de o gate
+   entrar. +48h: descartes visíveis, zero descarte com delta >20s, `spins_received` em 24h dentro de
+   ±10% do baseline.
+
+Em paralelo, a partir do passo 1: **auditoria D+1/D+3/D+7 particionada por sessão** sobre a telemetria
+do `SDA_PHASE_ALT_METRIC` (ela sobe junto com o B1 justamente para dar linha de base a essa auditoria).
 
 ## Conformidade ISO (marque ANTES de abrir o PR — `Manutenabilidade_iso.md`)
 - [ ] Atrás de **flag default-OFF** na compose (ISO obrig. #4); leitura por-chamada (não cachear).
@@ -291,3 +307,147 @@ O fail-close da visão (Bloco 4.3) é **remoção de caminho**, não flag: seu r
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+### 2026-08-05 · ENTREGUE (PR aberto, sem merge) · Executor
+
+**Resumo.** 5 blocos implementados; 4 flags novas **default-OFF**. B1: `GameState.sync_phase_buffer()`
+chamado no gap do DIR4 + limpeza do buffer na correção de histórico (`SDA_PHASE_BUFFER_SYNC`). B2:
+`_reconcile_shift_ex`/`phase_advance_ex` com `min_overlap` + detecção de ambiguidade
+(`SDA_PHASE_MIN_OVERLAP`). B3: `_last_accept_srv_mono` + `_is_implausible_spin()`
+(`SDA_MIN_SPIN_INTERVAL_MS`). B4: `_apply_seed(..., locked=None)` como caminho único, `set_seed`
+preservando lock, reprojeção da âncora do operador na re-ancoragem, role-gate MASTER para
+`set_seed`/`direction_event`/`nova_sessao`, fail-close da visão, bloco `phase_authority` no overlay.
+B5: 4 contadores + 4 gauges + 3 alertas + métrica de alternância (`SDA_PHASE_ALT_METRIC`).
+
+**Fronteira medida (correção do Diretor confirmada).** `m = min(len(prev), 12 - k)`; com
+`min_overlap=3` gaps até **k=9** são recuperáveis; de k=10 em diante `phase_uncertain` é a resposta
+CORRETA. Matriz `k=0..11` em `test_dir22_alternancia_metrica.py`.
+
+**Validação.** Suíte completa **883 passed, 9 skipped, 1 xfailed** (baseline era 796/9/1 → +87 testes).
+`python tools/lint_silent_except.py --update` → baseline atualizado (12 arquivos), `test_lint_clean_run`
+verde. `promtool` **indisponível** na máquina do executor: `obs/alerts.yml` validado por parse YAML +
+checagem estrutural (4 grupos, 21 regras, todas com `alert`/`expr`/`labels`/`annotations`) — **validar
+com `promtool check rules` no CI/host antes de aplicar**.
+
+**Não-interferência.** `tests/fixtures/spr_v1_replay_baseline.json` congelada rodando o harness contra o
+código **pristino** (edições em `git stash`); `test_v1_nao_interferencia_replay.py` re-executa e compara
+campo a campo (nunca regenera). Com as 4 flags OFF: 21 decisões idênticas em ação, cobertura, stake,
+timelines, `spin_seq`, `seed_parity`/`seed_n` e ambos os buffers.
+
+**Desvios conscientes** (detalhados no ADENDO §G): (1) `_last_accept_srv_mono` fora de `save()`/`load()`
+— `time.monotonic()` só é comparável no mesmo processo; (2) gate de plausibilidade em
+`_is_implausible_spin()` no `process_message`, **antes** do dedup por `trace_id` (que grava o id ao
+checar — rejeitar depois queimaria o reenvio legítimo), e não dentro de `is_duplicate_spin`;
+(3) `phase_authority` publicado por `GameState.engine_overlay_fields()`, pois o `state_sync` só funde
+essa fonte; (4) fail-close da visão sem flag de reabertura (rollback = `git revert`).
+
+**Arquivos.** `state/phase.py`, `state/game.py`, `state/phase_metrics.py`, `server/message_handler.py`,
+`server/health_server.py`, `app_config/settings.py`, `docker-compose.yml`, `obs/alerts.yml`,
+`.silent_except_baseline.json`, `Manutenabilidade_iso.md` (ADENDO 05/08), `sprints/SPR-V1.md` (este Log).
+Testes: `tests/test_dir20_phase_buffer_sync.py`, `tests/test_dir21_min_spin_interval.py`,
+`tests/test_dir22_alternancia_metrica.py`, `tests/test_dir23_seed_authority.py`,
+`tests/test_v1_nao_interferencia_replay.py`, `tests/replay_harness_v1.py`,
+`tests/fixtures/spr_v1_replay_baseline.json`, `tests/test_dir12_metrics_exporter.py` (atualizado),
+`tests/test_dir9_sentido_na_sugestao.py` (atualizado).
+
+**Dívidas.** `AUTH_ENABLED=false` bloqueia o SPR-V7; `handle_history_correction` fora do `state_lock`
+(pré-existente, risco de deadlock com `handle_set_seed` — merece sprint próprio).
+
+### 2026-08-05 (adendo) · CODE-REVIEW APLICADO · Executor
+
+O subagente `code-review` devolveu 3 achados reais; os 3 foram corrigidos ANTES do PR.
+
+1. **[ALTA] `min_overlap` insatisfazível com histórico curto** (`state/phase.py`). `m` é limitado por
+   `min(len(prev), len(new))`, logo exigir 3 quando só existem 1-2 números tornava a condição
+   IMPOSSÍVEL e transformava um alinhamento perfeito e ÚNICO em `phase_uncertain` — que aciona a
+   DIR17 e re-ancora a fase na direção do CLIENTE, exatamente o vetor que a B2 existe para fechar.
+   Disparava nos giros #2 e #3 depois de TODO `nova_sessao` (o `_phase_results` acabou de ser
+   zerado) e com janelas curtas do cliente. **Correção:** teto
+   `min_overlap = min(min_overlap, len(prev), len(new))` — a exigência de evidência nunca passa da
+   evidência que PODE existir; é a mesma isenção que já valia para `prev` vazio, generalizada.
+   Não afeta o caminho legado (`min_overlap=0`) nem a fronteira k=9 (com `prev`=16 e janela 12 o
+   teto é inerte: `min(3,16,12)=3`). 6 testes novos, todos validados por mutação (remover o teto
+   mata os 6).
+2. **[MÉDIA] Branch de `phase_ambiguo_total` sem cobertura real.** O teste antigo usava uma janela
+   SEM nenhum alinhamento (`ambiguous=False`) e só afirmava `phase_uncertain_total >= 1`, que o
+   caminho pré-existente já satisfazia — apagar a branch nova deixaria a suíte verde. Reescrito
+   para um caso que ALINHA (k=9, m=1 de 3 possíveis) e afirma `phase_ambiguo_total == 1`.
+3. **[BAIXA] `handle_initial_history` não limpava `_last_accept_srv_mono`**, ao contrário de
+   `handle_history_correction` e `handle_new_session`. Mesma descontinuidade, tratamento assimétrico:
+   um giro aceito ANTES do histórico podia barrar, por até `SDA_MIN_SPIN_INTERVAL_MS`, o primeiro
+   giro ao vivo depois dele. Corrigido.
+
+**Validação pós-correção.** Suíte completa **890 passed, 9 skipped, 1 xfailed** (+7 testes de
+regressão). `tools/lint_silent_except.py` OK (129/12, sem novos). Replay congelado continua
+byte-idêntico com as flags OFF — a correção não alterou o caminho legado.
+
+**Arquivos do adendo.** `state/phase.py`, `server/message_handler.py`,
+`tests/test_dir22_alternancia_metrica.py`, `tests/test_dir23_seed_authority.py`.
+
+### 2026-08-05 (adendo 2) · REBASE SOBRE O SPR-V2 · Executor
+
+O SPR-V2 (PR #52, ext 3.10.0) foi integrado à `main` primeiro — decisão do Diretor, porque o código
+da extensão fica **dormente até o reload** do navegador, enquanto as flags do V1 têm efeito imediato.
+Branch do V1 rebaseada sobre `origin/main` (`1bc45b7`).
+
+**Rebase limpo, sem conflitos.** O único arquivo em comum era `Manutenabilidade_iso.md` (o V2 inseriu
+o ADENDO dele antes do bloco final, o V1 anexa no fim) — os dois ADENDOs coexistem íntegros.
+Verificado que o diff `origin/main..HEAD` contém **apenas** os 20 arquivos do V1: `extension/`,
+`tests/js/`, `.github/workflows/ci.yml`, `sprints/SPR-V2.md` e `tests/test_dir13_lock_total.py`
+(piso de versão do manifest agora comparado por **tupla** `>= 3.9.1`, não por igualdade) continuam
+**idênticos à `main`** — nada do V2 foi sobrescrito.
+
+**Revalidação pós-rebase.** `pytest tests/` **890 passed, 9 skipped, 1 xfailed**. O job
+`extension-tests` que o V2 acrescentou ao CI (`node --test "tests/js/*.test.js"`) roda agora também
+neste PR: **53 passed** local e no CI. PR #53 com todos os checks verdes
+(`lint-and-test` 3.11/3.12/3.13 + `extension-tests` + `iso-guardrails` + `ci-ok`) e
+`mergeStateStatus: CLEAN`.
+
+**Ordem de rollout (corrigida com o Diretor):** flags de buffer/telemetria/overlap antes; gate
+temporal somente depois do V2. O gate faz o servidor rejeitar o giro fantasma, mas só a extensão
+3.10.0 desfaz o flip local do cliente.
+
+### Adendo — contrato `phase_authority` validado contra o SPR-V2 (consumidor)
+
+Follow-up do Diretor após o merge do SPR-V2 (PR #52, `1bc45b7`). Branch rebaseada sobre `origin/main`
+**sem conflitos**; V2 preservado integralmente (`extension/`, `tests/js/`, `.github/workflows/ci.yml`,
+`sprints/SPR-V2.md`, `tests/test_dir13_lock_total.py` idênticos à `main`).
+
+**Veredito: schema compatível, nenhuma correção de escopo necessária.** O V2 consome três campos
+(`enabled`, `direction`, `spin_seq`) e todos casam com o produtor. O que faltava era a *amarra*: até
+aqui o V1 testava o schema isolado e o V2 usava fixtures escritas à mão, sem nada garantindo que os
+dois lados falassem a mesma língua.
+
+Novo `tests/test_v1_v2_phase_authority_contract.py` (14 testes) fecha isso executando o **canal real**
+(`broadcast_heartbeat` -> `state_sync.data`, exatamente onde o V2 lê) e travando: booleano estrito no
+JSON (`pa.enabled === true`), vocabulário `cw`/`ccw`, `spin_seq` vivo mesmo sem âncora (a heurística de
+ACK depende disso), as 4 combinações de flags e — o achado mais relevante — a **coerência entre
+`phase_authority.direction` e `sentido.next_direction`**: o V2 usa as duas fontes no mesmo payload, e
+uma divergência o faria oscilar a cada heartbeat. Elas coincidem por um acidente feliz do estado atual
+(`opposite(proj(n)) == proj(n+1)`), não por invariante estrutural — daí a asserção E2E.
+
+Cobertura provada por mutação: remover o merge do overlay mata 1 teste, `enabled` como `int` mata 6,
+inverter a projeção mata 6. Suítes: Python **904/9/1**, JS do V2 **53 passed**, lint OK.
+
+### Adendo — ordem de ativação corrigida pelo Diretor (pré-merge)
+
+A sequência registrada no runbook estava **invertida em relação ao risco operacional**: ligava
+`SDA_MIN_SPIN_INTERVAL_MS` antes de instalar a extensão V2. Ordem correta agora registrada, com o
+merge/deploy de flags OFF como pré-requisito não numerado: (1) `SDA_PHASE_BUFFER_SYNC` +
+`SDA_PHASE_ALT_METRIC` → (2) `SDA_PHASE_MIN_OVERLAP=3` → (3) instalar/recarregar a extensão 3.10.0 e
+confirmar `phase_authority`/telemetria → (4) **somente depois** `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+
+**Motivo.** O gate temporal faz o servidor *rejeitar* o giro fantasma, mas um cliente antigo **não
+desfaz o flip local** — servidor correto, popup/local phase espelhado. Reverter o flip rejeitado é a
+razão de existir do SPR-V2; ligar o gate antes da extensão abriria justamente a janela de divergência
+que este sprint foi escrito para fechar.
+
+Corrigido em: runbook `## Ordem de ativação` (+ referência cruzada do Bloco 4, que agora aponta o
+passo 4), nota de coordenação com o V2 (a frase "flags do V1 no host antes da instalação/reload"
+virou "flags de buffer/telemetria/overlap antes; gate temporal somente depois do V2"), tabela de
+flags do ADENDO §B (coluna *Ligar quando*), ADENDO §I.4, §K e corpo do PR #53.
+
+**Imprecisão factual corrigida junto (§K).** O parágrafo dizia "ligar só `SDA_PHASE_BUFFER_SYNC` não
+acende o V2". `SDA_SENTIDO_AUTORITATIVO` é **default-ON** na compose, então em produção o passo 1
+**basta** para `phase_authority.enabled` virar `true`. A distinção importa para o passo 3: a capability
+já está publicada quando a extensão chega, e o operador pode **confirmar** o eco em vez de instalar às
+cegas. Só documentação — nenhuma linha de código alterada.

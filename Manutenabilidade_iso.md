@@ -2823,3 +2823,224 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
 | v4.4.1 | 13/06/2026 | **Fix incidente MASTER:** deadlock de reeleição em `connection_manager.update_device_id` (grace expirado sem conexão → SLAVE permanente → ~16h sem spins, dashboard ONLINE porém vazio); reeleição corrigida + 5 testes (`tests/test_connection_manager_master.py`). **Observabilidade:** alerta `RoletaNoMaster` + métricas `roleta_master_present`/`roleta_ws_connections`. **Runbook** `docs/runbooks/sem-apostas-master-slave.md`. Suite 429 |
 | ext v3.3.0 | 14/06/2026 | **Auto-Start & Zero-Upload (Escuta Beat, client-side)** — ver ADENDO 14/06: auto-detecção de provider (`provider_router.js`, fingerprint por host dos frames), manifests empacotados (`extension/providers/` via web_accessible_resources), auto-start via `chrome.webNavigation` + `getAllFrames`, supressão pós-STOP (TTL 24h + revalidação de host + prune), badge + toggle. Auditoria em **3 rodadas de code-review** corrigiu 5 bugs (WS duplicado/race, STOP não segurava o auto-start, badge não limpo, 2ª aba sequestrava o `tabId`, política `'ask'` beco sem saída). Backend Python v4.4.1 **intacto**. Deploy `23c3490` (servidor Debian alinhado, 6 containers healthy). Suite **480**. Detalhes: `passos_escuta_junho.md` §4.9/§12 |
+
+---
+
+## ADENDO 05/08/2026 — SPR-V1: blindagem do servidor (fase e autoridade), tudo default-OFF
+
+> Sprint executor da família SPR-V (`sprints/SPR-V1.md`), branch `ivandirfilho-didactic-broccoli`, base `main` `f165f91`. Fecha **5 blocos** de furos no caminho da fase autoritativa. **Todo comportamento novo nasce atrás de flag default-OFF**, com prova de não-interferência por **replay congelado**. Suíte **883 verde** (796 antes → +87 testes).
+
+### A. Furos auditados (HEAD `f165f91`)
+
+| # | Sev | Furo | Evidência |
+|---|---|---|---|
+| **A** | 🔴 | **Buffer de fase nunca sincronizado no gap.** O bloco DIR4 sincronizava só `recent_results`, mas desde a DIR19 o alinhamento lê `_phase_results`. Depois de QUALQUER gap o buffer ficava permanentemente defasado → todo giro seguinte virava `phase_uncertain` → a DIR17 re-ancorava na direção do **cliente**, que é justamente a fonte que a fase autoritativa existe para não obedecer. | Reproduzido no replay: 3 giros escondidos geraram **12 `phase_uncertain`** em cadeia. Teste `test_gap_sem_sync_deixa_fase_permanentemente_incerta`. |
+| **B** | 🟠 | **Giro fantasma flipa a fase.** Não havia gate de plausibilidade física: um `novo_resultado` chegando ms depois do anterior avançava `spin_seq` e, como a fase é um toggle, **invertia o sentido de todos os giros seguintes**. O dedup existente compara `Date.now()` do **cliente** — adulterável e sujeito a regressão de NTP. | `is_duplicate_spin` só compara `numero+direcao+ts_cliente`. |
+| **C1** | 🟠 | **`set_seed` sem `locked` destravava em silêncio** (`bool(data.get("locked", False))`): um re-seed de rotina desfazia o lock do operador sem nada visível mudar. | `handle_set_seed`. |
+| **C2** | 🟠 | **Re-ancoragem de histórico invertia a âncora do operador.** `spin_seq` saltava para `count` e `seed_n` ficava velho → a paridade `(spin_seq - seed_n)` mudava → fase autoritativa invertida silenciosamente. | `handle_history_correction` / `handle_initial_history` (DIR16). |
+| **C3** | 🟠 | **`set_seed`/`direction_event`/`nova_sessao` sem role-gate:** qualquer conexão (inclusive slave/aba de leitura) reancorava a fase global. | `process_message`: `data_messages` cobria só os 3 de dados. |
+| **D** | 🔴 | **Fusão de vídeo sem autenticação.** Um `direction_event` forjado com `confidence` alta **sobrepunha** a projeção determinística (`fuse_direction` com `SOURCE_PRIORITY`), invertendo a fase por mensagem não autenticada — com `AUTH_ENABLED=false` em produção, qualquer cliente. | `handle_new_result`, bloco DIR7. |
+| **E** | 🟡 | **Sem sinal de fase corrompida.** `_COUNTERS` é um dict FECHADO (incr de chave desconhecida é no-op silencioso) e não havia contador para buffer ausente, ambiguidade, giro implausível nem quebra de alternância. | `state/phase_metrics.py`. |
+
+### B. Capacidades entregues (flags novas, todas default-OFF)
+
+| Flag | Bloco | O que faz | Ligar quando |
+|---|---|---|---|
+| `SDA_PHASE_BUFFER_SYNC` | B1 | `GameState.sync_phase_buffer()` espelha no `_phase_results` os números recuperados no gap; limpa o buffer na correção de histórico. | **Passo 1** — maior ganho, menor risco. Junto com o B5. |
+| `SDA_PHASE_MIN_OVERLAP` | B2 | Evidência mínima para aceitar um shift (`reconcile_shift`/`phase_advance_ex`); recusa também `k` ambíguo em sequências periódicas. Sugestão: `3`. | **Passo 2**, depois do B1 estabilizar. |
+| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | **Passo 4 — por último**, só depois da extensão V2 instalada e confirmada (ver I.4). |
+| `SDA_PHASE_ALT_METRIC` | B5 | Métrica de alternância (`alternancia_violada_total`). Puramente observável. | **Passo 1**, junto com o B1. |
+
+Sem flag (aditivos ou fail-close): role-gate MASTER, `_apply_seed` como caminho único, preservação de lock em `set_seed`, reprojeção da âncora do operador na re-ancoragem, fail-close da visão, bloco `phase_authority` no overlay, 4 contadores + 4 gauges + 3 alertas.
+
+### C. Mudanças por arquivo
+
+- **`state/phase.py`** — `_reconcile_shift_ex(prev, new, max_window, min_overlap) → (k, matched, ambiguous)` e `phase_advance_ex(...) → (gap, inter, uncertain, ambiguous)`. `reconcile_shift`/`phase_advance` mantêm assinatura e retorno (2 e 3-tupla) delegando ao núcleo; com `min_overlap=0` o caminho é o legado, sem desvio.
+- **`state/game.py`** — `sync_phase_buffer(nums) → bool` (conversão **antes** da mutação, log de erro + `False` se `_phase_results` ausente); `_apply_seed(direction, source, locked=None, n=None)` como **único** caminho de escrita da âncora; bloco `phase_authority` em `engine_overlay_fields()`.
+- **`server/message_handler.py`** — `_last_accept_srv_mono`; `_is_implausible_spin()`; `_reancora_fase(count)` (reprojeção da âncora do operador); sync do buffer no gap; `min_overlap` por chamada; métrica de alternância com expectativa `(gap+1)`; fail-close da visão; role-gate ampliado; `set_seed` preservando lock.
+- **`state/phase_metrics.py`** — 4 chaves novas no dict fechado.
+- **`server/health_server.py`** — 4 gauges `roleta_phase_*`/`roleta_spin_*`/`roleta_alternancia_*` + refresh.
+- **`obs/alerts.yml`** — grupo `roleta_fase_v1`: `RoletaAlternanciaViolada` (critical), `RoletaPhaseUncertainBurst`, `RoletaSpinImplausivel`.
+- **`docker-compose.yml`** — 4 flags novas + congelamento documentado de `SDA_DIRECTION_VISION=0`.
+- **`app_config/settings.py`** — 4 helpers lidos **por chamada** (nada cacheado).
+
+### D. Evidência de não-interferência (o coração da DoD)
+
+`tests/replay_harness_v1.py` roda 24 giros determinísticos (3 escondidos, exercitando o gap) pelo caminho REAL `process_message`, com SQLite temporário e broadcast mockado. A fixture `tests/fixtures/spr_v1_replay_baseline.json` foi congelada rodando o harness contra o código **pristino** (`git stash` das edições do sprint). `tests/test_v1_nao_interferencia_replay.py` **re-executa e compara** — nunca regenera.
+
+Com as 4 flags OFF: `final_action`, cobertura (`sda_numbers`/`sda_centers`), stake (`gale_bet_value`), timelines, `spin_seq`, `seed_parity`/`seed_n`, `recent_results` e `_phase_results` **idênticos campo a campo** nas 21 decisões.
+
+### E. Fronteira de recuperação de gap (medida, não estimada)
+
+`m = min(len(prev), len(allNumbers) - k)`. Com janela 12 do cliente e `min_overlap=3`: **gaps até `k=9` são recuperáveis**; de `k=10` em diante sobram menos de 3 números coincidentes e `phase_uncertain` é a resposta **correta** — pedir resync é melhor que inventar giros. Matriz `k=0..11` verificada em `test_dir22_alternancia_metrica.py`.
+
+### F. Conformidade ISO (impacto)
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (correção da fase) | ⚠️ 1 gap contaminava todos os giros seguintes | ✅ buffer realinha em 1 giro (`k≤9`) | B1 + B2 |
+| **Maturidade / Tolerância a falhas** | ⚠️ giro fantasma invertia a fase sem sinal | ✅ gate físico + 4 contadores + 3 alertas | B3 + B5 |
+| **Recuperabilidade** | ⚠️ re-ancoragem invertia a âncora do operador | ✅ âncora reprojetada (`project_phase(p,c,c)==p`) | B4/C2 |
+| **Integridade / Controle de acesso** (Segurança) | 🔴 slave reancorava fase; `direction_event` não autenticado sobrepunha a projeção | ✅ role-gate MASTER + fail-close da visão | B4/C3 + D |
+| **Analisabilidade** | ⚠️ falha de fase invisível no Grafana | ✅ 4 gauges + 3 regras de alerta | B5 |
+| **Modificabilidade** | ⚠️ 4 pontos escreviam a âncora direto | ✅ `_apply_seed` como caminho único auditável | B4 |
+| **Testabilidade** | ⚠️ testes de fase simulavam o branch | ✅ testes E2E pelo `process_message` real + replay congelado | B1..B5 |
+| **Compatibilidade** | — | ✅ `phase_authority` aditivo (cliente antigo ignora) | pré-requisito do SPR-V2 |
+
+**Scorecard:** Segurança 6.5 → **7.2** (dois vetores de inversão de fase fechados; `AUTH_ENABLED=false` permanece o teto). Confiabilidade 8.5 → **8.8**. Manutenibilidade 8.5 → **8.7**. Global **8.5 → 8.7**.
+
+### G. Decisões conscientes (desvios e seus porquês)
+
+1. **`_last_accept_srv_mono` FORA do round-trip `save()`/`load()`.** `time.monotonic()` só é comparável dentro do **mesmo processo**; persistir produziria comparação sem sentido após restart (pior: bloquear giros legítimos). Custo aceito: o primeiro giro após um restart não é checado. Coberto por `test_nao_persistido_no_round_trip`.
+2. **Gate de plausibilidade em `_is_implausible_spin()` (em `process_message`), não dentro de `is_duplicate_spin`.** `_is_duplicate_trace` **grava** o `trace_id` ao checá-lo; rejeitar depois dele queimaria o id e mataria para sempre um reenvio legítimo do mesmo giro. Coberto por `test_gate_nao_queima_trace_id`.
+3. **`phase_authority` publicado por `GameState.engine_overlay_fields()`,** não pelo `_engine_overlay_fields()` do handler: o `state_sync` (broadcast 1 s) só funde a fonte do `GameState`.
+4. **Fail-close da visão sem flag de reabertura.** Removidos da fusão do giro **os dois** sinais `vision` (evento armazenado e `direction_source` do spin). O evento continua sendo armazenado e `fuse_direction` continua pura e testada, prontos para o SPR-V7. Rollback = `git revert` (deliberadamente não há flag que reabra o vetor).
+5. **Gauge em vez de Counter** para os `_total` novos, mantendo o padrão DIR12. `increase()` continua válido; ressalva: restart do processo zera o gauge e produz um degrau que o Prometheus trata como reset.
+6. **`min_overlap` lido no handler, não em `phase.py`** — as funções puras continuam puras e testáveis sem ambiente.
+7. **`reset_session` não migrado para `_apply_seed`** — já era um ponto único e auditável, e migrá-lo mudaria ordem de efeitos colaterais sem ganho.
+
+### H. Dívidas registradas
+
+1. **`AUTH_ENABLED=false` em produção** é o que torna o fail-close da visão necessário. **Bloqueia o SPR-V7** (produtor de visão autenticado): sem autenticação não há como reabrir a fusão com segurança.
+2. **`handle_history_correction` não roda sob `state_lock`** (pré-existente). Não foi corrigido aqui: risco de deadlock com `handle_set_seed`, que já toma o lock. Merece sprint próprio.
+3. **`direction_event` exigindo MASTER** é um gate de concorrência, não de autenticação. Quando o serviço de visão existir, ele precisará de identidade própria — não do papel de MASTER.
+
+### I. Obrigações / Rollback
+
+1. **INV-3 intacto:** nada aqui toca decisão, cobertura ou stake. A estratégia continua sempre indicando `APOSTAR`; nenhum caminho novo suprime indicação. Provado campo a campo pelo replay.
+2. **Round-trip preservado:** os campos da âncora (`seed_parity`/`seed_n`/`direction_source`/`direction_locked`) continuam em `save()`/`load()`/`reset_session()`; a única exceção é a do item G.1, documentada e testada.
+3. **Sem migração de schema** — nenhuma mudança em banco.
+4. **Ordem de ativação em produção (corrigida pelo Diretor, 05/08 — o gate temporal é o ÚLTIMO passo):**
+   *Pré-requisito não numerado:* merge/deploy com as flags novas **OFF**.
+   (1) `SDA_PHASE_BUFFER_SYNC=1` + `SDA_PHASE_ALT_METRIC=1` → observar `roleta_phase_uncertain_total`
+   cair e `roleta_alternancia_violada_total` em 0; (2) `SDA_PHASE_MIN_OVERLAP=3` → observar
+   `roleta_phase_ambiguo_total`; (3) **instalar/recarregar a extensão 3.10.0 do SPR-V2** e confirmar
+   `phase_authority` + telemetria no cliente; (4) **somente depois**
+   `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+   **Por que o gate temporal vem por último:** ele faz o servidor *rejeitar* o giro fantasma, mas um
+   cliente antigo **não desfaz o flip local** — servidor correto e popup/local phase espelhado. Reverter
+   o flip rejeitado é a razão de existir do SPR-V2, então ligar o gate antes da extensão abre
+   exatamente a janela de divergência que o V1 foi escrito para fechar. A versão anterior deste item
+   listava o gate antes da extensão; estava invertida em relação ao risco operacional. Regra curta:
+   **flags de buffer/telemetria/overlap antes; gate temporal somente depois do V2.**
+5. **Rollback:** cada flag volta a `0` no host + redeploy (efeito imediato, leitura por chamada). O fail-close da visão e o role-gate revertem só por `git revert`.
+6. **`promtool` indisponível na máquina do executor:** `obs/alerts.yml` foi validado por parse YAML + checagem estrutural (todo `rule` com `alert`/`expr`/`labels`/`annotations`) — 4 grupos, 21 regras. **Validar com `promtool check rules` no CI/host antes de aplicar.**
+
+> **Veredito:** os dois vetores de **inversão silenciosa da fase** (giro fantasma e visão não autenticada) e a **contaminação permanente por gap** estão fechados, com métrica e alerta para cada um. Tudo default-OFF e com não-interferência provada por replay congelado. Próximo: SPR-V2 (cliente consome `phase_authority`).
+
+### J. Code-review pós-implantação (subagente `code-review`) — 3 achados, 3 corrigidos antes do PR
+
+O code-review confirmou como **limpos** o caminho legado (`min_overlap=0` byte-idêntico em 200k pares
+aleatórios), a atomicidade/ordem de `sync_phase_buffer`, a equivalência de `_apply_seed` em todos os
+call sites migrados, a matemática de `_reancora_fase`, o posicionamento do gate B3 antes do dedup de
+trace, a expectativa `(gap+1)` da DIR22, o fail-close da visão (remove os DOIS sinais), o role-gate, a
+preservação de lock em `handle_set_seed`, a consistência de nomes de métrica em toda a cadeia
+(`_COUNTERS` → `_PROM_METRICS` → refresh → `alerts.yml`) e o default-OFF das 4 flags. Três achados
+reais foram corrigidos:
+
+**J.1 [ALTA] — `min_overlap` era insatisfazível com histórico curto (`state/phase.py`).**
+A evidência disponível é `m = min(len(prev), len(new) - k)`, portanto **nunca** passa de
+`min(len(prev), len(new))`. Exigir `min_overlap=3` quando só existem 1-2 números tornava a condição
+IMPOSSÍVEL: um alinhamento perfeito e ÚNICO era reportado `matched=False, ambiguous=True` →
+`phase_uncertain` → **DIR17 re-ancorava a fase na direção do CLIENTE**, que é exatamente o vetor de
+ataque/erro que a capacidade B2 existe para fechar. O gatilho não era exótico: `reset_session()` zera
+`_phase_results`, então **os giros #2 e #3 depois de TODO `nova_sessao`** caíam nele, além de qualquer
+janela curta do cliente. A trava de segurança destruía a âncora do operador.
+
+*Correção:* teto `min_overlap = min(min_overlap, len(prev), len(new))` — a exigência de evidência
+nunca ultrapassa a evidência que **pode** existir. É a generalização da isenção que a função já dava
+a `prev` vazio ("não há histórico contra o que comparar"). O parâmetro continua valendo integralmente
+quando a evidência existia e não bastou.
+
+*Não-regressão:* (a) `min_overlap=0` não passa pelo teto — caminho legado intocado, replay congelado
+segue byte-idêntico; (b) a fronteira **k=9** é preservada, pois com `prev`=16 e janela 12 o teto é
+inerte (`min(3,16,12) = 3`) — a matriz `k=0..11` continua verde; (c) 6 testes novos, todos validados
+por **mutação**: substituir o teto por `pass` mata os 6.
+
+**J.2 [MÉDIA] — a branch de `phase_ambiguo_total` tinha cobertura ilusória.**
+`test_metrica_ambigua_incrementa_no_handler` usava uma janela sem NENHUM alinhamento posicional
+(`ambiguous=False`) e afirmava apenas `phase_uncertain_total >= 1`, que o caminho pré-existente já
+satisfazia — apagar a branch nova deixaria a suíte verde. Reescrito para um caso que **alinha**
+(k=9 com m=1 de 3 possíveis) e afirma `phase_ambiguo_total == 1`.
+
+**J.3 [BAIXA] — `handle_initial_history` não limpava `_last_accept_srv_mono`.**
+`handle_history_correction` e `handle_new_session` já o faziam; o histórico inicial é a mesma
+descontinuidade e ficara com tratamento assimétrico — um giro aceito ANTES do histórico podia barrar,
+por até `SDA_MIN_SPIN_INTERVAL_MS`, o primeiro giro ao vivo depois dele. Corrigido.
+
+**Validação pós-correção.** Suíte completa **890 passed, 9 skipped, 1 xfailed** (+7 testes de
+regressão sobre os 883 do corpo deste ADENDO; baseline do sprint era 796/9/1).
+`tools/lint_silent_except.py` OK (129 `except Exception` em 12 arquivos, nenhum novo). Replay
+congelado verde: a correção **não** alterou o comportamento com as flags OFF.
+
+**Lição para o `Manutenabilidade_iso.md` (Confiabilidade).** Um parâmetro de segurança que pede mais
+evidência do que o sistema pode produzir não endurece nada — ele **inverte** a defesa, empurrando o
+sistema para o caminho degradado justamente na janela mais frágil (logo após um reset). Todo limiar de
+evidência deve ser explicitamente limitado pela evidência disponível, e todo teste de métrica deve ser
+validado por mutação: se apagar a branch mantém a suíte verde, a cobertura é ilusória.
+
+### K. Contrato `phase_authority` — validação integrada com o SPR-V2 (produtor x consumidor)
+
+O SPR-V2 foi mergeado na `main` (PR #52, merge `1bc45b7`) **antes** deste PR, e a extensão passou a
+consumir o bloco `phase_authority` que este sprint publica. Os dois lados vivem em linguagens e
+repositórios de teste distintos (Python e JS) e, até aqui, **nenhum teste os amarrava**: os testes do
+V1 conferiam o schema do produtor isoladamente e os do V2 usavam fixtures escritas à mão. Um contrato
+verificado só por convenção humana dos dois lados é um contrato não verificado.
+
+**Rebase.** Branch rebaseada sobre `origin/main` já contendo o V2 — **sem conflitos**. O único arquivo
+tocado pelos dois sprints é este `Manutenabilidade_iso.md`, e os adendos são apêndices em pontos
+distintos. Diff final não remove nem regride nada do V2 (`extension/`, `tests/js/`,
+`.github/workflows/ci.yml`, `sprints/SPR-V2.md` e `tests/test_dir13_lock_total.py` idênticos à `main`).
+
+**Veredito: compatível, sem correção de escopo necessária.** O consumidor
+(`extension/background.js::handleStateSyncPhase`) lê exatamente três campos — `enabled`, `direction` e
+`spin_seq` — e todos casam com o produtor (`GameState.engine_overlay_fields`). `seed_parity`/`seed_n`
+são publicados e hoje ignorados: campos extras são inertes para o V2.
+
+**Riscos reais que a auditoria encontrou e que agora estão travados por teste**
+(`tests/test_v1_v2_phase_authority_contract.py`, 14 testes):
+
+| Risco | Por que é silencioso | Guarda |
+|---|---|---|
+| Perder o `update(engine_overlay_fields())` em `server/websocket.py` | `pa` chega `undefined`, `paEnabled` vira `false` e a reconciliação do V2 apenas **para** — sem erro em lugar nenhum | heartbeat real executado; asserção sobre `state_sync.data` |
+| `enabled` deixar de ser booleano estrito | o V2 compara `pa.enabled === true`; um `1` inteiro desarma tudo | asserção sobre o JSON serializado (`"enabled": true`) |
+| Vocabulário de `direction` mudar | `normalizePhaseDir` devolve `null` e o desfazer-flip vira no-op | matriz paridade x `spin_seq` -> `cw`/`ccw` |
+| `phase_authority.direction` divergir de `sentido.next_direction` | o V2 usa as **duas** fontes no mesmo payload: desfaz o flip para uma direção e reconcilia para a outra, **oscilando a cada heartbeat** | 6 giros E2E comparando os dois blocos do mesmo overlay |
+| `spin_seq` virar `null` quando não há âncora | `Number(null) === 0`: o contador congela em 0, `paSeq === paSeqBeforeSend` sempre, e o V2 marca **todo** giro como rejeitado | asserção explícita no estado sem âncora |
+| a chave `spin_seq` **sumir** do bloco | sintoma DIFERENTE do `null`: `Number(undefined)` é `NaN`, o passo de ACK é pulado inteiro e `paAwaitingAck` fica preso em `true` — a reconciliação contínua **congela** | `test_campos_consumidos_pelo_v2_existem_sempre` (com e sem âncora) |
+
+**A divergência que NÃO existe (e por que é frágil).** `sentido.next_direction` é `target_direction`,
+o *toggle* sobre `last_direction`; `phase_authority.direction` é a *projeção determinística* da âncora.
+São dois códigos independentes que coincidem por um motivo específico: com `SDA_SENTIDO_AUTORITATIVO=1`
+o servidor grava em `last_direction` a projeção do giro `n`, e `opposite(proj(n)) == proj(n+1)`
+reencontra a projeção em `spin_seq`. Essa igualdade é um **acidente feliz do estado atual**, não uma
+invariante estrutural — qualquer mudança futura em `target_direction` a quebraria em silêncio. Por isso
+virou asserção E2E.
+
+**Semântica de `enabled` = `SDA_SENTIDO_AUTORITATIVO AND SDA_PHASE_BUFFER_SYNC`** — as quatro
+combinações estão cobertas, inclusive as parciais. Duas consequências operacionais, e a primeira
+**corrige uma imprecisão da redação anterior deste parágrafo**:
+
+- **Quem acende a capability, na prática, é o passo 1 do runbook.** `SDA_SENTIDO_AUTORITATIVO` já é
+  **default-ON** na compose (`SDA_SENTIDO_AUTORITATIVO:-1`), então ligar `SDA_PHASE_BUFFER_SYNC=1`
+  basta para `enabled` virar `true` em produção. A redação anterior — "ligar só `SDA_PHASE_BUFFER_SYNC`
+  não acende o V2" — só valeria num host com a autoridade desligada, que não é o estado de produção.
+  Isso importa porque é o que garante que a capability já esteja publicada quando a extensão for
+  instalada no passo 3: o operador consegue **confirmar** o `phase_authority` no `state_sync`, em vez
+  de instalar às cegas.
+- **O rollback continua sendo de um comando.** Desligar **qualquer uma** das duas desarma o consumidor
+  sozinho, sem tocar na extensão instalada — é o que o runbook assume como saída de emergência,
+  inclusive depois do passo 3.
+
+**Validação por mutação** (a cobertura foi provada, não presumida): remover o merge do overlay no
+`websocket.py` mata 1 teste; trocar `enabled` por `int(...)` mata 6; inverter a projeção de `direction`
+mata 6. Fontes restauradas e `git diff` limpo após cada mutação.
+
+**Suítes.** Python **904 passed, 9 skipped, 1 xfailed** (+14 sobre os 890 do §J).
+JS do V2 **53 passed** (`node --test "tests/js/*.test.js"`). `lint_silent_except` OK.
+
+**Lição (Manutenabilidade / Confiabilidade).** Contrato entre componentes que não compartilham suíte é
+contrato não verificado — cada lado testa a própria fixture e os dois passam enquanto o sistema
+integrado está quebrado. Todo bloco publicado para um consumidor externo precisa de um teste que
+execute o **canal real** de ponta a ponta e afirme **tipo, vocabulário e coerência com os blocos
+vizinhos do mesmo payload**, não apenas a presença da chave.
