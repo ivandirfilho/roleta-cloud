@@ -119,9 +119,17 @@ fi
 
 # Staging no mesmo filesystem do root do Caddy.
 WWW_PARENT="$(dirname "$WWW_DIR")"
-mkdir -p "$WWW_PARENT"
+install -d -m 0755 "$WWW_PARENT"
+chmod 0755 "$WWW_PARENT"
 FRONTEND_STAGE="$(mktemp -d "$WWW_PARENT/.roleta-frontend.XXXXXX")"
 cp -a "$STAGE_ROOT/frontend/." "$FRONTEND_STAGE/"
+if find "$FRONTEND_STAGE" -type l -print -quit | grep -q .; then
+  echo "ERRO: frontend da imagem contem link simbolico" >&2
+  exit 1
+fi
+find "$FRONTEND_STAGE" -type d -exec chmod 0755 {} +
+find "$FRONTEND_STAGE" -type f -exec chmod 0644 {} +
+chown -R root:root "$FRONTEND_STAGE"
 
 # 4) Segredos/DSN e imagem pinada; kv-to-env também prepara o cutover do Caddy.
 "$APP_DIR/kv-to-env.sh" $WITH_PG_ARG
@@ -194,10 +202,37 @@ if ! mv "$FRONTEND_STAGE" "$WWW_DIR"; then
   exit 1
 fi
 FRONTEND_STAGE=""
-if ! test -f "$WWW_DIR/index.html" || ! test -f "$WWW_DIR/app.js" || ! test -f "$WWW_DIR/style.css"; then
+
+frontend_rollback() {
   rm -rf "$WWW_DIR"
   [ -z "$FRONTEND_BACKUP" ] || mv "$FRONTEND_BACKUP" "$WWW_DIR"
+}
+
+frontend_http_ok() {
+  local site first_site asset
+  site="$(sed -n 's/^SITE_ADDRESS=//p' /etc/caddy/caddy.env 2>/dev/null | sed -n '1p' | tr -d '"')"
+  first_site="${site%%,*}"
+  first_site="${first_site#"${first_site%%[![:space:]]*}"}"
+  first_site="${first_site%"${first_site##*[![:space:]]}"}"
+  for asset in / /app.js /style.css; do
+    if [ -z "$first_site" ] || [[ "$first_site" == :* ]]; then
+      curl -fsS --max-time 10 "http://127.0.0.1${asset}" >/dev/null || return 1
+    else
+      curl -fsS --max-time 15 \
+        --resolve "${first_site}:443:127.0.0.1" \
+        "https://${first_site}${asset}" >/dev/null || return 1
+    fi
+  done
+}
+
+if ! test -f "$WWW_DIR/index.html" || ! test -f "$WWW_DIR/app.js" || ! test -f "$WWW_DIR/style.css"; then
+  frontend_rollback
   echo "ERRO: frontend publicado sem os tres artefatos obrigatorios" >&2
+  exit 1
+fi
+if ! frontend_http_ok; then
+  frontend_rollback
+  echo "ERRO: frontend publicado, mas o Caddy nao retornou 200 para /, app.js e style.css" >&2
   exit 1
 fi
 [ -z "$FRONTEND_BACKUP" ] || rm -rf "$FRONTEND_BACKUP"

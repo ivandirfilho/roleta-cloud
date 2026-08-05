@@ -11,7 +11,7 @@ RETENTION_DAYS="${RETENTION_DAYS:-30}"
 COOL_AFTER_DAYS="${COOL_AFTER_DAYS:-7}"
 AZURE_AUTH_MODE="${AZURE_AUTH_MODE:-identity}"
 RULE_NAME="roleta-sqlite-retention"
-PREFIX="${BACKUP_PREFIX:-backups/sqlite/}"
+PREFIXES="${BACKUP_PREFIXES:-backups/sqlite/,backups/azure-local/,hostdime-standby/snapshots/}"
 
 while (($# > 0)); do
   case "$1" in
@@ -66,11 +66,14 @@ if ! az storage account management-policy show \
   fi
 fi
 
-python3 - "$CURRENT" "$POLICY" "$RULE_NAME" "$PREFIX" "$RETENTION_DAYS" "$COOL_AFTER_DAYS" <<'PY'
+python3 - "$CURRENT" "$POLICY" "$RULE_NAME" "$PREFIXES" "$RETENTION_DAYS" "$COOL_AFTER_DAYS" <<'PY'
 import json
 import sys
 
-current_path, output_path, rule_name, prefix, retention, cool = sys.argv[1:]
+current_path, output_path, rule_name, prefixes_raw, retention, cool = sys.argv[1:]
+prefixes = [item.strip() for item in prefixes_raw.split(",") if item.strip()]
+if not prefixes:
+    raise SystemExit("BACKUP_PREFIXES nao pode ser vazio")
 with open(current_path, encoding="utf-8") as handle:
     current = json.load(handle)
 policy = current.get("policy") or current
@@ -81,7 +84,7 @@ rules.append(
         "name": rule_name,
         "type": "Lifecycle",
         "definition": {
-            "filters": {"blobTypes": ["blockBlob"], "prefixMatch": [prefix]},
+            "filters": {"blobTypes": ["blockBlob"], "prefixMatch": prefixes},
             "actions": {
                 "baseBlob": {
                     "tierToCool": {"daysAfterModificationGreaterThan": int(cool)},
@@ -100,4 +103,4 @@ az storage account management-policy create \
   --resource-group "$RESOURCE_GROUP" \
   --policy "$POLICY" \
   -o none
-echo "[lifecycle] regra $RULE_NAME aplicada: cool=${COOL_AFTER_DAYS}d delete=${RETENTION_DAYS}d prefix=$PREFIX" >&2
+echo "[lifecycle] regra $RULE_NAME aplicada: cool=${COOL_AFTER_DAYS}d delete=${RETENTION_DAYS}d prefixes=$PREFIXES" >&2

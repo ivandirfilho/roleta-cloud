@@ -19,17 +19,27 @@
 
 	# WebSocket do motor (extensão "Escuta Beat"): wss://host/ws → app 8765.
 	# O Caddy trata o upgrade Upgrade/Connection automaticamente.
-	@ws path /ws /ws/*
-	reverse_proxy @ws 127.0.0.1:8765 {
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-		# Conexão longeva (24h), igual ao nginx (proxy_read/send_timeout 86400).
-		transport http {
-			read_timeout 86400s
-			write_timeout 86400s
+	# O canário aceita escrita WS apenas dos CIDRs explicitamente liberados.
+	# O arquivo staged de cutover troca este valor para 0.0.0.0/0 + ::/0.
+	@ws_allowed {
+		path /ws /ws/*
+		remote_ip {$WS_ALLOWED_CIDRS:127.0.0.1/32 ::1/128}
+	}
+	handle @ws_allowed {
+		reverse_proxy 127.0.0.1:8765 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			# Conexão longeva (24h), igual ao nginx (proxy_read/send_timeout 86400).
+			transport http {
+				read_timeout 86400s
+				write_timeout 86400s
+			}
 		}
+	}
+	handle /ws* {
+		respond "WebSocket indisponível neste endereço" 403
 	}
 
 	# Healthcheck público enxuto → /health interno (8766). NÃO roteia /metrics,

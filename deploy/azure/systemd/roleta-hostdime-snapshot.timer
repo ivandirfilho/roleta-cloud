@@ -1,0 +1,11 @@
+[Unit]
+Description=Push authoritative Roleta Cloud snapshot every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=45s
+Unit=roleta-hostdime-snapshot.service
+
+[Install]
+WantedBy=timers.target

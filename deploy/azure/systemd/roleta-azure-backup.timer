@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Roleta Cloud Azure backup every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:10:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=roleta-azure-backup.service
+
+[Install]
+WantedBy=timers.target

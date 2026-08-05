@@ -55,7 +55,11 @@ services:
       - SDA_REGIONS_V4=${SDA_REGIONS_V4:-1}
       # S-STAKE / Block-Gale TETO 1 (= flat, sem ruína). INV-3: veto nunca suprime aposta.
       - SDA_STAKING_MODE=${SDA_STAKING_MODE:-block_gale}
-      - SDA_BET_PAIR=${SDA_BET_PAIR:-force17}
+      # V5.2 em produção: 17/21 por sentido, assinatura-4 e flip puro.
+      - SDA_BET_PAIR=${SDA_BET_PAIR:-v5_1721}
+      - SDA_V5_SIG4=${SDA_V5_SIG4:-1}
+      - SDA_SUGESTAO_BROADCAST=${SDA_SUGESTAO_BROADCAST:-1}
+      - SDA_V5_FLIP_PURO=${SDA_V5_FLIP_PURO:-1}
       - SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-0}
       - GALE_CAP=${GALE_CAP:-1}
       - GALE_BANKROLL=${GALE_BANKROLL:-1000}
@@ -73,9 +77,9 @@ services:
       - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-1}
       - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-1}
       - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-1}
-      # H1 (03/08): fecha o loop do decision_dna (dna_realize_lifts a cada N results,
-      # realized_lift_pp por sentido + espelho ao PG). Default OFF (liga no .env).
-      - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-0}
+      # A HostDime liga DNA realize via .env. Na Azure o valor fica explícito no
+      # compose porque kv-to-env.sh recria o .env a cada deploy.
+      - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-1}
       - SDA_DNA_REALIZE_EVERY=${SDA_DNA_REALIZE_EVERY:-20}
       - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
       - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
