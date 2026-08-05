@@ -35,20 +35,37 @@ function centrosFromSugestao(s) {
   return s.centro != null ? [s.centro] : [];
 }
 
-// === V5.1 (05/08): badge circular do modo 17/21 — "verde brilhante", MESMA
-// fonte/tamanho/cor nos dois valores; menor que os números dos 3 centros.
-// O operador lê: ⑰ = apostar cobertura 17, ㉑ = apostar cobertura 21.
+// === V5.2 (05/08): badge circular do modo 17/21 — DOURADO + NEGRITO (pedido
+// do operador: "difícil de ver"); MESMA fonte/tamanho/cor nos dois valores;
+// menor que os números dos 3 centros. ⑰ = apostar 17, ㉑ = apostar 21.
 function buildModeBadge(mode, size) {
   if (mode !== 17 && mode !== 21) return '';
-  const d = size || 22;
-  const fs = Math.round(d * 0.5);
+  const d = size || 24;
+  const fs = Math.round(d * 0.55);
   return `<span class="eb-v5-badge" title="Modo V5: apostar ${mode} números" style="`
     + `display:inline-flex;align-items:center;justify-content:center;`
     + `width:${d}px;height:${d}px;border-radius:50%;flex:0 0 auto;`
-    + `border:2px solid #39ff14;color:#39ff14;font-size:${fs}px;font-weight:bold;`
-    + `line-height:1;box-shadow:0 0 6px rgba(57,255,20,0.65);`
-    + `text-shadow:0 0 4px rgba(57,255,20,0.8);align-self:center;`
+    + `border:2px solid #ffd700;color:#ffd700;font-size:${fs}px;font-weight:900;`
+    + `background:rgba(255,215,0,0.12);`
+    + `line-height:1;box-shadow:0 0 8px rgba(255,215,0,0.7);`
+    + `text-shadow:0 0 4px rgba(255,215,0,0.85);align-self:center;`
     + `margin:0 4px;">${mode}</span>`;
+}
+
+// === Fonte ÚNICA do HTML do status MINIMIZADO (05/08 tarde) ===
+// As "3 telas" divergentes que o operador via eram 3 writers com formatos
+// diferentes: toggleMinimize (sem badge), updateOverlay (sem badge) e o
+// heartbeat state_sync (com badge). Este helper é o ÚNICO formato permitido:
+// [centros] + badge 17/21 dourado + gale. Qualquer writer novo DEVE usá-lo.
+function minimizedStatusHTML(centros, galeText, v5m) {
+  const centroDisplay = buildCentroHTML(centros);
+  const badge = buildModeBadge(v5m, 18);
+  return `${centroDisplay}${badge} ${galeText || 'G1 0/0'}`;
+}
+
+// v5_mode da sugestão em cache (fallback p/ writers sem state_sync à mão).
+function v5ModeFromSugestao(s) {
+  return (s && s.force17 && s.force17.v5_mode) || null;
 }
 
 // === force17/v5 (18/06, V5 04/08): 3 regiões rotuladas + números cobertos ===
@@ -64,7 +81,7 @@ function buildForce17HTML(sugestao) {
   // V5.1 (05/08): modo do seletor vira badge CIRCULAR verde na linha dos centros
   // (spec do operador). Mantém marcador curto no header p/ auditoria textual.
   const v5badge = f17.v5_mode ? ` · V5` : '';
-  const modeBadge = buildModeBadge(f17.v5_mode, 22);
+  const modeBadge = buildModeBadge(f17.v5_mode, 24);
   const centrosHTML = regioes.map(r => {
     const cls = 'eb-rc-' + (r.label || 'reg');  // c1/c2/c3 ou r1/r2/r3 (payload-driven)
     const warming = (r.status === 'aquecendo') ? '<span style="font-size:9px;"> ⏳</span>' : '';
@@ -457,13 +474,12 @@ function toggleMinimize() {
 
   if (overlayState.isMinimized) {
     overlay.classList.add('minimized');
-    // Quando minimizado, mostrar [C1] [C2] [C3] + gale no status
+    // Quando minimizado: formato ÚNICO [centros] + badge 17/21 + gale (helper).
     if (status && galeDisplay && overlayState.lastSugestao) {
       const s = overlayState.lastSugestao;
       const centros = centrosFromSugestao(s);
-      const centroDisplay = buildCentroHTML(centros);
       const galeText = galeDisplay.textContent;
-      status.innerHTML = `${centroDisplay} ${galeText}`;
+      status.innerHTML = minimizedStatusHTML(centros, galeText, v5ModeFromSugestao(s));
       // Copiar classe de cor
       status.classList.remove('g1', 'g2', 'g3', 'apostar', 'pular', 'aguardando');
       if (galeDisplay.classList.contains('g1')) status.classList.add('g1');
@@ -584,12 +600,12 @@ function updateOverlay(sugestao) {
   // a vista expandida; senão cai nos centros geométricos do SDA.
   // Fonte ÚNICA (c2,c3,c1) — idêntica à vista expandida e ao minimizado/heartbeat.
   const centros = centrosFromSugestao(sugestao);
-  const centroDisplay = buildCentroHTML(centros);
   const level = sugestao.gale_level || 1;
   const galeText = sugestao.gale_display || `G${level} 0/0`;
 
   if (overlayState.isMinimized) {
-    status.innerHTML = `${centroDisplay} ${galeText}`;
+    // Formato ÚNICO do minimizado (badge 17/21 incluído) — ver minimizedStatusHTML.
+    status.innerHTML = minimizedStatusHTML(centros, galeText, v5ModeFromSugestao(sugestao));
   } else {
     if (acao === 'APOSTAR') {
       status.classList.add('apostar');
@@ -905,13 +921,10 @@ function handleStateSync(data) {
         centros = data.pending_prediction.centers;
       }
       if (status && centros.length) {
-        const centroDisplay = buildCentroHTML(centros);
-        // V5.1: badge 17/21 também no minimizado (fonte: sugestão > state_sync).
-        const v5m = (overlayState.lastSugestao && overlayState.lastSugestao.force17
-                     && overlayState.lastSugestao.force17.v5_mode)
+        // Formato ÚNICO do minimizado (badge 17/21 dourado) — minimizedStatusHTML.
+        const v5m = v5ModeFromSugestao(overlayState.lastSugestao)
                   || (data.force17 && data.force17.v5_mode) || null;
-        const miniBadge = buildModeBadge(v5m, 16);
-        status.innerHTML = `${centroDisplay}${miniBadge} ${data.gale_display || 'G1 0/0'}`;
+        status.innerHTML = minimizedStatusHTML(centros, data.gale_display, v5m);
         status.className = `eb-status g${data.gale_level || 1}`;
       }
     }

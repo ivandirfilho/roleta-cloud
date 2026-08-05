@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "👂 Escuta Beat",
-  "version": "3.9.0",
-  "description": "Monitor de resultados - v3.9.0 V5.1: badge CIRCULAR verde 17/21 nas 3 vistas (expandida/minimizada/Glass Box) + sugestao broadcast a viewers. v3.8.0 V5: regioes r1/r2/r3 payload-driven + cold-start via data.regioes. v3.7.0 DIR13: lock total da fase. v3.6.0 DIR1: cliente sobrevive minimizacao + sentido autoritativo. v3.4 VISION: foto->dados (1 frame/giro + OCR no servidor).",
+  "version": "3.9.1",
+  "description": "Monitor de resultados - v3.9.1 V5.2: badge 17/21 DOURADO+negrito, formato unico do minimizado (3 telas unificadas). v3.9.0 V5.1: badge circular 17/21 nas 3 vistas + sugestao broadcast a viewers. v3.8.0 V5: regioes r1/r2/r3 payload-driven + cold-start via data.regioes. v3.7.0 DIR13: lock total da fase. v3.6.0 DIR1: cliente sobrevive minimizacao + sentido autoritativo.",
   "permissions": [
     "activeTab",
     "tabs",

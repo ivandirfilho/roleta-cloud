@@ -1383,18 +1383,21 @@ class SDA17Strategy(StrategyBase):
     
     # ---- V5 (04/08): seletor 17↔21 por sentido (estrategia_proposta_03_08.md §3) ----
 
-    def v5_select_mode(self, direction: str) -> int:
+    def v5_select_mode(self, direction: str, pure: bool = False) -> int:
         """Modo de cobertura do sentido p/ a PRÓXIMA aposta V5 (17 ou 21).
 
         Regra do dono: pós-miss → 21 (permanece enquanto miss); pós-hit → 17.
         Guardrail: teto de jogadas-21 por sessão×sentido (LOCK17 ao atingir).
+        ``pure=True`` (SDA_V5_FLIP_PURO, 05/08 tarde): ignora o teto — a última
+        jogada resolvida do sentido decide sozinha (vitória→17, derrota→21).
         Leitura pura — a contagem só avança em ``v5_note_emitted`` (aposta REAL
         registrada), então fallback de calibração não queima crédito-21.
         """
         from strategies.regions_v5 import V5_MAX_21_PER_SESSION_DIR, V5_MODE_DEFAULT
         dk = self._dk(direction)
         m = self._v5_mode.get(dk, V5_MODE_DEFAULT)
-        if m == 21 and self._v5_count21.get(dk, 0) >= V5_MAX_21_PER_SESSION_DIR:
+        if (not pure) and m == 21 \
+                and self._v5_count21.get(dk, 0) >= V5_MAX_21_PER_SESSION_DIR:
             return 17  # LOCK17: teto de sessão atingido
         return 21 if m == 21 else 17
 

@@ -331,3 +331,23 @@ flip pós-miss, LOCK17 e contrafactuais permanecem intactos — muda SÓ como R1
 - **Rollback:** `SDA_V5_SIG4=0` volta o composer ao §2 byte-idêntico; `SDA_SUGESTAO_BROADCAST=0`
   volta o transporte master-only. Ambos por-chamada, sem redeploy de imagem (só restart).
 - Detalhes de auditoria/regressão: ADENDO 05/08 em `Manutenabilidade_iso.md`.
+
+## 14. V5.2 — seletor 17/21 PURO por sentido + badge dourado (05/08 tarde, flag `SDA_V5_FLIP_PURO`)
+
+Feedback de operação da V5.1: "mesmo após derrotas continua sugerindo 17". Diagnóstico: o flip
+pós-miss SEMPRE funcionou, mas era mascarado por dois overrides LOCK17 do go-live — o stop-loss de
+sessão B5 (ativo a sessão toda em produção) e o teto de 5 jogadas-21 por sessão×sentido.
+
+**Regra nova (do dono):** *a última derrota/vitória do SENTIDO-ALVO decide, de forma isolada:*
+última jogada resolvida do sentido da próxima jogada = **vitória → 17** · **derrota → 21**.
+
+- Com `SDA_V5_FLIP_PURO=1` (ON na compose): B5 continua vetando SÓ o stake (mínimo 1u — INV-3);
+  o teto-21 deixa de travar a cobertura. `v5_select_mode(dk, pure=True)` devolve o flip cru.
+- Isolamento por sentido preservado: `_v5_mode["cw"/"ccw"]` + resolução pelo `bet_direction` real.
+- **UI (ext 3.9.1):** badge 17/21 agora **DOURADO `#ffd700` + negrito 900** (fundo sutil + glow),
+  maior legibilidade; formato do quadro minimizado UNIFICADO (`minimizedStatusHTML` — os 3 writers
+  divergentes que criavam as "3 telas" agora usam a mesma fonte única com badge).
+- **Observabilidade:** `state_sync` agora carrega `spec4`/`r2_delta`/`r3_region` (o cherry-pick do
+  overlay descartava; probe 05/08).
+- **Rollback:** `SDA_V5_FLIP_PURO=0` no host + restart (volta LOCK17 por B5/teto).
+- Detalhes: ADENDO 05/08 (tarde) em `Manutenabilidade_iso.md`.
