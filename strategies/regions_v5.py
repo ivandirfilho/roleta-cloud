@@ -16,6 +16,20 @@ Regiões (por sentido, isolamento estrito — INV-1):
        resultados DO MESMO sentido (corrige débito V4: C3 misturava cw+ccw).
        Cede sempre a {R1,R2}.
 
+V5.1 "assinatura-4" (05/08, spec exata do operador — ativa com ``spec4=True``,
+flag SDA_V5_SIG4; caminho default byte-idêntico ao go-live 04/08):
+  R1 = idem, mas janela das últimas **4** forças do sentido-alvo.
+  R2 = PROJEÇÃO DE TENDÊNCIA do próprio R1: "o sistema está acelerando ou
+       freando?" — slope Theil–Sen (janela 4) vira deslocamento em casas de
+       força: r2_force = r1_force + clamp(round(slope), ±8). Acelerando →
+       região adiante; freando → atrás; neutro (delta≈0) → a disjunção empurra
+       p/ o vizinho +7 (determinístico). NÃO usa 2º cluster do resíduo.
+  R3 = região MENOS VISITADA da divisão FIXA da roda em 6 regiões contíguas
+       (5×6 + 1×7 na ordem física, a partir do zero), placar `region6_counts`
+       alimentado por TODOS os giros dos DOIS sentidos (state/game.py).
+       Sobrepôs R1/R2? snap para a região DISJUNTA mais próxima da indicada
+       (regra do operador); nenhuma disjunta → empurra posicional.
+
 Warmup (<3 resultados no sentido): tríade-prior {0,+12,+24} ancorada em
 apply_force(last_number, 10) — gaps 12/12/13 ≥ 7 ⇒ disjunta por construção
 (INV-3: SEMPRE há indicação, mesmo sem dado algum).
@@ -42,6 +56,11 @@ V5_PRIOR_OFFSET = 10        # âncora do warmup (= BAYESIAN_DEFAULT)
 V5_WARMUP_TRIAD = (0, 12, 24)  # offsets da tríade (gaps 12/12/13 ≥ 7 ⇒ disjuntos)
 V5_MODE_DEFAULT = 17        # estado inicial/pós-reset do seletor
 V5_MAX_21_PER_SESSION_DIR = 5  # teto de jogadas-21 por sessão×sentido → LOCK17
+
+# ---- V5.1 "assinatura-4" (05/08 — spec exata do operador; gated SDA_V5_SIG4) ----
+V5_SIG4_WINDOW = 4          # "últimas 4 jogadas": janela de R1 E da Theil–Sen
+REGION6_SIZES = (6, 6, 6, 6, 6, 7)  # divisão fixa da roda: 5×6 + 1×7 = 37
+REGION6_LABELS = ("g1", "g2", "g3", "g4", "g5", "g6")
 
 
 # ---- Primitivas circulares (mesmas convenções do sda17.py) ----
@@ -182,6 +201,74 @@ def cold_center(results_chrono: Sequence[int], occupied: Sequence[int],
     return min(cands, key=_key)
 
 
+# ---- V5.1: divisão fixa em 6 regiões (placar de visitas, ambos os sentidos) ----
+
+def region6_bounds() -> List[Tuple[int, int]]:
+    """(start_idx, size) de cada região contígua na ordem física da roda."""
+    out: List[Tuple[int, int]] = []
+    start = 0
+    for size in REGION6_SIZES:
+        out.append((start, size))
+        start += size
+    return out
+
+
+def region6_of(number: int, wheel: Sequence[int]) -> Optional[int]:
+    """Índice 0..5 da região fixa que contém `number` (None se fora da roda)."""
+    wheel = list(wheel)
+    if number not in wheel:
+        return None
+    idx = wheel.index(number)
+    for gi, (start, size) in enumerate(region6_bounds()):
+        if start <= idx < start + size:
+            return gi
+    return None
+
+
+def region6_centers(wheel: Sequence[int]) -> List[int]:
+    """Número central de cada região (idx start + size//2): no G6 (7 números)
+    o raio-3 cobre a região EXATA; nos de 6, cobre os 6 + 1 vizinho."""
+    wheel = list(wheel)
+    return [wheel[start + size // 2] for start, size in region6_bounds()]
+
+
+def least_visited_center(region6_counts: Sequence[int], occupied: Sequence[int],
+                         wheel: Sequence[int],
+                         gap: int = V5_DISJOINT_GAP) -> Tuple[int, int]:
+    """R3 da V5.1: centro da região MENOS visitada do placar fixo.
+
+    Regra do operador p/ sobreposição: se o centro da região indicada colide
+    com {R1,R2}, snap para a região DISJUNTA cujo centro é o mais PRÓXIMO do
+    indicado (desempate: menos visitada → menor índice). Nenhuma região
+    disjunta (degenerado) → empurra posicional. Retorna (centro, idx_região).
+    """
+    wheel = list(wheel)
+    n_reg = len(REGION6_SIZES)
+    counts = [int(c) for c in list(region6_counts)[:n_reg]]
+    counts += [0] * (n_reg - len(counts))
+    centers = region6_centers(wheel)
+
+    def _rank(gi: int):
+        # menos visitada; desempate: mais distante dos ocupados → menor índice
+        mind = min((circ_dist_idx(centers[gi], o, wheel) for o in occupied),
+                   default=len(wheel))
+        return (counts[gi], -mind, gi)
+
+    ideal_gi = min(range(n_reg), key=_rank)
+    ideal = centers[ideal_gi]
+    if all(regions_disjoint(ideal, o, wheel, gap) for o in occupied):
+        return ideal, ideal_gi
+    disjoint = [gi for gi in range(n_reg) if gi != ideal_gi
+                and all(regions_disjoint(centers[gi], o, wheel, gap)
+                        for o in occupied)]
+    if disjoint:
+        snap_gi = min(disjoint,
+                      key=lambda gi: (circ_dist_idx(centers[gi], ideal, wheel),
+                                      counts[gi], gi))
+        return centers[snap_gi], snap_gi
+    return nearest_non_overlapping(ideal, occupied, wheel, gap), ideal_gi
+
+
 def _coverage(centers: Sequence[int], radii: Sequence[int],
               wheel: Sequence[int]) -> List[int]:
     nums: set = set()
@@ -192,7 +279,8 @@ def _coverage(centers: Sequence[int], radii: Sequence[int],
 
 def compose_v5(direction: str, forces_recent_first: Sequence[int],
                results_chrono: Sequence[int], last_number: Optional[int],
-               wheel: Sequence[int]) -> Dict:
+               wheel: Sequence[int], spec4: bool = False,
+               region6_counts: Optional[Sequence[int]] = None) -> Dict:
     """Compõe as DUAS coberturas aninhadas do sentido (§2.2). Puro/determinístico.
 
     Args:
@@ -202,11 +290,18 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             (``cw_history``/``ccw_history`` → actual_result).
         last_number: número atual da roda (âncora da projeção força→número).
         wheel: sequência física da roda (37 números).
+        spec4: V5.1 "assinatura-4" (flag SDA_V5_SIG4) — R1 janela 4, R2 =
+            projeção de tendência de R1, R3 = região menos visitada das 6
+            fixas. False = caminho go-live 04/08 byte-idêntico.
+        region6_counts: placar de visitas das 6 regiões fixas (AMBOS os
+            sentidos; `GameState.region6_counts`). Só usado com spec4; se
+            None, R3 degrada para a zona fria (defensivo).
 
     Returns:
         dict com centers=[r1,r2,r3] (idênticos nos 2 modos), numbers17 (17
         distintos), numbers21 (21 distintos, ⊇ numbers17), regioes17/regioes21
-        (label/center/radius p/ overlay), warmup, r1_force, trend, slope.
+        (label/center/radius p/ overlay), warmup, r1_force, trend, slope;
+        com spec4: + spec4, r2_delta, r3_region.
     """
     wheel = list(wheel)
     size = len(wheel)
@@ -216,7 +311,8 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
     results = [int(r) for r in results_chrono if r in wheel]
     warmup = len(results) < V5_WARMUP_MIN_RESULTS
 
-    slope = theil_sen_slope(forces_recent_first)
+    ts_window = V5_SIG4_WINDOW if spec4 else V5_TS_WINDOW
+    slope = theil_sen_slope(forces_recent_first, window=ts_window)
     trend = None
     if slope is not None:
         if slope > V5_TS_DEADBAND:
@@ -227,13 +323,17 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             trend = "neutral"
 
     r1_force: Optional[int] = None
+    r2_delta: Optional[int] = None
+    r3_region: Optional[str] = None
     if warmup:
         # 1. WARMUP — tríade-prior ancorada em apply_force(last, 10): INV-3 sem dados.
         centers = [apply_force(last_number, V5_PRIOR_OFFSET + off, direction, wheel)
                    for off in V5_WARMUP_TRIAD]
     else:
         # 2. R1 — cluster de gravidade-7 de máxima cobertura (sem filtro residual).
-        window = [int(f) for f in list(forces_recent_first)[:V5_R1_WINDOW]]
+        #    spec4: "últimas 4 jogadas" do sentido-alvo (senão janela 8 do go-live).
+        r1_window = V5_SIG4_WINDOW if spec4 else V5_R1_WINDOW
+        window = [int(f) for f in list(forces_recent_first)[:r1_window]]
         scan = gravity_scan(window, size)
         if scan is None:  # sem forças (só resultados) → prior (INV-3)
             r1_force = V5_PRIOR_OFFSET
@@ -241,30 +341,48 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             r1_force = scan[0]
         r1 = apply_force(last_number, r1_force, direction, wheel)
 
-        # 3. R2 — 2º cluster condicionado à tendência; resíduo = fora do poço de R1.
-        residual = [f for f in window
-                    if circ_force_dist(f, r1_force, size) > V5_GRAVITY]
-        side = 1 if (slope is None or slope >= 0) else -1
-        r2_force: Optional[int] = None
-        if residual and trend in ("accel", "brake"):
-            sided = [f for f in residual
-                     if signed_force_diff(f, r1_force, size) * side > 0]
-            pool = sided or residual  # lado vazio → resíduo puro (determinístico)
-            r2_force = gravity_scan(pool, size)[0]
-        elif residual:
-            r2_force = gravity_scan(residual, size)[0]
-        if r2_force is None:
-            r2_force = r1_force + side * V5_GRAVITY  # sintetiza R1±7
-        # clamp circular a ±8 de R1 (arco de assinatura)
-        diff = signed_force_diff(r2_force, r1_force, size)
-        if abs(diff) > V5_R2_CLAMP:
-            diff = V5_R2_CLAMP if diff > 0 else -V5_R2_CLAMP
-        r2_force_clamped = (r1_force + diff) % size
-        r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
-        r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
+        if spec4:
+            # 3a. R2 spec4 — PROJEÇÃO: o próprio R1 deslocado pela tendência
+            #     (acelerando → adiante; freando → atrás). Neutro (delta 0) →
+            #     a disjunção empurra p/ o vizinho +7 (determinístico).
+            r2_delta = 0 if slope is None else int(round(slope))
+            if r2_delta > V5_R2_CLAMP:
+                r2_delta = V5_R2_CLAMP
+            elif r2_delta < -V5_R2_CLAMP:
+                r2_delta = -V5_R2_CLAMP
+            r2_force_clamped = (r1_force + r2_delta) % size
+            r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
+            r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
+        else:
+            # 3. R2 — 2º cluster condicionado à tendência; resíduo = fora do poço de R1.
+            residual = [f for f in window
+                        if circ_force_dist(f, r1_force, size) > V5_GRAVITY]
+            side = 1 if (slope is None or slope >= 0) else -1
+            r2_force: Optional[int] = None
+            if residual and trend in ("accel", "brake"):
+                sided = [f for f in residual
+                         if signed_force_diff(f, r1_force, size) * side > 0]
+                pool = sided or residual  # lado vazio → resíduo puro (determinístico)
+                r2_force = gravity_scan(pool, size)[0]
+            elif residual:
+                r2_force = gravity_scan(residual, size)[0]
+            if r2_force is None:
+                r2_force = r1_force + side * V5_GRAVITY  # sintetiza R1±7
+            # clamp circular a ±8 de R1 (arco de assinatura)
+            diff = signed_force_diff(r2_force, r1_force, size)
+            if abs(diff) > V5_R2_CLAMP:
+                diff = V5_R2_CLAMP if diff > 0 else -V5_R2_CLAMP
+            r2_force_clamped = (r1_force + diff) % size
+            r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
+            r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
 
-        # 4. R3 — zona fria do MESMO sentido; cede sempre a {R1,R2}.
-        r3 = cold_center(results, [r1, r2], wheel)
+        if spec4 and region6_counts is not None:
+            # 4a. R3 spec4 — região MENOS VISITADA das 6 fixas (ambos os sentidos).
+            r3, r3_gi = least_visited_center(region6_counts, [r1, r2], wheel)
+            r3_region = REGION6_LABELS[r3_gi]
+        else:
+            # 4. R3 — zona fria do MESMO sentido; cede sempre a {R1,R2}.
+            r3 = cold_center(results, [r1, r2], wheel)
         centers = [r1, r2, r3]
 
     # 5. SAÍDA — mesmos centros nos 2 modos; só raios mudam ⇒ C17 ⊂ C21.
@@ -280,7 +398,7 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             out.append(reg)
         return out
 
-    return {
+    result = {
         "centers": list(centers),
         "numbers17": numbers17,
         "numbers21": numbers21,
@@ -291,3 +409,8 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
         "trend": trend,
         "slope": slope,
     }
+    if spec4:
+        result["spec4"] = True
+        result["r2_delta"] = r2_delta
+        result["r3_region"] = r3_region
+    return result

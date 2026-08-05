@@ -259,6 +259,12 @@ class GameState:
     # zona fria C3 (8 testes SDA17 dependem da janela 10 original). phase_advance ja
     # aceita max_window=20 em state/phase.py.
     _phase_results: deque = field(default_factory=lambda: deque(maxlen=20))
+    # V5.1 sig4 (05/08): placar de visitas das 6 regiões FIXAS da roda (5×6+1×7,
+    # ordem física — strategies/regions_v5.py REGION6_SIZES). Conta TODOS os giros
+    # dos DOIS sentidos + histórico (espelha recent_results). População sempre-on
+    # e inerte (padrão shadow DIR-x); o USO no compose é gated por SDA_V5_SIG4.
+    # Round-trip: save()/load()/reset_session().
+    region6_counts: List[int] = field(default_factory=lambda: [0] * 6)
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -339,6 +345,8 @@ class GameState:
         self._phase_overlay_ring = deque(maxlen=12)
         # DIR19 (sentido-fase): zera buffer de fase tambem (janela 20).
         self._phase_results = deque(maxlen=20)
+        # V5.1 sig4: placar das 6 regiões fixas é POR SESSÃO — zera na troca.
+        self.region6_counts = [0] * 6
         
         # Calibração removida (momentum desabilitado)
         
@@ -421,6 +429,7 @@ class GameState:
         # V4: registra todo número sorteado (zona fria de C3), independente de
         # haver spin anterior. Antes do cálculo de força (BUG-F: ciclo de vida).
         self.recent_results.appendleft(numero)
+        self._region6_bump(numero)
         # DIR19: buffer dedicado para shift (janela 20). Separado para nao alterar C3.
         try:
             self._phase_results.appendleft(int(numero))
@@ -455,6 +464,20 @@ class GameState:
         
         return force
     
+    def _region6_bump(self, numero: int) -> None:
+        """V5.1 sig4: incrementa a visita da região fixa (6 arcos) do número.
+
+        Espelha recent_results: giros ao vivo (process_spin) E histórico
+        (register_history_number) — TODOS os sentidos, por spec do operador.
+        Defensivo: nunca quebra o fluxo de aposta."""
+        try:
+            from strategies.regions_v5 import region6_of
+            gi = region6_of(int(numero), list(roulette.WHEEL_SEQUENCE))
+            if gi is not None:
+                self.region6_counts[gi] += 1
+        except Exception:  # noqa: BLE001 — placar é observabilidade, não gate
+            pass
+
     def register_history_number(self, numero: int) -> None:
         """DIR2 (sentido-fase): registra um número de HISTÓRICO como contexto
         NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real
@@ -463,6 +486,7 @@ class GameState:
         populamos recent_results (zona fria C3) e o último número, SEM tocar
         timelines nem last_direction (a fase real entra com os giros ao vivo)."""
         self.recent_results.appendleft(numero)
+        self._region6_bump(numero)
         # DIR19: historico tambem alimenta buffer de fase (janela 20).
         try:
             self._phase_results.appendleft(int(numero))
@@ -1357,6 +1381,8 @@ class GameState:
             "_phase_overlay_ring": list(self._phase_overlay_ring),
             # DIR19: buffer dedicado para shift (janela 20).
             "_phase_results": list(self._phase_results),
+            # V5.1 sig4 (05/08): placar das 6 regiões fixas (round-trip).
+            "region6_counts": list(self.region6_counts),
             # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
             "c_selection": self.c_selection_engine.state_dict(),
             "block_gale": self.block_gale_engine.state_dict(),
@@ -1469,6 +1495,13 @@ class GameState:
                 gs._phase_results = deque(_phase_data, maxlen=20)
             except Exception:  # noqa: BLE001
                 gs._phase_results = deque(maxlen=20)
+            # V5.1 sig4: round-trip do placar (compat: [0]*6 se ausente/corrompido).
+            try:
+                _r6 = data.get("region6_counts", []) or []
+                _r6 = [int(c) for c in _r6][:6]
+                gs.region6_counts = _r6 + [0] * (6 - len(_r6))
+            except Exception:  # noqa: BLE001 — estado legado não pode travar boot
+                gs.region6_counts = [0] * 6
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))
