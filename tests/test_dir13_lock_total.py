@@ -39,13 +39,13 @@ def test_lock_total_decision_matrix():
         assert lock_total is expected
 
 
-def test_manifest_bumpado_para_3_7_0():
-    """Cliente em 3.7.0 indicando DIR13."""
+def test_manifest_bumpado_para_3_8_0():
+    """Cliente em 3.8.0 (V5 regioes r1/r2/r3) — DIR13 preservado no changelog."""
     import json
     from pathlib import Path
     repo = Path(__file__).parent.parent
     manifest = json.loads((repo / "extension" / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "3.7.0"
+    assert manifest["version"] == "3.8.0"
     assert "DIR13" in manifest["description"]
 
 

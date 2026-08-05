@@ -126,3 +126,83 @@ def test_outro_device_aguarda_durante_grace():
     cm, c2 = _run(main())
     assert cm.master_id is None, "ninguém deve assumir MASTER durante o grace de outro device"
     assert cm.get_role(c2) == "slave"
+
+
+def test_grace_period_nao_promove_conexao_sem_register():
+    """Incidente 04/08: dashboard (sem REGISTER, device 'unknown') NÃO pode ser
+    promovido pelo grace period; a escuta registrada deve ser a promovida."""
+
+    async def main():
+        cm = ConnectionManager()
+        cm.MASTER_GRACE_PERIOD = 0.05
+        # Escuta assume MASTER
+        c1 = await cm.connect(FakeWS(), device_id=None)
+        await cm.update_device_id(c1, "dev-escuta")
+        # Dashboard passivo conecta DEPOIS (mais recente no LIFO) e nunca registra
+        dash = await cm.connect(FakeWS(), device_id=None)
+        # Outra escuta registrada, mais antiga que o dashboard
+        await asyncio.sleep(0)
+        # MASTER cai; grace expira e promove
+        await cm.disconnect(c1)
+        await asyncio.sleep(0.2)
+        return cm, dash
+
+    cm, dash = _run(main())
+    assert cm.master_id is None, "dashboard 'unknown' não pode virar MASTER"
+    assert cm.get_role(dash) == "slave"
+
+
+def test_grace_period_promove_registrado_ignorando_dashboard_mais_recente():
+    async def main():
+        cm = ConnectionManager()
+        cm.MASTER_GRACE_PERIOD = 0.05
+        c1 = await cm.connect(FakeWS(), device_id=None)
+        await cm.update_device_id(c1, "dev-escuta-1")
+        c2 = await cm.connect(FakeWS(), device_id=None)
+        await cm.update_device_id(c2, "dev-escuta-2")
+        dash = await cm.connect(FakeWS(), device_id=None)  # mais recente, sem register
+        await cm.disconnect(c1)
+        await asyncio.sleep(0.2)
+        return cm, c2, dash
+
+    cm, c2, dash = _run(main())
+    assert cm.master_id == c2, "a escuta registrada (não o dashboard) deve ser promovida"
+    assert cm.get_role(dash) == "slave"
+
+
+def test_register_destrona_master_passivo_sem_register():
+    """Incidente 04/08 (produção): um MASTER passivo ('unknown') não pode
+    bloquear a escuta que envia REGISTER — ela deve destronar e assumir."""
+
+    async def main():
+        cm = ConnectionManager()
+        # Dashboard já é MASTER (estado corrompido pré-fix)
+        dash = await cm.connect(FakeWS(), device_id=None)
+        cm.master_id = dash
+        cm.connections[dash].role = "master"
+        # Escuta conecta e registra
+        esc = await cm.connect(FakeWS(), device_id=None)
+        assert cm.get_role(esc) == "slave"
+        await cm.update_device_id(esc, "dev-escuta")
+        return cm, dash, esc
+
+    cm, dash, esc = _run(main())
+    assert cm.master_id == esc, "escuta registrada deve destronar o master passivo"
+    assert cm.get_role(esc) == "master"
+    assert cm.get_role(dash) == "slave"
+
+
+def test_register_nao_destrona_master_registrado():
+    """Proteção do master real continua: device registrado NÃO destrona outro registrado."""
+
+    async def main():
+        cm = ConnectionManager()
+        c1 = await cm.connect(FakeWS(), device_id=None)
+        await cm.update_device_id(c1, "dev-escuta-1")
+        c2 = await cm.connect(FakeWS(), device_id=None)
+        await cm.update_device_id(c2, "dev-escuta-2")
+        return cm, c1, c2
+
+    cm, c1, c2 = _run(main())
+    assert cm.master_id == c1, "master registrado permanece protegido"
+    assert cm.get_role(c2) == "slave"

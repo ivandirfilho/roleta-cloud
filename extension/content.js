@@ -35,9 +35,9 @@ function centrosFromSugestao(s) {
   return s.centro != null ? [s.centro] : [];
 }
 
-// === force17 (18/06): 3 regiões rotuladas c2/c3/c1 + 17 números ===
+// === force17/v5 (18/06, V5 04/08): 3 regiões rotuladas + números cobertos ===
 // Cada centro de região exibe o número grande e, EMBAIXO, um rótulo pequeno
-// (c2/c3/c1) indicando a qual indicação aquele número central se refere.
+// (c2/c3/c1 no force17; r1/r2/r3 no V5) indicando a indicação de origem.
 function buildForce17HTML(sugestao) {
   const regioes = sugestao.regioes || [];
   const numeros = sugestao.numeros || [];
@@ -45,8 +45,10 @@ function buildForce17HTML(sugestao) {
   const coverageN = f17.coverage_n || numeros.length;
   const bias = f17.dir_bias === 'favoravel' ? '✅ favorável'
              : (f17.dir_bias === 'desfavoravel' ? '⚠️ desfavorável' : '');
+  // V5: badge do modo do seletor (17/21) quando presente no payload (aditivo).
+  const v5badge = f17.v5_mode ? ` · V5·${f17.v5_mode}#` : '';
   const centrosHTML = regioes.map(r => {
-    const cls = r.label === 'c1' ? 'eb-rc-c1' : (r.label === 'c2' ? 'eb-rc-c2' : 'eb-rc-c3');
+    const cls = 'eb-rc-' + (r.label || 'reg');  // c1/c2/c3 ou r1/r2/r3 (payload-driven)
     const warming = (r.status === 'aquecendo') ? '<span style="font-size:9px;"> ⏳</span>' : '';
     return `<div class="eb-rc ${cls}" style="display:inline-flex;flex-direction:column;align-items:center;margin:0 8px;">`
       + `<span class="eb-rc-num" style="font-size:22px;font-weight:bold;line-height:1.1;">${r.center}${warming}</span>`
@@ -61,7 +63,7 @@ function buildForce17HTML(sugestao) {
   const nReg = regioes.length;
   const regLabel = nReg ? `${nReg} ${nReg > 1 ? 'regiões' : 'região'}` : 'calibração';
   const header = `<div class="eb-regioes-head" style="font-size:10px;opacity:0.75;margin-bottom:3px;">`
-    + `🎯 ${regLabel} · ${coverageN} números${bias ? ' · ' + bias : ''}</div>`;
+    + `🎯 ${regLabel} · ${coverageN} números${v5badge}${bias ? ' · ' + bias : ''}</div>`;
   return header
     + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}</div>`
     + numerosHTML;
@@ -875,6 +877,12 @@ function handleStateSync(data) {
     if (overlayState.isMinimized) {
       const status = overlay.querySelector('.eb-status');
       let centros = centrosFromSugestao(overlayState.lastSugestao);
+      // V5 (04/08, auditoria UX): cold-start prefere data.regioes (centros da
+      // ESTRATÉGIA ATIVA, ordem r1/r2/r3 ou c2/c3/c1) antes do pending_prediction
+      // .centers ([C1,C2,C3] V4 crus — ordem/estratégia divergente no V5).
+      if (!centros.length && data.regioes && data.regioes.length) {
+        centros = data.regioes.map(r => r.center);
+      }
       if (!centros.length && data.pending_prediction && data.pending_prediction.centers) {
         centros = data.pending_prediction.centers;
       }

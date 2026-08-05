@@ -183,6 +183,17 @@ docker logs roleta-cloud --since 5m 2>&1 | grep -E "VERIFICANDO|decision_created
    reconexão tardia também recupera sozinha. Opcional: se `master_id is None`
    por > N segundos **e** há conexões, promover a mais recente proativamente.
 
+5. **Clientes passivos nunca viram MASTER — ✅ IMPLEMENTADO (04/08/2026).**
+   Incidente pós go-live V5: o grace period promoveu um **dashboard Glass Box**
+   (conexão sem REGISTER, `device_id="unknown"`) a MASTER; a escuta re-registrou
+   e ficou SLAVE eterna → spins nunca enviados (gate local da escuta), Glass
+   Box/overlay congelados **sem nenhum erro no log**. Fix em
+   `server/connection_manager.py`: (a) `handle_grace_period` só promove conexões
+   **registradas**; (b) REGISTER **destrona** master passivo (`unknown`) e
+   assume — master registrado segue protegido. Regressão:
+   `tests/test_connection_manager_master.py` (9 testes). Assinatura do incidente
+   num probe passivo: `state_sync` 1Hz fluindo + **zero `trace`** com mesa ativa.
+
 ### Checklist de operação
 - [ ] Glass Box sem regiões? → rodar o diagnóstico da §5 (passo 3, linhas `👑`).
 - [ ] Sem MASTER recente? → Forçar MASTER (escuta) **ou** restart do container.

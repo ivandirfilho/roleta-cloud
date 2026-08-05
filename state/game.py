@@ -1070,6 +1070,10 @@ class GameState:
                 "numeros": f17.get("numeros", []),
                 "dir_bias": _bias,
             }
+            # V5 (04/08): modo do seletor no mesmo bloco (aditivo; ausente no
+            # force17 clássico — Obrigação ISO #9 preservada).
+            if f17.get("v5_mode"):
+                out["force17"]["v5_mode"] = f17["v5_mode"]
             out["regioes"] = f17.get("regioes", [])
         # DIR5 (sentido-fase): bloco autoritativo da fase, publicado no state_sync (1s)
         # e no trace. O cliente sobrescreve sua paridade com next_direction; o overlay
