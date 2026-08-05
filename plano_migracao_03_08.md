@@ -1,19 +1,19 @@
 # Plano de Migração HostDime → Azure — 03/08/2026
 
-> **Status:** proposta executável, ainda não iniciada.
-> **Revisão:** auditoria técnica aplicada em 03/08/2026. Os achados, as decisões
-> e a justificativa de cada uma estão em **§13**; as correções já foram
-> incorporadas ao corpo do plano. Toda afirmação da auditoria está marcada como
-> `PROVADO` (reproduzida por execução) ou `ESPERADO` (a validar em ensaio).
+> **Status em 05/08/2026:** preparação técnica pré-cutover concluída; HostDime
+> segue como único escritor e o DNS de produção não foi alterado.
+> **Leitura operacional:** as seções 0–17 preservam a cronologia das decisões.
+> O estado vigente, as provas finais e o runbook que deve ser usado na janela
+> estão em **§18**.
 > **Origem:** HostDime `187.45.181.75` (produção ativa).
-> **Destino:** Azure RG `maquina_roleta_cloud`, Brazil South.
+> **Destino:** Azure RG `maquina_roleta_cloud`, VM `vm-roleta-app-01`,
+> IP `20.226.77.194`, Brazil South.
 > **Princípio:** reconstruir a infraestrutura declarativamente, copiar o runtime
 > exato e migrar os dados sob congelamento. **Não clonar o disco da VPS.**
 >
-> Este documento substitui o estado e o veredito Azure descritos em
-> `balanco_evolucao_agosto_26.md`: em 03/08/2026 foi confirmado que a
-> infraestrutura Azure já existe, embora a aplicação ainda não tenha sido
-> implantada.
+> Na abertura deste documento, em 03/08/2026, somente a infraestrutura Azure
+> existia. Essa fotografia inicial foi superada pela execução registrada nas
+> seções 16–18.
 
 ---
 
@@ -72,13 +72,12 @@ Conforme least privilege e as regras do workspace, o checkout principal no
 Desktop não foi lido. O MCP foi usado para validar o escopo; a árvore deste
 worktree foi lida pelas ferramentas nativas.
 
-### 1.3 Bloqueio atual
+### 1.3 Acessos comprovados
 
-O arquivo `GUIA_ACESSO_AGENTICO_AZURE` não existe neste worktree, em
-`origin/main` nem nas branches remotas. O agente possui acesso Azure
-control-plane (Owner) e VM Run Command, mas **ainda não possui acesso comprovado
-à HostDime**. Sem chave/usuário SSH e acesso ao DNS, nenhuma cópia de produção
-pode começar.
+O acesso Azure foi comprovado pelo Azure CLI e VM Run Command. O acesso SSH
+root à HostDime foi comprovado e usado para inventário, instalação do snapshot
+timer e validação do banco vivo. Nenhuma credencial é registrada neste
+documento. DNS continua sendo gate humano e não foi alterado.
 
 ---
 
@@ -1354,3 +1353,183 @@ A Azure está **recebendo dados reais**, com **Postgres gerenciado migrado
 (schema+grants), dual-write pronto porém OFF**, **NSG aberto** e **domínio/TLS
 pré-cabeados** — tudo sem tocar produção. O cutover reduz-se a: **freeze + cópia
 final + flip de DNS (+ opcional: ligar `dual_write_pg` com `cdc-worker`).**
+
+---
+
+## 18. Estado final pré-cutover — fonte de verdade (05/08/2026)
+
+Esta seção substitui os estados transitórios das seções anteriores. Ela não
+autoriza o cutover; registra o que já está funcionando e o procedimento que
+restou para a janela humana.
+
+### 18.1 Veredito e estado vivo
+
+| Superfície | Estado comprovado |
+|---|---|
+| Produção | HostDime `187.45.181.75`, saudável e único escritor |
+| Azure | VM `vm-roleta-app-01`, IP `20.226.77.194`, runtime saudável |
+| Imagem | `azure-a0eac98`, digest `sha256:75018ac2ba0e46dafaeefd9401df4b3099b6485e3e46a2f16462050cbf69c8ff` |
+| Estratégia | Flags críticas V5.2 alinhadas; INV-3 comprovado (`APOSTAR` em 101/101 decisões do probe) |
+| Persistência | 101 spins em volume isolado, `spin_seq` 55→156 e restart sem perda; volume ativo não foi alterado |
+| PostgreSQL | DSN preparada; `dual_write_pg=false`; CDC ausente |
+| Frontend/health | `/`, `/app.js`, `/style.css` e `/healthz` em HTTPS 200 |
+| TLS canário | `20-226-77-194.sslip.io`, redirect 308, Let's Encrypt, TLS 1.3 |
+| Escrita Azure | `/ws` externo responde 403; allowlist pública só existe no arquivo staged |
+| Snapshot origem | HostDime a cada 10 min; `.backup`, JSON, metadata e manifesto por último |
+| Standby | Azure consulta manifests a cada 2 min; destino isolado `/opt/roleta/standby` |
+| Backup Azure | Timer de 6 h ativo em `backups/azure-local/` |
+| Retenção | Versioning + soft delete 30 d; cool 7 d/delete 30 d nos prefixes gerenciados |
+| Caddy de produção | Staged validado para `roleta.xma-ia.com, www.roleta.xma-ia.com`, com WSS público |
+| DNS | Continua apontando para a HostDime; não foi alterado |
+
+### 18.2 Blueprint operacional
+
+```mermaid
+flowchart LR
+    EXT["Extensão / clientes"] -->|"WSS produção"| HD["HostDime<br/>ÚNICO ESCRITOR"]
+    HD --> SQLITE[("decisions.db + state.json")]
+    SQLITE -->|"snapshot 10 min<br/>manifest-last"| BLOB[("Blob<br/>hostdime-standby/snapshots/")]
+    BLOB -->|"poll 2 min<br/>SHA + integrity"| STBY[("/opt/roleta/standby<br/>Azure")]
+    STBY -. "somente após freeze<br/>stamp explícito" .-> ACTIVE[("/opt/roleta/data")]
+    CADDY["Caddy Azure<br/>TLS canário"] --> APP["roleta-cloud Azure"]
+    ACTIVE --> APP
+    CADDY -. "/ws externo = 403" .-> EXT
+```
+
+Não existe replicação bidirecional e o standby não é montado no app. Portanto,
+o canário não concorre com a HostDime e não cria split-brain.
+
+### 18.3 Provas de dados e RTO
+
+- Snapshot `20260805T201513Z`: 11.171 decisões, último evento
+  `2026-08-05T20:15:09.713513`, restaurado automaticamente às `20:16:08Z`.
+- Após endurecer a frequência e a listagem, `20260805T202906Z` foi aplicado com
+  idade de 12 s.
+- O ciclo agendado seguinte aplicou `20260805T203000Z` às `20:32:05Z`, idade
+  de 122 s e `integrity_check=ok`.
+- Três restores completos consecutivos: **5,142 s**, **5,049 s** e **4,904 s**.
+  Um quarto no-op íntegro: **1,883 s**.
+- O restore normaliza `journal_mode=DELETE`; o destino final contém somente
+  `decisions.db` e `state.json`, sem `-wal`/`-shm`.
+- O poll recusa rollback automático, pagina todos os manifests e falha se o
+  snapshot selecionado tiver mais de 900 s.
+
+### 18.4 Correções finais encontradas no drill
+
+1. **SAS sem data-plane RBAC:** o primeiro user-delegation SAS retornou 403. Foi
+   substituído por SAS de serviço Create+Write, HTTPS-only, limitado ao IP da
+   HostDime e vinculado à stored access policy revogável
+   `hostdime-migration-push` (expira em 04/09/2026).
+2. **CRLF no script remoto:** normalizado antes da instalação; units e scripts
+   instalados em LF.
+3. **WAL/SHM residual:** a primeira repetição de restore falhou; o script agora
+   converte o snapshot para journal DELETE e verifica ausência de sidecars.
+4. **Corrida dos timers:** a origem passou a 10 min e o poll a 2 min, ambos em
+   UTC, `AccuracySec=1s` e sem jitter.
+5. **Listagem Blob limitada:** o poll consulta server-side apenas
+   `snapshots/manifest_`, usa `--num-results '*'` e impede regressão de stamp.
+6. **Domínio staged incorreto:** `ROLETA-DOMAIN` no Key Vault foi atualizado para
+   os dois domínios de produção. `SITE_ADDRESS` agora é serializado entre aspas,
+   validado pelo Caddy e não altera o canário ativo.
+
+### 18.5 Runbook final da janela humana
+
+> Executar somente após aprovação explícita do dono. Registrar o `STAMP` final
+> em cada comando. Não usar “latest” na promoção.
+
+#### A. Congelar a HostDime e gerar o delta final
+
+1. Bloquear nova escrita em `/ws`/desconectar a extensão e confirmar zero
+   escritores.
+2. Parar as automações e o app:
+
+```bash
+systemctl stop roleta-deploy.timer roleta-hostdime-snapshot.timer
+docker stop -t 60 roleta-cloud
+```
+
+3. Gerar o snapshot final estável e registrar o stamp:
+
+```bash
+systemctl start roleta-hostdime-snapshot.service
+journalctl -u roleta-hostdime-snapshot.service -n 20 --no-pager
+# Exemplo; substituir pelo valor real do log:
+STAMP=YYYYMMDDTHHMMSSZ
+```
+
+4. Não reiniciar o app HostDime. A partir daqui ele está fenced.
+
+#### B. Promover exatamente esse stamp na Azure
+
+```bash
+systemctl stop roleta-standby-sync.timer
+docker stop -t 60 roleta-cloud
+
+STAMP=YYYYMMDDTHHMMSSZ
+BACKUP="/opt/roleta/data.pre-cutover.$STAMP"
+test ! -e "$BACKUP"
+mv /opt/roleta/data "$BACKUP"
+install -d -o root -g root -m 0750 /opt/roleta/data
+
+BACKUP_CONTAINER=hostdime-standby \
+BLOB_PREFIX=snapshots/ \
+TARGET_DIR=/opt/roleta/data \
+ACTIVE_DATA_DIR=/opt/roleta/data \
+STATUS_FILE=/var/lib/roleta/cutover-restore-status.json \
+/opt/roleta/restore-sqlite-from-blob.sh --stamp "$STAMP"
+
+sqlite3 /opt/roleta/data/decisions.db 'PRAGMA integrity_check;'
+cat /var/lib/roleta/cutover-restore-status.json
+docker start roleta-cloud
+curl -fsS http://127.0.0.1:8766/health
+```
+
+Comparar com a evidência da HostDime: hash do manifesto, contagem, `MAX(id)`,
+último timestamp e `spin_seq`. Não avançar com qualquer divergência.
+
+#### C. Abrir o endpoint de produção e alterar DNS
+
+O arquivo `/opt/roleta/caddy.cutover.env` já contém os dois domínios reais e a
+allowlist pública. O ambiente ativo continua no hostname TLS canário.
+
+```bash
+STAGED_ENV=/opt/roleta/caddy.cutover.env \
+  /opt/roleta/cutover-caddy.sh
+```
+
+Depois do validate/reload bem-sucedido, alterar os registros A de
+`roleta.xma-ia.com` e `www.roleta.xma-ia.com` para `20.226.77.194`. Validar:
+
+```bash
+curl -fsS https://roleta.xma-ia.com/healthz
+curl -fsS https://roleta.xma-ia.com/
+```
+
+Confirmar um único MASTER e gravação crescente no SQLite antes de encerrar a
+janela.
+
+#### D. Fencing definitivo
+
+1. Manter `roleta-cloud` e `roleta-deploy.timer` parados na HostDime.
+2. Excluir a stored access policy `hostdime-migration-push`.
+3. Revogar secrets/chaves de deploy HostDime e manter
+   `HOSTDIME_DEPLOY_ENABLED=false`.
+4. Manter `roleta-azure-backup.timer` ativo; o timer de standby permanece
+   desligado após a promoção.
+5. Não ligar `dual_write_pg` nem o CDC nesta janela.
+
+### 18.6 Limite de rollback
+
+- **Antes de qualquer escrita na Azure:** reverter o Caddy/DNS, recolocar o
+  backup canário e reiniciar a HostDime é rollback simples.
+- **Depois da primeira escrita na Azure:** não reiniciar a HostDime com o banco
+  antigo. Fencer a Azure, escolher uma fonte autoritativa e reconciliar o delta
+  sob decisão humana.
+
+### 18.7 Únicas pendências deliberadas
+
+1. Aprovação da janela de freeze/cutover.
+2. Promoção do stamp final e DNS.
+3. Fencing/revogação após estabilização.
+4. OIDC/IaC e monitoramento externo do stale gate, que melhoram operação futura
+   mas não bloqueiam tecnicamente o lift-and-shift.
