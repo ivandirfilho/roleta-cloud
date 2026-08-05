@@ -1,5 +1,5 @@
 # Proposta — Seletor de Sentido (horário ⇄ anti-horário): diagnóstico e correção definitiva
-**Data:** 03/08 · **Status:** REVISADA — 3 pareceres independentes incorporados (servidor, extensão MV3, rollout/risco) · **Veredito unânime:** APROVAR COM MUDANÇAS (todas incorporadas nesta versão) · **Atualização 05/08:** §10 — discussão tecnológica sênior + 3 contrapontos (visão, MV3, arquitetura) + roadmap de sprints SPR-V1..V7 · **Escopo:** extensão Chrome (`extension/background.js`, `popup`) + engine (`server/message_handler.py`, `state/game.py`, `state/phase_metrics.py`, `server/health_server.py`, `app_config/settings.py`, `obs/alerts.yml`)
+**Data:** 03/08 · **Status:** REVISADA E AUDITADA — pareceres independentes incorporados · **Veredito:** GO para fundação V1–V4/V6A; NO-GO atual para autoridade de visão V5/V7 · **Atualização 05/08:** §10 — discussão tecnológica e contrapontos; §11 — auditoria sênior de implementabilidade, capacidade, esforço e gates · **Escopo:** extensão Chrome (`extension/background.js`, `popup`) + engine (`server/message_handler.py`, `state/game.py`, persistência, métricas e alertas)
 
 ---
 
@@ -61,7 +61,7 @@ A cadeia de identificação em produção (`SDA_SENTIDO_AUTORITATIVO=1`), na ord
 | **1b. Auto-seed** (fallback) | `message_handler.py` l.782–786 | Sem seed do operador: a **primeira direção observada do cliente** vira âncora (`source="auto_seed"`). |
 | **2. Contador** | `spin_seq` (`game.py` l.246), incrementado em l.824 do handler | Conta giros REAIS ao vivo. É o `n` da fórmula. |
 | **3. Projeção** | `project_phase`, `phase.py` l.34–44 | Fase determinística de qualquer giro a partir de (seed, n). Função pura, 100% testável. |
-| **4. Fusão de fontes** (DIR7) | `fuse_direction`, `phase.py` l.80–122 | Prioridades: `operator_seed`/`manual_fix`=100 > `vision`=50 (conf ≥ 0.7) > `dom_hint`=20 > `deterministic_toggle`=10. O módulo de vídeo ainda NÃO publica sinais — estrutura em stand-by. |
+| **4. Fusão de fontes** (DIR7 legado) | `fuse_direction`, `phase.py` l.80–122 | O código admite `operator > vision > server > client`, mas isso **não é a arquitetura-alvo**. `SDA_DIRECTION_VISION` deve permanecer `0`: visão não pode escolher o giro corrente; após os gates, no máximo propõe correção da âncora futura. |
 | **5. Autoridade** | `message_handler.py` l.811–818 | Se a projeção divergir do `direcao` enviado pelo cliente → **substitui** e incrementa `direction_divergence_total`. O cliente apenas *propõe*; o servidor *decide*. |
 
 **Papel do cliente na identificação:** `currentDirection` local flipa após cada envio
@@ -73,8 +73,9 @@ proposta — o valor gravado no SQLite/PG é o projetado pelo servidor.
 errado no seed), o sistema inteiro fica **espelhado de forma consistente** — a alternância continua
 perfeita, nenhuma violação aparece, e nada interno detecta. Os únicos corretores de espelho são
 **externos**: (a) o operador re-ancorando com 1 clique (`set_seed` re-ancora sem reset — é
-re-ancoragem, não recálculo cego); (b) o futuro módulo de visão (DIR7 pronto para recebê-lo). O gate
-DIR21/DIR22 desta proposta detecta **quebra de alternância** (fantasma/duplicata), não espelho.
+re-ancoragem, não recálculo cego); (b) futuramente, uma sequência auditada de observações de visão
+propondo correção da **âncora seguinte**, nunca do spin corrente. O gate DIR21/DIR22 desta proposta
+detecta **quebra de alternância** (fantasma/duplicata), não espelho.
 
 ### 2.5.2 Como se auto-sincroniza — 6 camadas hoje, cada uma com gatilho e alcance próprios
 
@@ -110,8 +111,9 @@ DIR21/DIR22 desta proposta detecta **quebra de alternância** (fantasma/duplicat
 | 5 (paridade k) | `countNewSpins` retorna "1 conservador" sem alinhamento → flip errado | retorna `{k, matched}`; sem matched → re-baseline sem flipar às cegas (fix D) |
 | 6 (boot SW) | corrida: alarme lê antes da re-hidratação completar | gate de boot: 1º tick espera a re-hidratação (fix F) |
 
-**Hierarquia final de autoridade (quem manda, em ordem):** operador (seed/lock) → vídeo futuro
-(conf ≥ 0.7) → projeção determinística do servidor → cliente (apenas propõe). E a
+**Hierarquia final de autoridade (quem manda, em ordem):** operador (seed/lock) → projeção
+determinística do servidor → cliente (apenas propõe). Vídeo futuro é observador em shadow e, somente
+após os gates, candidato a corrigir a âncora do giro seguinte. A
 auto-sincronização passa a ter **fechamento de malha em ≤1s** (camada 4 contínua) com fonte de
 verdade que não se contamina (camadas 1–3 blindadas).
 
@@ -124,7 +126,7 @@ flowchart TD
         SEED["Âncora: operator_seed (popup, 1×)<br/>ou auto_seed (1ª direção observada)"]
         SEQ["Contador spin_seq<br/>(giros reais)"]
         PROJ["project_phase(seed, n)<br/>fase determinística"]
-        FUSE["fuse_direction (DIR7)<br/>operador 100 > visão 50 > toggle 10"]
+        FUSE["projeção + lock/seed<br/>visão sem autoridade per-spin"]
         AUTH["Autoridade DIR5:<br/>substitui direção do cliente se divergir"]
     end
     subgraph SYNC["Auto-sincronização"]
@@ -152,7 +154,7 @@ componente a componente no código:
 |---|---|---|---|
 | **Dados (DOM)** | ✅ ativa | números do histórico (`allNumbers`), 12 últimos | a Evolution **não expõe o sentido no DOM** — não há atributo/classe/elemento com a direção. `dom_hint` (peso 20 na fusão) existe só como slot: **nenhum código produz esse sinal** |
 | **Foto** (`foto_roleta`) | ✅ ativa (`SDA_VISION_OCR=1`) | dealer, mesa, modelo da roda via OCR (`handle_foto_frame` → `vision_ocr.py`) | é **1 frame estático tirado APÓS o resultado** (`background.js` l.1769–1773). Uma foto única não contém movimento — direção exige ≥2 frames para medir deslocamento angular |
-| **Vídeo** (DIR7) | 🟡 stand-by (`SDA_DIRECTION_VISION=0`) | endpoint `handle_direction_event` (l.1535–1554) pronto para receber `{source:"vision", direction, confidence}`; fusão por prioridade implementada e testada | **não existe produtor**: nenhum módulo captura frames em sequência nem calcula o sentido. A tomada está na parede; falta o aparelho |
+| **Vídeo** (DIR7) | 🟡 stand-by (`SDA_DIRECTION_VISION=0`) | o endpoint `handle_direction_event` (l.1535–1554) existe, mas **não está pronto para rollout**: faltam TTL, one-shot, binding ao giro, trilha e role-gate | **não existe produtor**: nenhum módulo captura frames em sequência nem calcula o sentido; ligar a flag atual seria inseguro |
 | **Operador** (humano) | ✅ ativa | âncora via popup (`set_seed`) — ele olha a mesa e informa a fase 1× | é o **único sensor físico real do sistema hoje**. Custo: 1 clique; risco: errar o clique (espelho consistente, §2.5.1) |
 
 **Então o que GARANTE, tecnologicamente?** A garantia atual é uma cadeia de 3 elos + 1 alarme:
@@ -170,24 +172,21 @@ componente a componente no código:
 > humana + contagem de giros, e o que esta proposta garante é que **a contagem não minta**. A âncora
 > continua sendo o operador.
 
-**Caminho para garantia física de verdade (fechar o loop sem humano)** — proposto como fase
-posterior, fora do escopo deste PR, mas com a infraestrutura JÁ pronta:
+**Caminho para observação física independente** — fase posterior e condicional, fora do escopo deste
+PR; a infraestrutura tem componentes reutilizáveis, mas **ainda não está pronta para autoridade**:
 
-1. **Captura em burst**: a extensão já tem `captureVisibleTab` funcionando (foto_roleta). Mudança:
-   além da foto pós-resultado, capturar **2–3 frames com ~300–500ms de intervalo no início do giro**
-   (a janela em que a bolinha está em movimento). O trigger de início de giro é o ponto de projeto a
-   resolver — hoje só detectamos o *fim* (número no DOM).
-2. **Detector de movimento angular**: comparar os frames na ROI da roda — optical flow simples ou
-   diferença de fase angular (não precisa de ML pesado; a roda tem marcadores de alto contraste).
-   Sinal de saída: `horario|anti-horario` + confidence.
-3. **Publicar no endpoint que já existe**: `{type:"direction_event", direction, confidence}` →
-   `handle_direction_event` guarda o sinal efêmero.
-4. **Ligar a flag que já existe**: `SDA_DIRECTION_VISION=1` (compose l.126, default OFF) → a fusão
-   DIR7 passa a usar o vídeo: `vision` (50, conf ≥ 0.7) **vence o toggle** (10) e **perde do
-   operador** (100) — ou seja, o vídeo corrige defasagem e espelho automaticamente, mas nunca briga
-   com um lock explícito do operador.
-5. **Ganho final**: com vídeo confiável, o espelho da âncora invertida (hoje indetectável, §2.5.1)
-   passa a ser detectado e corrigido em 1 giro — o sistema se auto-ancora de verdade.
+1. uma sprint de preflight confirma que a extensão alcança o `<video>` Evolution dentro do iframe;
+2. um content script `all_frames` usa `requestVideoFrameCallback`; `captureVisibleTab` fica só como
+   fallback diagnóstico, pois tem quota baixa e falha com janela minimizada;
+3. Canvas processa localmente ROI elíptica do rotor, unwrap angular, correlação temporal e consenso de
+   múltiplos frames; o frame bruto não sai da extensão;
+4. o evento leva `event_id`, `round_id` quando disponível, timestamp, confiança e versão do sensor;
+5. o servidor valida MASTER, TTL, vínculo a `target_spin_seq` e consumo one-shot, persistindo a
+   decisão append-only em `phase_events`;
+6. durante shadow, visão apenas mede cobertura/concordância; depois de T0–T4 pode, no máximo, propor
+   correção da âncora futura por K desacordos coerentes;
+7. `SDA_DIRECTION_VISION` permanece `0`; a aposta nunca consome visão diretamente e o lock do
+   operador continua soberano.
 
 ## 3. Causa-raiz — a cadeia completa (4 furos que se retroalimentam)
 
@@ -278,24 +277,24 @@ operador); empacotada, o Chrome clampa para 30s — premissa documentada no PR (
 ### 4.1 Servidor — `message_handler.py` + `state/game.py` + `state/phase_metrics.py` + `server/health_server.py` + `app_config/settings.py` + `obs/alerts.yml`
 
 **A) Sincronizar o buffer de fase na recuperação de gap** (fix do furo A) — via método público novo
-`GameState.sync_phase_buffer(nums)` (encapsula `_phase_results`, com try/except defensivo e
-`getattr`-guard, tolerante a atributo ausente — padrão DIR19, compatível com
+`GameState.sync_phase_buffer(nums)` (encapsula `_phase_results`, com `getattr`-guard e erro
+observável; nunca usa `except Exception: pass`, pois esconderia justamente a regressão a corrigir;
+compatível com
 `test_fallback_phase_advance_se_phase_results_ausente`):
 
 ```python
 # state/game.py
-def sync_phase_buffer(self, nums: list[int]) -> None:
+def sync_phase_buffer(self, nums: list[int]) -> bool:
     """DIR20: espelha números recuperados de gap no buffer de fase (_phase_results).
     Sem isso o próximo reconcile_shift nunca alinha → rajada de phase_uncertain →
     DIR17 re-ancora a autoridade no cliente a cada giro (neutralizada)."""
-    try:
-        buf = getattr(self, "_phase_results", None)
-        if buf is None:
-            return
-        for _n in nums:
-            buf.appendleft(int(_n))
-    except Exception:  # noqa: BLE001 — observabilidade nunca quebra fluxo de aposta
-        pass
+    buf = getattr(self, "_phase_results", None)
+    if buf is None:
+        logger.error("[FASE] _phase_results ausente durante sync de gap")
+        return False
+    for _n in nums:
+        buf.appendleft(int(_n))
+    return True
 ```
 
 ```python
@@ -306,7 +305,8 @@ if _gap > 0:
     for _n in _inter:
         self.game_state.recent_results.appendleft(_n)
     if phase_buffer_sync():          # flag SDA_PHASE_BUFFER_SYNC, leitura per-call
-        self.game_state.sync_phase_buffer(_inter)
+        if not self.game_state.sync_phase_buffer(_inter):
+            phase_metrics.incr("phase_buffer_missing_total")
 ```
 
 Ordem verificada: `phase_advance` devolve `_inter` do mais antigo→mais recente (`phase.py:148`);
@@ -329,8 +329,10 @@ if (_min_iv > 0 and self._last_accept_srv_mono is not None
                    f"{numero}/{direcao} ({_delta_ms}ms apos o ultimo aceito)")
     phase_metrics.incr("spin_implausivel_total")
     return True
-...
-self._last_accept_srv_mono = _now_mono    # armar SOMENTE no aceite (nunca na rejeição)
+# Não alterar _last_accept_srv_mono dentro do dedup.
+
+# No fim de handle_novo_resultado, somente após validação e process_spin aceito:
+self._last_accept_srv_mono = time.monotonic()
 ```
 
 - Campo **novo** `_last_accept_srv_mono` — NÃO reaproveita `_last_accept_ts_ms` (que é client-time e
@@ -509,8 +511,8 @@ sem flip).
 | # | Passo | Validação (falseável) | Rollback |
 |---|---|---|---|
 | 1 | PR servidor (A+B+C+D-handshake + plumbing métricas + alertas) com flags OFF → merge → deploy automático | `pytest tests/` verde; caminho de decisão/aposta byte-idêntico com flags OFF (delta permitido: telemetria DIR22 + gauges novas) | `git revert` via PR |
-| 2 | Ligar `SDA_PHASE_BUFFER_SYNC=1` no `.env` do host + `docker compose up -d roleta-cloud` | **48h** com exposição mínima de ≥5 `gap_recuperado_total` (provocar: minimizar a janela 10–15min, 2–3×/dia — cenário real). **Passa se:** `increase(phase_uncertain[48h]) ≤ 2` E zero rajadas de `DIR17 seed zerado` ≥3 giros consecutivos E `direction_divergence_total` > 0 nas janelas de gap (autoridade corrigindo = sinal positivo). **Aborta se:** uncertain nas janelas de gap ≥ baseline (~13/dia) | flag `=0` + `up -d` (minutos) |
-| 3 | Ligar `SDA_MIN_SPIN_INTERVAL_MS=15000` | +48h: `spin_implausivel_total` conta fantasmas (esperado >0 com janela minimizada); violação de alternância no PG cai; zero descartes com delta >20s no log (falso positivo) | flag `=0` + `up -d` |
+| 2 | Ligar `SDA_PHASE_BUFFER_SYNC=1` no `.env` do host + `docker compose up -d roleta-cloud` | **48h** com exposição mínima de ≥5 gaps recuperáveis: minimizar a janela **5–8min**, 2–3×/dia, limitando a ausência a **≤11 giros**, pois `allNumbers` tem 12 posições. **Passa se:** zero `phase_uncertain` nos gaps com overlap; zero rajadas DIR17 ≥3 giros; métricas por tamanho de gap confirmam o shift. Gap >11 é limite estrutural esperado, não falha do fix. | flag `=0` + `up -d` (minutos) |
+| 3 | Ligar `SDA_MIN_SPIN_INTERVAL_MS=15000` | +48h: `spin_implausivel_total` detecta descartes; violações **intra-sessão** caem; zero descarte com delta >20s; `spins_received` em 24h permanece dentro de ±10% do baseline, evitando trocar fantasma por perda silenciosa | flag `=0` + `up -d` |
 | 4 | Extensão v3.8.0 (D0+D+E+F+G+H) no Chrome do operador | contadores novos no popup; roteiro numerado (§7); fantasmas somem | zip/tag `ext-v3.7.0` (artefato no PR) + "Load unpacked" (3 linhas documentadas); ou kill-switch `DIR20_ENABLED=false` + reload (~30s) |
 | 5 | Auditoria D+1/D+3/D+7 (query LAG **automatizada** — cron diário no host, resultado em log/Grafana) | metas escalonadas: D+1 ≤4 violações; D+3 ≤2; D+7 **≤1/dia com causa atribuída** (cruzar ts com logs DIR22 + resets/trocas de mesa; violação SEM causa = regressão) | — |
 
@@ -521,12 +523,26 @@ sem flip).
 Query de auditoria contínua (mesma do diagnóstico; agendar via cron):
 ```sql
 WITH seq AS (
-  SELECT ts, dir, LAG(dir) OVER (ORDER BY ts) AS prev_dir
-  FROM (SELECT ts, 'cw' AS dir FROM cw.spin_features
-        UNION ALL SELECT ts, 'ccw' FROM ccw.spin_features) u
-  WHERE ts > now() - interval '1 day')
-SELECT count(*) FILTER (WHERE dir = prev_dir) AS violacoes, count(*) AS total FROM seq;
+  SELECT ts, session_id, dir,
+         LAG(dir) OVER (PARTITION BY session_id ORDER BY ts) AS prev_dir
+  FROM (
+    SELECT ts, session_id, 'cw' AS dir FROM cw.spin_features
+    UNION ALL
+    SELECT ts, session_id, 'ccw' AS dir FROM ccw.spin_features
+  ) u
+  WHERE ts > now() - interval '1 day'
+)
+SELECT session_id,
+       count(*) FILTER (WHERE dir = prev_dir) AS violacoes_intra_sessao,
+       abs(count(*) FILTER (WHERE dir = 'cw')
+           - count(*) FILTER (WHERE dir = 'ccw')) AS desequilibrio_cw_ccw,
+       count(*) AS total
+FROM seq
+GROUP BY session_id;
 ```
+
+Critério por sessão: `violacoes_intra_sessao = 0` e `desequilibrio_cw_ccw <= 1`, exceto eventos
+explicitamente marcados como `phase_uncertain` e com causa auditável.
 
 ## 6. Remediação dos dados já contaminados (reformulada pela revisão)
 
@@ -720,39 +736,38 @@ obrigatórios. Acurácia honesta esperada: sinal ≥99% dos vereditos EMITIDOS, 
    `strategy.analyze` → **aposta real no racional errado** (INV-3 garante que a aposta SAI — não há
    abstenção). Pior caso: detector com ROI espelhada erra *consistentemente* → alternância fica
    perfeita no banco → **DIR22 não vê nada**.
-2. **Matemática da fusão**: pós-V0 a projeção acerta >99,9%; um sensor de 95–99% com autoridade
-   por-spin **degrada** o caso comum para cobrir um caso raro. O único ponto estruturalmente cego da
-   projeção é a **âncora** (espelho consistente, §2.5.3). Conclusão: **visão corrige âncora, nunca
-   spin**. `SDA_DIRECTION_VISION` fica **congelada em 0 para sempre** (flag morta documentada).
+2. **Matemática da fusão**: a projeção garante alternância, mas a correção do rótulo CW/CCW é
+   **condicionada a uma âncora correta**; portanto não se pode alegar ">99,9%" sem uma referência
+   externa. A razão para rejeitar autoridade per-spin é o raio de dano: um erro contamina timeline,
+   população estratégica e aposta real; uma correção de âncora futura pode ser acumulada, auditada e
+   revertida. Conclusão: **visão corrige âncora, nunca spin**. `SDA_DIRECTION_VISION` fica congelada em
+   `0`.
 3. **O shadow do E3 não existia**: com a flag OFF o evento é armazenado mas nunca comparado/medido —
    e com `SDA_SENTIDO_AUTORITATIVO=1` (default de produção), ligar a flag antiga ia **direto a
    LIVE**, pulando o próprio estágio que prometia. Precisa de flag intermediária dedicada.
 4. **Gate "48h / >99%" é falseável por escassez** (200 bursts com 2 erros = "99%"): substituído por
-   janela ≥7 dias E ≥2000 vereditos, concordância ≥99,5% **com V0 ligado** (senão a referência está
-   podre — shadow contra referência corrompida é ruído, não shadow), 100% dos desacordos auditados.
+   janela ≥7 dias E ≥2000 vereditos, concordância ≥99,5% **com V1/V2 ligados e âncora confirmada**
+   (senão a referência está podre — shadow contra referência corrompida é ruído, não shadow), cobertura
+   medida antes de concordância e 100% dos desacordos persistidos/auditados.
 5. **E4 (auto-seed) morre**: economiza 1 clique/sessão e cria âncora automática exatamente no momento
    (início de sessão) em que não há histórico para validar o sensor. O que sobrevive dele: badge de
    `direction_source` no popup + correção de espelho por K inversões coerentes — no SPR-V7, gated.
-6. **A alternativa que o sênior não viu — detector estatístico de espelho (server-side)**: a infra
-   **já existe em produção** (H1/`SDA_DNA_REALIZE` calcula `realized_lift_pp` POR SENTIDO e espelha
-   ao PG). Espelho de âncora troca as duas populações → assinatura mensurável (lift/winrate por
-   sentido invertem de forma espelhada). Um verificador por janela + gauge `mirror_suspect` + aviso
-   no popup detecta o mesmo evento raro com latência 30–60min, custo ~zero, **zero manutenção de
-   visão — e funciona com a janela minimizada** (usa dados, não pixels). Junto com confirmação dupla
-   no `set_seed` (preview "próximo giro será HORÁRIO — confirmar?"), entrega **~80% do valor do
-   sensor por ~10% do custo**. O sensor de vídeo só ganha em latência de correção (1–3 giros vs
-   30–60min) — e se essa diferença paga o custo é **decisão de investimento com dados do spike**, não
-   ato de fé.
+6. **A alternativa de baixo custo — monitor estatístico server-side**: a infra já existe em produção
+   (H1/`SDA_DNA_REALIZE` calcula `realized_lift_pp` por sentido e espelha ao PG). Uma inversão pode
+   produzir assinatura mensurável, mas, sem referência externa, estatística **não prova** qual rótulo
+   é fisicamente CW/CCW. O monitor deve ser treinado somente após V1/V2, segmentado por
+   mesa/dealer/roda/regime e emitir apenas `mirror_suspect`. Ele tem valor como alarme sem pixels e
+   funciona com a janela minimizada; não substitui o sensor nem pode chamar `set_seed`.
 
 ### 10.3 Síntese do sênior — o que sobrevive, o que muda, o que morre
 
 | Rascunho | Veredito consolidado |
 |---|---|
-| E1 burst `captureVisibleTab` + offscreen | **REDESENHADO** → sensor primário `direction_sense.js` (content script `all_frames`, lê `<video>` via rVFC, mede o ROTOR com unwrap elíptico + canal cromático); fallback = burst 3 frames @ ≥600ms processado no próprio SW. Offscreen document rejeitado. Frames NUNCA saem da máquina. |
+| E1 burst `captureVisibleTab` + offscreen | **REDESENHADO** → sensor primário `direction_sense.js` (content script `all_frames`, lê `<video>` via rVFC, mede o ROTOR com unwrap elíptico + canal cromático); `captureVisibleTab` fica somente para diagnóstico/fallback manual, nunca para autoridade. Offscreen document rejeitado. Frames NUNCA saem da máquina. |
 | E2 MutationObserver no `content.js` | **MORTO** → trigger = probe de movimento ~1 FPS na ROI do próprio vídeo; confirmação = transição OPEN→CLOSED que o poll de 2s já entrega; `round_id` (já extraído) vira dedup por rodada. |
-| E3 shadow 48h | **ENDURECIDO** → flags novas dedicadas (tabela §10.4), pré-requisito V0 ligado (referência íntegra), gate ≥7d/≥2000 vereditos/≥99,5%/100% desacordos auditados. |
-| E4 auto-âncora + espelho | **DIVIDIDO** → auto-seed CORTADO; correção de âncora por K=3 coerentes vira SPR-V7 (P3, gated); badge de origem + detector estatístico de espelho viram SPR-V6 (P1 — o maior valor por real gasto do programa). |
-| (não previsto) | **NOVO pré-requisito**: TTL + consumo único + vínculo `spin_seq` no `last_direction_event` (bug latente §10.2.2-5) — SPR-V4, antes de existir qualquer produtor. |
+| E3 shadow 48h | **ENDURECIDO** → flags dedicadas, V1/V2 ligados, âncora confirmada, trilha `phase_events` e gate ≥7d/≥2000 eventos/≥99,5%/100% desacordos auditados. |
+| E4 auto-âncora + espelho | **DIVIDIDO** → auto-seed CORTADO; correção de âncora por K=3 coerentes vira SPR-V7 condicional; badge/alerta operacional vira V6A e monitor estatístico segmentado vira V6B, sem ação automática. |
+| (não previsto) | **NOVO pré-requisito**: `event_id + round_id + target_spin_seq + TTL + one-shot` e trilha durável (bug latente §10.2.2-5) — SPR-V4, antes de existir qualquer produtor. |
 
 ### 10.4 Desenho final consolidado
 
@@ -763,12 +778,12 @@ flowchart LR
   V["&lt;video&gt; Evolution<br/>(iframe, WebRTC/MSE)"] -->|rVFC 10-15fps| DS[direction_sense.js<br/>content script all_frames]
   DS -->|probe 1fps| TRIG{movimento na ROI?}
   TRIG -->|sim| MED[medição 3-6 frames<br/>unwrap elíptico do ROTOR]
-  MED -->|guards OK| VER["veredito {direction, conf}"]
+  MED -->|guards OK| VER["veredito<br/>event_id + round_id + direction + conf"]
   MED -->|guard disparou| ABST[abstenção<br/>nada é enviado]
-  VER --> BG[background.js] -->|WS ~100 bytes| SRV[handle_direction_event<br/>+ TTL + one-shot + spin_seq]
-  SRV --> SH[shadow: agree/disagree<br/>métricas + alertas]
+  VER --> BG[background.js] -->|WS compacto| SRV[handle_direction_event<br/>MASTER + TTL + target_spin_seq]
+  SRV --> DB[(SQLite phase_events<br/>append-only)] --> SH[shadow: coverage/agree/disagree<br/>stale/missing + alertas]
   SH -.->|"gate T4 (7d, 99,5%)"| ANC[SPR-V7: correção de ÂNCORA<br/>K=3 coerentes, nunca o spin]
-  TAINT[SecurityError taint] -.-> FB[fallback: captureVisibleTab<br/>3 frames @600ms no SW]
+  TAINT[SecurityError taint] -.-> FB[captureVisibleTab<br/>diagnóstico manual, sem autoridade]
 ```
 
 **Esquema de flags (padrão do repo: `${VAR:-default}` na compose, leitura per-call em `settings.py`):**
@@ -777,10 +792,11 @@ flowchart LR
 |---|---|---|
 | `SDA_DIRECTION_VISION` | `0` **congelada para sempre** | Autoridade por-spin. Superseded — comentário na compose: "não ligar; vision corrige âncora, não spin (ver SPR-V7)". |
 | `SDA_DIRECTION_VISION_SHADOW` | `0` | Compara evento fresco vs direção final pós-autoridade a cada `novo_resultado`; counters `vision_{event,agree,disagree,stale,selfcontradict}_total`; zero efeito em aposta. |
+| `SDA_PHASE_EVENT_AUDIT` | `0` | Persiste `direction_event`, binding e disposição em `phase_events`; necessária para provar cobertura e auditar 100% dos desacordos. |
 | `SDA_DIRECTION_VISION_TTL_MS` | `30000` | Frescor (< ciclo de 44s). Evento velho → `stale`, fora de fusão e shadow. Corrige o bug latente. |
 | `SDA_VISION_ANCHOR_FIX` | `0` | (SPR-V7) correção de âncora por K coerentes. |
 | `SDA_VISION_ANCHOR_K` / `_MIN_CONF` / `_REFRACT` | `3` / `0.8` / `10` | Parâmetros do guard-rail. |
-| `SDA_MIRROR_SUSPECT` | `0` | (SPR-V6) detector estatístico de espelho por janela. |
+| `SDA_MIRROR_SUSPECT` | `0` | (SPR-V6B) detector estatístico de espelho por janela. |
 | `visionSensorPolicy` (storage.local, cliente) | `'off'` | Espelho client-side do padrão `fotoCapturePolicy` (l.285–292) + kill-switch constante. |
 
 **Matriz pode/nunca do vision (invariável):** NUNCA toca `direcao` do spin corrente, `spin_seq`,
@@ -792,25 +808,31 @@ exige clique), alerta Prometheus por evento.
 
 ### 10.5 Sprints — família SPR-V (formato do board; template SPR-G2)
 
-Ordem de execução: **V1 ∥ V2 ∥ V3** → V4 → V6 → *(decisão humana com dados)* → V5 → *(gate T4)* → V7.
+Ordem de execução: **V1 ∥ V2** → V3 → V4 → V6A → *(decisão humana com dados)* → V5 →
+V6B → *(gate T4)* → V7. V3 pode preparar o protótipo em paralelo, mas sua medição de produção só é
+válida depois de V2.
 
 | SPR | Título | Pri | Depende de | Locks | Tam |
 |---|---|---|---|---|---|
-| **SPR-V1** | Blindagem da contagem — servidor (DIR20/21/22 = §4.1 + §5 passos 1–3) | P0 | — | message_handler-fase, phase_metrics, health_server, alerts, settings, tests-dir12 | M |
-| **SPR-V2** | Blindagem da contagem — extensão v3.8.0 (= §4.2; zip `ext-v3.7.0` no PR) | P0 | — (código ∥ V1; rollout após V1) | extensão (JS), popup | M/L |
-| **SPR-V3** | Spike GO/NO-GO do sensor (offline, zero produção): E0 taint do `<video>` (30min), E1 gravador de calibração + replay, E2 40–60 giros rotor-vs-âncora → decide H1/H2, E3 soak 2h. Protótipo do detector em `tools/vision_spike/` | P1 | — | — (offline) | S |
-| **SPR-V4** | Hardening `direction_event` + shadow servidor: TTL + one-shot + vínculo `spin_seq`; `SDA_DIRECTION_VISION_SHADOW`; counters + 2 alertas; congela `SDA_DIRECTION_VISION=0` na compose | P1 | SPR-V1 | message_handler-fase, phase_metrics, health_server, alerts, settings, tests-dir12 | S |
-| **SPR-V6** | Espelho barato: detector estatístico (`mirror_suspect` sobre lift/winrate por sentido — infra H1) + confirmação dupla no `set_seed` + badge `direction_source` + aviso de flatline. Nenhuma ação automática | P1 | SPR-V1, V2, V4 | BLK-G (leitura), popup, alerts, health_server | S/M |
-| **SPR-V5** | Sensor MVP shadow-only: `direction_sense.js` (content script `all_frames`, padrão `deal_capture.js`), rVFC no `<video>`, ROI/algoritmo do V3, probe-trigger, anti-cena, ring buffer local + export no popup, `visionSensorPolicy` default `'off'`; fallback `captureVisibleTab` 3f@600ms no SW; **sem offscreen document, sem permissão nova**; ≤3 pontos de sutura no `background.js` | P2 | SPR-V2, **V3 (GO)**, V4 | extensão (JS), manifest, popup | L |
-| **SPR-V7** | Autoridade de ÂNCORA: `SDA_VISION_ANCHOR_FIX` com K/histerese/refratário/lock/self-contradict; re-seed via caminho do `set_seed` com `source="vision"` | P3 | SPR-V5 + gate T4 integral | message_handler-fase, settings, phase_metrics, alerts | M |
+| **SPR-V1** | Blindagem servidor: ordem shift→buffer; `_last_accept_srv_mono` só após aceite; `_apply_seed(..., locked=None)` preserva lock; `set_seed/direction_event` somente MASTER; falhas de sync observáveis | P0 | — | message_handler-fase, game-state, phase_metrics, health_server, alerts, settings, tests DIR4/13/17/19/21/22 | M/L |
+| **SPR-V2** | Blindagem extensão v3.8.0: hash dos 12 itens; single-writer/mutex para state; overlap estrito; resync; backoff; `unalignedStreak/skippedUnaligned` no payload e popup; lógica pura UMD com `node --test` | P0 | — (código ∥ V1; rollout após V1) | extensão JS, popup | L |
+| **SPR-V3** | Spike GO/NO-GO: E0 acesso/taint/cobertura do `<video>` ativo, oculto e minimizado; E1 calibração+replay; E2 40–60 giros rotor-vs-âncora; E3 soak 2h | P1 | SPR-V2 para medição real | extensão/manifest e `tools/vision_spike/`; sem produção autoritativa | S/M |
+| **SPR-V4** | Contrato e trilha durável: `event_id + round_id + target_spin_seq + TTL + one-shot`; SQLite append-only `phase_events`; shadow; counters/alertas; congela autoridade per-spin | P1 | SPR-V1; respeitar lock de dados | message_handler-fase, models/sqlite_repo, phase_metrics, health_server, alerts, settings, tests | M |
+| **SPR-V6A** | Consistência operacional: alerta de gap por tamanho, stale/missing, descarte não-alinhado e possível espelho; confirmação dupla de seed + badge; nenhuma ação automática | P1 | SPR-V1, V2, V4 | popup, alerts, health_server; leitura de dados | S/M |
+| **SPR-V5** | Sensor MVP shadow-only: `direction_sense.js` all_frames, rVFC, ROI/algoritmo aprovado; ring local; policy default off; fallback `captureVisibleTab` somente diagnóstico; sem offscreen document | P2 condicional | SPR-V2, **V3 GO**, V4 | extensão JS, manifest, popup | L |
+| **SPR-V6B** | Baseline estatístico segmentado por mesa/dealer/roda/regime; saída somente `mirror_suspect`, nunca correção | P2 | ≥30 dias limpos após V1/V2 | job de auditoria, DNA/PG somente leitura | M |
+| **SPR-V7** | Autoridade limitada à âncora futura: K/histerese/refratário/máx. correções; estado em save/load/reset; caminho `_apply_seed`; lock soberano | P3 condicional | SPR-V5 + gate T4 integral | phase/game/message_handler/settings/metrics/alerts/tests | M/L |
 
 **Gates falseáveis:**
 - **GO do V3 (destrava V5):** H2 confirmada (rotor alterna 1:1 com a âncora em ≥40 giros anotados) E
-  acurácia ≥29/30 nos bursts com anti-cena ativo E sinal ≥98% no replay E cobertura projetada ≥50%.
-  NO-GO → programa de vídeo para; o valor fica coberto por V4+V6 (sunk cost = 1 spike S).
-- **Gate T4 (destrava V7):** ≥7 dias corridos E ≥2000 vereditos em shadow com V0 ligado; agree ≥99,5%;
-  100% dos desacordos auditados (ring local) sem nenhum caso em que K=3 coerentes teria corrigido
-  errado; `stale+selfcontradict` <1%; cobertura ≥60% dos giros com aba visível (se aba visível <30%
+  acurácia ≥29/30 nos vereditos com anti-cena ativo E sinal ≥98% no replay E cobertura projetada ≥50%.
+  NO-GO → programa de vídeo para; o valor fica coberto por V4+V6A (sunk cost = 1 spike S/M).
+- **Gate T4 (destrava V7):** ≥7 dias corridos E ≥2000 vereditos em shadow com V1/V2 ligados e
+  âncora confirmada; **cobertura é medida antes de concordância**; agree ≥99,5% entre os eventos
+  emitidos; 100% dos desacordos auditados pela trilha `phase_events` (ring local é evidência auxiliar),
+  inclusive um controle positivo com âncora deliberadamente espelhada; nenhum caso em que K=3
+  coerentes teria corrigido errado; `stale+selfcontradict` <1%; cobertura ≥60% dos giros com aba
+  visível (se aba visível <30%
   do tempo de operação → o programa não paga, encerrar); beat de 2s e SW sem degradação.
 - **Stop-conditions do V7 ativo:** 1 correção de âncora errada → flag `=0` imediato; disagree >1%
   sustentado 24h → volta a shadow; >1 correção/sessão tentada → bug, desligar.
@@ -824,10 +846,249 @@ anterior anexado a cada PR ~3min).
 1. GO/NO-GO do V3 é **decisão de investimento**: o spike entrega os números; o operador decide se a
    latência de correção (1–3 giros vs 30–60min do V6) paga L + manutenção perpétua de visão sobre
    layout de terceiro.
-2. Aceite formal da limitação física: sensor **cego com janela minimizada/aba inativa** (restrição
-   permanente do `captureVisibleTab`; o caminho `<video>` também para quando a aba deixa de
-   compositar). O V6 estatístico NÃO tem essa limitação.
+2. Aceite formal da cobertura medida no V3: `captureVisibleTab` é cego com janela minimizada; o
+   comportamento do `<video>` oculto/minimizado **não deve ser presumido** — V3 mede se o player
+   continua entregando frames. V6A/V6B não dependem de pixels.
 3. Limiar do `mirror_suspect` (trade-off falso-positivo × latência) no brief do V6.
 4. Manter `SDA_DIRECTION_VISION` congelada (flag morta documentada) vs removê-la em sprint de higiene.
 5. As pendências do §8 permanecem (valor de `SDA_MIN_SPIN_INTERVAL_MS`, meta de violações/dia,
    destino dos dados históricos §6).
+
+---
+
+## 11. Auditoria sênior de implementabilidade (05/08) — decisão final
+
+### 11.1 Escopo e método
+
+Esta auditoria responde cinco perguntas: **é tecnicamente possível, cabe na capacidade atual, onde cada
+mudança deve viver, qual o risco real e em que ordem implementar**. Foram cruzados:
+
+1. hot path e autoridade em `server/message_handler.py`;
+2. projeção e fusão em `state/phase.py`;
+3. round-trip/reset em `state/game.py`;
+4. loop MV3 em `extension/background.js`, manifesto e content scripts;
+5. SQLite, outbox, PostgreSQL CW/CCW, DNA e pgvector;
+6. métricas Prometheus, alertas e testes DIR existentes;
+7. uma leitura somente leitura de produção;
+8. contraponto independente focado em causalidade, rollout e critérios falseáveis.
+
+O resultado é uma revisão de implementação, não uma autorização para ligar visão. O PR desta proposta
+é **documental**: define o programa e os gates; cada sprint precisa de brief, worktree, testes, ADENDO
+ISO e PR próprio antes de tocar produção.
+
+### 11.2 Evidência de capacidade real
+
+Snapshot de produção usado no parecer:
+
+| Evidência | Estado | Consequência |
+|---|---|---|
+| Containers | 8 ativos/healthy; `roleta-cloud` saudável | a base operacional suporta rollout flag-gated |
+| Flags | autoridade, reconcile, lock, DNA e OCR ON; `SDA_DIRECTION_VISION=0` | a visão está corretamente inerte |
+| Autenticação | `AUTH_ENABLED=false` | `direction_event` e `set_seed` precisam de role-gate antes de qualquer produtor; V7 também exige hardening do handshake |
+| Host | QEMU, 4 vCPU, sem SSE4.2/AVX2 | visão pesada no servidor é NO-GO; Canvas no cliente é a escolha correta |
+| DNA PG | CW 23.086/18.561 realizadas; CCW 21.215/16.964 realizadas | há volume segregado suficiente para auditoria futura |
+| `spin_features` PG | CW 3.160; CCW 2.928 | a fundação por sentido existe e está populada |
+| Prometheus | séries de fase expostas | V1/V2 podem ser observadas sem SaaS |
+| Sintoma recente | 2 `phase_uncertain` + DIR17 em 11s após restart | confirma V1/V2 como P0, não hipótese teórica |
+
+**Capacidade:** o software consegue executar V1–V4 e V6A com a stack atual. Não precisa de serviço de
+visão, fila SaaS nem banco adicional. Chrome MV3/Canvas, Python, SQLite, PostgreSQL,
+pgvector e Prometheus já cobrem a necessidade. O sensor de vídeo também cabe, mas somente no cliente
+e apenas se o preflight V3 provar acesso e cobertura.
+
+### 11.3 Veredito item a item
+
+| Componente | Veredito | Por quê |
+|---|---|---|
+| **V1 — reconciliação/autoridade** | **GO agora** | corrige causa comprovada; risco controlável com flags e testes por gap |
+| **V2 — ingestão MV3** | **GO agora** | fecha fantasma, reentrância, hash parcial e perda silenciosa; sem isso o servidor continua recebendo evidência ruim |
+| **V3 — preflight de vídeo** | **GO como experimento** | baixo custo para responder acesso, taint, rotor e cobertura; não produz autoridade |
+| **V4 — contrato/trilha** | **GO após V1** | elimina evento velho e cria prova durável para os gates |
+| **V6A — consistência operacional** | **GO** | maior ganho por custo; alerta sem alterar fase |
+| **V6B — inferência estatística** | **HOLD** | dados atuais ainda podem conter espelho/contaminação; sem referência externa emite apenas suspeita |
+| **V5 — sensor shadow** | **NO-GO agora; condicional** | só começa se V3 provar H2, acesso e cobertura |
+| **V7 — correção automática de âncora** | **NO-GO agora** | exige V4, estado persistido, autenticação/role-gate e T4 integral |
+| Autoridade vision per-spin | **REJEITADA** | um único erro contamina timeline, população estratégica e aposta |
+| Processar visão no Debian | **REJEITADO** | CPU inadequada e custo sem benefício; pixels já vivem no navegador |
+
+Portanto, a proposta é **implementável**, mas não está "100% funcional" hoje: a fundação de dados
+está operacional; a ressincronização ainda tem falhas ativas; o sensor não existe; e autoridade
+automática continua deliberadamente bloqueada.
+
+### 11.4 Desenho técnico obrigatório por fase
+
+#### A. V1 — servidor: corrigir a verdade antes de sofisticar o sensor
+
+1. No servidor, executar `reconcile_shift`, avançar `spin_seq`, sincronizar `_phase_results` com os
+   intermediários e só então inserir o giro atual. Testar gaps `k=1..11`; `k>11` deve retornar
+   `phase_uncertain` explícito, pois não existe overlap no histórico de 12 números.
+2. Criar `_apply_seed(direction, source, locked=None)`. `locked=None` preserva o estado atual; omitir
+   o campo nunca destrava o operador. `source="vision"` é recusado quando há lock explícito.
+3. Colocar `set_seed` e `direction_event` no gate de mensagens MASTER. Hoje novas conexões assumem
+   MASTER e `AUTH_ENABLED=false`; portanto isso evita conflito entre clientes, mas **não substitui
+   autenticação**.
+4. Armar `_last_accept_srv_mono` somente depois de o giro atravessar dedup, plausibilidade e
+   processamento aceito. Rejeição não atualiza o relógio; reset de sessão o limpa.
+5. Não esconder erro de buffer com `except Exception: pass`. A ausência de `_phase_results` deve
+   incrementar métrica e gerar log de erro sem produzir sucesso falso.
+
+#### B. V2 — extensão: um escritor e um baseline íntegro
+
+1. O fingerprint deve cobrir os **12** números usados pelo alinhamento, não somente os cinco
+   primeiros.
+2. `countNewSpins` retorna `{k, matched, overlap}`. Sem match, não envia `novo_resultado`, não flipa a
+   direção e não atualiza o baseline como se houvesse aceite.
+3. Serializar todas as mutações de estado do read-loop, não apenas `readResults`; `getState/saveState`,
+   `state_sync`, reidratação e toggle não podem intercalar escrita.
+4. Persistir e transmitir `unalignedStreak`, `skippedUnaligned`, motivo do skip, frame/round selecionado
+   e versão da extensão. Fix D sem telemetria apenas trocaria giro fantasma por parada silenciosa.
+5. Extrair fingerprint, overlap e decisão de re-baseline para módulo UMD puro; validar com
+   `node --test`, sem framework ou dependência nova.
+6. No rollout, comparar giros recebidos em 24h com baseline: variação maior que ±10% bloqueia avanço.
+
+#### C. V3/V5 — de onde vem o sentido físico
+
+A única fonte tecnológica capaz de observar o sentido sem clique humano é a **sequência de frames do
+vídeo Evolution**. DOM fornece números; foto estática não fornece movimento; DNA detecta anomalia
+estatística com atraso, mas não prova CW/CCW.
+
+O content script mede o rotor no `<video>`, produz evidência e envia:
+
+```json
+{
+  "type": "direction_event",
+  "event_id": "uuid",
+  "round_id": "id-quando-disponivel",
+  "direction": "cw",
+  "confidence": 0.97,
+  "captured_at_ms": 1760000000000,
+  "frame_count": 6,
+  "sensor_version": "r1",
+  "calibration_id": "cal-..."
+}
+```
+
+O servidor acrescenta `session_id`, `received_at`, `target_spin_seq` e disposição. O binding só vale
+quando:
+
+1. `round_id` coincide, se ambos os lados o tiverem;
+2. `target_spin_seq` é o esperado;
+3. idade está dentro do TTL;
+4. o evento ainda não foi consumido.
+
+Evento sem esses quatro requisitos vira `stale/unbound`, nunca direção. Isso é o mecanismo de
+auto-sincronização: **evento identificável + giro-alvo + TTL + one-shot**, e não "o frame mais recente".
+
+#### D. V4 — onde persistir e por quê
+
+`phase_events` deve nascer no **SQLite local**, append-only, porque é trilha de controle do hot path e
+precisa sobreviver a restart. `received` é inserido no ingresso; a comparação final é anexada na mesma
+fronteira transacional que persiste a decisão. Um evento pendente é reconstruído da última linha
+`received` sem disposição terminal; se também houver cache em `GameState`, ele entra em
+`save/load/reset`. Estrutura mínima:
+
+```sql
+CREATE TABLE phase_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id TEXT NOT NULL,
+  ts_srv_ms INTEGER NOT NULL,
+  session_id TEXT NOT NULL,
+  round_id TEXT,
+  target_spin_seq INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  source TEXT NOT NULL,
+  observed_direction TEXT,
+  reference_direction TEXT,
+  confidence REAL,
+  decision_ref TEXT,
+  meta_json TEXT NOT NULL DEFAULT '{}',
+  UNIQUE(event_id, kind)
+);
+CREATE INDEX ix_phase_events_session_spin
+  ON phase_events(session_id, target_spin_seq);
+```
+
+Cada transição acrescenta uma linha imutável: `received`, `bound`, `agree`, `disagree`, `stale`,
+`unbound`, `missing` ou `selfcontradict`; a chave `(event_id, kind)` torna retry idempotente. Para
+`missing`, o servidor gera um ID determinístico por sessão/giro. Retenção inicial: 30 dias. Frames não
+entram no banco; somente metadados.
+
+A criação é aditiva (`CREATE TABLE/INDEX IF NOT EXISTS`). Rollback desliga a flag e preserva a tabela;
+não há `DROP` nem downgrade destrutivo.
+
+**Por que não pgvector:** esse evento é categórico, temporal e auditável; busca vetorial não agrega
+valor e dificultaria integridade. pgvector permanece para embeddings/vetores de contexto. Se depois
+for necessário dashboard histórico central, a outbox pode espelhar `phase_events` no PG com migração
+Alembic aditiva **0014** (a cabeça atual é 0013), somente após liberar o lock `schema/alembic`.
+
+#### E. V6 — o que estatística consegue e o que não consegue
+
+DNA por CW/CCW ajuda a encontrar inversões de comportamento, mas sem sensor externo não prova qual
+rótulo é fisicamente correto. V6A pode emitir alertas operacionais. V6B só começa após V1/V2 e exige
+baseline por mesa, dealer, roda e regime; sua saída é `mirror_suspect`, nunca `set_seed`.
+
+#### F. V7 — correção restrita à âncora futura
+
+Após T4, K desacordos coerentes podem solicitar `_apply_seed` para o giro seguinte. `streak`,
+candidato, refratário, contagem de correções e evidência precisam entrar em `save()`, `load()` e
+`reset_session()`. Limites: máximo uma correção automática por sessão; segunda tentativa exige
+operador; lock manual vence sempre.
+
+### 11.5 Dificuldade e esforço
+
+Estimativa de engenharia, excluindo a janela de observação: S=1–2 dias, M=3–5, L=6–10.
+
+| Fase | Dificuldade | Esforço | Principal risco |
+|---|---:|---:|---|
+| V1 | M/L | 4–7 dias | ordem do hot path e lock do operador |
+| V2 | L | 6–10 dias | concorrência MV3 e regressão silenciosa de ingestão |
+| V3 | S/M | 2–4 dias + 40–60 giros | acesso ao vídeo/taint e hipótese rotor↔sentido |
+| V4 | M | 3–5 dias | binding correto e escrita sem alongar o hot path |
+| V6A | S/M | 2–3 dias | falso alerta sem segmentação de sessão |
+| V6B | M | 3–5 dias após 30 dias limpos | confundir correlação com verdade física |
+| V5 | L | 6–10 dias + shadow | layout de terceiro, cobertura e calibração |
+| V7 | M/L | 4–7 dias + canário | correção errada de âncora |
+
+V1 e V2 podem ser desenvolvidas em paralelo porque os locks são servidor e extensão; o rollout deve
+ser V1 antes de V2. V4 não deve disputar `schema/alembic` com SPR-G2; a primeira versão SQLite evita
+essa colisão.
+
+### 11.6 Gates de aceite que provam sucesso
+
+| Gate | Prova mínima | Falha/stop-condition |
+|---|---|---|
+| **T0 — unitário** | Python DIR verde; JS `node --test`; save/load/reset de todo estado novo | qualquer regressão de aposta, lock ou round-trip |
+| **T1 — replay de gaps** | casos k=1..11 passam; k>11 classificado; métricas por k | `phase_uncertain` em gap com overlap |
+| **T2 — ingestão** | descarte aparece no servidor/popup; hash-12; nenhum envio unaligned | giros recebidos 24h fora de ±10% |
+| **T3 — produção base** | 48h; ≥5 gaps provocados; zero rajada DIR17; zero violação intra-sessão sem causa | descarte com delta >20s ou nova rajada |
+| **T4 — shadow vision** | ≥7d e ≥2000 eventos; cobertura antes de acordo; agree ≥99,5%; 100% desacordos auditados; controle positivo com seed espelhado | K=3 produziria uma correção errada, cobertura insuficiente ou degradação do beat |
+| **T5 — V7 canário** | uma sessão por vez, máx. 1 fix, operador confirma resultado | uma correção errada desliga a flag imediatamente |
+
+Prometheus sozinho não satisfaz T4: counters reiniciam com o container e logs têm retenção limitada.
+`phase_events` é requisito de evidência, não luxo analítico.
+
+### 11.7 Segurança, custo e manutenção
+
+1. O compose publica WS/health em loopback, mas a produção está com `AUTH_ENABLED=false`.
+2. `verify_auth(None)` significa que simplesmente ligar auth hoje rejeitaria todas as conexões; o token
+   precisa ser extraído do handshake e enviado pela extensão em uma tarefa de hardening.
+3. Role-gate MASTER entra em V1; autenticação funcional é bloqueador de V7 ou de qualquer exposição
+   do endpoint a clientes não confiáveis.
+4. Nenhum segredo fica hardcoded; parâmetros novos nascem default-OFF e são lidos por chamada.
+5. Não há custo SaaS novo. O custo real é engenharia/manutenção do sensor contra mudanças do layout
+   Evolution; por isso V3 existe como stop barato.
+6. O armazenamento de eventos é pequeno: ~100–300 bytes por giro; 30 dias é desprezível frente aos
+   bancos atuais.
+
+### 11.8 Decisão de implementação
+
+**Implementar:** V1, V2, V3, V4 e V6A, nessa ordem operacional, cada uma com brief e PR próprios.
+
+**Aguardar evidência:** V6B.
+
+**Não implementar ainda:** V5 e V7. V5 só após GO técnico do V3; V7 só após T4, autenticação/role-gate,
+round-trip completo e canário. `SDA_DIRECTION_VISION` permanece `0`.
+
+Essa sequência elimina o bug observado e fortalece a fundação de dados sem trocar uma falha visível
+por corrupção silenciosa, sem introduzir SaaS e sem permitir que um sensor experimental altere a
+estratégia ou a aposta real.
