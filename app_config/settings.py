@@ -181,6 +181,27 @@ def v5_sig4_enabled() -> bool:
     return os.environ.get("SDA_V5_SIG4", "0").strip().lower() in ("1", "true", "on")
 
 
+def v5_flip_puro_enabled() -> bool:
+    """Seletor 17/21 PURO pela última jogada do sentido-alvo. **Default OFF**.
+
+    Regra do dono (05/08, tarde): "o sistema deve analisar a última derrota ou
+    vitória do SENTIDO-ALVO para sugerir 17 ou 21 de forma isolada" — a última
+    jogada resolvida do sentido da PRÓXIMA jogada decide: vitória → 17,
+    derrota → 21. Sem overrides de cobertura.
+
+    Com `SDA_V5_FLIP_PURO=1`:
+      - o stop-loss de sessão (B5) deixa de travar o seletor em 17 (LOCK17);
+        segue vetando o STAKE (mínimo 1u — INV-3: indicação sempre mantida);
+      - o teto de jogadas-21 por sessão×sentido deixa de forçar 17.
+    OFF = comportamento do go-live 04/08 (flip + LOCK17 por B5/teto).
+    Motivo: em produção o B5 ficou ativo a sessão toda → modo 17 permanente
+    mesmo após derrotas (probe 05/08), mascarando a regra do flip.
+    Rollback: SDA_V5_FLIP_PURO=0 no host + restart. Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_V5_FLIP_PURO", "0").strip().lower() in ("1", "true", "on")
+
+
 def sugestao_broadcast_enabled() -> bool:
     """Broadcast da mensagem `sugestao` a TODOS os clientes. **Default OFF**.
 

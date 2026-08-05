@@ -229,8 +229,15 @@ class MessageHandler:
                                           gs, "region6_counts", None) or []) or None)
                 # Seletor por sentido; stop-loss de sessão força 17 (LOCK17 —
                 # veto nunca vira cobertura mais cara; INV-3: indicação mantém).
-                sel_mode = 17 if getattr(self, "_v5_stop_loss", False) \
-                    else self.strategy.v5_select_mode(dk)
+                # FLIP PURO (05/08 tarde, flag por-chamada): a ÚLTIMA jogada
+                # resolvida do sentido-alvo decide sozinha (vitória→17, derrota
+                # →21) — B5 segue vetando só o STAKE; teto-21 ignorado.
+                from app_config.settings import v5_flip_puro_enabled
+                if v5_flip_puro_enabled():
+                    sel_mode = self.strategy.v5_select_mode(dk, pure=True)
+                else:
+                    sel_mode = 17 if getattr(self, "_v5_stop_loss", False) \
+                        else self.strategy.v5_select_mode(dk)
                 nums = comp["numbers17"] if sel_mode == 17 else comp["numbers21"]
                 regioes = comp["regioes17"] if sel_mode == 17 else comp["regioes21"]
                 if nums:

@@ -1449,6 +1449,57 @@ p/ auditoria ao vivo da projeção R2 e da região fria R3 sem probe de código)
 
 ---
 
+## ADENDO 05/08/2026 (tarde) — V5.2: seletor 17/21 PURO por sentido + badge DOURADO + minimizado unificado (ext 3.9.1)
+
+> Quarta rodada do ciclo V5. Feedback do dono após operar a V5.1: (a) "mesmo após derrotas continua
+> sugerindo 17"; (b) o quadro minimizável mostra **3 telas diferentes** e o 17/21 não aparece bem em
+> todas; (c) badge difícil de ver — **negrito + dourado** combinando com a paleta; (d) regra nova do
+> seletor: **a última derrota/vitória do SENTIDO-ALVO decide 17 ou 21, de forma isolada**.
+
+### A. Diagnóstico — por que "17 mesmo após derrotas"
+
+O flip pós-miss→21 (`v5_note_outcome`) SEMPRE funcionou. Ele era **mascarado por dois overrides
+LOCK17** legítimos do go-live: (1) stop-loss de sessão B5 (`_v5_stop_loss`) trava o seletor em 17
+enquanto pnl ≤ −limite — e em produção o B5 ficou ativo a sessão inteira (probe 05/08: TODA decisão
+com "STOP-LOSS sessão (B5)"); (2) teto de 5 jogadas-21 por sessão×sentido. Resultado: modo 17
+permanente, aparentando seletor quebrado. Não era bug — era design que o dono agora substituiu.
+
+### B. Motor — flag `SDA_V5_FLIP_PURO` (default OFF no código, ON na compose)
+
+- `v5_select_mode(direction, pure=False)`: com `pure=True` ignora o teto-21 — devolve o flip cru.
+- Wiring `_engine_apply_selection`: flag ON (leitura por-chamada) → `pure=True` e o `_v5_stop_loss`
+  **deixa de travar a cobertura**; B5 continua vetando o STAKE (mínimo 1u — INV-3: indicação sempre).
+- Semântica final (flag ON): última jogada resolvida do sentido-alvo = vitória → **17**; derrota →
+  **21**. Sentidos 100% isolados (`_v5_mode["cw"/"ccw"]`); `v5_note_outcome` já resolvia com o HIT
+  REAL do pending pelo `bet_direction` — nada mudou na resolução.
+- OFF = comportamento do go-live (flip + LOCK17 por B5/teto). Rollback: `SDA_V5_FLIP_PURO=0` + restart.
+
+### C. Front — "3 telas" unificadas + badge dourado (ext **3.9.1**)
+
+- Causa das 3 telas: o status minimizado tinha **3 writers com formatos distintos** — `toggleMinimize`
+  (centros+gale, SEM badge), `updateOverlay` minimizado (SEM badge) e o heartbeat `state_sync` (COM
+  badge) → a tela "trocava sozinha" a cada fonte. Agora `minimizedStatusHTML()` é a fonte ÚNICA
+  ([centros] + badge + gale) usada pelos 3 writers; `v5ModeFromSugestao()` resolve o modo do cache.
+- Badge (content.js `buildModeBadge` + Glass Box `frontend/app.js`): **#ffd700 dourado** (combina com
+  o gold #ffd166 da paleta de labels), `font-weight:900`, fonte maior (0.55d; ⌀24px expandida/Glass
+  Box, 18px minimizado), fundo `rgba(255,215,0,0.12)` e glow dourado — legibilidade pedida pelo dono.
+- Manifest 3.9.0 → **3.9.1** + changelog. Operador: `git pull` + ↻ na extensão.
+
+### D. Observabilidade — passthrough spec4 no state_sync
+
+`engine_overlay_fields()` (state/game.py) cherry-pickava o meta e **descartava**
+`spec4`/`r2_delta`/`r3_region` (só iam no trace/sugestao — probe 05/08 mostrou `spec4=None` no
+state_sync). Agora os 3 campos passam quando presentes (aditivo).
+
+### E. Regressão e arquivos
+
+- Suíte **796 passed** (+5: pure ignora teto, wiring flip-puro ×3, passthrough spec4; manifest 3.9.1).
+- Tocados: `strategies/sda17.py` (pure), `server/message_handler.py` (wiring flag), `app_config/settings.py`
+  (flag), `state/game.py` (passthrough), `docker-compose.yml` (env), `extension/content.js`+`manifest.json`
+  (3.9.1), `frontend/app.js`, `tests/` (+5, manifest). Rollback: `SDA_V5_FLIP_PURO=0` no host (~3 min).
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

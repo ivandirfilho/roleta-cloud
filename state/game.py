@@ -1098,6 +1098,11 @@ class GameState:
             # force17 clássico — Obrigação ISO #9 preservada).
             if f17.get("v5_mode"):
                 out["force17"]["v5_mode"] = f17["v5_mode"]
+            # V5.1 (05/08 tarde): telemetria spec4 no state_sync — o cherry-pick
+            # acima descartava spec4/r2_delta/r3_region (só iam no trace).
+            for _k in ("spec4", "r2_delta", "r3_region"):
+                if f17.get(_k) is not None:
+                    out["force17"][_k] = f17[_k]
             out["regioes"] = f17.get("regioes", [])
         # DIR5 (sentido-fase): bloco autoritativo da fase, publicado no state_sync (1s)
         # e no trace. O cliente sobrescreve sua paridade com next_direction; o overlay
