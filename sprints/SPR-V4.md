@@ -224,3 +224,42 @@ promtool check rules obs/alerts.yml         # ou validação YAML equivalente
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+- **2026-08-05 · CONCLUÍDO (PR aberto) · SPR-V4: contrato `direction_event` + trilha `phase_events`.**
+  **Entregue:** (1) evento com identidade (`event_id` do cliente preservado; UUID do servidor quando
+  ausente, origem em `meta_json.event_id_origin`), **giro-alvo do servidor** sob `state_lock` pela
+  fórmula fixa `target_spin_seq = spin_seq_corrente + 1`, **TTL no relógio monotônico do servidor**
+  (`SDA_DIRECTION_VISION_TTL_MS=30000`, intervalo semiaberto, `captured_at_ms` do cliente só
+  diagnóstico) e **consumo único estrutural**; (2) trilha `phase_events` SQLite append-only com
+  **atomicidade decisão+disposição na MESMA transação** (`save_decision_with_phase_events`, rollback
+  total provado com falha injetada, retry idempotente); (3) shadow + 8 counters, 9 gauges, 2 alertas,
+  3 flags default-OFF na compose.
+  **Ordem garantida na corrida `direction_event` × `novo_resultado`:** o snapshot de
+  `session_id`/`spin_seq` e a atribuição do alvo acontecem **dentro** do `state_lock`; a
+  classificação acontece **também dentro** do lock, logo após `spin_seq += 1` (portanto já com a
+  direção final pós-autoridade), e devolve as linhas numa **variável local** da função — nunca em
+  `self` — para que dois giros jamais disputem a mesma disposição. I/O de SQLite e `send()` do ack
+  ficam **fora** do lock (`busy_timeout=5000` e `drain()` de produtor lento parariam o caminho do giro).
+  **Desvio deliberado do DDL do brief:** `UNIQUE(event_id, kind, target_spin_seq)` em vez de
+  `UNIQUE(event_id, kind)` — com a chave global, um produtor reutilizando um `event_id` estável
+  gravava 1 linha por kind para a vida inteira (reproduzido: 6 giros → counters 6, trilha 1),
+  fazendo a decisão comitar sem disposição e a taxa de acordo subir artificialmente. Justificativa
+  completa no ADENDO §E. Supressões por conflito agora **contam** `phase_events_write_error_total`.
+  **Validação:** `pytest tests/` **973 verde** (965 antes; +64 testes do sprint, 3 baselines
+  atualizados: `test_dir12` set exato, `test_dir9` `sentido.stats`, `.silent_except_baseline.json` e
+  `schema_sqlite_snapshot.json`). Replay congelado do SPR-V1 **byte-idêntico** com as flags novas OFF,
+  com `SDA_DIRECTION_VISION=1` e com o shadow ON. `obs/alerts.yml` validado por parse YAML +
+  estrutural (5 grupos, 23 regras; `promtool` ausente na máquina — validar no CI/host).
+  `sqlite3 .schema phase_events` + `SELECT kind, COUNT(*) GROUP BY 1` conferidos ponta a ponta.
+  **Crescimento MEDIDO (2.000 giros):** 223 B/giro sem produtor de visão (6,4 MB/30d a 1.000
+  giros/dia) e 1.313 B/giro com produtor ativo (37,6 MB/30d). **Retenção NÃO entregue** — abrir
+  `SPR-V4R` antes de ~60 dias com a auditoria ligada; até lá a purga é manual e do operador.
+  **Code-review:** 6 achados, 6 corrigidos antes do PR (chave única global; denominador da cobertura
+  poluído por invalidações de ingresso; fallback que podia duplicar a decisão no ledger; `await send`
+  dentro do lock; reconstrução do pendente sem call site de produção + `save()` ausente no ingresso;
+  testes de idempotência com cobertura ilusória). Detalhe no ADENDO §N.
+  **Arquivos:** `server/message_handler.py`, `database/sqlite_repo.py`, `database/service.py`,
+  `state/game.py`, `state/phase_metrics.py`, `server/health_server.py`, `app_config/settings.py`,
+  `obs/alerts.yml`, `docker-compose.yml`, `tests/replay_harness_v1.py`,
+  `tests/test_v4_direction_event_contract.py`, `tests/test_v4_phase_events_trail.py`,
+  `tests/test_v4_nao_interferencia_replay.py`, `tests/test_dir12_metrics_exporter.py`,
+  `tests/test_dir9_sentido_na_sugestao.py`, `Manutenabilidade_iso.md`.

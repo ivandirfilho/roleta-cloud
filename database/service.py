@@ -140,6 +140,37 @@ class DatabaseService:
         """Salva uma decisão."""
         return self.repository.save_decision(decision)
 
+    def save_decision_with_phase_events(self, decision: Decision, rows,
+                                        on_suppressed=None) -> int:
+        """SPR-V4: decisão do giro + disposição terminal da trilha na MESMA transação.
+
+        Propaga a exceção de propósito: quem chama precisa distinguir
+        `PhaseTrailRolledBack` (nada gravado ⇒ pode re-tentar a decisão sozinha) de
+        qualquer outra (re-tentar duplicaria a decisão).
+        """
+        return self.repository.save_decision_with_phase_events(
+            decision, rows, on_suppressed=on_suppressed)
+
+    def insert_phase_events(self, rows) -> int:
+        """SPR-V4: linhas da trilha fora do ciclo de uma decisão (`received`,
+        invalidação por `nova_sessao`, evento superseded). Retorna quantas linhas
+        ENTRARAM de fato. Nunca quebra o fluxo: 0 em falha (o caller conta
+        `phase_events_write_error_total`)."""
+        try:
+            return self.repository.insert_phase_events(rows)
+        except Exception as e:  # noqa: BLE001 — trilha é evidência, não caminho crítico
+            logger.error(f"insert_phase_events falhou: {e}")
+            return 0
+
+    def get_pending_phase_event(self, session_id: str):
+        """SPR-V4: reconstrói o evento pendente (último `received` sem disposição
+        terminal). Retorna None em falha — nunca quebra o boot."""
+        try:
+            return self.repository.get_pending_phase_event(session_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"get_pending_phase_event falhou: {e}")
+            return None
+
     def update_result(self, decision_id: int, hit: bool, actual_number: int,
                        calibration_error: Optional[int] = None,
                        result_region: Optional[str] = None):

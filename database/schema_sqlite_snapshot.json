@@ -235,6 +235,60 @@
       "type": "INTEGER"
     }
   ],
+  "phase_events": [
+    {
+      "name": "confidence",
+      "type": "REAL"
+    },
+    {
+      "name": "decision_ref",
+      "type": "TEXT"
+    },
+    {
+      "name": "event_id",
+      "type": "TEXT"
+    },
+    {
+      "name": "id",
+      "type": "INTEGER"
+    },
+    {
+      "name": "kind",
+      "type": "TEXT"
+    },
+    {
+      "name": "meta_json",
+      "type": "TEXT"
+    },
+    {
+      "name": "observed_direction",
+      "type": "TEXT"
+    },
+    {
+      "name": "reference_direction",
+      "type": "TEXT"
+    },
+    {
+      "name": "round_id",
+      "type": "TEXT"
+    },
+    {
+      "name": "session_id",
+      "type": "TEXT"
+    },
+    {
+      "name": "source",
+      "type": "TEXT"
+    },
+    {
+      "name": "target_spin_seq",
+      "type": "INTEGER"
+    },
+    {
+      "name": "ts_srv_ms",
+      "type": "INTEGER"
+    }
+  ],
   "sessions": [
     {
       "name": "end_time",

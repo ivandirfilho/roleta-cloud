@@ -265,6 +265,19 @@ class GameState:
     # e inerte (padrão shadow DIR-x); o USO no compose é gated por SDA_V5_SIG4.
     # Round-trip: save()/load()/reset_session().
     region6_counts: List[int] = field(default_factory=lambda: [0] * 6)
+    # SPR-V4 (05/08): último `direction_event` recebido em STAND-BY, agora como
+    # EVENTO identificável — `event_id`, `target_spin_seq` (atribuído pelo servidor
+    # sob `state_lock`), prazo de validade e consumo único. NUNCA vira direção: o
+    # fail-close do SPR-V1 mantém a visão fora da fusão do giro. Round-trip
+    # save()/load()/reset_session(), com UMA exceção deliberada: `received_at_mono`
+    # NÃO é persistido (é `time.monotonic()`, incomparável entre processos) — é
+    # exatamente isso que torna um evento sobrevivente a restart `stale` por
+    # definição, em vez de acionável com prazo renovado.
+    pending_direction_event: Optional[Dict[str, Any]] = None
+    # SPR-V4: cache legado do sinal de vídeo (DIR7). Mantido para compatibilidade do
+    # overlay/testes; a autoridade continua sendo a projeção determinística.
+    last_direction_event: Optional[Dict[str, Any]] = None
+
     
     # Triple Rate Advisor
     bet_advisor: TripleRateAdvisor = field(default_factory=TripleRateAdvisor)
@@ -347,6 +360,12 @@ class GameState:
         self._phase_results = deque(maxlen=20)
         # V5.1 sig4: placar das 6 regiões fixas é POR SESSÃO — zera na troca.
         self.region6_counts = [0] * 6
+        # SPR-V4 (05/08): a sessão nova invalida QUALQUER evento de direção pendente
+        # — o alvo dele (`target_spin_seq`) pertence à sessão que acabou de morrer.
+        # Incondicional (campo novo, sem caminho legado a preservar); a linha
+        # terminal `unbound` correspondente é emitida por `handle_new_session`,
+        # que é quem tem a sessão e o banco.
+        self.pending_direction_event = None
         
         # Calibração removida (momentum desabilitado)
         
@@ -1430,6 +1449,22 @@ class GameState:
         result["mode"] = "mg_escalated"
         return result
 
+    def _pending_event_for_save(self) -> Optional[Dict[str, Any]]:
+        """SPR-V4: forma persistível do `pending_direction_event`.
+
+        Remove `received_at_mono` (relógio MONOTÔNICO — só faz sentido dentro do
+        mesmo processo) e marca `mono_lost=True`. Persistir o monotônico faria um
+        evento sobrevivente a restart parecer FRESCO (prazo renovado de graça);
+        removê-lo é o que torna verdadeira a regra "evento pendente reconstruído
+        após restart é `stale` por definição".
+        """
+        ev = getattr(self, "pending_direction_event", None)
+        if not isinstance(ev, dict):
+            return None
+        out = {k: v for k, v in ev.items() if k != "received_at_mono"}
+        out["mono_lost"] = True
+        return out
+
     def save(self, path: Optional[Path] = None) -> None:
         """Salva estado em arquivo JSON (v2.0 - S-STRAT-13.1 EMA+suggestion) com escrita atômica."""
         import os
@@ -1481,6 +1516,9 @@ class GameState:
             "_phase_results": list(self._phase_results),
             # V5.1 sig4 (05/08): placar das 6 regiões fixas (round-trip).
             "region6_counts": list(self.region6_counts),
+            # SPR-V4 (05/08): evento de direção pendente (round-trip). `received_at_mono`
+            # é REMOVIDO aqui de propósito — ver `_pending_event_for_save()`.
+            "pending_direction_event": self._pending_event_for_save(),
             # Implantação C1/C2 + Block-Gale (17/06): estado dos motores (gated por flag).
             "c_selection": self.c_selection_engine.state_dict(),
             "block_gale": self.block_gale_engine.state_dict(),
@@ -1600,6 +1638,16 @@ class GameState:
                 gs.region6_counts = _r6 + [0] * (6 - len(_r6))
             except Exception:  # noqa: BLE001 — estado legado não pode travar boot
                 gs.region6_counts = [0] * 6
+            # SPR-V4: round-trip do evento de direção pendente. `received_at_mono`
+            # nunca é restaurado (não foi persistido) — o evento volta com
+            # `mono_lost=True` e é classificado `stale` no primeiro giro.
+            _pending_ev = data.get("pending_direction_event", None)
+            if isinstance(_pending_ev, dict):
+                _pending_ev.pop("received_at_mono", None)
+                _pending_ev["mono_lost"] = True
+                gs.pending_direction_event = _pending_ev
+            else:
+                gs.pending_direction_event = None
             # S-OBS-7: restaurar counter do Kill Switch (sobrevive restarts)
             try:
                 gs.bet_advisor.load_state(data.get("bet_advisor_state", {}))

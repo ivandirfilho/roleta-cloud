@@ -28,6 +28,25 @@ class CircuitBreakerOpen(RuntimeError):
     """
 
 
+class PhaseTrailRolledBack(RuntimeError):
+    """SPR-V4: a transacao decisao+disposicao falhou ANTES do commit.
+
+    Garante ao caller que NADA foi gravado (nem a decisao, nem a trilha), o que
+    torna seguro re-tentar a decisao sozinha. E o unico caso em que o fallback
+    "decisao obrigatoria / auditoria best-effort" pode agir sem risco de duplicar
+    a decisao.
+    """
+
+
+class PhaseTrailCommitAmbiguous(RuntimeError):
+    """SPR-V4: o proprio `commit()` levantou — nao da para afirmar se gravou.
+
+    Deliberadamente distinta de `PhaseTrailRolledBack`: o caller NAO pode
+    re-tentar a decisao (duplicaria a linha se o commit tiver sido aplicado).
+    So conta erro e segue — a janela deixa de valer como evidencia T4.
+    """
+
+
 class _SQLiteCircuitBreaker:
     """Circuit breaker stateful para conexoes SQLite.
 
@@ -292,6 +311,45 @@ class SQLiteDecisionRepository(DecisionRepository):
                 -- 🔧 MEL-006: apenas 1 janela ativa (não-fechada) por direção
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_gale_windows_active 
                     ON gale_windows(direction) WHERE ended_at IS NULL;
+
+                -- SPR-V4 (05/08): trilha de fase APPEND-ONLY. Cada transicao de um
+                -- `direction_event` e uma linha IMUTAVEL. Frames NUNCA entram aqui —
+                -- so metadados. Sem Alembic nesta fase: a trilha nasce em SQLite
+                -- local (o caminho de migracao in-code abaixo ja e o usado em
+                -- producao). Aditivo: rollback desliga a flag e a tabela PERMANECE
+                -- (inofensiva, o deploy nao faz downgrade de schema).
+                --
+                -- DESVIO DELIBERADO do DDL literal do brief, que pedia
+                -- `UNIQUE(event_id, kind)`: `event_id` e o valor DO CLIENTE quando
+                -- presente e nada o prende a um giro. Com a chave global, um produtor
+                -- que reutilize o mesmo id (id estavel de camera/sensor) gravaria UMA
+                -- linha por kind para a vida inteira enquanto os counters continuam
+                -- subindo — a trilha SUB-REGISTRA em silencio e a taxa de acordo sobe
+                -- artificialmente (some `missing` do denominador), que e exatamente a
+                -- metrica enganosa que este sprint existe para impedir. Reproduzido:
+                -- 6 giros com `event_id` constante => counters 6, trilha 1.
+                -- `target_spin_seq` na chave preserva a idempotencia que o brief quer
+                -- (retry do MESMO evento no MESMO giro nao duplica) e devolve a
+                -- separacao entre giros. Suspensoes por conflito sao CONTADAS
+                -- (`phase_events_write_error_total`), nunca silenciosas.
+                CREATE TABLE IF NOT EXISTS phase_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    ts_srv_ms INTEGER NOT NULL,
+                    session_id TEXT NOT NULL,
+                    round_id TEXT,
+                    target_spin_seq INTEGER NOT NULL,
+                    kind TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    observed_direction TEXT,
+                    reference_direction TEXT,
+                    confidence REAL,
+                    decision_ref TEXT,
+                    meta_json TEXT NOT NULL DEFAULT '{}',
+                    UNIQUE(event_id, kind, target_spin_seq)
+                );
+                CREATE INDEX IF NOT EXISTS ix_phase_events_session_spin
+                    ON phase_events(session_id, target_spin_seq);
             """)
             conn.commit()
             
@@ -399,11 +457,11 @@ class SQLiteDecisionRepository(DecisionRepository):
             except sqlite3.OperationalError as _e:
                 logger.warning(f"Migration ISO-S6 (gale_windows.result) skipped: {_e}")
     
-    def save_decision(self, decision: Decision) -> int:
-        """Salva uma nova decisão."""
-        conn = self._get_connection()
-        try:
-            cursor = conn.execute("""
+    # SPR-V4: SQL + params da decisão extraídos para constante/helper porque agora
+    # existem DOIS caminhos de escrita (`save_decision` e o atômico
+    # `save_decision_with_phase_events`). Duplicar 43 colunas garantiria divergência
+    # silenciosa entre os dois no primeiro campo novo.
+    _DECISION_INSERT_SQL = """
                 INSERT INTO decisions (
                     timestamp, session_id,
                     spin_number, spin_direction, spin_force,
@@ -421,69 +479,301 @@ class SQLiteDecisionRepository(DecisionRepository):
                     wheel_model, vision_confidence, vision_source,
                     spin_seq, direction_source, direction_confidence, direction_next, phase_uncertain
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                decision.timestamp.isoformat(),
-                decision.session_id,
-                decision.spin_number,
-                decision.spin_direction,
-                decision.spin_force,
-                decision.tr_should_bet,
-                decision.tr_confidence,
-                decision.tr_reason,
-                decision.tr_c4_rate,
-                decision.tr_m6_rate,
-                decision.tr_l12_rate,
-                decision.sda_should_bet,
-                decision.sda_score,
-                decision.sda_center,
-                json.dumps(decision.sda_centers) if decision.sda_centers else json.dumps([decision.sda_center]),
-                json.dumps(decision.sda_numbers),
-                decision.sda_predicted_force,
-                decision.sda_offset,
-                decision.sda_offset_type,
-                json.dumps(decision.sda_regions) if getattr(decision, "sda_regions", None) else None,
-                decision.final_action,
-                decision.action_reason,
-                decision.gale_level,
-                decision.gale_window_hits,
-                decision.gale_window_count,
-                decision.gale_bet_value,
-                decision.result_hit,
-                decision.result_actual,
-                decision.calibration_offset,
-                decision.calibration_error,
-                json.dumps(decision.performance_snapshot),
-                getattr(decision, "dealer", "unknown") or "unknown",
-                getattr(decision, "dealer_table", "") or "",
-                getattr(decision, "provider", "") or "",
-                getattr(decision, "round_id", "") or "",
-                getattr(decision, "wheel_model", "") or "",
-                float(getattr(decision, "vision_confidence", 0.0) or 0.0),
-                getattr(decision, "vision_source", "") or "",
-                int(getattr(decision, "spin_seq", 0) or 0),
-                getattr(decision, "direction_source", "") or "",
-                float(getattr(decision, "direction_confidence", 0.0) or 0.0),
-                getattr(decision, "direction_next", "") or "",
-                bool(getattr(decision, "phase_uncertain", False)),
-            ))
+            """
+
+    @staticmethod
+    def _decision_params(decision: Decision) -> tuple:
+        """Parâmetros posicionais de `_DECISION_INSERT_SQL` (fonte única)."""
+        return (
+            decision.timestamp.isoformat(),
+            decision.session_id,
+            decision.spin_number,
+            decision.spin_direction,
+            decision.spin_force,
+            decision.tr_should_bet,
+            decision.tr_confidence,
+            decision.tr_reason,
+            decision.tr_c4_rate,
+            decision.tr_m6_rate,
+            decision.tr_l12_rate,
+            decision.sda_should_bet,
+            decision.sda_score,
+            decision.sda_center,
+            json.dumps(decision.sda_centers) if decision.sda_centers else json.dumps([decision.sda_center]),
+            json.dumps(decision.sda_numbers),
+            decision.sda_predicted_force,
+            decision.sda_offset,
+            decision.sda_offset_type,
+            json.dumps(decision.sda_regions) if getattr(decision, "sda_regions", None) else None,
+            decision.final_action,
+            decision.action_reason,
+            decision.gale_level,
+            decision.gale_window_hits,
+            decision.gale_window_count,
+            decision.gale_bet_value,
+            decision.result_hit,
+            decision.result_actual,
+            decision.calibration_offset,
+            decision.calibration_error,
+            json.dumps(decision.performance_snapshot),
+            getattr(decision, "dealer", "unknown") or "unknown",
+            getattr(decision, "dealer_table", "") or "",
+            getattr(decision, "provider", "") or "",
+            getattr(decision, "round_id", "") or "",
+            getattr(decision, "wheel_model", "") or "",
+            float(getattr(decision, "vision_confidence", 0.0) or 0.0),
+            getattr(decision, "vision_source", "") or "",
+            int(getattr(decision, "spin_seq", 0) or 0),
+            getattr(decision, "direction_source", "") or "",
+            float(getattr(decision, "direction_confidence", 0.0) or 0.0),
+            getattr(decision, "direction_next", "") or "",
+            bool(getattr(decision, "phase_uncertain", False)),
+        )
+
+    @staticmethod
+    def _publish_decision_outbox(decision: Decision, decision_id: int) -> None:
+        """S5 dual-write pós-commit (best-effort, nunca quebra a escrita SQLite)."""
+        try:
+            from database.outbox_integration import maybe_publish_decision_features
+            maybe_publish_decision_features(decision, decision_id)
+        except Exception as exc:  # noqa: BLE001 — never break SQLite write
+            # H-1 fix (v4 §XIX): bloco mantido apenas como guard rail.
+            # maybe_publish_decision_features tem try/except interno e NUNCA
+            # deve levantar. Se levantar é bug grave — logar ERROR.
+            logger.error(
+                "dual_write_hook_unexpected_raise decision_id=%s err=%s",
+                decision_id, exc,
+            )
+
+    def save_decision(self, decision: Decision) -> int:
+        """Salva uma nova decisão."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                self._DECISION_INSERT_SQL, self._decision_params(decision)
+            )
             conn.commit()
             decision_id = cursor.lastrowid
             # S5 dual-write: publica features no outbox PG se feature flag estiver on.
             # Defensivo: nunca quebra o app se PG offline.
-            try:
-                from database.outbox_integration import maybe_publish_decision_features
-                maybe_publish_decision_features(decision, decision_id)
-            except Exception as exc:  # noqa: BLE001 — never break SQLite write
-                # H-1 fix (v4 §XIX): bloco mantido apenas como guard rail.
-                # maybe_publish_decision_features tem try/except interno e NUNCA
-                # deve levantar. Se levantar é bug grave — logar ERROR.
-                logger.error(
-                    "dual_write_hook_unexpected_raise decision_id=%s err=%s",
-                    decision_id, exc,
-                )
+            self._publish_decision_outbox(decision, decision_id)
             return decision_id
         finally:
             conn.close()
+
+    # ========================================================================
+    # SPR-V4 — trilha `phase_events` (append-only, shadow-only)
+    # ========================================================================
+
+    #: `kind`s que ENCERRAM o ciclo de vida de um evento. `received` e `bound` são
+    #: transições intermediárias: um `received` sem nenhum destes é um evento
+    #: PENDENTE (reconstruído após restart — e `stale` por definição, porque
+    #: `time.monotonic()` não sobrevive ao processo).
+    TERMINAL_PHASE_EVENT_KINDS = (
+        "agree", "disagree", "stale", "unbound", "missing", "selfcontradict",
+    )
+
+    #: `ON CONFLICT ... DO NOTHING` e NÃO `INSERT OR IGNORE`: o `OR IGNORE` engoliria
+    #: também violações de NOT NULL/CHECK, e uma linha inválida da trilha sairia
+    #: silenciosamente da transação atômica — a decisão comitaria sem disposição e o
+    #: teste de rollback total passaria por engano. Ainda assim, TODA supressão por
+    #: conflito é devolvida ao caller (ver `_insert_phase_event_row`): evidência que
+    #: não foi gravada precisa aparecer numa métrica, nunca sumir.
+    _PHASE_EVENT_INSERT_SQL = """
+                INSERT INTO phase_events (
+                    event_id, ts_srv_ms, session_id, round_id, target_spin_seq,
+                    kind, source, observed_direction, reference_direction,
+                    confidence, decision_ref, meta_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id, kind, target_spin_seq) DO NOTHING
+            """
+
+    @staticmethod
+    def _phase_event_params(row: Dict[str, Any], decision_ref: Optional[str] = None) -> tuple:
+        """Parâmetros da linha da trilha. NÃO aplica defaults às colunas NOT NULL:
+        uma linha malformada TEM de estourar dentro da transação (é o que garante o
+        rollback total), em vez de virar `''`/`0` e poluir a evidência."""
+        _meta = row.get("meta_json")
+        if not isinstance(_meta, str):
+            _meta = json.dumps(_meta or {}, ensure_ascii=False, sort_keys=True)
+        return (
+            row.get("event_id"),
+            row.get("ts_srv_ms"),
+            row.get("session_id"),
+            row.get("round_id"),
+            row.get("target_spin_seq"),
+            row.get("kind"),
+            row.get("source"),
+            row.get("observed_direction"),
+            row.get("reference_direction"),
+            row.get("confidence"),
+            (decision_ref if decision_ref is not None else row.get("decision_ref")),
+            _meta,
+        )
+
+    def _insert_phase_event_row(self, conn: sqlite3.Connection, row: Dict[str, Any],
+                                decision_ref: Optional[str] = None) -> bool:
+        """Insere UMA linha da trilha na conexão dada (sem commit).
+
+        Devolve `True` se a linha ENTROU e `False` se foi suprimida pelo
+        `ON CONFLICT`. O caller precisa dessa distinção: linha suprimida é
+        evidência que não existe, e evidência ausente sem métrica é pior que
+        evidência ausente com métrica.
+
+        Ponto de costura único: é aqui que os testes injetam falha para provar o
+        rollback total da transação decisão+disposição.
+        """
+        cur = conn.execute(self._PHASE_EVENT_INSERT_SQL,
+                           self._phase_event_params(row, decision_ref))
+        return cur.rowcount > 0
+
+    @staticmethod
+    def _log_suppressed(rows: List[Dict[str, Any]]) -> None:
+        for r in rows:
+            logger.warning(
+                "phase_events linha SUPRIMIDA por conflito "
+                "(event_id=%s kind=%s target_spin_seq=%s) — evidencia nao gravada",
+                r.get("event_id"), r.get("kind"), r.get("target_spin_seq"),
+            )
+
+    def insert_phase_events(self, rows: List[Dict[str, Any]]) -> int:
+        """Grava linhas da trilha FORA do ciclo de uma decisão (ingresso `received`,
+        invalidação por `nova_sessao`, evento superseded).
+
+        Retorna quantas linhas ENTRARAM de fato (≠ len(rows) quando houve conflito).
+        Levanta em falha — quem chama conta a métrica.
+        """
+        if not rows:
+            return 0
+        conn = self._get_connection()
+        try:
+            inserted = 0
+            suprimidas = []
+            for row in rows:
+                if self._insert_phase_event_row(conn, row):
+                    inserted += 1
+                else:
+                    suprimidas.append(row)
+            conn.commit()
+            self._log_suppressed(suprimidas)
+            return inserted
+        except BaseException:
+            try:
+                conn.rollback()
+            except sqlite3.Error as _rb:
+                logger.error("phase_events rollback falhou: %s", _rb)
+            raise
+        finally:
+            conn.close()
+
+    def save_decision_with_phase_events(self, decision: Decision,
+                                        rows: List[Dict[str, Any]],
+                                        on_suppressed=None) -> int:
+        """SPR-V4: grava decisão do giro + disposição terminal na MESMA transação.
+
+        Sem isto existe decisão sem disposição e a trilha deixa de ser prova para o
+        gate T4. Não há alternativa "justificada": `save_decision()` abre a própria
+        conexão e comita sozinho, então a única forma de amarrar os dois writes é
+        esta operação explícita.
+
+        `on_suppressed(rows)` é chamado APÓS o commit com as linhas que o
+        `ON CONFLICT` descartou (retry legítimo, ou colisão de id) — uma supressão
+        silenciosa recriaria, por outro caminho, a "decisão sem disposição" que a
+        atomicidade existe para impedir.
+
+        Contrato de erro (o caller depende dele para não duplicar a decisão):
+          * `PhaseTrailRolledBack`   — falhou ANTES do commit ⇒ NADA foi gravado.
+          * `PhaseTrailCommitAmbiguous` — o próprio `commit()` levantou ⇒ não se
+            pode afirmar se gravou; re-tentar duplicaria a decisão.
+          * qualquer OUTRA exceção só pode vir DEPOIS do commit (hook do outbox,
+            `close()`), e por isso também nunca autoriza retry.
+        """
+        conn = self._get_connection()
+        committed = False
+        suprimidas: List[Dict[str, Any]] = []
+        try:
+            try:
+                cursor = conn.execute(
+                    self._DECISION_INSERT_SQL, self._decision_params(decision)
+                )
+                decision_id = cursor.lastrowid
+                for row in rows or []:
+                    if not self._insert_phase_event_row(conn, row, str(decision_id)):
+                        suprimidas.append(row)
+            except BaseException as exc:
+                try:
+                    conn.rollback()
+                except sqlite3.Error as _rb:
+                    logger.error("rollback da transacao decisao+trilha falhou: %s", _rb)
+                raise PhaseTrailRolledBack(
+                    f"decisao+trilha revertidas ({type(exc).__name__}: {exc})"
+                ) from exc
+            try:
+                conn.commit()
+                committed = True
+            except BaseException as exc:
+                raise PhaseTrailCommitAmbiguous(
+                    f"commit da transacao decisao+trilha indeterminado "
+                    f"({type(exc).__name__}: {exc})"
+                ) from exc
+            if suprimidas:
+                self._log_suppressed(suprimidas)
+                if on_suppressed is not None:
+                    on_suppressed(suprimidas)
+            # Só depois do commit — um rollback jamais pode publicar no outbox.
+            self._publish_decision_outbox(decision, decision_id)
+            return decision_id
+        finally:
+            if not committed:
+                try:
+                    conn.rollback()
+                except sqlite3.Error:
+                    logger.error("rollback defensivo da trilha falhou", exc_info=True)
+            conn.close()
+
+    def get_pending_phase_event(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Última linha `received` da sessão SEM disposição terminal.
+
+        É como um evento pendente é reconstruído depois de um restart — e ele é
+        `stale` por definição, porque `received_at_mono` (monotônico) não é
+        persistido de propósito.
+        """
+        _placeholders = ",".join("?" for _ in self.TERMINAL_PHASE_EVENT_KINDS)
+        conn = self._get_connection()
+        try:
+            cur = conn.execute(
+                f"""
+                SELECT * FROM phase_events pe
+                 WHERE pe.kind = 'received' AND pe.session_id = ?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM phase_events t
+                        WHERE t.event_id = pe.event_id
+                          AND t.kind IN ({_placeholders})
+                   )
+                 ORDER BY pe.id DESC LIMIT 1
+                """,
+                (session_id, *self.TERMINAL_PHASE_EVENT_KINDS),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def count_phase_events_by_kind(self, session_id: Optional[str] = None) -> Dict[str, int]:
+        """Agregado por `kind` (auditoria/gate T4)."""
+        conn = self._get_connection()
+        try:
+            if session_id:
+                cur = conn.execute(
+                    "SELECT kind, COUNT(*) AS n FROM phase_events "
+                    "WHERE session_id = ? GROUP BY kind", (session_id,))
+            else:
+                cur = conn.execute(
+                    "SELECT kind, COUNT(*) AS n FROM phase_events GROUP BY kind")
+            return {r["kind"]: int(r["n"]) for r in cur.fetchall()}
+        finally:
+            conn.close()
+
     
     def update_result(self, decision_id: int, hit: bool, actual_number: int,
                        calibration_error: Optional[int] = None,
