@@ -15,6 +15,7 @@ roleta-deploy.timer (systemd, 2min)
     ↓ se diff: reset --hard + build + up -d roleta-cloud
     ↓ healthcheck 3× @ http://127.0.0.1:8766/health
     ↓ sync frontend/ → /var/www/roleta + reload nginx   (NOVO 17/06)
+    ↓ obs-apply.sh: valida/aplica/verifica Prometheus   (NOVO 05/08, só se obs mudou)
     ↓ falha → rollback automatico para HEAD anterior
 PROD running
 ```
@@ -26,6 +27,8 @@ PROD running
 | Arquivo | Local | Descricao |
 |---|---|---|
 | `tools/deploy_pull.sh` | repo | script idempotente com rollback |
+| `scripts/obs-apply.sh` | repo | passo de observabilidade (detecta/valida/aplica/verifica Prometheus) |
+| `/var/lib/roleta-deploy/obs_pending` | servidor | pendência de observabilidade (retomada no tick seguinte) |
 | `tools/systemd/roleta-deploy.service` | repo | unit oneshot |
 | `tools/systemd/roleta-deploy.timer` | repo | dispara a cada 2min |
 | `/usr/local/bin/roleta-deploy-pull.sh` | servidor | symlink/copy do script |
@@ -38,7 +41,9 @@ PROD running
 ```bash
 ssh root@187.45.181.75 << 'EOF'
 cd /root/roleta-cloud
-install -m755 tools/deploy_pull.sh /usr/local/bin/roleta-deploy-pull.sh
+# canonico (com alembic + passo de observabilidade). O tools/deploy_pull.sh e o
+# duplicado antigo — instalar o de scripts/.
+install -m755 scripts/roleta-deploy-pull.sh /usr/local/bin/roleta-deploy-pull.sh
 install -m644 tools/systemd/roleta-deploy.service /etc/systemd/system/
 install -m644 tools/systemd/roleta-deploy.timer /etc/systemd/system/
 systemctl daemon-reload
@@ -100,6 +105,77 @@ curl -s https://roleta.xma-ia.com/ | grep -o 'app.js?v=[0-9.]*'      # confirma 
 > ℹ️ Há **dois** scripts de deploy no repo: `scripts/roleta-deploy-pull.sh` (canônico, com
 > passo `alembic`) e `tools/deploy_pull.sh` (duplicado mais antigo). Ambos receberam o sync do
 > frontend; **follow-up:** unificar num só e apontar a instalação para o canônico.
+
+## Observabilidade no deploy (OBS-INODE, 05/08/2026) — IMPORTANTE
+
+> ⚠️ **Incidente que originou este passo.** Depois do deploy do SPR-V1, `obs/alerts.yml` no
+> servidor tinha **21** regras e o `roleta-prometheus` continuava servindo **18** — `promtool`
+> dentro do container e a API concordavam com o número errado. `POST /-/reload` **não** resolveu;
+> só recriar o container. Causa: o deploy usa `git reset --hard`, que reescreve cada arquivo via
+> temp+rename (**novo inode**), e a compose montava `obs/prometheus.yml`/`obs/alerts.yml` como
+> **bind de arquivo**, que fixa o inode. Como nenhum passo do deploy tocava a stack de
+> observabilidade, a divergência sobrevivia a qualquer número de deploys.
+
+Correção em duas camadas:
+
+1. `docker-compose.obs.yml` monta o **diretório** `./obs:/etc/prometheus:ro`. O `git` não recria o
+   diretório, então trocas de inode dos arquivos passam a ser visíveis pelo container. Os caminhos
+   internos não mudaram (`--config.file` e `rule_files` intactos).
+2. `scripts/obs-apply.sh`, chamado pelo deploy: **detecta → valida → aplica → verifica**.
+
+| Passo do deploy | Comando | Quando |
+|---|---|---|
+| retomar pendência | `obs-apply.sh resume` | antes do gate NOOP (senão a falha some no tick seguinte) |
+| validar | `obs-apply.sh check $LOCAL $REMOTE` | logo após o `git reset`; config inválida ⇒ reset p/ `$LOCAL` + abort, **sem tocar em container**. Stack de obs ausente/fora do ar **não** reprova este passo (não pode derrubar um deploy de aplicação válido) |
+| aplicar | `obs-apply.sh apply $LOCAL $REMOTE` | após o healthcheck do app |
+
+Regras do passo `apply`:
+
+- **Sem** mudança em `obs/prometheus.yml`, `obs/alerts.yml`, `obs/*.rules.yml` ou
+  `docker-compose.obs.yml` ⇒ *noop*: o Prometheus **não** é reiniciado.
+- Mudou só a config/regras ⇒ `POST /-/reload`.
+- Mudou a `docker-compose.obs.yml` (ex.: o próprio mount) ⇒ `docker compose -f docker-compose.obs.yml
+  up -d --no-deps prometheus` — recriação **única** (o `up -d` puro é no-op nas retentativas),
+  volume `prometheus-data` (TSDB) preservado, **sem `--remove-orphans`**, demais containers intocados.
+- **Verificação anti-sucesso-falso:** `/-/ready` + `prometheus_config_last_reload_successful 1` +
+  **SHA-256 do arquivo no repo == SHA-256 do que o container lê** (`docker cp` do caminho montado,
+  do container **em execução** — `ps -q`, nunca `-a`, para não verificar contra um container
+  efêmero do `compose run`). É o detector exato do inode preso. A contagem de regras
+  (`arquivo=21 carregadas=18`) sai no log como diagnóstico.
+- Se a verificação não refletir os bytes do repo, o script **escala para uma única recriação**
+  (`--force-recreate`) e só então grava `escalated` em `/var/lib/roleta-deploy/obs_pending` — o
+  próximo tick retoma sem recriar de novo (sem loop de restart a cada 2 min); se a própria
+  recriação falhar, a pendência **não** avança, para que a tentativa se repita.
+- Falha ⇒ log `OBS FAIL` + `DEPLOY PARCIAL` e **exit 1** (unit do systemd fica `failed`). O app
+  **não** sofre rollback: ele já está saudável no SHA novo.
+
+### Bootstrap one-time no servidor (obrigatório uma vez)
+
+O systemd chama `/usr/local/bin/roleta-deploy-pull.sh` — uma **cópia** do repo. Enquanto essa cópia
+não for atualizada, o passo de observabilidade nunca roda e o Prometheus continua com o mount antigo:
+
+```bash
+cd /root/roleta-cloud
+git log --oneline -1                       # confirmar que o fix ja chegou via timer
+install -m755 scripts/roleta-deploy-pull.sh /usr/local/bin/roleta-deploy-pull.sh
+bash scripts/obs-apply.sh force            # valida + recria o Prometheus + verifica
+# esperado: "OBS verificado ... == repo" e "regras: arquivo=21 carregadas=21"
+```
+
+Verificação independente:
+
+```bash
+docker exec roleta-prometheus sha256sum /etc/prometheus/alerts.yml
+sha256sum /root/roleta-cloud/obs/alerts.yml            # tem de bater
+curl -s http://127.0.0.1:9090/api/v1/rules | grep -o '"query":' | wc -l
+docker volume ls | grep prometheus-data                # TSDB preservado
+```
+
+Rollback: `git revert` do PR (volta ao bind de arquivo e remove o passo) + `bash scripts/obs-apply.sh force`
+para recriar o container com a definição antiga. Nada disso toca `prometheus-data`.
+
+> **Follow-up conhecido:** `obs/alertmanager.yml` ainda é bind **de arquivo** (mesma classe de bug).
+> Não foi alterado aqui para não recriar um container fora do escopo do incidente.
 
 ## Bypass (deploy SSH direto)
 

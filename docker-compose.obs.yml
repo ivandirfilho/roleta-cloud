@@ -18,8 +18,16 @@ services:
     mem_reservation: 128m
     user: "65534:65534"  # nobody (UID prometheus)
     volumes:
-      - ./obs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./obs/alerts.yml:/etc/prometheus/alerts.yml:ro
+      # OBS-INODE (05/08/2026): mount de DIRETORIO, nao de arquivo.
+      # O deploy faz `git reset --hard`, que reescreve cada arquivo via temp+rename
+      # -> NOVO INODE. Um bind de arquivo fixa o inode: o container continuava lendo
+      # a versao ANTIGA (18 regras no /api/v1/rules com 21 no disco) e `POST /-/reload`
+      # nao resolvia (releia o mesmo inode). O diretorio `obs/` nao e recriado pelo git,
+      # entao o bind de diretorio acompanha as trocas de arquivo.
+      # Os caminhos internos (/etc/prometheus/prometheus.yml e /etc/prometheus/alerts.yml)
+      # sao os mesmos de antes -> --config.file e rule_files inalterados.
+      # NAO reverter para bind de arquivo (tests/test_obs_reload.py trava a regressao).
+      - ./obs:/etc/prometheus:ro
       - prometheus-data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml

@@ -3044,3 +3044,110 @@ contrato não verificado — cada lado testa a própria fixture e os dois passam
 integrado está quebrado. Todo bloco publicado para um consumidor externo precisa de um teste que
 execute o **canal real** de ponta a ponta e afirme **tipo, vocabulário e coerência com os blocos
 vizinhos do mesmo payload**, não apenas a presença da chave.
+
+---
+
+## ADENDO 05/08/2026 (noite-2) — OBS-INODE: regras Prometheus presas no inode antigo (deploy × bind de arquivo)
+
+> Incidente operacional observado em produção no mesmo dia do SPR-V1: `/root/roleta-cloud/obs/alerts.yml`
+> tinha **21** regras e o container `roleta-prometheus` continuava servindo **18** — `promtool` *dentro*
+> do container e a API `/api/v1/rules` concordavam com o número **errado**, ou seja, o container estava
+> internamente coerente com um arquivo que já não existia mais no host. `POST /-/reload` **não** resolveu;
+> recriar só o Prometheus resolveu (promtool passou a ver 21 e as 3 regras do V1 carregaram).
+
+### A. Causa-raiz (duas condições necessárias, nenhuma suficiente sozinha)
+
+1. **O deploy troca o inode.** `roleta-deploy-pull.sh` faz `git reset --hard origin/main`; o git
+   materializa cada arquivo modificado com temp+rename, então `obs/alerts.yml` **muda de inode** a cada
+   deploy que o toca.
+2. **A compose montava arquivos, não o diretório.** `docker-compose.obs.yml` usava
+   `./obs/alerts.yml:/etc/prometheus/alerts.yml:ro`. Um bind de **arquivo** é resolvido uma única vez, na
+   criação do container, e fica preso àquele inode — o novo arquivo, com o mesmo caminho, não é visto.
+   `/-/reload` relê o **mesmo inode antigo**, por isso "recarregou com sucesso" e nada mudou.
+
+Um terceiro fator explica a **duração**: nenhum passo do deploy tocava a stack de observabilidade, então
+a divergência era imune ao número de deploys — sobreviveria indefinidamente, e em silêncio, porque tanto
+o container quanto o host estavam "certos" cada um com a sua versão.
+
+### B. Correção (duas camadas — a estrutural e a operacional)
+
+| Camada | Mudança | Por que é necessária |
+|---|---|---|
+| Estrutural | `docker-compose.obs.yml` monta o **diretório** `./obs:/etc/prometheus:ro` | O git não recria o diretório `obs/`; só substitui arquivos **dentro** dele. Um bind de diretório resolve o caminho a cada acesso, então acompanha a troca de inode. Caminhos internos idênticos ⇒ `--config.file` e `rule_files` intactos. |
+| Operacional | `scripts/obs-apply.sh`, chamado pelo deploy | Só o mount não basta: sem alguém mandar recarregar, o Prometheus segue com as regras **em memória** até o próximo restart. |
+
+`obs-apply.sh` = **detectar → validar → aplicar → verificar**:
+
+- **Detectar** — `git diff --name-only OLD NEW -- obs/prometheus.yml obs/alerts.yml obs/*.rules.yml docker-compose.obs.yml`.
+  Deploy sem mudança de observabilidade é *noop* explícito: **o Prometheus não é reiniciado**.
+- **Validar antes de aplicar** — `promtool check config` em container efêmero
+  (`run --rm --no-deps --entrypoint /bin/promtool`), rodando **logo após o `git reset`** e **antes** do
+  build/alembic: com mount de diretório os arquivos novos já estão visíveis ao container, então uma
+  config inválida só se manifestaria no próximo restart. Reprovou ⇒ `git reset --hard $LOCAL` e abort,
+  **sem tocar em nenhum container**.
+- **Aplicar** — mudou só config/regras ⇒ `POST /-/reload`; mudou a `docker-compose.obs.yml` (o próprio
+  mount) ⇒ `up -d --no-deps prometheus`. Usar `up -d` **puro** (e não `--force-recreate`) é deliberado:
+  ele recria quando a definição do serviço mudou e vira **no-op** nas retentativas — recriação **única**,
+  sem loop de restart a cada tick de 2 min. Volume `prometheus-data` (TSDB) preservado; **sem**
+  `--remove-orphans`; `--no-deps` garante que Grafana/AlertManager/app não são tocados.
+- **Verificar (o coração do fix)** — `/-/ready` **+** `prometheus_config_last_reload_successful 1` **+**
+  **SHA-256 do arquivo no repo == SHA-256 do que o container lê**. Os bytes do container saem por
+  `docker cp <cid>:<path> - | tar -xO` (não `exec cat`: não depende de shell/coreutils na imagem) e o
+  `<cid>` vem de `ps -q` — **sem `-a`**, porque `-a` traria os containers efêmeros que o próprio
+  `promtool` cria, e verificar contra um deles (que carrega o bind novo) devolveria "sucesso" com o
+  Prometheus real ainda nas regras velhas. A verificação por bytes é o detector *exato* do inode preso e
+  é estritamente mais forte que contar regras: pega também mudança de `expr` com a contagem inalterada.
+  A contagem (`arquivo=21 carregadas=18`) ficou como **diagnóstico** no log, não como critério.
+
+### C. As três armadilhas de "sucesso falso" fechadas explicitamente
+
+| Armadilha | O que aconteceria | Guarda |
+|---|---|---|
+| Reload responde 200 e nada muda | exatamente o incidente | comparação de bytes container × repo; divergência ⇒ **escala para uma recriação única**, e a marca `escalated` só é gravada **depois** que a recriação deu certo (senão uma falha transitória do `up` trancaria a pendência num estado que só faz reload — e reload, por definição, não conserta inode preso) |
+| Falha esquecida no tick seguinte | `LOCAL == REMOTE` ⇒ `exit 0` e o systemd volta a `success` sem nada aplicado | pendência em `$STATE_DIR/obs_pending`, retomada com `obs_run resume` **antes** do gate NOOP |
+| Prometheus que sumiu vira "skip" | host sem stack e host com stack derrubada são indistinguíveis | marcador `$STATE_DIR/obs_seen`: se a stack já existiu neste host e agora não existe, é **falha**, não skip. O passo `check` é a exceção deliberada: como a falha dele derruba o deploy do **app** (com `git reset --hard`), stack indisponível ali só adia a decisão para o `apply` |
+| Verificar contra o container errado | `ps -a` lista os containers efêmeros do `compose run` (o nome deles ordena antes do `roleta-prometheus`) e eles carregam o bind **novo** ⇒ os bytes batem e o script declara sucesso com o Prometheus real ainda velho | seleção por `ps -q` (só em execução) + aviso se vier mais de um ID |
+| `grep -q` no fim de uma pipeline sob `pipefail` | o `/metrics` tem centenas de KB e a métrica aparece cedo: o `grep -q` sai no primeiro match, o produtor morre de **SIGPIPE (141)** e a pipeline inteira vira "falha" — a verificação **nunca** passaria, todo deploy de obs escalaria para recriação e a pendência ficaria presa em `escalated` para sempre | comparação por here-string (`grep -q … <<< "$body"`), sem pipeline |
+
+Falha de observabilidade **não** faz rollback do app: ele já passou no healthcheck no SHA novo, e derrubar
+o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
+e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
+
+### D. Regressão (`tests/test_obs_reload.py`, 25 testes)
+
+Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
+`prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
+`rule_files` tem de apontar para dentro do mount; volume TSDB nomeado presente; nenhum `--remove-orphans`;
+`resume` antes do gate NOOP nos **dois** scripts de deploy.
+
+Funcionais: o script roda de verdade contra stubs de `docker`/`curl` (injetados por `DOCKER_BIN`/`CURL_BIN`,
+sem mexer no `PATH`) num repositório git temporário, cobrindo — deploy sem obs (zero chamadas ao docker),
+reload sem recriação, recriação **única** com `--no-deps`, promtool reprovado (nada aplicado),
+`prometheus_config_last_reload_successful != 1`, host sem stack, stack que sumiu, bootstrap `force`,
+`/metrics` grande (o caso do SIGPIPE), `ps` sem `-a`, `check` com a stack fora do ar e recriação que
+falha sem trancar a pendência; e, sobretudo, **o incidente literal**: o "container" continua servindo o
+arquivo velho ⇒ o script detecta a divergência, escala para **uma** recriação, grava a pendência,
+**não** recria de novo no tick seguinte e só devolve `0` depois que os bytes batem.
+
+Os quatro guardas nascidos do code review foram validados **por mutação** (cada um reprovado ao
+reintroduzir o bug correspondente no script e restaurado em seguida), para que não passem por acidente.
+
+### E. Bootstrap one-time (sem isto o fix não chega em produção)
+
+O systemd executa `/usr/local/bin/roleta-deploy-pull.sh`, que é uma **cópia** — o merge deste PR atualiza
+o repo, não a cópia. `docs/DEPLOY.md` traz o bloco: reinstalar o script canônico e rodar
+`bash scripts/obs-apply.sh force` (valida + recria + verifica). A partir daí toda a lógica de
+observabilidade viaja pelo git (o entry-point só chama `$REPO_DIR/scripts/obs-apply.sh`).
+
+**Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
+de bug, não alterado aqui para não recriar um container fora do incidente.
+
+**Suítes.** Python **929 passed, 9 skipped, 1 xfailed** (+25 sobre os 904 do adendo anterior).
+`lint_silent_except` OK.
+
+**Lição (Manutenabilidade / Operação).** Um componente pode estar **internamente coerente e
+externamente errado**: o Prometheus concordava consigo mesmo sobre 18 regras enquanto o disco tinha 21, e
+todo diagnóstico feito *de dentro dele* (promtool no container, `/api/v1/rules`) confirmava a versão
+errada. Sempre que um artefato versionado é entregue por cópia/mount, a verificação tem de comparar
+**as duas pontas** — bytes do repo contra bytes que o consumidor realmente lê — e nunca aceitar o "200 OK"
+do comando de recarga como prova de que a mudança chegou.

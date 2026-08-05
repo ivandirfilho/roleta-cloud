@@ -29,11 +29,28 @@ log() { echo "[$(date -u +%FT%TZ)] $*"; }
 
 cd "$REPO_DIR"
 
+# OBS-INODE (05/08/2026): ver scripts/obs-apply.sh e scripts/roleta-deploy-pull.sh
+# (canonico). Mantido em sincronia aqui porque este duplicado ainda e o que
+# docs/DEPLOY.md manda instalar em alguns hosts.
+obs_run() {
+    if [ -f "$REPO_DIR/scripts/obs-apply.sh" ]; then
+        REPO_DIR="$REPO_DIR" STATE_DIR="$STATE_DIR" bash "$REPO_DIR/scripts/obs-apply.sh" "$@"
+    else
+        log "OBS scripts/obs-apply.sh ausente neste checkout — passo pulado"
+    fi
+}
+
 git fetch --quiet origin main || { log "FETCH FAIL"; exit 1; }
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 
 if [ "$LOCAL" = "$REMOTE" ]; then
+    if [ -f "$STATE_DIR/obs_pending" ]; then
+        if ! obs_run resume; then
+            log "OBS RESUME FAIL — regras Prometheus seguem pendentes"
+            exit 1
+        fi
+    fi
     exit 0
 fi
 
@@ -41,6 +58,12 @@ log "DEPLOY START local=$LOCAL remote=$REMOTE"
 echo "$LOCAL" > "$STATE_DIR/last_good"
 
 git reset --hard origin/main >/dev/null
+
+if ! obs_run check "$LOCAL" "$REMOTE"; then
+    log "OBS CONFIG INVALIDA — rollback para $LOCAL, nada aplicado"
+    git reset --hard "$LOCAL" >/dev/null
+    exit 1
+fi
 
 if ! docker compose build --quiet "$SERVICE"; then
     log "BUILD FAIL — rollback"
@@ -87,6 +110,15 @@ if [ -d "$REPO_DIR/frontend" ]; then
     else
         log "FRONTEND sync FALHOU (nao-fatal)"
     fi
+fi
+
+log "DEPLOY OK (app) sha=$REMOTE"
+
+# OBS-INODE: aplica/recarrega Prometheus so quando a observabilidade mudou.
+if ! obs_run apply "$LOCAL" "$REMOTE"; then
+    log "OBS FAIL — Prometheus NAO refletiu a config nova (app segue saudavel em $REMOTE)"
+    log "DEPLOY PARCIAL sha=$REMOTE"
+    exit 1
 fi
 
 log "DEPLOY OK sha=$REMOTE"
