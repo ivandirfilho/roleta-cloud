@@ -2915,3 +2915,54 @@ Com as 4 flags OFF: `final_action`, cobertura (`sda_numbers`/`sda_centers`), sta
 6. **`promtool` indisponível na máquina do executor:** `obs/alerts.yml` foi validado por parse YAML + checagem estrutural (todo `rule` com `alert`/`expr`/`labels`/`annotations`) — 4 grupos, 21 regras. **Validar com `promtool check rules` no CI/host antes de aplicar.**
 
 > **Veredito:** os dois vetores de **inversão silenciosa da fase** (giro fantasma e visão não autenticada) e a **contaminação permanente por gap** estão fechados, com métrica e alerta para cada um. Tudo default-OFF e com não-interferência provada por replay congelado. Próximo: SPR-V2 (cliente consome `phase_authority`).
+
+### J. Code-review pós-implantação (subagente `code-review`) — 3 achados, 3 corrigidos antes do PR
+
+O code-review confirmou como **limpos** o caminho legado (`min_overlap=0` byte-idêntico em 200k pares
+aleatórios), a atomicidade/ordem de `sync_phase_buffer`, a equivalência de `_apply_seed` em todos os
+call sites migrados, a matemática de `_reancora_fase`, o posicionamento do gate B3 antes do dedup de
+trace, a expectativa `(gap+1)` da DIR22, o fail-close da visão (remove os DOIS sinais), o role-gate, a
+preservação de lock em `handle_set_seed`, a consistência de nomes de métrica em toda a cadeia
+(`_COUNTERS` → `_PROM_METRICS` → refresh → `alerts.yml`) e o default-OFF das 4 flags. Três achados
+reais foram corrigidos:
+
+**J.1 [ALTA] — `min_overlap` era insatisfazível com histórico curto (`state/phase.py`).**
+A evidência disponível é `m = min(len(prev), len(new) - k)`, portanto **nunca** passa de
+`min(len(prev), len(new))`. Exigir `min_overlap=3` quando só existem 1-2 números tornava a condição
+IMPOSSÍVEL: um alinhamento perfeito e ÚNICO era reportado `matched=False, ambiguous=True` →
+`phase_uncertain` → **DIR17 re-ancorava a fase na direção do CLIENTE**, que é exatamente o vetor de
+ataque/erro que a capacidade B2 existe para fechar. O gatilho não era exótico: `reset_session()` zera
+`_phase_results`, então **os giros #2 e #3 depois de TODO `nova_sessao`** caíam nele, além de qualquer
+janela curta do cliente. A trava de segurança destruía a âncora do operador.
+
+*Correção:* teto `min_overlap = min(min_overlap, len(prev), len(new))` — a exigência de evidência
+nunca ultrapassa a evidência que **pode** existir. É a generalização da isenção que a função já dava
+a `prev` vazio ("não há histórico contra o que comparar"). O parâmetro continua valendo integralmente
+quando a evidência existia e não bastou.
+
+*Não-regressão:* (a) `min_overlap=0` não passa pelo teto — caminho legado intocado, replay congelado
+segue byte-idêntico; (b) a fronteira **k=9** é preservada, pois com `prev`=16 e janela 12 o teto é
+inerte (`min(3,16,12) = 3`) — a matriz `k=0..11` continua verde; (c) 6 testes novos, todos validados
+por **mutação**: substituir o teto por `pass` mata os 6.
+
+**J.2 [MÉDIA] — a branch de `phase_ambiguo_total` tinha cobertura ilusória.**
+`test_metrica_ambigua_incrementa_no_handler` usava uma janela sem NENHUM alinhamento posicional
+(`ambiguous=False`) e afirmava apenas `phase_uncertain_total >= 1`, que o caminho pré-existente já
+satisfazia — apagar a branch nova deixaria a suíte verde. Reescrito para um caso que **alinha**
+(k=9 com m=1 de 3 possíveis) e afirma `phase_ambiguo_total == 1`.
+
+**J.3 [BAIXA] — `handle_initial_history` não limpava `_last_accept_srv_mono`.**
+`handle_history_correction` e `handle_new_session` já o faziam; o histórico inicial é a mesma
+descontinuidade e ficara com tratamento assimétrico — um giro aceito ANTES do histórico podia barrar,
+por até `SDA_MIN_SPIN_INTERVAL_MS`, o primeiro giro ao vivo depois dele. Corrigido.
+
+**Validação pós-correção.** Suíte completa **890 passed, 9 skipped, 1 xfailed** (+7 testes de
+regressão sobre os 883 do corpo deste ADENDO; baseline do sprint era 796/9/1).
+`tools/lint_silent_except.py` OK (129 `except Exception` em 12 arquivos, nenhum novo). Replay
+congelado verde: a correção **não** alterou o comportamento com as flags OFF.
+
+**Lição para o `Manutenabilidade_iso.md` (Confiabilidade).** Um parâmetro de segurança que pede mais
+evidência do que o sistema pode produzir não endurece nada — ele **inverte** a defesa, empurrando o
+sistema para o caminho degradado justamente na janela mais frágil (logo após um reset). Todo limiar de
+evidência deve ser explicitamente limitado pela evidência disponível, e todo teste de métrica deve ser
+validado por mutação: se apagar a branch mantém a suíte verde, a cobertura é ilusória.

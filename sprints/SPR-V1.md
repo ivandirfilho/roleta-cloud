@@ -335,3 +335,34 @@ Testes: `tests/test_dir20_phase_buffer_sync.py`, `tests/test_dir21_min_spin_inte
 
 **Dívidas.** `AUTH_ENABLED=false` bloqueia o SPR-V7; `handle_history_correction` fora do `state_lock`
 (pré-existente, risco de deadlock com `handle_set_seed` — merece sprint próprio).
+
+### 2026-08-05 (adendo) · CODE-REVIEW APLICADO · Executor
+
+O subagente `code-review` devolveu 3 achados reais; os 3 foram corrigidos ANTES do PR.
+
+1. **[ALTA] `min_overlap` insatisfazível com histórico curto** (`state/phase.py`). `m` é limitado por
+   `min(len(prev), len(new))`, logo exigir 3 quando só existem 1-2 números tornava a condição
+   IMPOSSÍVEL e transformava um alinhamento perfeito e ÚNICO em `phase_uncertain` — que aciona a
+   DIR17 e re-ancora a fase na direção do CLIENTE, exatamente o vetor que a B2 existe para fechar.
+   Disparava nos giros #2 e #3 depois de TODO `nova_sessao` (o `_phase_results` acabou de ser
+   zerado) e com janelas curtas do cliente. **Correção:** teto
+   `min_overlap = min(min_overlap, len(prev), len(new))` — a exigência de evidência nunca passa da
+   evidência que PODE existir; é a mesma isenção que já valia para `prev` vazio, generalizada.
+   Não afeta o caminho legado (`min_overlap=0`) nem a fronteira k=9 (com `prev`=16 e janela 12 o
+   teto é inerte: `min(3,16,12)=3`). 6 testes novos, todos validados por mutação (remover o teto
+   mata os 6).
+2. **[MÉDIA] Branch de `phase_ambiguo_total` sem cobertura real.** O teste antigo usava uma janela
+   SEM nenhum alinhamento (`ambiguous=False`) e só afirmava `phase_uncertain_total >= 1`, que o
+   caminho pré-existente já satisfazia — apagar a branch nova deixaria a suíte verde. Reescrito
+   para um caso que ALINHA (k=9, m=1 de 3 possíveis) e afirma `phase_ambiguo_total == 1`.
+3. **[BAIXA] `handle_initial_history` não limpava `_last_accept_srv_mono`**, ao contrário de
+   `handle_history_correction` e `handle_new_session`. Mesma descontinuidade, tratamento assimétrico:
+   um giro aceito ANTES do histórico podia barrar, por até `SDA_MIN_SPIN_INTERVAL_MS`, o primeiro
+   giro ao vivo depois dele. Corrigido.
+
+**Validação pós-correção.** Suíte completa **890 passed, 9 skipped, 1 xfailed** (+7 testes de
+regressão). `tools/lint_silent_except.py` OK (129/12, sem novos). Replay congelado continua
+byte-idêntico com as flags OFF — a correção não alterou o caminho legado.
+
+**Arquivos do adendo.** `state/phase.py`, `server/message_handler.py`,
+`tests/test_dir22_alternancia_metrica.py`, `tests/test_dir23_seed_authority.py`.
