@@ -2846,10 +2846,10 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 
 | Flag | Bloco | O que faz | Ligar quando |
 |---|---|---|---|
-| `SDA_PHASE_BUFFER_SYNC` | B1 | `GameState.sync_phase_buffer()` espelha no `_phase_results` os números recuperados no gap; limpa o buffer na correção de histórico. | **1º** — maior ganho, menor risco. |
-| `SDA_PHASE_MIN_OVERLAP` | B2 | Evidência mínima para aceitar um shift (`reconcile_shift`/`phase_advance_ex`); recusa também `k` ambíguo em sequências periódicas. Sugestão: `3`. | 2º, depois do B1 estabilizar. |
-| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | 3º, com métrica observada. |
-| `SDA_PHASE_ALT_METRIC` | B5 | Métrica de alternância (`alternancia_violada_total`). Puramente observável. | Pode ir junto com o B1. |
+| `SDA_PHASE_BUFFER_SYNC` | B1 | `GameState.sync_phase_buffer()` espelha no `_phase_results` os números recuperados no gap; limpa o buffer na correção de histórico. | **Passo 2** — maior ganho, menor risco. Junto com o B5. |
+| `SDA_PHASE_MIN_OVERLAP` | B2 | Evidência mínima para aceitar um shift (`reconcile_shift`/`phase_advance_ex`); recusa também `k` ambíguo em sequências periódicas. Sugestão: `3`. | **Passo 3**, depois do B1 estabilizar. |
+| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | **Passo 5 — por último**, só depois da extensão V2 instalada e confirmada (ver I.4). |
+| `SDA_PHASE_ALT_METRIC` | B5 | Métrica de alternância (`alternancia_violada_total`). Puramente observável. | **Passo 2**, junto com o B1. |
 
 Sem flag (aditivos ou fail-close): role-gate MASTER, `_apply_seed` como caminho único, preservação de lock em `set_seed`, reprojeção da âncora do operador na re-ancoragem, fail-close da visão, bloco `phase_authority` no overlay, 4 contadores + 4 gauges + 3 alertas.
 
@@ -2910,7 +2910,17 @@ Com as 4 flags OFF: `final_action`, cobertura (`sda_numbers`/`sda_centers`), sta
 1. **INV-3 intacto:** nada aqui toca decisão, cobertura ou stake. A estratégia continua sempre indicando `APOSTAR`; nenhum caminho novo suprime indicação. Provado campo a campo pelo replay.
 2. **Round-trip preservado:** os campos da âncora (`seed_parity`/`seed_n`/`direction_source`/`direction_locked`) continuam em `save()`/`load()`/`reset_session()`; a única exceção é a do item G.1, documentada e testada.
 3. **Sem migração de schema** — nenhuma mudança em banco.
-4. **Ordem de ativação em produção:** `SDA_PHASE_BUFFER_SYNC=1` + `SDA_PHASE_ALT_METRIC=1` → observar `roleta_phase_uncertain_total` cair e `roleta_alternancia_violada_total` em 0 → `SDA_PHASE_MIN_OVERLAP=3` → `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+4. **Ordem de ativação em produção (corrigida pelo Diretor, 05/08 — o gate temporal é o ÚLTIMO passo):**
+   (1) merge/deploy com as flags novas **OFF**; (2) `SDA_PHASE_BUFFER_SYNC=1` + `SDA_PHASE_ALT_METRIC=1`
+   → observar `roleta_phase_uncertain_total` cair e `roleta_alternancia_violada_total` em 0;
+   (3) `SDA_PHASE_MIN_OVERLAP=3` → observar `roleta_phase_ambiguo_total`; (4) **instalar/recarregar a
+   extensão 3.10.0 do SPR-V2** e confirmar `phase_authority` + telemetria no cliente; (5) **só então**
+   `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+   **Por que o gate temporal vem por último:** ele faz o servidor *rejeitar* o giro fantasma, mas um
+   cliente antigo **não desfaz o flip local** — servidor correto e popup/local phase espelhado. Reverter
+   o flip rejeitado é a razão de existir do SPR-V2, então ligar o gate antes da extensão abre
+   exatamente a janela de divergência que o V1 foi escrito para fechar. A versão anterior deste item
+   listava o gate no 3º lugar; estava invertida em relação ao risco operacional.
 5. **Rollback:** cada flag volta a `0` no host + redeploy (efeito imediato, leitura por chamada). O fail-close da visão e o role-gate revertem só por `git revert`.
 6. **`promtool` indisponível na máquina do executor:** `obs/alerts.yml` foi validado por parse YAML + checagem estrutural (todo `rule` com `alert`/`expr`/`labels`/`annotations`) — 4 grupos, 21 regras. **Validar com `promtool check rules` no CI/host antes de aplicar.**
 
@@ -3006,9 +3016,19 @@ invariante estrutural — qualquer mudança futura em `target_direction` a quebr
 virou asserção E2E.
 
 **Semântica de `enabled` = `SDA_SENTIDO_AUTORITATIVO AND SDA_PHASE_BUFFER_SYNC`** — as quatro
-combinações estão cobertas, inclusive as parciais. Consequência operacional: **ligar só
-`SDA_PHASE_BUFFER_SYNC` não acende o V2**; e desligar qualquer uma das duas **desarma o consumidor
-sozinho**, sem tocar na extensão instalada. É o rollback de um comando que o rollout assume.
+combinações estão cobertas, inclusive as parciais. Duas consequências operacionais, e a primeira
+**corrige uma imprecisão da redação anterior deste parágrafo**:
+
+- **Quem acende a capability, na prática, é o passo 2 do runbook.** `SDA_SENTIDO_AUTORITATIVO` já é
+  **default-ON** na compose (`SDA_SENTIDO_AUTORITATIVO:-1`), então ligar `SDA_PHASE_BUFFER_SYNC=1`
+  basta para `enabled` virar `true` em produção. A redação anterior — "ligar só `SDA_PHASE_BUFFER_SYNC`
+  não acende o V2" — só valeria num host com a autoridade desligada, que não é o estado de produção.
+  Isso importa porque é o que garante que a capability já esteja publicada quando a extensão for
+  instalada no passo 4: o operador consegue **confirmar** o `phase_authority` no `state_sync`, em vez
+  de instalar às cegas.
+- **O rollback continua sendo de um comando.** Desligar **qualquer uma** das duas desarma o consumidor
+  sozinho, sem tocar na extensão instalada — é o que o runbook assume como saída de emergência,
+  inclusive depois do passo 4.
 
 **Validação por mutação** (a cobertura foi provada, não presumida): remover o merge do overlay no
 `websocket.py` mata 1 teste; trocar `enabled` por `int(...)` mata 6; inverter a projeção de `direction`

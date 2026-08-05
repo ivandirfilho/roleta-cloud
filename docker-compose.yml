@@ -194,6 +194,10 @@ services:
       # real cicla em ~42-48s; um giro que chega antes disso e fisicamente impossivel
       # e so serve para avancar spin_seq e flipar a fase. Sugestao de producao: 15000
       # (folga de 3x sobre o pior caso legitimo). 0 = desligado.
+      # LIGAR POR ULTIMO - so DEPOIS da extensao 3.10.0 (SPR-V2) instalada e confirmada.
+      # Motivo: o gate faz o SERVIDOR rejeitar o giro fantasma, mas um cliente antigo NAO
+      # desfaz o flip local - servidor certo e popup/local phase espelhado. Reverter esse
+      # flip rejeitado e a razao de existir do V2. Ver o runbook em sprints/SPR-V1.md.
       # Rollback: SDA_MIN_SPIN_INTERVAL_MS=0.
       - SDA_MIN_SPIN_INTERVAL_MS=${SDA_MIN_SPIN_INTERVAL_MS:-0}
       # B5 — DIR22: metrica de alternancia (alternancia_violada_total). A fase e um
