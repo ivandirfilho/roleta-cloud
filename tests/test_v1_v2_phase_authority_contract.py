@@ -110,7 +110,14 @@ def test_state_sync_do_heartbeat_entrega_phase_authority(monkeypatch):
 # ---------------------------------------------------------------------- schema/tipos
 
 def test_campos_consumidos_pelo_v2_existem_sempre():
-    """Presentes com e sem âncora — o ACK do V2 depende disso no estado frio."""
+    """Presentes com e sem âncora — o ACK do V2 depende disso no estado frio.
+
+    Chave AUSENTE e chave `null` falham de formas diferentes, e só esta asserção pega o
+    primeiro caso: `Number(undefined)` é `NaN`, o passo de ACK é pulado inteiro e
+    `paAwaitingAck` fica preso em `true`, congelando a reconciliação contínua (que é
+    guardada por `!d.paAwaitingAck`). O caso `null` está coberto em
+    `test_sem_ancora_direction_null_mas_spin_seq_vivo`.
+    """
     for gs in (_ancorada(), GameState()):
         pa = _pa(gs)
         for campo in V2_CAMPOS_CONSUMIDOS:
@@ -161,7 +168,9 @@ def test_sem_ancora_direction_null_mas_spin_seq_vivo():
 
     `normalizePhaseDir(null)` devolve `null` e o V2 pula o desfazer-flip; já a
     heurística de ACK precisa de `spin_seq` para saber se o giro foi contado. Publicar
-    `null` aqui também seria um furo — o V2 marcaria todo giro como rejeitado.
+    `null` aqui também seria um furo, e silencioso: `Number(null) === 0` é finito, então
+    o contador congelaria em 0, `paSeq === paSeqBeforeSend` valeria sempre e o V2
+    marcaria TODO giro como rejeitado.
     """
     pa = _pa(GameState())
     assert pa["direction"] is None

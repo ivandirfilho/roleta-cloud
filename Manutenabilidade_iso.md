@@ -2994,7 +2994,8 @@ são publicados e hoje ignorados: campos extras são inertes para o V2.
 | `enabled` deixar de ser booleano estrito | o V2 compara `pa.enabled === true`; um `1` inteiro desarma tudo | asserção sobre o JSON serializado (`"enabled": true`) |
 | Vocabulário de `direction` mudar | `normalizePhaseDir` devolve `null` e o desfazer-flip vira no-op | matriz paridade x `spin_seq` -> `cw`/`ccw` |
 | `phase_authority.direction` divergir de `sentido.next_direction` | o V2 usa as **duas** fontes no mesmo payload: desfaz o flip para uma direção e reconcilia para a outra, **oscilando a cada heartbeat** | 6 giros E2E comparando os dois blocos do mesmo overlay |
-| `spin_seq` sumir quando não há âncora | a heurística de ACK do V2 marcaria **todo** giro como rejeitado | asserção explícita no estado sem âncora |
+| `spin_seq` virar `null` quando não há âncora | `Number(null) === 0`: o contador congela em 0, `paSeq === paSeqBeforeSend` sempre, e o V2 marca **todo** giro como rejeitado | asserção explícita no estado sem âncora |
+| a chave `spin_seq` **sumir** do bloco | sintoma DIFERENTE do `null`: `Number(undefined)` é `NaN`, o passo de ACK é pulado inteiro e `paAwaitingAck` fica preso em `true` — a reconciliação contínua **congela** | `test_campos_consumidos_pelo_v2_existem_sempre` (com e sem âncora) |
 
 **A divergência que NÃO existe (e por que é frágil).** `sentido.next_direction` é `target_direction`,
 o *toggle* sobre `last_direction`; `phase_authority.direction` é a *projeção determinística* da âncora.
