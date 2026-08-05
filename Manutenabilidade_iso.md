@@ -2966,3 +2966,58 @@ evidência do que o sistema pode produzir não endurece nada — ele **inverte**
 sistema para o caminho degradado justamente na janela mais frágil (logo após um reset). Todo limiar de
 evidência deve ser explicitamente limitado pela evidência disponível, e todo teste de métrica deve ser
 validado por mutação: se apagar a branch mantém a suíte verde, a cobertura é ilusória.
+
+### K. Contrato `phase_authority` — validação integrada com o SPR-V2 (produtor x consumidor)
+
+O SPR-V2 foi mergeado na `main` (PR #52, merge `1bc45b7`) **antes** deste PR, e a extensão passou a
+consumir o bloco `phase_authority` que este sprint publica. Os dois lados vivem em linguagens e
+repositórios de teste distintos (Python e JS) e, até aqui, **nenhum teste os amarrava**: os testes do
+V1 conferiam o schema do produtor isoladamente e os do V2 usavam fixtures escritas à mão. Um contrato
+verificado só por convenção humana dos dois lados é um contrato não verificado.
+
+**Rebase.** Branch rebaseada sobre `origin/main` já contendo o V2 — **sem conflitos**. O único arquivo
+tocado pelos dois sprints é este `Manutenabilidade_iso.md`, e os adendos são apêndices em pontos
+distintos. Diff final não remove nem regride nada do V2 (`extension/`, `tests/js/`,
+`.github/workflows/ci.yml`, `sprints/SPR-V2.md` e `tests/test_dir13_lock_total.py` idênticos à `main`).
+
+**Veredito: compatível, sem correção de escopo necessária.** O consumidor
+(`extension/background.js::handleStateSyncPhase`) lê exatamente três campos — `enabled`, `direction` e
+`spin_seq` — e todos casam com o produtor (`GameState.engine_overlay_fields`). `seed_parity`/`seed_n`
+são publicados e hoje ignorados: campos extras são inertes para o V2.
+
+**Riscos reais que a auditoria encontrou e que agora estão travados por teste**
+(`tests/test_v1_v2_phase_authority_contract.py`, 14 testes):
+
+| Risco | Por que é silencioso | Guarda |
+|---|---|---|
+| Perder o `update(engine_overlay_fields())` em `server/websocket.py` | `pa` chega `undefined`, `paEnabled` vira `false` e a reconciliação do V2 apenas **para** — sem erro em lugar nenhum | heartbeat real executado; asserção sobre `state_sync.data` |
+| `enabled` deixar de ser booleano estrito | o V2 compara `pa.enabled === true`; um `1` inteiro desarma tudo | asserção sobre o JSON serializado (`"enabled": true`) |
+| Vocabulário de `direction` mudar | `normalizePhaseDir` devolve `null` e o desfazer-flip vira no-op | matriz paridade x `spin_seq` -> `cw`/`ccw` |
+| `phase_authority.direction` divergir de `sentido.next_direction` | o V2 usa as **duas** fontes no mesmo payload: desfaz o flip para uma direção e reconcilia para a outra, **oscilando a cada heartbeat** | 6 giros E2E comparando os dois blocos do mesmo overlay |
+| `spin_seq` sumir quando não há âncora | a heurística de ACK do V2 marcaria **todo** giro como rejeitado | asserção explícita no estado sem âncora |
+
+**A divergência que NÃO existe (e por que é frágil).** `sentido.next_direction` é `target_direction`,
+o *toggle* sobre `last_direction`; `phase_authority.direction` é a *projeção determinística* da âncora.
+São dois códigos independentes que coincidem por um motivo específico: com `SDA_SENTIDO_AUTORITATIVO=1`
+o servidor grava em `last_direction` a projeção do giro `n`, e `opposite(proj(n)) == proj(n+1)`
+reencontra a projeção em `spin_seq`. Essa igualdade é um **acidente feliz do estado atual**, não uma
+invariante estrutural — qualquer mudança futura em `target_direction` a quebraria em silêncio. Por isso
+virou asserção E2E.
+
+**Semântica de `enabled` = `SDA_SENTIDO_AUTORITATIVO AND SDA_PHASE_BUFFER_SYNC`** — as quatro
+combinações estão cobertas, inclusive as parciais. Consequência operacional: **ligar só
+`SDA_PHASE_BUFFER_SYNC` não acende o V2**; e desligar qualquer uma das duas **desarma o consumidor
+sozinho**, sem tocar na extensão instalada. É o rollback de um comando que o rollout assume.
+
+**Validação por mutação** (a cobertura foi provada, não presumida): remover o merge do overlay no
+`websocket.py` mata 1 teste; trocar `enabled` por `int(...)` mata 6; inverter a projeção de `direction`
+mata 6. Fontes restauradas e `git diff` limpo após cada mutação.
+
+**Suítes.** Python **904 passed, 9 skipped, 1 xfailed** (+14 sobre os 890 do §J).
+JS do V2 **53 passed** (`node --test "tests/js/*.test.js"`). `lint_silent_except` OK.
+
+**Lição (Manutenabilidade / Confiabilidade).** Contrato entre componentes que não compartilham suíte é
+contrato não verificado — cada lado testa a própria fixture e os dois passam enquanto o sistema
+integrado está quebrado. Todo bloco publicado para um consumidor externo precisa de um teste que
+execute o **canal real** de ponta a ponta e afirme **tipo, vocabulário e coerência com os blocos
+vizinhos do mesmo payload**, não apenas a presença da chave.

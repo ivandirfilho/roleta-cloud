@@ -389,3 +389,25 @@ neste PR: **53 passed** local e no CI. PR #53 com todos os checks verdes
 **Ordem de rollout (inalterada, confirmada com o Diretor):** flags do V1 no host **antes** da
 instalação/reload da extensão 3.10.0 do V2. O servidor endurecido precisa estar de pé quando os
 clientes novos chegarem — não o contrário.
+
+### Adendo — contrato `phase_authority` validado contra o SPR-V2 (consumidor)
+
+Follow-up do Diretor após o merge do SPR-V2 (PR #52, `1bc45b7`). Branch rebaseada sobre `origin/main`
+**sem conflitos**; V2 preservado integralmente (`extension/`, `tests/js/`, `.github/workflows/ci.yml`,
+`sprints/SPR-V2.md`, `tests/test_dir13_lock_total.py` idênticos à `main`).
+
+**Veredito: schema compatível, nenhuma correção de escopo necessária.** O V2 consome três campos
+(`enabled`, `direction`, `spin_seq`) e todos casam com o produtor. O que faltava era a *amarra*: até
+aqui o V1 testava o schema isolado e o V2 usava fixtures escritas à mão, sem nada garantindo que os
+dois lados falassem a mesma língua.
+
+Novo `tests/test_v1_v2_phase_authority_contract.py` (14 testes) fecha isso executando o **canal real**
+(`broadcast_heartbeat` -> `state_sync.data`, exatamente onde o V2 lê) e travando: booleano estrito no
+JSON (`pa.enabled === true`), vocabulário `cw`/`ccw`, `spin_seq` vivo mesmo sem âncora (a heurística de
+ACK depende disso), as 4 combinações de flags e — o achado mais relevante — a **coerência entre
+`phase_authority.direction` e `sentido.next_direction`**: o V2 usa as duas fontes no mesmo payload, e
+uma divergência o faria oscilar a cada heartbeat. Elas coincidem por um acidente feliz do estado atual
+(`opposite(proj(n)) == proj(n+1)`), não por invariante estrutural — daí a asserção E2E.
+
+Cobertura provada por mutação: remover o merge do overlay mata 1 teste, `enabled` como `int` mata 6,
+inverter a projeção mata 6. Suítes: Python **904/9/1**, JS do V2 **53 passed**, lint OK.
