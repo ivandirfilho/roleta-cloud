@@ -27,8 +27,11 @@ def test_engine_overlay_fields_inclui_sentido():
     assert sentido["source"] == "operator_seed"
     assert sentido["locked"] is False
     assert "stats" in sentido
+    # SPR-V1 (05/08): 4 chaves novas (buffer/ambiguidade/plausibilidade/alternancia).
     assert set(sentido["stats"].keys()) == {
-        "gap_recuperado_total", "phase_uncertain_total", "direction_divergence_total"
+        "gap_recuperado_total", "phase_uncertain_total", "direction_divergence_total",
+        "phase_buffer_missing_total", "phase_ambiguo_total",
+        "spin_implausivel_total", "alternancia_violada_total",
     }
 
 
