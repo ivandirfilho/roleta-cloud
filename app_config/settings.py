@@ -157,6 +157,40 @@ def bet_pair_mode() -> str:
     return v if v in ("full", "var_c1c2_c3", "c1c3", "c2c3", "force17", "v5_1721") else "full"
 
 
+def v5_sig4_enabled() -> bool:
+    """V5.1 "assinatura-4" (05/08 — spec exata do operador). **Default OFF**.
+
+    Com `SDA_V5_SIG4=1`, o composer v5_1721 muda para a spec revisada:
+      R1 = cluster gravidade-7 das últimas **4** forças do sentido-alvo (era 8);
+      R2 = **projeção de tendência** — o MESMO centro R1 deslocado por
+           clamp(round(slope Theil–Sen janela 4), ±8) casas de força
+           (acelerando → adiante; freando → atrás; era "2º cluster do resíduo");
+      R3 = região **menos visitada** da divisão FIXA da roda em 6 regiões
+           (5×6 + 1×7, ordem física), placar contando TODOS os giros dos DOIS
+           sentidos (era zona fria heatmap de 12 do mesmo sentido).
+    Geometria/seletor 17↔21 intactos (mesmos centros, C17 ⊂ C21).
+    OFF = composer v5_1721 byte-idêntico ao go-live 04/08.
+    Rollback: SDA_V5_SIG4=0 no host + redeploy. Lido por chamada (não cacheado).
+    """
+    import os
+    return os.environ.get("SDA_V5_SIG4", "0").strip().lower() in ("1", "true", "on")
+
+
+def sugestao_broadcast_enabled() -> bool:
+    """Broadcast da mensagem `sugestao` a TODOS os clientes. **Default OFF**.
+
+    Hoje a `sugestao` por-giro vai SÓ ao websocket do MASTER; viewers/Glass Box
+    dependem do state_sync (1 s) — a vista EXPANDIDA de um viewer nunca recebe
+    a sugestão por-giro (gap de UX percebido como "sugestão sumiu na rodada").
+    Com `SDA_SUGESTAO_BROADCAST=1`, o servidor REPLICA a mesma `sugestao` aos
+    demais clientes conectados (master continua recebendo a dele primeiro; a
+    cópia broadcast o exclui — zero duplicação). Aditivo: clientes ignoram
+    mensagens desconhecidas. Rollback: =0 + redeploy. Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_SUGESTAO_BROADCAST", "0").strip().lower() in ("1", "true", "on")
+
+
 def force17_exact_enabled() -> bool:
     """force17: completa a cobertura para EXATAMENTE 17 números. **Default OFF**
     (18/06, tarde — realinhado ao estudo).

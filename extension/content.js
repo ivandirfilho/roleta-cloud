@@ -35,6 +35,22 @@ function centrosFromSugestao(s) {
   return s.centro != null ? [s.centro] : [];
 }
 
+// === V5.1 (05/08): badge circular do modo 17/21 — "verde brilhante", MESMA
+// fonte/tamanho/cor nos dois valores; menor que os números dos 3 centros.
+// O operador lê: ⑰ = apostar cobertura 17, ㉑ = apostar cobertura 21.
+function buildModeBadge(mode, size) {
+  if (mode !== 17 && mode !== 21) return '';
+  const d = size || 22;
+  const fs = Math.round(d * 0.5);
+  return `<span class="eb-v5-badge" title="Modo V5: apostar ${mode} números" style="`
+    + `display:inline-flex;align-items:center;justify-content:center;`
+    + `width:${d}px;height:${d}px;border-radius:50%;flex:0 0 auto;`
+    + `border:2px solid #39ff14;color:#39ff14;font-size:${fs}px;font-weight:bold;`
+    + `line-height:1;box-shadow:0 0 6px rgba(57,255,20,0.65);`
+    + `text-shadow:0 0 4px rgba(57,255,20,0.8);align-self:center;`
+    + `margin:0 4px;">${mode}</span>`;
+}
+
 // === force17/v5 (18/06, V5 04/08): 3 regiões rotuladas + números cobertos ===
 // Cada centro de região exibe o número grande e, EMBAIXO, um rótulo pequeno
 // (c2/c3/c1 no force17; r1/r2/r3 no V5) indicando a indicação de origem.
@@ -45,8 +61,10 @@ function buildForce17HTML(sugestao) {
   const coverageN = f17.coverage_n || numeros.length;
   const bias = f17.dir_bias === 'favoravel' ? '✅ favorável'
              : (f17.dir_bias === 'desfavoravel' ? '⚠️ desfavorável' : '');
-  // V5: badge do modo do seletor (17/21) quando presente no payload (aditivo).
-  const v5badge = f17.v5_mode ? ` · V5·${f17.v5_mode}#` : '';
+  // V5.1 (05/08): modo do seletor vira badge CIRCULAR verde na linha dos centros
+  // (spec do operador). Mantém marcador curto no header p/ auditoria textual.
+  const v5badge = f17.v5_mode ? ` · V5` : '';
+  const modeBadge = buildModeBadge(f17.v5_mode, 22);
   const centrosHTML = regioes.map(r => {
     const cls = 'eb-rc-' + (r.label || 'reg');  // c1/c2/c3 ou r1/r2/r3 (payload-driven)
     const warming = (r.status === 'aquecendo') ? '<span style="font-size:9px;"> ⏳</span>' : '';
@@ -65,7 +83,7 @@ function buildForce17HTML(sugestao) {
   const header = `<div class="eb-regioes-head" style="font-size:10px;opacity:0.75;margin-bottom:3px;">`
     + `🎯 ${regLabel} · ${coverageN} números${v5badge}${bias ? ' · ' + bias : ''}</div>`;
   return header
-    + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}</div>`
+    + `<div class="eb-regioes-row" style="display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap;">${centrosHTML}${modeBadge}</div>`
     + numerosHTML;
 }
 
@@ -888,7 +906,12 @@ function handleStateSync(data) {
       }
       if (status && centros.length) {
         const centroDisplay = buildCentroHTML(centros);
-        status.innerHTML = `${centroDisplay} ${data.gale_display || 'G1 0/0'}`;
+        // V5.1: badge 17/21 também no minimizado (fonte: sugestão > state_sync).
+        const v5m = (overlayState.lastSugestao && overlayState.lastSugestao.force17
+                     && overlayState.lastSugestao.force17.v5_mode)
+                  || (data.force17 && data.force17.v5_mode) || null;
+        const miniBadge = buildModeBadge(v5m, 16);
+        status.innerHTML = `${centroDisplay}${miniBadge} ${data.gale_display || 'G1 0/0'}`;
         status.className = `eb-status g${data.gale_level || 1}`;
       }
     }

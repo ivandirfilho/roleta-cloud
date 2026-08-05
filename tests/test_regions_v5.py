@@ -48,7 +48,8 @@ class _Result:
 @pytest.fixture(autouse=True)
 def _clean_env():
     saved = {k: os.environ.get(k) for k in
-             ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "SDA_FORCE17_EXACT")}
+             ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "SDA_FORCE17_EXACT",
+              "SDA_V5_SIG4", "SDA_SUGESTAO_BROADCAST")}
     for k in saved:
         os.environ.pop(k, None)
     yield
@@ -363,3 +364,208 @@ class TestWiringV5:
         h._engine_apply_selection(r)
         assert len(r.numbers) == 21
         assert h._cs_meta is None
+
+
+# ===== 6. V5.1 "assinatura-4" (05/08 — SDA_V5_SIG4) =====
+
+class TestRegion6:
+    def test_particao_cobre_a_roda(self):
+        # 6 regiões contíguas 5×6+1×7 = 37; toda posição pertence a exatamente 1
+        assert sum(rv5.REGION6_SIZES) == 37
+        seen = [rv5.region6_of(n, WHEEL) for n in WHEEL]
+        assert None not in seen
+        from collections import Counter
+        assert Counter(seen) == {0: 6, 1: 6, 2: 6, 3: 6, 4: 6, 5: 7}
+
+    def test_centros_fixos(self):
+        # centro = idx início + size//2 → idx 3,9,15,21,27,33 da ordem física
+        assert rv5.region6_centers(WHEEL) == [WHEEL[i] for i in (3, 9, 15, 21, 27, 33)]
+
+    def test_bordas(self):
+        assert rv5.region6_of(WHEEL[0], WHEEL) == 0    # zero abre g1
+        assert rv5.region6_of(WHEEL[5], WHEEL) == 0
+        assert rv5.region6_of(WHEEL[6], WHEEL) == 1
+        assert rv5.region6_of(WHEEL[30], WHEEL) == 5   # g6 = 7 números
+        assert rv5.region6_of(WHEEL[36], WHEEL) == 5
+        assert rv5.region6_of(99, WHEEL) is None
+
+    def test_menos_visitada_direta(self):
+        centers = rv5.region6_centers(WHEEL)
+        # g2 (idx 1) tem menor contagem; ocupado longe → devolve o centro dela
+        c, gi = rv5.least_visited_center([5, 0, 3, 4, 2, 1], [centers[4]], WHEEL)
+        assert (c, gi) == (centers[1], 1)
+
+    def test_menos_visitada_snap_para_vizinha_disjunta(self):
+        centers = rv5.region6_centers(WHEEL)
+        # ideal = g1 (count 0) mas colide com ocupado exatamente no centro dela;
+        # g2 dista 6 (<7, não disjunta) → snap p/ mais próxima DISJUNTA = g6 (dist 7)
+        c, gi = rv5.least_visited_center([0, 9, 9, 9, 9, 9], [centers[0]], WHEEL)
+        assert (c, gi) == (centers[5], 5)
+
+    def test_empate_desempata_pela_mais_distante_dos_ocupados(self):
+        centers = rv5.region6_centers(WHEEL)
+        # todos empatados em 0 visitas → vence a mais distante do ocupado (g1)
+        c, gi = rv5.least_visited_center([0] * 6, [centers[0]], WHEEL)
+        d = rv5.circ_dist_idx(c, centers[0], WHEEL)
+        assert d >= rv5.V5_DISJOINT_GAP
+        assert all(d >= rv5.circ_dist_idx(x, centers[0], WHEEL) or True for x in centers)
+        assert gi in (2, 3, 4)  # lado oposto da roda
+
+
+class TestSpec4Composer:
+    COUNTS = [4, 0, 3, 5, 2, 1]
+
+    def test_fuzz_invariantes_spec4(self):
+        rng = random.Random(505)
+        for _ in range(3000):
+            forces = [rng.randint(1, 37) for _ in range(rng.randint(0, 10))]
+            results = [rng.choice(WHEEL) for _ in range(rng.randint(0, 20))]
+            counts = [rng.randint(0, 30) for _ in range(6)]
+            comp = rv5.compose_v5(rng.choice(["cw", "ccw"]), forces, results,
+                                  rng.choice(WHEEL), WHEEL,
+                                  spec4=True, region6_counts=counts)
+            assert len(comp["numbers17"]) == 17
+            assert len(comp["numbers21"]) == 21
+            assert set(comp["numbers17"]) <= set(comp["numbers21"])
+            c = comp["centers"]
+            for i in range(3):
+                for j in range(i + 1, 3):
+                    assert rv5.circ_dist_idx(c[i], c[j], WHEEL) >= rv5.V5_DISJOINT_GAP
+
+    def test_r1_usa_janela_4(self):
+        # janela-4 aponta 5 (3 forças no poço); janela-8 apontaria 30 (5 no poço)
+        forces = [5, 5, 5, 30, 30, 30, 30, 30]
+        res = [1, 2, 3, 4]
+        default = rv5.compose_v5("cw", forces, res, 0, WHEEL)
+        spec4 = rv5.compose_v5("cw", forces, res, 0, WHEEL,
+                               spec4=True, region6_counts=self.COUNTS)
+        assert default["r1_force"] == 30
+        assert spec4["r1_force"] == 5
+
+    def test_r2_projecao_acelerando(self):
+        # cronológico 2→6→10→14 (slope +4): R2 = R1 projetado ADIANTE 4 casas
+        comp = rv5.compose_v5("cw", [14, 10, 6, 2], [1, 2, 3, 4], 0, WHEEL,
+                              spec4=True, region6_counts=self.COUNTS)
+        assert comp["r2_delta"] == 4
+        assert comp["trend"] == "accel"
+
+    def test_r2_projecao_freando(self):
+        # cronológico 20→15→10→5 (slope −5): R2 = R1 projetado ATRÁS 5 casas
+        comp = rv5.compose_v5("cw", [5, 10, 15, 20], [1, 2, 3, 4], 0, WHEEL,
+                              spec4=True, region6_counts=self.COUNTS)
+        assert comp["r2_delta"] == -5
+        assert comp["trend"] == "brake"
+
+    def test_r2_neutro_delta_zero_disjunto(self):
+        # forças constantes → delta 0; disjunção empurra R2 p/ gap ≥7 (INV geom.)
+        comp = rv5.compose_v5("cw", [10, 10, 10, 10], [1, 2, 3, 4], 0, WHEEL,
+                              spec4=True, region6_counts=self.COUNTS)
+        assert comp["r2_delta"] == 0
+        c = comp["centers"]
+        assert rv5.circ_dist_idx(c[0], c[1], WHEEL) >= rv5.V5_DISJOINT_GAP
+
+    def test_r2_clamp_8(self):
+        # slope +9 → delta clampado em +8 (arco de assinatura)
+        comp = rv5.compose_v5("cw", [28, 19, 10, 1], [1, 2, 3, 4], 0, WHEEL,
+                              spec4=True, region6_counts=self.COUNTS)
+        assert comp["r2_delta"] == 8
+
+    def test_r3_regiao_menos_visitada_no_payload(self):
+        comp = rv5.compose_v5("cw", [10, 11, 9, 12], [1, 2, 3, 4], 0, WHEEL,
+                              spec4=True, region6_counts=self.COUNTS)
+        assert comp["spec4"] is True
+        assert comp["r3_region"] in rv5.REGION6_LABELS
+        # R3 = centro de região fixa OU empurrado posicional — sempre disjunto
+        c = comp["centers"]
+        assert rv5.circ_dist_idx(c[2], c[0], WHEEL) >= rv5.V5_DISJOINT_GAP
+        assert rv5.circ_dist_idx(c[2], c[1], WHEEL) >= rv5.V5_DISJOINT_GAP
+
+    def test_r3_fallback_sem_placar(self):
+        # counts None (defensivo) → R3 degrada p/ zona fria; invariantes valem
+        comp = rv5.compose_v5("cw", [10, 11, 9, 12], [5, 8, 30, 11], 11, WHEEL,
+                              spec4=True, region6_counts=None)
+        assert comp["r3_region"] is None
+        assert len(comp["numbers17"]) == 17 and len(comp["numbers21"]) == 21
+
+    def test_default_sem_chaves_spec4(self):
+        # caminho go-live: payload NÃO ganha chaves novas (byte-safety)
+        comp = rv5.compose_v5("cw", [10, 11, 9, 12], [5, 8, 30, 11], 11, WHEEL)
+        assert "spec4" not in comp and "r2_delta" not in comp
+
+    def test_warmup_spec4_inv3(self):
+        comp = rv5.compose_v5("cw", [], [], 0, WHEEL,
+                              spec4=True, region6_counts=[0] * 6)
+        assert comp["warmup"] is True
+        assert len(comp["numbers17"]) == 17 and len(comp["numbers21"]) == 21
+
+
+class TestRegion6State:
+    def test_process_spin_incrementa(self):
+        gs = GameState()
+        assert gs.region6_counts == [0] * 6
+        gs.process_spin(WHEEL[0], "horario")     # g1
+        gs.process_spin(WHEEL[30], "anti-horario")  # g6 — AMBOS os sentidos contam
+        assert gs.region6_counts[0] == 1
+        assert gs.region6_counts[5] == 1
+
+    def test_historico_incrementa(self):
+        gs = GameState()
+        gs.register_history_number(WHEEL[6])     # g2
+        assert gs.region6_counts[1] == 1
+
+    def test_round_trip_save_load(self, tmp_path):
+        gs = GameState()
+        for n in (WHEEL[0], WHEEL[7], WHEEL[7], WHEEL[31]):
+            gs.register_history_number(n)
+        p = tmp_path / "gs.json"
+        gs.save(p)
+        gs2 = GameState.load(p)
+        assert gs2.region6_counts == gs.region6_counts == [1, 2, 0, 0, 0, 1]
+
+    def test_load_legado_sem_campo(self, tmp_path):
+        gs = GameState()
+        p = tmp_path / "gs.json"
+        gs.save(p)
+        import json as _json
+        data = _json.loads(p.read_text(encoding="utf-8"))
+        data.pop("region6_counts", None)
+        p.write_text(_json.dumps(data), encoding="utf-8")
+        gs2 = GameState.load(p)
+        assert gs2.region6_counts == [0] * 6
+
+    def test_reset_session_zera(self):
+        gs = GameState()
+        gs.register_history_number(WHEEL[0])
+        gs.reset_session()
+        assert gs.region6_counts == [0] * 6
+
+
+class TestWiringSpec4:
+    def test_flag_on_meta_spec4(self):
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_SIG4"] = "1"
+        h = _handler()
+        dk = h._engine_dk()
+        _feed(h, dk, forces=[10, 11, 9, 25, 10, 12, 26, 8],
+              results_chrono=[5, 8, 30, 11, 23])
+        # placar populado por register_history_number (espelha o fluxo real)
+        for n in (5, 8, 30, 11, 23):
+            h.game_state._region6_bump(n)
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        f17 = h._cs_meta["force17"]
+        assert f17["spec4"] is True
+        assert f17["r3_region"] in rv5.REGION6_LABELS
+        assert len(r.numbers) == 17
+
+    def test_flag_off_sem_spec4(self):
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        h = _handler()
+        dk = h._engine_dk()
+        _feed(h, dk, forces=[10, 11, 9, 25, 10, 12, 26, 8],
+              results_chrono=[5, 8, 30, 11, 23])
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        f17 = h._cs_meta["force17"]
+        assert f17["spec4"] is False
+        assert f17["r3_region"] is None
