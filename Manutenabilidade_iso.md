@@ -1392,6 +1392,63 @@ destrona o master passivo e o fluxo volta sozinho (sem restart manual). Runbook 
 
 ---
 
+## ADENDO 05/08/2026 — V5.1 "assinatura-4" (spec exata do operador) + badge circular 17/21 + broadcast da sugestão (ext 3.9.0)
+
+> Terceira rodada do ciclo V5. O dono revisou a spec estratégica dos 3 centros e pediu: (a) badge
+> **circular verde brilhante** com o modo 17/21 junto aos 3 números em TODAS as vistas; (b) diagnóstico
+> de "sugestão não aparece em toda rodada"; (c) auditoria do motor vs a spec revisada. Probes passivos
+> em produção provaram que o servidor DECIDE toda rodada (decision log contínuo, INV-3 ok) e que
+> trace/state_sync carregam o meta V5 — o gap era a msg `sugestao` ser enviada **só ao MASTER**.
+
+### A. Motor V5.1 (flag `SDA_V5_SIG4`, default OFF no código, ON na compose)
+
+| Centro | Go-live 04/08 (`spec4=False`) | V5.1 spec4 (`SDA_V5_SIG4=1`) |
+|---|---|---|
+| R1 | cluster gravidade-7, janela **8** forças do sentido | idem, janela **4** ("últimas 4 jogadas") |
+| R2 | 2º cluster do resíduo condicionado à tendência | **projeção do PRÓPRIO R1**: `r1_force + clamp(round(slope TS janela 4), ±8)` — acelerando→adiante, freando→atrás; neutro→disjunção empurra +7 |
+| R3 | zona fria (heatmap 12 do MESMO sentido) | região **menos visitada** da divisão FIXA da roda em **6 regiões** (5×6+1×7, ordem física; centros idx 3/9/15/21/27/33); sobrepôs → snap p/ região disjunta mais PRÓXIMA da indicada |
+
+- Isolamento por sentido preservado em R1/R2 (INV-1); R3 conta **ambos os sentidos** (spec do dono).
+- Placar `GameState.region6_counts` (novo campo de motor): incrementado em `process_spin` E
+  `register_history_number` (espelha `recent_results`), **round-trip completo** save/load/reset_session
+  (compat: `[0]*6` se ausente — snapshot legado não trava boot). População sempre-on e inerte;
+  o USO é flag-gated (padrão shadow DIR-x). Zero migração Alembic (snapshot JSON, não schema).
+- Caminho default (`spec4=False`) **byte-idêntico** ao go-live: fuzz 5000 iterações do 04/08 intacto.
+- Geometria/seletor intocados: mesmos raios 3/2/2 vs 3/3/3, C17 ⊂ C21, 17/21 EXATOS, LOCK17,
+  contrafactuais DNA e flip pós-miss (regra literal do dono) — nada mudou fora do composer.
+
+### B. Transporte — `SDA_SUGESTAO_BROADCAST` (default OFF, ON na compose)
+
+Causa-raiz do "sugestão some": `sugestao` ia SÓ ao websocket do master (l.1446); viewers/Glass Box
+dependiam do `state_sync` 1 Hz. Agora o handler **replica a mesma `sugestao`** aos demais clientes
+(exclui o socket do master — zero duplicata; viewer morto não trava o giro; aditivo — clientes
+antigos ignoram). Rollback: `SDA_SUGESTAO_BROADCAST=0` + redeploy.
+
+### C. UI — badge circular 17/21 (ext **3.9.0**)
+
+- `buildModeBadge()` no content.js: círculo ⌀22px (16px no minimizado), borda+texto `#39ff14` com
+  glow, MESMA fonte/tamanho/cor p/ 17 e 21 (spec do dono), menor que os números dos centros; na
+  linha dos 3 centros (expandida), no status minimizado e no Glass Box (`frontend/app.js`).
+- Fonte do valor: `force17.v5_mode` (sugestão > state_sync no minimizado). Header mantém `· V5`.
+- Manifest 3.8.0 → **3.9.0** + changelog. Operador: `git pull` no Desktop + ↻ na extensão.
+
+### D. Observabilidade
+
+Meta `force17` ganhou `spec4`/`r2_delta`/`r3_region` (aditivo — flui em sugestao/state_sync/trace
+p/ auditoria ao vivo da projeção R2 e da região fria R3 sem probe de código).
+
+### E. Regressão e arquivos
+
+- Suíte **791 passed** (+23: TestRegion6 6, TestSpec4Composer 9 c/ fuzz 3000, TestRegion6State 5,
+  TestWiringSpec4 2, manifest 3.9.0) · lint silent-except baseline atualizado (2 handlers novos
+  documentados) · CI 5/5.
+- Tocados: `strategies/regions_v5.py` (+região6/spec4), `state/game.py` (+placar), `server/message_handler.py`
+  (spec4 wiring + broadcast), `app_config/settings.py` (2 flags), `docker-compose.yml` (2 envs),
+  `extension/content.js`+`manifest.json` (badge, 3.9.0), `frontend/app.js` (badge Glass Box),
+  `tests/` (+23). Rollback integral: flags `=0` no host (~3 min) ou `git revert` do PR.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

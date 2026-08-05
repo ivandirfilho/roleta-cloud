@@ -306,3 +306,28 @@ Lista canônica = Obrigações do ADENDO 17/06 (l.235-258) + deltas 18/06 (l.460
 ---
 
 > **Pronto para execução.** Próximo comando do dono dispara: abertura dos briefs SPR-V5A/V5B (+V5C paralelo) no `sprints/BOARD.md` via Diretor e execução do SPR-V5A em worktree próprio. Nenhuma linha de código de produção foi alterada por este documento.
+
+---
+
+## 13. V5.1 "assinatura-4" (05/08 — spec exata do operador, flag `SDA_V5_SIG4`)
+
+Revisão da semântica dos 3 centros após operação real do go-live 04/08. Geometria, seletor 17↔21,
+flip pós-miss, LOCK17 e contrafactuais permanecem intactos — muda SÓ como R1/R2/R3 são escolhidos:
+
+| Pergunta do operador | Centro | Implementação (`strategies/regions_v5.py`, `spec4=True`) |
+|---|---|---|
+| "Qual a força-assinatura padrão de gravidade 7 que cobre o maior cluster das últimas forças?" | **R1** | cluster gravidade-7 de máxima cobertura nas últimas **4** forças do sentido-alvo (era 8) |
+| "O sistema está acelerando ou freando? Qual a 2ª força de gravidade 7 com maior chance dentro da variação?" | **R2** | **projeção do próprio R1**: `r1_force + clamp(round(slope Theil–Sen janela 4), ±8)` — acelerando → região adiante; freando → atrás; neutro → disjunção empurra p/ +7 |
+| "Qual região foi menos visitada?" | **R3** | região **menos visitada** da divisão FIXA da roda em 6 regiões (5×6 + 1×7, ordem física a partir do zero), placar `region6_counts` contando TODOS os giros dos DOIS sentidos + histórico |
+
+- **Isolamento por sentido (INV-1):** R1/R2 usam apenas forças do sentido da PRÓXIMA jogada;
+  R3 usa ambos os sentidos (regra explícita do dono para a região fria).
+- **Ordem e não-sobreposição:** população sempre R1 → R2 → R3; sobreposição resolve para a região
+  disjunta mais próxima da indicada (R3 usa snap entre os 6 centros fixos idx 3/9/15/21/27/33).
+- **Badge 17/21 (ext 3.9.0):** círculo verde brilhante `#39ff14` com o modo do seletor junto aos
+  3 centros nas 3 vistas (expandida/minimizada/Glass Box) — o operador sabe na hora se aposta 17 ou 21.
+- **Broadcast da sugestão (`SDA_SUGESTAO_BROADCAST`):** a msg `sugestao` por-giro agora chega a
+  viewers/Glass Box (antes só o MASTER a recebia — era o "sugestão não aparece em toda rodada").
+- **Rollback:** `SDA_V5_SIG4=0` volta o composer ao §2 byte-idêntico; `SDA_SUGESTAO_BROADCAST=0`
+  volta o transporte master-only. Ambos por-chamada, sem redeploy de imagem (só restart).
+- Detalhes de auditoria/regressão: ADENDO 05/08 em `Manutenabilidade_iso.md`.

@@ -72,6 +72,17 @@ services:
       # no decision_dna (validação §5). Anterior: force17 (união ~15, 18/06).
       # Rollback: SDA_BET_PAIR=force17 no host + redeploy (~3 min), ou git revert.
       - SDA_BET_PAIR=${SDA_BET_PAIR:-v5_1721}
+      # V5.1 "assinatura-4" (GO-LIVE 05/08) — spec exata do operador p/ o composer
+      # v5_1721: R1 = cluster gravidade-7 das últimas 4 forças do sentido-alvo;
+      # R2 = PROJEÇÃO da tendência (R1 ± clamp(round(slope TS janela 4), ±8) —
+      # acelerando adiante / freando atrás); R3 = região MENOS VISITADA da divisão
+      # fixa da roda em 6 regiões (5×6+1×7), placar de AMBOS os sentidos.
+      # Default OFF no código; ON aqui. Rollback: SDA_V5_SIG4=0 no host + redeploy.
+      - SDA_V5_SIG4=${SDA_V5_SIG4:-1}
+      # V5.1 (GO-LIVE 05/08): replica a msg `sugestao` por-giro aos viewers/Glass
+      # Box (antes só o MASTER recebia; vista expandida de viewer ficava sem a
+      # sugestão da rodada). Rollback: SDA_SUGESTAO_BROADCAST=0 + redeploy.
+      - SDA_SUGESTAO_BROADCAST=${SDA_SUGESTAO_BROADCAST:-1}
       # force17 EXATO "sempre 17 números" — **default OFF** (realinhado ao estudo
       # 18/06). O estudo (analise_400 L940) recomenda a UNIÃO real ~15 (overlap
       # benéfico: breakeven 42,8% < 47,2%); forçar 17 PIORA (alarga a aposta). OFF =

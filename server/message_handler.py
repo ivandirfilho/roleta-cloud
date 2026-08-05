@@ -212,13 +212,21 @@ class MessageHandler:
                 # details['centers'] permanece V4 (continuidade DNA/atribuição);
                 # só a COBERTURA (result.numbers) e o meta de overlay mudam.
                 from strategies import regions_v5 as rv5
+                from app_config.settings import v5_sig4_enabled
                 dk = self._engine_dk()
                 forces = gs.target_timeline.get_last_n(rv5.V5_R1_WINDOW)
                 raw = getattr(self.strategy, "cw_history" if dk == "cw" else "ccw_history", []) or []
                 results_chrono = [int(h[1]) for h in list(raw)
                                   if isinstance(h, (list, tuple)) and len(h) >= 2]
+                # V5.1 sig4 (flag por-chamada): R1 janela 4 (compose fatia), R2 =
+                # projeção de tendência, R3 = região menos visitada das 6 fixas
+                # (placar de AMBOS os sentidos). OFF → byte-idêntico ao go-live.
+                spec4 = v5_sig4_enabled()
                 comp = rv5.compose_v5(dk, forces, results_chrono,
-                                      gs.last_number, roulette.WHEEL_SEQUENCE)
+                                      gs.last_number, roulette.WHEEL_SEQUENCE,
+                                      spec4=spec4,
+                                      region6_counts=list(getattr(
+                                          gs, "region6_counts", None) or []) or None)
                 # Seletor por sentido; stop-loss de sessão força 17 (LOCK17 —
                 # veto nunca vira cobertura mais cara; INV-3: indicação mantém).
                 sel_mode = 17 if getattr(self, "_v5_stop_loss", False) \
@@ -247,6 +255,10 @@ class MessageHandler:
                         "numeros": list(nums),
                         "v5_mode": sel_mode,
                         "trend": comp["trend"],
+                        # V5.1: observabilidade da spec4 no trace/overlay (aditivo).
+                        "spec4": bool(comp.get("spec4")),
+                        "r2_delta": comp.get("r2_delta"),
+                        "r3_region": comp.get("r3_region"),
                     },
                 }
                 self.game_state.last_force17_meta = self._cs_meta.get("force17")
@@ -1433,6 +1445,25 @@ class MessageHandler:
 
         await websocket.send(json.dumps(overlay_response))
         trace.step("sent")
+
+        # V5.1 (05/08, flag SDA_SUGESTAO_BROADCAST): replica a MESMA `sugestao`
+        # aos DEMAIS clientes (viewers/Glass Box). Hoje só o MASTER a recebe; a
+        # vista expandida de um viewer nunca vê a sugestão por-giro (gap de UX
+        # "sugestão sumiu"). Exclui o master (já recebeu acima — zero duplicata).
+        # Aditivo: clientes ignoram tipos/campos desconhecidos. Rollback: =0.
+        try:
+            from app_config.settings import sugestao_broadcast_enabled
+            if sugestao_broadcast_enabled():
+                _payload = json.dumps(overlay_response)
+                _others = [c for c in list(connection_manager.connections.values())
+                           if c.websocket is not websocket]
+                for _c in _others:
+                    try:
+                        await _c.websocket.send(_payload)
+                    except Exception:  # noqa: BLE001 — viewer morto não trava o giro
+                        pass
+        except Exception as _e:  # noqa: BLE001
+            logger.warning(f"[V5.1 sugestao broadcast] falha: {_e}")
 
         # Broadcast trace para dashboards conectados
         trace_broadcast = {
