@@ -111,3 +111,5 @@ audit_*.txt
 archive/RoletaV11/Extrator Beat/
 archive/historico_dev/Extrator Beat/
 archive/historico_dev/Roleta Cloud Antiga referencia/
+graphify-out/graph.json
+graphify-out/graph.html
