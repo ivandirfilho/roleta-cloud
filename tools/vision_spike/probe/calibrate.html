@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- SPR-V3 · vision_spike — calibração da elipse (E1).
+     O operador clica sobre um SNAPSHOT 1:1 em coordenadas intrínsecas do vídeo. Clicar no
+     `<video>` renderizado embutiria object-fit, CSS, letterbox e devicePixelRatio na
+     calibração — erro que só apareceria como "o sensor não funciona nessa máquina". -->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>SPR-V3 · calibração</title>
+  <style>
+    body { font: 13px/1.5 system-ui, sans-serif; background: #14171c; color: #e6e6e6; margin: 0; padding: 14px; }
+    h1 { font-size: 15px; margin: 0 0 8px; }
+    #wrap { position: relative; display: inline-block; margin-top: 8px; }
+    canvas { cursor: crosshair; image-rendering: pixelated; background: #000; }
+    button { background: #26303d; color: #e6e6e6; border: 1px solid #3a4756; padding: 6px 10px; margin-right: 6px; border-radius: 3px; cursor: pointer; }
+    button:hover { background: #33404f; }
+    pre { background: #0d1014; padding: 8px; max-width: 900px; overflow: auto; }
+    .step { color: #8fb7ff; }
+    .bad { color: #ff8b8b; }
+    .ok { color: #7fe0a0; }
+  </style>
+</head>
+<body>
+  <h1>Calibração da elipse do rotor</h1>
+  <p class="step" id="step">1) Clique em <b>Capturar snapshot</b> com a mesa visível.</p>
+  <div>
+    <button id="snap">Capturar snapshot</button>
+    <button id="reset">Recomeçar cliques</button>
+    <button id="fit">Ajustar elipse</button>
+    <button id="save" disabled>Salvar calibração</button>
+  </div>
+  <div id="wrap"><canvas id="cv" width="640" height="360"></canvas></div>
+  <pre id="out">—</pre>
+
+  <script src="../lib/ellipse.js"></script>
+  <script src="../lib/unwrap.js"></script>
+  <script src="../lib/evidence.js"></script>
+  <script src="calibrate.js"></script>
+</body>
+</html>

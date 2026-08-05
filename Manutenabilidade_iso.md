@@ -3470,3 +3470,180 @@ Revisar a correcao encontrou tres defeitos nela, dois deles piores que os origin
 **N.8.3 [BAIXO] — a auto-cura da marca `received_persisted` era cobertura ilusoria.** Nenhum teste injetava falha **no ingresso** (todos mexiam no caminho da classificacao), entao apagar o bloco inteiro deixaria a suite verde enquanto a trilha passaria a gravar disposicao terminal sem o `received` correspondente. *Correcao:* teste que faz `insert_phase_events` falhar no ingresso e prova que a classificacao re-emite a linha.
 
 *Mutacao da rodada 3 — os tres mutantes morreram:* guarda da faxina so por `event_id` (mata 1), indice do ciclo removido (mata 41 — o `ON CONFLICT` fica sem alvo), auto-cura removida (mata 1). Suite completa: **984 verde**.
+
+---
+
+## ADENDO 05/08/2026 (madrugada) — SPR-V3-A: preflight do vídeo/iframe, sem autoridade e sem veredito
+
+> Sexta rodada do ciclo (`sprints/SPR-V3.md`), base `main` `0e7543e` (já com SPR-V1 e SPR-V2/ext 3.10.0).
+> Este ADENDO registra um sprint **que termina sem conclusão de propósito**: ele entrega o instrumento e
+> **para** em `WAITING_HUMAN_EVIDENCE`. O produto é a **honestidade do estimador**, não um veredito.
+
+### A. O que estava em jogo
+
+Hoje o sentido de giro é **inferido** por alternância, nunca observado. A única fonte capaz de observar
+sem clique humano é a sequência de frames do `<video>` da mesa. Antes do SPR-V5 (sensor, esforço L, com
+manutenção perpétua sobre o layout de um terceiro) era preciso responder, barato, se **existe caminho
+técnico** — e o desenho original já havia sido derrubado pela auditoria em cinco pontos (§10.2.1):
+quota de `captureVisibleTab`, aliasing da bolinha, correlação 2D medindo translação, pente de 37 bolsos
+e "confidence por consistência entre pares", que é desonesta porque aliasing é erro **sistemático** —
+os pares erram juntos e concordam entre si.
+
+### B. Fronteira declarada: V3-A entregue, V3-B intocado
+
+| | V3-A (este PR) | V3-B (falta) |
+|---|---|---|
+| Probes E0/E0b | **rodáveis e testadas contra `<video>` local** | **executá-las em mesa real** |
+| Calibração + replay offline | entregues | captura de campo |
+| Protocolo de campo | escrito, executável por não-autor | 40-60 giros anotados + soak 2 h |
+| Gates de GO | tabela pronta, **campos vazios** | preencher os 4 números |
+| GO/NO-GO | **não declarado** | decisão do operador (§10.6-1) |
+
+Nenhuma linha deste PR pode fechar a coluna da direita. Executar as probes exige mesa ao vivo,
+sessão autenticada e operador; isso é escopo de campo e foi deixado explicitamente por fazer.
+
+### C. Capacidades entregues (`tools/vision_spike/`, 31 arquivos, fora do caminho de produção)
+
+| Módulo | O que faz |
+|---|---|
+| `lib/ellipse.js` | ajuste de elipse com centro fixo, ≥4 pontos, QR de Householder, Q positiva-definida, resíduo/condição/lacuna angular · NCC |
+| `lib/unwrap.js` | unwrap elíptico 720×16 com amostragem bilinear; perfil **cromático** do rotor; assinatura do anel **estático**; grade do trigger |
+| `lib/direction_core.js` | high-pass temporal, correlação circular ±120°, 12 guards, abstenção obrigatória |
+| `lib/rvfc_meter.js` | medidor de cobertura (callbacks/s, gaps, `presentedFrames`, visível×oculto) |
+| `lib/motion_trigger.js` | trigger de movimento a ~1 FPS **na própria ROI** |
+| `lib/pipeline.js` | janelas deslizantes + sumário com **numerador e denominador** de cada taxa |
+| `lib/synthetic.js` | cena determinística + 8 casos adversariais (marcada `evidence_class: synthetic`) |
+| `lib/evidence.js` | envelope `synthetic` / `fixture` / `field` com `eligible_for_go_gates` |
+| `replay.js` | CLI do replay offline sobre captura gravada ou cenário sintético |
+| `manifest.json` + `probe/` | extensão de **diagnóstico separada**: E0, E0b, calibração por snapshot 1:1, coletor, bancada com `<video>` local |
+
+### D. Três defesas independentes contra o aliasing (a parte que a auditoria mandou consertar)
+
+1. **Margem de alias** — enumeram-se **todos** os máximos locais em ±120° e compara-se o pico com o
+   melhor concorrente. Pico empatado ⇒ `alias_margin_low` ⇒ abstenção.
+2. **Landmark do zero verde** — evidência **independente** da correlação. A métrica não é prominência
+   por MAD e sim **margem de unicidade** (pico menos o melhor outro máximo a mais de um bolso de
+   distância, sobre o p90−p10 do perfil). A bancada mostrou por que: com fundo bimodal vermelho/preto
+   o MAD é enorme e o verde legítimo marca z≈3,9 — indistinguível de ruído. A margem de unicidade dá
+   ≈1,43 com verde e ≈0,00 sem. Sem esse achado, o spike teria embarcado um detector que não detecta.
+   A tolerância de concordância (8°) é **menor** que o período do bolso (9,73°) de propósito.
+3. **Passo temporal seguro** — a 10 fps com stride 1 (Δt=0,1 s) o rotor lento anda 7,2° e o alias
+   vizinho cai em −2,5°: **sinal trocado**. É aritmética, não opinião. `stride_too_small` obriga
+   aumentar o stride antes de qualquer veredito.
+
+Consistência entre os 3 pares entra como **guard**, jamais como prova.
+
+### E. Invariantes preservados
+
+- **Zero autoridade.** Nenhum `direction_event`, nenhum WebSocket, nenhum `fetch`, nenhum upload. Nada
+  toca `direcao`, `seed_parity`, `spin_seq`, timeline, decisão ou stake. **INV-3 intocado.**
+- **`direction: null` em qualquer abstenção** — testado como invariante sobre 5 cenários adversariais.
+- **Frames nunca saem da máquina**: a exportação de captura é um `download` local; `.gitignore` do
+  spike bloqueia `*.rgba`, `frames.bin`, `capture.json`, mídia e evidência exportada.
+- **`captureVisibleTab` não é usado em lugar nenhum** do spike (bucket de quota global, 2/s,
+  compartilhado com o OCR da produção, e cego com a janela minimizada).
+- **Default-OFF**: `vsProbePolicy` nasce `'off'`; as probes ficam inertes até o operador armar.
+- **`extension/manifest.json` de produção intocado** — a extensão de diagnóstico tem manifest próprio.
+- **Isolamento**: zero `require`/`import` de `server/`, `state/` ou `extension/`.
+
+### F. Impacto ISO/IEC 25010
+
+| Característica | Antes | Depois | Por quê |
+|---|---|---|---|
+| **Adequação funcional** | 8.5 | 8.5 | Nenhuma regra de negócio mudou. O sistema em produção é bit-a-bit o mesmo. |
+| **Confiabilidade** | 9.0 | 9.0 | Nada novo no caminho crítico. O que muda é que uma decisão de investimento deixa de depender de opinião. |
+| **Manutenibilidade** | 9.0 | **9.2** | A pergunta "dá para ver o sentido no vídeo?" saiu de conversa para 66 testes executáveis e um replay reproduzível por `algorithm_sha`. Qualquer pessoa consegue refutar o resultado sem a mesa. |
+| **Testabilidade (sub-característica)** | — | **nova** | Um caminho que depende de mesa ao vivo ganhou bancada offline: cena sintética determinística, 8 casos adversariais e `<video>` local por `captureStream()`. |
+| **Segurança** | — | — | Extensão de diagnóstico com **uma** permissão (`storage`), sem `downloads`, sem `tabs`, sem `captureVisibleTab`, e sem canal de saída. |
+| Usabilidade / Desempenho / Compatibilidade / Portabilidade | — | — | Sem alteração no produto. |
+
+**Scorecard: 8.7 → 8.75/10** (o ganho é de manutenibilidade/testabilidade; nada de produção mudou).
+
+### G. Obrigações assumidas
+
+1. **Nenhum gate de GO pode ser preenchido com `eligible_for_go_gates: false`.** Só
+   `evidence_class: field` conta. O service worker de diagnóstico **rebaixa** automaticamente
+   evidência marcada `field` numa sessão declarada `fixture`; rebaixar é seguro, promover nunca.
+2. **`confidence` é escore heurístico de qualidade, não probabilidade calibrada** — o campo
+   `confidenceKind: 'heuristic_quality_score'` viaja junto para impedir a leitura errada.
+3. **`blob:` não prova MSE.** Do mundo isolado do content script não dá para inspecionar o
+   `MediaSource`; a probe reporta `mse_confirmed: null`. "Não sei" é resposta válida; inventar não é.
+4. **Congelar `config` e `algorithm_sha` antes da coleta.** Ajustar limiar depois de ver os dados
+   transforma a coleta em conjunto de desenvolvimento e **exige coleta nova e independente**.
+5. **A definição dos gates está no código** (`lib/pipeline.js::summarize`), não só na prosa. O
+   denominador de `sinal` inclui os frames de aquecimento de propósito: assim uma captura curta
+   (< 250 frames) é aritmeticamente incapaz de atingir 98% — não dá para exibir "98%" de 30 frames.
+6. **Cobertura é medida antes de acurácia**, e `< 30 vereditos emitidos` é **NO-GO por escassez**,
+   nunca "acurácia alta".
+7. **Premissa do canal cromático a verificar em campo:** o estimador depende do setor verde do zero
+   ser único e legível. O caso `noGreen` prova que, sem ele, o estimador **se cala** — e essa é
+   exatamente a hipótese que a mesa real pode derrubar.
+
+### H. Decisões que exigem humano (§10.6, registradas aqui como manda o brief)
+
+1. **GO/NO-GO do V3 é decisão de investimento** (§10.6-1): o spike entrega os números; o **operador**
+   decide se a latência de correção (1-3 giros, contra 30-60 min do V6) paga o esforço L do SPR-V5
+   mais a manutenção perpétua de visão sobre o layout de um terceiro.
+2. **Aceite formal da cobertura medida** (§10.6-2): o comportamento do `<video>` com a aba oculta e a
+   janela minimizada **não deve ser presumido**. O V3-A entrega o instrumento que mede; o aceite do
+   número é do operador. V6A/V6B não dependem de pixels.
+
+### H2. Dívida declarada (não entregue, de propósito)
+
+1. **CI não cobre o spike.** O job `extension-tests` do `.github/workflows/ci.yml` roda
+   `node --test "tests/js/*.test.js"` e não enxerga `tools/vision_spike/tests/`. Ampliar o glob é
+   uma linha, mas `ci.yml` está **fora do `locks`/`touches` declarados no brief** — pedido formal ao
+   Diretor em vez de mudança silenciosa. Enquanto isso, a validação é registrada neste PR.
+2. **`node --test tools/vision_spike/` não funciona** (o Node tenta carregar o diretório como módulo):
+   use o glob `node --test "tools/vision_spike/tests/*.test.js"`. É a mesma pegadinha já documentada
+   no `ci.yml` para `tests/js/`.
+3. **Custo no renderer não medido por este PR**: os números de `ORCAMENTO.md` são de bancada em Node
+   sobre buffers em memória. O botão *Medir 120 frames* da bancada entrega p50/p95/máx no navegador —
+   e ainda assim é `fixture`, não mesa.
+
+### I. Achados do code-review incorporados (rodada de revisão antes do PR)
+
+O review encontrou **1 defeito crítico e 8 relevantes**, todos corrigidos neste mesmo PR:
+
+| # | Defeito | Por que importava |
+|---|---|---|
+| 1 🔴 | **O coletor abstinha 100% em qualquer feed acima de ~11 fps.** `captureBurst` gravava 6 frames *consecutivos* na taxa nativa do stream; a 25-30 fps a rajada inteira dura 167-200 ms e o guard `stride_too_small` (Δt de par ≥ 270 ms) disparava sempre. Corrigido com **decimação por `mediaTime`** (`createDecimator` + `recommendedFrameIntervalS`, que sai da própria aritmética do guard). | O V3-B produziria **cobertura 0/N** e um NO-GO que seria defeito de ferramental lido como propriedade do mundo — mais caro que um falso GO. |
+| 2 | Export de captura abortado pelo frame errado: `chrome.tabs.connect` sem `frameId` alcança todos os frames, e o "não tenho captura" do top frame desconectava o port do iframe que gravou. | O caminho de exportação só funcionaria se o vídeo estivesse no top frame — o oposto da premissa do spike. |
+| 3 | Com `all_frames: true`, **todo** frame respondia às mensagens do popup; `chrome.tabs.sendMessage` entrega só a primeira resposta. Agora frames sem `<video>` não respondem. | O operador via `no_video_in_frame` do top frame e concluía que o coletor não subiu, enquanto o iframe media. |
+| 4 | `captureBurst` sem timeout deixava `state.busy = true` para sempre se o rVFC parasse — exatamente o cenário (aba oculta) que o sprint declara desconhecido, e o do soak de 2 h. `stop()`/`start()` também não recuperavam. | O coletor morria em silêncio no meio da coleta. |
+| 5 | O `meta` da captura tinha `evidence_class: 'field'` **hardcoded** e não passava pelo service worker ⇒ captura de bancada entrava no `RESULTADO.md` parecendo campo. Agora a classe vem do que o operador declarou. | Driblava exatamente a trava que este ADENDO chama de obrigação nº 1. |
+| 6 | A captura exportada tinha sempre 6 frames, mas o gate de sinal exige ≥250 (teto de 6 frames = 16,7%): **gate inalcançável com a própria instrumentação**. Novo modo *Gravar p/ replay*. Faltavam também `algorithm_sha` e `config` no `meta`. | O item 5 do `PROTOCOLO_CAMPO.md` não tinha como ser executado. |
+| 7 | `intervals` do medidor crescia sem teto e era ordenado a cada 2 s: num soak de 2 h a 30 fps são 216 mil entradas — **o medidor perturbava a medição**. Virou ring. | |
+| 8 | `calibrate.js` pedia o snapshot à **própria aba de calibração** (que vira a ativa ao ser criada), e o erro exibido mandava o operador procurar no lugar errado. | A calibração é pré-requisito de toda a Etapa 4. |
+| 9 | Escritas concorrentes de evidência no SW se sobrescreviam (cada frame envia a sua E0). Virou fila serial. | O registro perdido era justamente o do iframe com o `<video>`. |
+
+Dois achados menores também corrigidos: `sceneChangeAt` usava a oclusão que **não** encosta
+no anel estático (falso negativo do guard de NCC) e o `background_diag` podia *promover*
+`synthetic` para `fixture` — agora a normalização usa uma hierarquia explícita e só rebaixa.
+Além disso, `--bench` foi acrescentado ao replay para que os p95/máx citados em
+`ORCAMENTO.md` sejam de fato reproduzíveis pelo comando documentado.
+
+**Lição do próprio review:** todos os cenários de teste rodavam a `fps: 10` — exatamente a
+única taxa em que os defaults funcionavam. Uma suíte verde pode estar medindo só a região
+onde o código já está certo. O teste de regressão novo exercita 25 e 30 fps.
+
+### J. Rollback
+
+| # | Camada | Ação | Efeito |
+|---|---|---|---|
+| 1 | **Nenhuma ação** | não usar | O spike não é importado por `server/`, `state/`, `extension/` nem por nenhum caminho de produção. Já está inerte por construção. |
+| 2 | **Extensão de diagnóstico** | remover em `chrome://extensions` (ou deixar `vsProbePolicy: 'off'`) | Ela é separada da Escuta Beat; removê-la não afeta a operação. |
+| 3 | **Código** | `git revert` do PR | Remove `tools/vision_spike/` inteiro. Zero migração, zero flag de compose, zero estado persistido em produção. |
+
+`extension/manifest.json` de produção **não foi tocado** ⇒ não há zip de versão anterior a anexar,
+nem nota de reload para o operador.
+
+**Suítes.** Python **904 passed, 9 skipped, 1 xfailed** (idêntico ao baseline: o spike não toca o
+caminho de produção). JS do spike **66 passed** (`node --test "tools/vision_spike/tests/*.test.js"`).
+JS do V2 **53 passed**, intacto. `lint_silent_except` OK · `lint_dna_coverage` OK · `schema_symmetry` OK.
+
+**Lição (Manutenibilidade / Adequação funcional).** Um spike cujo sucesso é medido pela própria cena
+que ele gera não é evidência: é "inverse crime". A separação `synthetic` / `fixture` / `field`, com
+`eligible_for_go_gates` viajando dentro de cada artefato, foi o que impediu este sprint de fechar a
+própria DoD com números de bancada. **Toda taxa nasce com denominador, e todo denominador nasce com a
+classe da evidência que o produziu** — sem isso, um gate falseável vira um gate decorativo.

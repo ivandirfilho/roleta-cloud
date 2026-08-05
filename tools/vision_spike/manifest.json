@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "SPR-V3 · vision_spike (DIAGNOSTICO)",
+  "version": "0.1.0",
+  "description": "Extensao de DIAGNOSTICO do SPR-V3 (probes E0/E0b + coletor de campo). NAO e a Escuta Beat. Zero autoridade: nunca emite direction_event, nunca fala com o servidor. Carregar por 'Load unpacked' APENAS na maquina do spike.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "probe/popup.html"
+  },
+  "background": {
+    "service_worker": "probe/background_diag.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "lib/evidence.js",
+        "lib/ellipse.js",
+        "lib/unwrap.js",
+        "lib/direction_core.js",
+        "lib/rvfc_meter.js",
+        "lib/motion_trigger.js",
+        "probe/probe_e0.js",
+        "probe/probe_e0b.js",
+        "probe/collector.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
