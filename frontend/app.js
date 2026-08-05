@@ -415,15 +415,17 @@ function updateForce17(f17, regioes) {
             + `<span style="font-size:11px;font-weight:bold;text-transform:uppercase;opacity:0.8;">${r.label}</span>`
             + `</div>`;
     }).join('');
-    // V5.1 (05/08): badge circular 17/21 "verde brilhante" na linha dos centros
-    // (MESMA fonte/tamanho/cor p/ os dois valores; menor que os números de 26px).
+    // V5.2 (05/08): badge circular 17/21 DOURADO + negrito (pedido do operador:
+    // "difícil de ver" — peso 900, fonte maior, fundo sutil; dourado combina
+    // com a paleta: #ffd166 é o gold dos labels c1/r3).
     const v5m = f17 && f17.v5_mode;
     const modeBadge = (v5m === 17 || v5m === 21)
         ? `<span title="Modo V5: apostar ${v5m} números" style="display:inline-flex;`
-          + `align-items:center;justify-content:center;width:22px;height:22px;`
-          + `border-radius:50%;border:2px solid #39ff14;color:#39ff14;flex:0 0 auto;`
-          + `font-size:11px;font-weight:bold;line-height:1;align-self:center;`
-          + `box-shadow:0 0 6px rgba(57,255,20,0.65);text-shadow:0 0 4px rgba(57,255,20,0.8);`
+          + `align-items:center;justify-content:center;width:24px;height:24px;`
+          + `border-radius:50%;border:2px solid #ffd700;color:#ffd700;flex:0 0 auto;`
+          + `font-size:13px;font-weight:900;line-height:1;align-self:center;`
+          + `background:rgba(255,215,0,0.12);`
+          + `box-shadow:0 0 8px rgba(255,215,0,0.7);text-shadow:0 0 4px rgba(255,215,0,0.85);`
           + `margin:0 6px;">${v5m}</span>`
         : '';
     // fix BUG-FRONT #2: preferir os números do próprio meta force17 (mesma fonte das

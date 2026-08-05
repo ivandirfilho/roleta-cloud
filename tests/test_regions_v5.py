@@ -49,7 +49,7 @@ class _Result:
 def _clean_env():
     saved = {k: os.environ.get(k) for k in
              ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "SDA_FORCE17_EXACT",
-              "SDA_V5_SIG4", "SDA_SUGESTAO_BROADCAST")}
+              "SDA_V5_SIG4", "SDA_SUGESTAO_BROADCAST", "SDA_V5_FLIP_PURO")}
     for k in saved:
         os.environ.pop(k, None)
     yield
@@ -197,6 +197,20 @@ class TestSeletor:
         # 5 jogadas-21 emitidas → LOCK17 (mesmo em miss)
         assert s.v5_select_mode("cw") == 17
 
+    def test_pure_ignora_teto(self):
+        """FLIP PURO (05/08 tarde): a última jogada do sentido decide sozinha —
+        o teto de sessão não trava em 17."""
+        s = SDA17Strategy()
+        s.v5_note_outcome("cw", hit=False)
+        for _ in range(7):  # bem além do teto de 5
+            s.v5_note_emitted("cw", 21)
+            s.v5_note_outcome("cw", hit=False)
+        assert s.v5_select_mode("cw", pure=False) == 17   # legado: LOCK17
+        assert s.v5_select_mode("cw", pure=True) == 21    # puro: última = miss
+        s.v5_note_outcome("cw", hit=True)
+        assert s.v5_select_mode("cw", pure=True) == 17    # puro: última = hit
+        assert s.v5_select_mode("ccw", pure=True) == 17   # sentidos isolados
+
     def test_emissao_17_nao_queima_credito(self):
         s = SDA17Strategy()
         for _ in range(10):
@@ -304,6 +318,63 @@ class TestWiringV5:
         h._engine_apply_selection(r)
         assert len(r.numbers) == 17            # LOCK17 sob stop-loss
         assert h._cs_meta["v5"]["mode"] == 17
+
+    def test_flip_puro_ignora_stop_loss(self):
+        """SDA_V5_FLIP_PURO=1: última jogada do sentido = miss → 21, mesmo com
+        B5 ativo (que passa a vetar SÓ o stake — INV-3)."""
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_FLIP_PURO"] = "1"
+        h = _handler()
+        dk = h._engine_dk()
+        h.strategy.v5_note_outcome(dk, hit=False)
+        h._v5_stop_loss = True                 # B5 ativo
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) == 21
+        assert h._cs_meta["v5"]["mode"] == 21
+        assert h._cs_meta["force17"]["v5_mode"] == 21
+
+    def test_flip_puro_ignora_teto_sessao(self):
+        """SDA_V5_FLIP_PURO=1: teto de 5 jogadas-21 não trava em 17."""
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_FLIP_PURO"] = "1"
+        h = _handler()
+        dk = h._engine_dk()
+        h.strategy.v5_note_outcome(dk, hit=False)
+        for _ in range(6):                     # queima além do teto
+            h.strategy.v5_note_emitted(dk, 21)
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert h._cs_meta["v5"]["mode"] == 21
+
+    def test_flip_puro_hit_volta_17(self):
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_FLIP_PURO"] = "1"
+        h = _handler()
+        dk = h._engine_dk()
+        h.strategy.v5_note_outcome(dk, hit=False)
+        h.strategy.v5_note_outcome(dk, hit=True)  # última = vitória
+        h._v5_stop_loss = True
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert h._cs_meta["v5"]["mode"] == 17
+
+    def test_overlay_passthrough_spec4(self):
+        """state_sync (engine_overlay_fields) carrega spec4/r2_delta/r3_region —
+        antes o cherry-pick descartava (gap probe 05/08)."""
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_SIG4"] = "1"
+        h = _handler()
+        dk = h._engine_dk()
+        _feed(h, dk, forces=[10, 11, 9, 25],
+              results_chrono=[5, 8, 30, 11])
+        h.game_state.region6_counts = [3, 0, 2, 1, 4, 2]
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        out = h.game_state.engine_overlay_fields()
+        f17 = out.get("force17") or {}
+        assert f17.get("spec4") is True
+        assert "r3_region" in f17 and f17["r3_region"] is not None
 
     def test_com_historico_usa_composer(self):
         os.environ["SDA_BET_PAIR"] = "v5_1721"
