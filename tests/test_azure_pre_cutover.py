@@ -51,6 +51,7 @@ def test_caddy_canary_restricts_websocket_writers():
     assert "remote_ip {$WS_ALLOWED_CIDRS:" in caddy
     assert 'handle /ws* {' in caddy
     assert 'respond "WebSocket indisponível neste endereço" 403' in caddy
+    assert 'SITE_ADDRESS="%s"' in staged
     assert 'WS_ALLOWED_CIDRS="%s"' in staged
     assert "0.0.0.0/0 ::/0" in staged
 

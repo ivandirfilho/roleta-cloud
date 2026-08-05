@@ -155,7 +155,7 @@ TMP=""
 CADDY_TMP="$(mktemp "$(dirname "$CADDY_STAGE_FILE")/.caddy.XXXXXX")"
 {
   echo "# Staged by kv-to-env.sh; source this file only during cutover."
-  printf 'SITE_ADDRESS=%s\n' "$ROLETA_DOMAIN"
+  printf 'SITE_ADDRESS="%s"\n' "$ROLETA_DOMAIN"
   printf 'CADDY_EMAIL=%s\n' "$CADDY_EMAIL"
   printf 'WS_ALLOWED_CIDRS="%s"\n' "0.0.0.0/0 ::/0"
 } > "$CADDY_TMP"
