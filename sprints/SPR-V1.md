@@ -165,7 +165,7 @@ adota a fase errada e ela persiste. Medido em produção: rajadas de 91 `phase_u
    - Aditivo: cliente antigo ignora campo desconhecido ⇒ nada quebra.
    - **Teste integrado obrigatório**: giro rejeitado pelo gate DIR21 ⇒ o `state_sync` seguinte carrega
      `spin_seq`/`direction` **inalterados** (os de antes da tentativa), permitindo ao cliente do
-     SPR-V2 desfazer o flip local. Sem esse eco, o passo 5 da *Ordem de ativação* deixa o servidor
+     SPR-V2 desfazer o flip local. Sem esse eco, o passo 4 da *Ordem de ativação* deixa o servidor
      certo e o popup espelhado — por isso ele é **DoD deste sprint**, não do V2.
 
 ### Bloco 5 — telemetria que não mente
@@ -255,26 +255,29 @@ O fail-close da visão (Bloco 4.3) é **remoção de caminho**, não flag: seu r
 > ⚠️ O executor **não executa nada desta seção**. Ela vai colada no corpo do PR, para o operador.
 > 🔁 **Ordem corrigida pelo Diretor (05/08, pré-merge).** A versão anterior deste runbook ligava o
 > gate temporal ANTES de instalar a extensão V2 — invertido em relação ao risco operacional. O gate
-> temporal é o **último** passo; o motivo está no passo 5.
-1. **Merge/deploy com todas as flags novas OFF** (comportamento byte-idêntico ao `main`).
-2. `SDA_PHASE_BUFFER_SYNC=1` **+** `SDA_PHASE_ALT_METRIC=1` → 48h com ≥5 gaps provocados (minimizar a
+> temporal é o **último** passo; o motivo está no passo 4.
+
+**Pré-requisito:** merge/deploy com todas as flags novas **OFF** (comportamento byte-idêntico ao `main`).
+
+1. `SDA_PHASE_BUFFER_SYNC=1` **+** `SDA_PHASE_ALT_METRIC=1` → 48h com ≥5 gaps provocados (minimizar a
    janela 5-8min, 2-3×/dia, ausência ≤11 giros). Passa se: `roleta_phase_uncertain_total` **cai** nos
    gaps com overlap suficiente, `roleta_alternancia_violada_total` em **0**, zero rajada DIR17 ≥3 giros.
    *Nota:* `SDA_SENTIDO_AUTORITATIVO` já é **default-ON** na compose, e `enabled` do `phase_authority`
    é a conjunção dos dois — então é **aqui** que a capability passa a ser anunciada, bem antes de a
-   extensão chegar. É o que torna o passo 4 verificável.
-3. `SDA_PHASE_MIN_OVERLAP=3` → observar `roleta_phase_ambiguo_total`: esperado baixo e correlacionado
+   extensão chegar. É o que torna o passo 3 verificável.
+2. `SDA_PHASE_MIN_OVERLAP=3` → observar `roleta_phase_ambiguo_total`: esperado baixo e correlacionado
    a gaps grandes (com janela 12, os gaps recuperáveis vão até `k=9`; acima disso `phase_uncertain` é
    o comportamento correto, não regressão).
-4. **Instalar/recarregar a extensão 3.10.0 do SPR-V2** → confirmar no cliente que o `phase_authority`
+3. **Instalar/recarregar a extensão 3.10.0 do SPR-V2** → confirmar no cliente que o `phase_authority`
    chega no `state_sync` e que a reconciliação contínua está funcionando (telemetria DIR20 do V2).
-5. **Só então** `SDA_MIN_SPIN_INTERVAL_MS=15000`. *Motivo — é o cerne da ordem:* o gate temporal faz o
-   servidor **rejeitar** o giro fantasma, mas um cliente antigo **não desfaz o flip local** — servidor
-   certo, popup/local phase **espelhado**. Reverter esse flip rejeitado é exatamente a razão de existir
-   do V2, então ele precisa estar **instalado e confirmado** (passo 4) antes de o gate entrar. +48h:
-   descartes visíveis, zero descarte com delta >20s, `spins_received` em 24h dentro de ±10% do baseline.
+4. **Somente depois** `SDA_MIN_SPIN_INTERVAL_MS=15000`. *Motivo — é o cerne da ordem:* o gate temporal
+   faz o servidor **rejeitar** o giro fantasma, mas um cliente antigo **não desfaz o flip local** —
+   servidor certo, popup/local phase **espelhado**. Reverter esse flip rejeitado é exatamente a razão
+   de existir do V2, então ele precisa estar **instalado e confirmado** (passo 3) antes de o gate
+   entrar. +48h: descartes visíveis, zero descarte com delta >20s, `spins_received` em 24h dentro de
+   ±10% do baseline.
 
-Em paralelo, a partir do passo 2: **auditoria D+1/D+3/D+7 particionada por sessão** sobre a telemetria
+Em paralelo, a partir do passo 1: **auditoria D+1/D+3/D+7 particionada por sessão** sobre a telemetria
 do `SDA_PHASE_ALT_METRIC` (ela sobe junto com o B1 justamente para dar linha de base a essa auditoria).
 
 ## Conformidade ISO (marque ANTES de abrir o PR — `Manutenabilidade_iso.md`)
@@ -399,9 +402,9 @@ neste PR: **53 passed** local e no CI. PR #53 com todos os checks verdes
 (`lint-and-test` 3.11/3.12/3.13 + `extension-tests` + `iso-guardrails` + `ci-ok`) e
 `mergeStateStatus: CLEAN`.
 
-**Ordem de rollout (inalterada, confirmada com o Diretor):** flags do V1 no host **antes** da
-instalação/reload da extensão 3.10.0 do V2. O servidor endurecido precisa estar de pé quando os
-clientes novos chegarem — não o contrário.
+**Ordem de rollout (corrigida com o Diretor):** flags de buffer/telemetria/overlap antes; gate
+temporal somente depois do V2. O gate faz o servidor rejeitar o giro fantasma, mas só a extensão
+3.10.0 desfaz o flip local do cliente.
 
 ### Adendo — contrato `phase_authority` validado contra o SPR-V2 (consumidor)
 
@@ -428,22 +431,23 @@ inverter a projeção mata 6. Suítes: Python **904/9/1**, JS do V2 **53 passed*
 ### Adendo — ordem de ativação corrigida pelo Diretor (pré-merge)
 
 A sequência registrada no runbook estava **invertida em relação ao risco operacional**: ligava
-`SDA_MIN_SPIN_INTERVAL_MS` no passo 3/4, *antes* de instalar a extensão V2. Ordem correta agora
-registrada: (1) merge/deploy com flags OFF → (2) `SDA_PHASE_BUFFER_SYNC` + `SDA_PHASE_ALT_METRIC` →
-(3) `SDA_PHASE_MIN_OVERLAP=3` → (4) instalar/recarregar a extensão 3.10.0 e confirmar
-`phase_authority`/telemetria → (5) **só então** `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+`SDA_MIN_SPIN_INTERVAL_MS` antes de instalar a extensão V2. Ordem correta agora registrada, com o
+merge/deploy de flags OFF como pré-requisito não numerado: (1) `SDA_PHASE_BUFFER_SYNC` +
+`SDA_PHASE_ALT_METRIC` → (2) `SDA_PHASE_MIN_OVERLAP=3` → (3) instalar/recarregar a extensão 3.10.0 e
+confirmar `phase_authority`/telemetria → (4) **somente depois** `SDA_MIN_SPIN_INTERVAL_MS=15000`.
 
 **Motivo.** O gate temporal faz o servidor *rejeitar* o giro fantasma, mas um cliente antigo **não
 desfaz o flip local** — servidor correto, popup/local phase espelhado. Reverter o flip rejeitado é a
 razão de existir do SPR-V2; ligar o gate antes da extensão abriria justamente a janela de divergência
 que este sprint foi escrito para fechar.
 
-Corrigido em: runbook `## Ordem de ativação` (+ referência cruzada do Bloco 4, que citava "passo 4" e
-agora aponta o passo 5), tabela de flags do ADENDO §B (coluna *Ligar quando*), ADENDO §I.4 e corpo do
-PR #53.
+Corrigido em: runbook `## Ordem de ativação` (+ referência cruzada do Bloco 4, que agora aponta o
+passo 4), nota de coordenação com o V2 (a frase "flags do V1 no host antes da instalação/reload"
+virou "flags de buffer/telemetria/overlap antes; gate temporal somente depois do V2"), tabela de
+flags do ADENDO §B (coluna *Ligar quando*), ADENDO §I.4, §K e corpo do PR #53.
 
 **Imprecisão factual corrigida junto (§K).** O parágrafo dizia "ligar só `SDA_PHASE_BUFFER_SYNC` não
-acende o V2". `SDA_SENTIDO_AUTORITATIVO` é **default-ON** na compose, então em produção o passo 2
-**basta** para `phase_authority.enabled` virar `true`. A distinção importa para o passo 4: a capability
+acende o V2". `SDA_SENTIDO_AUTORITATIVO` é **default-ON** na compose, então em produção o passo 1
+**basta** para `phase_authority.enabled` virar `true`. A distinção importa para o passo 3: a capability
 já está publicada quando a extensão chega, e o operador pode **confirmar** o eco em vez de instalar às
 cegas. Só documentação — nenhuma linha de código alterada.
