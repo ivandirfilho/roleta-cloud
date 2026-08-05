@@ -291,3 +291,47 @@ O fail-close da visão (Bloco 4.3) é **remoção de caminho**, não flag: seu r
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+### 2026-08-05 · ENTREGUE (PR aberto, sem merge) · Executor
+
+**Resumo.** 5 blocos implementados; 4 flags novas **default-OFF**. B1: `GameState.sync_phase_buffer()`
+chamado no gap do DIR4 + limpeza do buffer na correção de histórico (`SDA_PHASE_BUFFER_SYNC`). B2:
+`_reconcile_shift_ex`/`phase_advance_ex` com `min_overlap` + detecção de ambiguidade
+(`SDA_PHASE_MIN_OVERLAP`). B3: `_last_accept_srv_mono` + `_is_implausible_spin()`
+(`SDA_MIN_SPIN_INTERVAL_MS`). B4: `_apply_seed(..., locked=None)` como caminho único, `set_seed`
+preservando lock, reprojeção da âncora do operador na re-ancoragem, role-gate MASTER para
+`set_seed`/`direction_event`/`nova_sessao`, fail-close da visão, bloco `phase_authority` no overlay.
+B5: 4 contadores + 4 gauges + 3 alertas + métrica de alternância (`SDA_PHASE_ALT_METRIC`).
+
+**Fronteira medida (correção do Diretor confirmada).** `m = min(len(prev), 12 - k)`; com
+`min_overlap=3` gaps até **k=9** são recuperáveis; de k=10 em diante `phase_uncertain` é a resposta
+CORRETA. Matriz `k=0..11` em `test_dir22_alternancia_metrica.py`.
+
+**Validação.** Suíte completa **883 passed, 9 skipped, 1 xfailed** (baseline era 796/9/1 → +87 testes).
+`python tools/lint_silent_except.py --update` → baseline atualizado (12 arquivos), `test_lint_clean_run`
+verde. `promtool` **indisponível** na máquina do executor: `obs/alerts.yml` validado por parse YAML +
+checagem estrutural (4 grupos, 21 regras, todas com `alert`/`expr`/`labels`/`annotations`) — **validar
+com `promtool check rules` no CI/host antes de aplicar**.
+
+**Não-interferência.** `tests/fixtures/spr_v1_replay_baseline.json` congelada rodando o harness contra o
+código **pristino** (edições em `git stash`); `test_v1_nao_interferencia_replay.py` re-executa e compara
+campo a campo (nunca regenera). Com as 4 flags OFF: 21 decisões idênticas em ação, cobertura, stake,
+timelines, `spin_seq`, `seed_parity`/`seed_n` e ambos os buffers.
+
+**Desvios conscientes** (detalhados no ADENDO §G): (1) `_last_accept_srv_mono` fora de `save()`/`load()`
+— `time.monotonic()` só é comparável no mesmo processo; (2) gate de plausibilidade em
+`_is_implausible_spin()` no `process_message`, **antes** do dedup por `trace_id` (que grava o id ao
+checar — rejeitar depois queimaria o reenvio legítimo), e não dentro de `is_duplicate_spin`;
+(3) `phase_authority` publicado por `GameState.engine_overlay_fields()`, pois o `state_sync` só funde
+essa fonte; (4) fail-close da visão sem flag de reabertura (rollback = `git revert`).
+
+**Arquivos.** `state/phase.py`, `state/game.py`, `state/phase_metrics.py`, `server/message_handler.py`,
+`server/health_server.py`, `app_config/settings.py`, `docker-compose.yml`, `obs/alerts.yml`,
+`.silent_except_baseline.json`, `Manutenabilidade_iso.md` (ADENDO 05/08), `sprints/SPR-V1.md` (este Log).
+Testes: `tests/test_dir20_phase_buffer_sync.py`, `tests/test_dir21_min_spin_interval.py`,
+`tests/test_dir22_alternancia_metrica.py`, `tests/test_dir23_seed_authority.py`,
+`tests/test_v1_nao_interferencia_replay.py`, `tests/replay_harness_v1.py`,
+`tests/fixtures/spr_v1_replay_baseline.json`, `tests/test_dir12_metrics_exporter.py` (atualizado),
+`tests/test_dir9_sentido_na_sugestao.py` (atualizado).
+
+**Dívidas.** `AUTH_ENABLED=false` bloqueia o SPR-V7; `handle_history_correction` fora do `state_lock`
+(pré-existente, risco de deadlock com `handle_set_seed` — merece sprint próprio).
