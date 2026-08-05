@@ -44,7 +44,56 @@ def project_phase(seed_parity: str, seed_n: int, n: int) -> str:
     return base if delta == 0 else opposite(base)
 
 
-def reconcile_shift(prev, new, max_window: int = 20):
+def _reconcile_shift_ex(prev, new, max_window: int = 20, min_overlap: int = 0):
+    """Núcleo do shift. Devolve `(k, matched, ambiguous)`.
+
+    `ambiguous=True` significa: HAVIA alinhamento posicional, mas a evidência era
+    insuficiente (overlap abaixo de `min_overlap`) ou havia MAIS DE UM k plausível
+    com evidência suficiente — nesse caso `matched=False` e o chamador deve tratar
+    como `phase_uncertain` (caminho seguro) em vez de inventar k giros.
+
+    `min_overlap=0` desliga a checagem: comportamento byte-idêntico ao histórico
+    (aceita o primeiro k que casa, mesmo com m=1 → 1/37 de coincidência).
+    Função pura, nunca lança.
+    """
+    new = list(new) if new else []
+    prev = list(prev) if prev else []
+    if not new:
+        return (0, True, False)     # nada novo a contabilizar
+    if not prev:
+        # Primeira leitura: não há evidência a exigir (min_overlap não se aplica);
+        # trata o topo como 1 giro novo, como sempre fez.
+        return (1, True, False)
+    try:
+        min_overlap = max(0, int(min_overlap))
+    except (TypeError, ValueError):
+        min_overlap = 0
+    max_k = min(len(new), max_window)
+    matches = []                     # [(k, m)] de todos os alinhamentos posicionais
+    for k in range(0, max_k + 1):
+        m = min(len(prev), len(new) - k)
+        if m <= 0:
+            break
+        if all(new[k + i] == prev[i] for i in range(m)):
+            if min_overlap <= 0:
+                return (k, True, False)   # caminho legado: primeiro match vence
+            matches.append((k, m))
+    no_align = (min(len(new), max_window), False, False)
+    if not matches:
+        return no_align
+    # `m` decresce monotonicamente com k, logo o primeiro match é o de maior evidência.
+    strong = [(k, m) for (k, m) in matches if m >= min_overlap]
+    if not strong:
+        # Havia match, mas só por coincidência (evidência abaixo do mínimo).
+        return (min(len(new), max_window), False, True)
+    if len(strong) > 1:
+        # Sequência periódica/repetida: mais de um k é plausível com evidência
+        # suficiente. Não dá para escolher — ambíguo é o veredito honesto.
+        return (min(len(new), max_window), False, True)
+    return (strong[0][0], True, False)
+
+
+def reconcile_shift(prev, new, max_window: int = 20, min_overlap: int = 0):
     """Reconciliação por SHIFT: conta quantos giros NOVOS há em `new` em relação a
     `prev`, ambos ordenados do mais recente (índice 0) para o mais antigo.
 
@@ -58,23 +107,14 @@ def reconcile_shift(prev, new, max_window: int = 20):
       - matched=False        → sem alinhamento (lista nova = troca de mesa/dealer)
                                → o chamador deve pedir resync, não adivinhar.
 
+    `min_overlap` (SPR-V1 B2, default 0 = OFF/byte-idêntico) exige evidência mínima
+    para aceitar o alinhamento; abaixo dela o resultado é `matched=False` (seguro).
+
     Robusto a números repetidos (0–36): é alinhamento de subsequência ordenada
     (posição-a-posição), não comparação de conjunto. Função pura, nunca lança.
     """
-    new = list(new) if new else []
-    prev = list(prev) if prev else []
-    if not new:
-        return (0, True)        # nada novo a contabilizar
-    if not prev:
-        return (1, True)        # primeira leitura: trata o topo como 1 giro novo
-    max_k = min(len(new), max_window)
-    for k in range(0, max_k + 1):
-        m = min(len(prev), len(new) - k)
-        if m <= 0:
-            break
-        if all(new[k + i] == prev[i] for i in range(m)):
-            return (k, True)
-    return (min(len(new), max_window), False)   # sem alinhamento → resync
+    k, matched, _ = _reconcile_shift_ex(prev, new, max_window, min_overlap)
+    return (k, matched)
 
 
 # Prioridade de fontes de direção (maior = mais forte). O operador e a correção
@@ -136,14 +176,26 @@ def phase_advance(prev, new):
     Corrige o bug de somar `k-1` ao contador quando `reconcile_shift` devolve
     `matched=False` (k é um "não sei", não um número de giros). Função pura.
     """
-    k, matched = reconcile_shift(prev, new)
+    gap, inter, uncertain, _ = phase_advance_ex(prev, new)
+    return (gap, inter, uncertain)
+
+
+def phase_advance_ex(prev, new, min_overlap: int = 0):
+    """SPR-V1 B2: igual a `phase_advance`, mas devolve também `ambiguous`.
+
+    Retorna `(gap, intermediates, uncertain, ambiguous)`. `ambiguous=True` separa
+    "gap grande legítimo / troca de mesa" de "havia match, mas sem evidência
+    suficiente" — é o que alimenta a métrica `phase_ambiguo_total`. Quando ambíguo,
+    `uncertain` também é True (o caminho seguro). Função pura, nunca lança.
+    """
+    k, matched, ambiguous = _reconcile_shift_ex(prev, new, 20, min_overlap)
     if not matched:
         uncertain = bool(prev) and bool(new)
-        return (0, [], uncertain)
+        return (0, [], uncertain, bool(ambiguous) and uncertain)
     gap = max(0, k - 1)
     inter = []
     if gap > 0:
         new_list = list(new)
         hi = min(k - 1, len(new_list) - 1)
         inter = [new_list[i] for i in range(hi, 0, -1)]
-    return (gap, inter, False)
+    return (gap, inter, False, False)

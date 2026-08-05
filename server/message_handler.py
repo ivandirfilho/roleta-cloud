@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import time
 import uuid
 from typing import Optional, Dict, Any
 
@@ -74,6 +75,15 @@ class MessageHandler:
         self._last_accept_num: Optional[int] = None
         self._last_accept_dir: Optional[str] = None
         self._last_accept_ts_ms: Optional[int] = None
+        # SPR-V1 B3 (furo B / DIR21): relógio MONOTÔNICO DO SERVIDOR do último giro
+        # TOTALMENTE ACEITO. Separado de `_last_accept_ts_ms` de propósito: aquele é
+        # `Date.now()` do CLIENTE (adulterável/regressivo) e alimenta uma flag já em
+        # produção. Este é imune a NTP e ao relógio do cliente. NÃO entra em
+        # save()/load(): `time.monotonic()` só é comparável dentro do MESMO processo —
+        # persistir produziria comparação sem sentido após restart (exceção consciente
+        # à regra de round-trip; documentada no ADENDO ISO). Nasce None e é limpo em
+        # reset de sessão / re-ancoragem de histórico.
+        self._last_accept_srv_mono: Optional[float] = None
         self._decision_count: int = 0
         self.extractor_service = ExtractorService(configs_path)
         # IMPL C1/C2 variável + Block-Gale (17/06): metadados por spin (gated por flag).
@@ -166,6 +176,70 @@ class MessageHandler:
         self._last_accept_dir = direcao
         self._last_accept_ts_ms = timestamp
         return False
+
+    def _is_implausible_spin(self, numero, direcao: Optional[str] = None) -> bool:
+        """SPR-V1 B3 (furo B / DIR21): gate de PLAUSIBILIDADE FÍSICA.
+
+        A roleta real cicla em ~42-48s. Um `novo_resultado` que chega menos de N ms
+        depois do último giro TOTALMENTE ACEITO é fisicamente impossível — é o giro
+        fantasma que avança `spin_seq` e flipa a fase autoritativa. Medido no relógio
+        MONOTÔNICO DO SERVIDOR: imune a NTP e a relógio de cliente adulterado,
+        regressivo ou saltando.
+
+        `SDA_MIN_SPIN_INTERVAL_MS=0` (default) desliga → byte-idêntico.
+
+        Roda ANTES do dedup por `trace_id` de propósito: `_is_duplicate_trace` GRAVA
+        o trace_id ao checá-lo, então rejeitar depois dele queimaria o id e mataria
+        para sempre um reenvio legítimo do mesmo giro.
+
+        Rejeição NUNCA arma o relógio (só um giro aceito o faz) e nunca altera aposta.
+        """
+        from app_config.settings import min_spin_interval_ms
+        _min = min_spin_interval_ms()
+        if _min <= 0 or self._last_accept_srv_mono is None:
+            return False
+        _delta_ms = (time.monotonic() - self._last_accept_srv_mono) * 1000.0
+        if _delta_ms >= _min:
+            return False
+        from state import phase_metrics
+        phase_metrics.incr("spin_implausivel_total")
+        logger.warning(
+            "[FASE] DIR21: giro implausivel descartado (numero=%s dir=%s delta=%.0fms < %dms)",
+            numero, direcao, _delta_ms, _min,
+        )
+        return True
+
+    def _reancora_fase(self, count: int) -> None:
+        """DIR16 + SPR-V1 B4 (furo C): re-ancoragem de fase após histórico/correção.
+
+        `spin_seq` passa a refletir os giros efetivamente registrados. O problema que
+        o V1 fecha: quando a âncora é DO OPERADOR (lock explícito ou
+        `direction_source='operator_seed'`), o código antigo saltava `spin_seq` para
+        `count` e deixava `seed_n` velho — a paridade `(spin_seq - seed_n)` mudava e a
+        fase autoritativa INVERTIA em silêncio, sem que nada visível ao operador
+        mudasse. Aqui a âncora é REPROJETADA para o novo `n`: como
+        `project_phase(p, count, count) == p`, a fase do próximo giro fica idêntica.
+
+        Sem âncora do operador mantém-se o comportamento DIR16 (zera o seed → auto-seed
+        da DIR5 no próximo giro alinhado). Atrás da flag existente SDA_RESET_REANCORA.
+        """
+        from app_config.settings import reset_reancora_enabled
+        if not reset_reancora_enabled():
+            return
+        _gs = self.game_state
+        _op_anchor = bool(_gs.direction_locked) or _gs.direction_source == "operator_seed"
+        if _op_anchor and _gs.seed_parity:
+            from state.phase import project_phase as _pp_hc
+            _proj = _pp_hc(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
+            _gs.spin_seq = count
+            _gs._apply_seed(_proj, "", locked=None, n=count)
+            logger.info(
+                "[FASE] DIR16/SPR-V1: ancora do operador reprojetada (%s @ n=%d)", _proj, count
+            )
+            return
+        _gs.spin_seq = count
+        if not _gs.direction_locked:
+            _gs._apply_seed("", "", locked=None, n=0)
 
     def _is_duplicate_trace(self, trace_id: str) -> bool:
         """DIR6 (sentido-fase): idempotência por trace_id. Cada giro carrega um
@@ -492,7 +566,14 @@ class MessageHandler:
             trace.step("received", {"type": msg_type})
 
             # === VERIFICAÇÃO DE ROLE PARA MENSAGENS DE DADOS ===
-            data_messages = ["novo_resultado", "historico_inicial", "correcao_historico"]
+            # SPR-V1 B4 (furo C): `set_seed`, `direction_event` e `nova_sessao` mudam a
+            # ÂNCORA/CONTADOR de fase globais — são tão sensíveis quanto `novo_resultado`
+            # e, até aqui, QUALQUER conexão (inclusive slave/aba de leitura) podia
+            # invocá-las e reancorar a fase de todo mundo. Só o MASTER escreve autoridade.
+            data_messages = [
+                "novo_resultado", "historico_inicial", "correcao_historico",
+                "set_seed", "direction_event", "nova_sessao",
+            ]
             if msg_type in data_messages:
                 role = connection_manager.get_role(conn_id)
                 if role != "master":
@@ -507,6 +588,11 @@ class MessageHandler:
                 # Deduplicação para novo_resultado
                 if msg_type == "novo_resultado":
                     numero = data.get("numero")
+                    # SPR-V1 B3/DIR21: plausibilidade física ANTES do dedup por trace_id
+                    # — `_is_duplicate_trace` GRAVA o id ao checar, e rejeitar depois
+                    # queimaria o trace de um reenvio legítimo do mesmo giro.
+                    if self._is_implausible_spin(numero, data.get("direcao")):
+                        return
                     # DIR6 (sentido-fase): idempotência por trace_id (mais robusta que
                     # numero+dir+ms — reenvios/re-render chegam com o mesmo trace_id).
                     from app_config.settings import dedup_seq_enabled
@@ -843,30 +929,56 @@ class MessageHandler:
             # quantos giros REAIS entraram desde a última leitura. k>1 = gap (cliente
             # minimizado / 2 giros num tick) → avança a fase pelos giros perdidos.
             _phase_uncertain = False
+            _gap = 0
             from app_config.settings import phase_reconcile_enabled
             if phase_reconcile_enabled():
-                from state.phase import phase_advance
+                from state.phase import phase_advance_ex
                 from state import phase_metrics
+                from app_config.settings import (
+                    phase_buffer_sync_enabled, phase_min_overlap,
+                )
                 _all_nums = data.get("allNumbers") or []
                 # DIR19: usa buffer de fase dedicado (janela 20), preserva recent_results
                 # (zona fria C3 maxlen=10) intacto para SDA17. Fallback para recent_results
                 # se _phase_results ausente (load_state legado).
                 _prev_nums = list(getattr(self.game_state, "_phase_results", None) or self.game_state.recent_results)
-                _gap, _inter, _phase_uncertain = phase_advance(_prev_nums, _all_nums)
+                # SPR-V1 B2: `min_overlap` exige N números coincidentes para aceitar um
+                # shift. Com janela 12 e min_overlap=3, gaps até k=9 são recuperáveis;
+                # acima disso a evidência acaba e `phase_uncertain` é a resposta CORRETA
+                # (melhor pedir resync que inventar giros). Flag lida POR CHAMADA.
+                _min_ov = phase_min_overlap()
+                _gap, _inter, _phase_uncertain, _ambiguo = phase_advance_ex(
+                    _prev_nums, _all_nums, _min_ov
+                )
                 if _gap > 0:
                     # gap recuperado (com alinhamento): avança a fase pelos giros perdidos
-                    # E sincroniza recent_results com os intermediários (zona fria C3), para
-                    # o próximo giro alinhar e não gerar phase_uncertain falso.
+                    # E sincroniza recent_results com os intermediários (zona fria C3).
+                    # SPR-V1 B1 (furo A): sincroniza TAMBÉM o buffer de fase — o
+                    # alinhamento lê `_phase_results` desde a DIR19, então sincronizar só
+                    # `recent_results` deixava o buffer PERMANENTEMENTE defasado e todo
+                    # giro seguinte virava phase_uncertain. Flag SDA_PHASE_BUFFER_SYNC.
                     self.game_state.spin_seq += _gap
                     phase_metrics.incr("gap_recuperado_total", _gap)
                     for _n in _inter:
                         self.game_state.recent_results.appendleft(_n)
+                    if phase_buffer_sync_enabled():
+                        if not self.game_state.sync_phase_buffer(_inter):
+                            phase_metrics.incr("phase_buffer_missing_total")
                     logger.info(f"[FASE] gap recuperado: {_gap} giro(s) perdido(s)")
                 if _phase_uncertain:
                     # sem alinhamento (troca de mesa/dealer): NÃO adivinha a contagem;
                     # marca ambiguidade para resync estruturado (não corrompe spin_seq).
                     phase_metrics.incr("phase_uncertain_total")
-                    logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
+                    if _ambiguo:
+                        # SPR-V1 B2: havia candidato(s), mas sem evidência suficiente
+                        # (ou mais de um k plausível numa sequência periódica).
+                        phase_metrics.incr("phase_ambiguo_total")
+                        logger.warning(
+                            "[FASE] shift AMBIGUO (evidencia < min_overlap=%d) — phase_uncertain",
+                            _min_ov,
+                        )
+                    else:
+                        logger.warning("[FASE] shift sem alinhamento (possivel troca de mesa) — phase_uncertain")
                     # DIR17 (sentido-fase): FIX #T — reancora a fase forçando auto-seed
                     # no proximo giro alinhado. Sem isto, project_phase segue projetando
                     # com seed antigo + spin_seq que continua incrementando -> direcao
@@ -874,8 +986,8 @@ class MessageHandler:
                     # Preserva lock explicito do operador. Atras de flag SDA_UNCERTAIN_REANCORA.
                     from app_config.settings import uncertain_reancora_enabled
                     if uncertain_reancora_enabled() and not self.game_state.direction_locked:
-                        self.game_state.seed_parity = ""
-                        self.game_state.seed_n = self.game_state.spin_seq
+                        # SPR-V1 B4: via _apply_seed (locked=None preserva o lock).
+                        self.game_state._apply_seed("", "", locked=None)
                         logger.info("[FASE] DIR17: seed zerado — proximo giro alinhado faz auto-seed")
 
             # DIR5 (sentido-fase): AUTORIDADE da fase. Quando ligado, o servidor deixa
@@ -897,34 +1009,29 @@ class MessageHandler:
                 from app_config.settings import lock_total_enabled as _lte
                 _lock_total = _lte() and _gs.direction_locked
                 if not _gs.seed_parity and not _lock_total:
-                    _gs.seed_parity = _phase_norm(direcao)
-                    _gs.seed_n = _gs.spin_seq
+                    # SPR-V1 B4: auto-seed via _apply_seed (caminho único auditável).
+                    _src = ""
                     if not _gs.direction_source or _gs.direction_source == "reset":
-                        _gs.direction_source = (getattr(spin, "direction_source", None) or "auto_seed")
+                        _src = (getattr(spin, "direction_source", None) or "auto_seed")
+                    _gs._apply_seed(_phase_norm(direcao), _src, locked=None)
                 elif not _gs.seed_parity and _lock_total:
                     # Lock total + seed vazio: deixa o cliente ditar (sem usurpar).
                     pass
                 else:
                     _proj = project_phase(_gs.seed_parity, _gs.seed_n, _gs.spin_seq)
                     _fused = _proj
-                    # DIR7 (sentido-fase): fusão com a fonte de VÍDEO (stand-by até
-                    # acoplar). O vídeo publica direction_event (ou direction_source=
-                    # 'vision' no spin); se confiável, confirma/sobrepõe o toggle.
-                    from app_config.settings import direction_vision_enabled, direction_vision_min_conf
-                    # DIR8: se o operador TRAVOU a fase (direction_locked), a projeção do
-                    # seed manda — nenhuma fonte de vídeo a sobrepõe.
-                    if direction_vision_enabled() and not _gs.direction_locked:
-                        from state.phase import fuse_direction
-                        _signals = [{"source": "deterministic_toggle", "direction": _proj, "confidence": 1.0}]
-                        _ev = getattr(_gs, "last_direction_event", None)
-                        if isinstance(_ev, dict):
-                            _signals.append(_ev)
-                        if getattr(spin, "direction_source", None) == "vision":
-                            _signals.append({"source": "vision", "direction": _phase_norm(direcao),
-                                             "confidence": float(getattr(spin, "direction_confidence", 0.0) or 0.0)})
-                        _fused, _fsrc = fuse_direction(_signals, _proj, direction_vision_min_conf())
-                        if _fsrc and _fsrc != "deterministic_toggle":
-                            _gs.direction_source = _fsrc
+                    # DIR7 (sentido-fase): fusão com a fonte de VÍDEO.
+                    # SPR-V1 B4 (furo D) — FAIL-CLOSE: enquanto não existir produtor de
+                    # visão autenticado (SPR-V7 / AUTH_ENABLED), NENHUM sinal 'vision'
+                    # entra na fusão do giro. Antes, um `direction_event` forjado (ou um
+                    # `direction_source='vision'` no próprio spin) com confidence alta
+                    # SOBREPUNHA a projeção determinística — inversão total da fase por
+                    # mensagem não autenticada. O evento continua sendo ARMAZENADO e
+                    # `fuse_direction` continua pura e testada, prontos para o V7; apenas
+                    # não têm autoridade sobre o giro. Rollback = git revert (não flag).
+                    if _gs.direction_source == "vision":
+                        # Normaliza fonte obsoleta: a projeção é quem manda agora.
+                        _gs.direction_source = "deterministic_toggle"
                     if _fused != _phase_norm(direcao):
                         from state import phase_metrics
                         phase_metrics.incr("direction_divergence_total")
@@ -935,10 +1042,38 @@ class MessageHandler:
                             direcao = _fused
 
             # Processar spin
+            # SPR-V1 B5/DIR22: captura o sentido do giro ANTERIOR antes de process_spin
+            # para a métrica de alternância (a fase é um toggle: dois giros consecutivos
+            # com o MESMO sentido, fora de gap/reset, denunciam fase corrompida).
+            _prev_last_dir = getattr(self.game_state, "last_direction", "") or ""
             force = self.game_state.process_spin(numero, direcao)
             # DIR3 (sentido-fase): conta giros REAIS ao vivo (n). Telemetria inócua
             # até SDA_SENTIDO_AUTORITATIVO=1; base do shift/projeção de fase (DIR4/5).
             self.game_state.spin_seq += 1
+            # SPR-V1 B3: ARMA o relógio monotônico do servidor SÓ AQUI — depois de o giro
+            # ter passado por role-gate, plausibilidade, dedup e ter sido efetivamente
+            # aplicado ao estado (process_spin + spin_seq). Armar antes deixaria um giro
+            # REJEITADO bloquear o giro legítimo seguinte por até SDA_MIN_SPIN_INTERVAL_MS.
+            self._last_accept_srv_mono = time.monotonic()
+            # SPR-V1 B5/DIR22: métrica de alternância. A expectativa é alternar
+            # (_gap + 1) vezes a partir do sentido anterior — um gap recuperado de k
+            # giros consome k trocas de fase, então comparar com o sentido imediatamente
+            # anterior geraria falso positivo. Pulada quando `phase_uncertain` (não há
+            # expectativa a violar) ou sem sentido anterior. Flag SDA_PHASE_ALT_METRIC.
+            from app_config.settings import phase_alt_metric_enabled as _pam
+            if _pam() and _prev_last_dir and not _phase_uncertain:
+                from state.phase import normalize as _alt_norm, opposite as _alt_opp
+                _esperado = _alt_norm(_prev_last_dir)
+                if _esperado:
+                    for _ in range(_gap + 1):
+                        _esperado = _alt_opp(_esperado)
+                    if _alt_norm(direcao) != _esperado:
+                        from state import phase_metrics as _pm_alt
+                        _pm_alt.incr("alternancia_violada_total")
+                        logger.warning(
+                            "[FASE] DIR22: alternancia violada (anterior=%s atual=%s esperado=%s gap=%d seq=%d)",
+                            _prev_last_dir, direcao, _esperado, _gap, self.game_state.spin_seq,
+                        )
             # DIR6: expõe a ambiguidade de fase ao overlay (resync_advised no state_sync).
             self.game_state.last_phase_uncertain = _phase_uncertain
             # S-OBS-6: registra timestamp epoch para /api/strategy
@@ -1546,12 +1681,7 @@ class MessageHandler:
         # a refletir o numero de spins efetivamente registrados (alinha com timeline);
         # seed_parity zera para forcar auto-seed da DIR5 no proximo novo_resultado.
         # Preserva lock explicito do operador. Atras de flag SDA_RESET_REANCORA.
-        from app_config.settings import reset_reancora_enabled
-        if reset_reancora_enabled():
-            self.game_state.spin_seq = count
-            if not self.game_state.direction_locked:
-                self.game_state.seed_parity = ""
-                self.game_state.seed_n = 0
+        self._reancora_fase(count)
 
         self.game_state.save()
 
@@ -1575,8 +1705,18 @@ class MessageHandler:
         self.game_state.timeline_cw.clear()
         self.game_state.timeline_ccw.clear()
         self.game_state.recent_results.clear()  # V4: reprocessa do zero (zona fria C3)
+        # SPR-V1 B1: o buffer de fase (DIR19) também precisa ser limpo aqui — senão
+        # o reprocessamento recomeça o histórico do zero mas o alinhamento de fase
+        # continua comparando com números da mesa ANTERIOR (phase_uncertain garantido
+        # no próximo giro). Mesma capacidade/flag do sync de gap.
+        from app_config.settings import phase_buffer_sync_enabled as _pbs_hc
+        if _pbs_hc() and getattr(self.game_state, "_phase_results", None) is not None:
+            self.game_state._phase_results.clear()
         self.game_state.last_number = 0
         self.game_state.last_direction = ""
+        # SPR-V1 B3: re-ancoragem é uma descontinuidade — o relógio de plausibilidade
+        # não pode barrar o primeiro giro ao vivo que vier depois dela.
+        self._last_accept_srv_mono = None
 
         count = 0
         # Processar do mais antigo para o mais recente
@@ -1596,12 +1736,7 @@ class MessageHandler:
         # spin_seq passa a refletir o numero de spins reprocessados (alinha com timeline);
         # seed_parity zera para forcar auto-seed da DIR5 no proximo novo_resultado.
         # Preserva lock explicito do operador. Atras de flag SDA_RESET_REANCORA.
-        from app_config.settings import reset_reancora_enabled
-        if reset_reancora_enabled():
-            self.game_state.spin_seq = count
-            if not self.game_state.direction_locked:
-                self.game_state.seed_parity = ""
-                self.game_state.seed_n = 0
+        self._reancora_fase(count)
 
         self.game_state.save()
 
@@ -1626,6 +1761,12 @@ class MessageHandler:
                 db_service.end_session(self.current_session_id)
 
             reset_info = self.game_state.reset_session(keep_last_number=keep_last)
+
+            # SPR-V1 B3: reset de sessão zera o relógio de plausibilidade — senão o
+            # primeiro giro da sessão nova poderia ser descartado por causa do último
+            # giro da sessão ANTERIOR. (Fora do round-trip: `time.monotonic()` só é
+            # comparável dentro do mesmo processo; ver ADENDO ISO.)
+            self._last_accept_srv_mono = None
 
             # DIR14 (sentido-fase): FIX #O — limpa cache de trace_ids para nao
             # rejeitar primeiro spin pos-reset como falso-positivo de dedup
@@ -1699,19 +1840,25 @@ class MessageHandler:
         save/load). É o ponto de RE-ANCORAGEM de fase pelo operador (não recálculo cego)."""
         from state.phase import normalize as _norm
         direction = _norm(data.get("direction") or "")
-        locked = bool(data.get("locked", False))
+        # SPR-V1 B4 (furo C): `locked` OMITIDO deve PRESERVAR o lock atual, não
+        # destravar. O `bool(data.get("locked", False))` anterior transformava um
+        # `set_seed` sem o campo num destravamento SILENCIOSO da âncora do operador.
+        _locked_raw = data.get("locked", None)
+        locked = None if _locked_raw is None else bool(_locked_raw)
         ok = direction in ("horario", "anti-horario")
         if ok:
             async with self.state_lock:
-                self.game_state.seed_parity = direction
-                self.game_state.seed_n = self.game_state.spin_seq
-                self.game_state.direction_source = "operator_seed"
-                self.game_state.direction_locked = locked
+                self.game_state._apply_seed(direction, "operator_seed", locked=locked)
                 self.game_state.save()
-            logger.info(f"[FASE] seed do operador: {direction} (locked={locked}, seq={self.game_state.spin_seq})")
+            logger.info(
+                f"[FASE] seed do operador: {direction} (locked={self.game_state.direction_locked}, "
+                f"seq={self.game_state.spin_seq})"
+            )
         await websocket.send(json.dumps({
             "type": "ack", "message": ("seed definido" if ok else "direction invalida"),
-            "direction": direction, "locked": locked, "t_server": now_ms(),
+            "direction": direction,
+            "locked": bool(self.game_state.direction_locked) if ok else bool(locked),
+            "t_server": now_ms(),
         }))
 
     async def handle_get_state(self, websocket: WebSocketServerProtocol):

@@ -478,6 +478,72 @@ class GameState:
         except Exception:  # noqa: BLE001 — placar é observabilidade, não gate
             pass
 
+    def sync_phase_buffer(self, nums) -> bool:
+        """SPR-V1 B1 (furo A): espelha no buffer de fase os números recuperados num
+        gap do DIR4, na MESMA ordem em que `phase_advance` os devolve (mais antigo →
+        mais recente), de modo que `_phase_results` volte a espelhar o `allNumbers`
+        do cliente e o próximo shift alinhe em k=1.
+
+        Antes deste método o handler sincronizava apenas `recent_results` (zona fria
+        C3) — desde a DIR19 o alinhamento lê `_phase_results`, então qualquer gap
+        deixava o buffer de fase PERMANENTEMENTE defasado e todo giro seguinte virava
+        `phase_uncertain` (com re-ancoragem na direção do cliente).
+
+        Retorna True em sucesso. Se `_phase_results` estiver ausente (estado legado)
+        ou os números não forem conversíveis, LOGA ERRO e retorna False — proibido
+        engolir a falha em silêncio, pois é exatamente a regressão que este método
+        corrige. Conversão feita ANTES de qualquer mutação (nunca deixa o buffer
+        meio-atualizado). Não toca `recent_results` nem a aposta.
+        """
+        buf = getattr(self, "_phase_results", None)
+        if buf is None:
+            logger.error(
+                "[FASE] sync_phase_buffer: _phase_results ausente (estado legado) — "
+                "gap NAO sincronizado; proximo shift pode gerar phase_uncertain falso"
+            )
+            return False
+        try:
+            valores = [int(n) for n in (nums or [])]
+        except (TypeError, ValueError) as e:
+            logger.error(f"[FASE] sync_phase_buffer: numeros invalidos ({e}) — gap NAO sincronizado")
+            return False
+        for n in valores:
+            buf.appendleft(n)
+        return True
+
+    def _apply_seed(self, direction: str, source: str = "",
+                    locked: Optional[bool] = None, n: Optional[int] = None) -> bool:
+        """SPR-V1 B4: ÚNICO caminho auditável de escrita da âncora de fase
+        (`seed_parity`/`seed_n`/`direction_source`/`direction_locked`).
+
+        - `locked=None` **preserva** o lock atual: omitir o campo NUNCA destrava o
+          operador (antes, `handle_set_seed` fazia `bool(data.get("locked", False))`
+          e um `set_seed` sem o campo destravava silenciosamente).
+        - `source="vision"` é **recusado** quando há lock explícito (fail-close: a
+          visão não usurpa uma âncora confirmada pelo operador) → retorna False.
+        - `direction=""` (ou inválida) LIMPA a âncora (força auto-seed no próximo
+          giro alinhado) — é o que DIR17/DIR16 precisam.
+        - `source=""` preserva `direction_source` (re-ancoragem não muda a origem).
+        - `n=None` ancora em `spin_seq` (o giro corrente).
+
+        Nunca lança; nunca toca decisão/cobertura/stake (INV-3 intacto).
+        """
+        if source == "vision" and bool(getattr(self, "direction_locked", False)):
+            logger.warning("[FASE] _apply_seed: fonte 'vision' recusada sob lock do operador")
+            return False
+        from state.phase import normalize as _norm, VALID as _VALID
+        d = _norm(direction or "")
+        self.seed_parity = d if d in _VALID else ""
+        try:
+            self.seed_n = int(self.spin_seq if n is None else n)
+        except (TypeError, ValueError):
+            self.seed_n = 0
+        if source:
+            self.direction_source = source
+        if locked is not None:
+            self.direction_locked = bool(locked)
+        return True
+
     def register_history_number(self, numero: int) -> None:
         """DIR2 (sentido-fase): registra um número de HISTÓRICO como contexto
         NÃO-DIRECIONAL. O histórico do DOM (12 últimos) não carrega o sentido real
@@ -1119,6 +1185,33 @@ class GameState:
             from state import phase_metrics
             out["sentido"]["stats"] = phase_metrics.snapshot()
         except Exception:  # noqa: BLE001 — observabilidade nunca quebra o overlay
+            pass
+        # SPR-V1 B4 (pré-requisito do SPR-V2): ECO AUTORITATIVO + capability.
+        # Bloco ADITIVO publicado em state_sync/sugestao/trace — cliente antigo ignora
+        # campo desconhecido. Permite ao cliente do V2 desfazer um flip local quando o
+        # servidor rejeita um giro fantasma (spin_seq/direction voltam inalterados).
+        # `enabled` é NOMINAL e DINÂMICO (capability, lida POR CHAMADA): anuncia que o
+        # par de flags do servidor está no ar. `direction`/`seed_parity` vêm NULL quando
+        # não há âncora válida — sem âncora não há autoridade a espelhar.
+        try:
+            from app_config.settings import (
+                sentido_autoritativo_enabled as _sae,
+                phase_buffer_sync_enabled as _pbs,
+            )
+            from state.phase import project_phase as _pp, HORARIO as _H, VALID as _V
+            _seq = int(getattr(self, "spin_seq", 0) or 0)
+            _sp = getattr(self, "seed_parity", "") or ""
+            _tem_ancora = _sp in _V
+            # spin_seq já foi incrementado pelo último giro ⇒ é o índice do PRÓXIMO.
+            _next = _pp(_sp, getattr(self, "seed_n", 0), _seq) if _tem_ancora else ""
+            out["phase_authority"] = {
+                "enabled": bool(_sae() and _pbs()),
+                "spin_seq": _seq,
+                "direction": ("cw" if _next == _H else "ccw") if _tem_ancora else None,
+                "seed_parity": (0 if _sp == _H else 1) if _tem_ancora else None,
+                "seed_n": int(getattr(self, "seed_n", 0) or 0) if _tem_ancora else None,
+            }
+        except Exception:  # noqa: BLE001 — eco é observabilidade; nunca quebra o overlay
             pass
         # DIR10 (sentido-fase): publica timeline rica (numero+seq+direction) para
         # auditoria externa (dashboards, debug offline). Default N=12; 0 desativa.
