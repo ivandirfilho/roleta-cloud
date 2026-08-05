@@ -1682,6 +1682,11 @@ class MessageHandler:
         # seed_parity zera para forcar auto-seed da DIR5 no proximo novo_resultado.
         # Preserva lock explicito do operador. Atras de flag SDA_RESET_REANCORA.
         self._reancora_fase(count)
+        # SPR-V1 B3: o histórico inicial é uma descontinuidade tão real quanto a
+        # correção de histórico e o `nova_sessao` (que já zeram este relógio). Sem isto,
+        # um giro aceito ANTES do histórico poderia barrar, por até
+        # SDA_MIN_SPIN_INTERVAL_MS, o primeiro giro ao vivo que vier depois dele.
+        self._last_accept_srv_mono = None
 
         self.game_state.save()
 

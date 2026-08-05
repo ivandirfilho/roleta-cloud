@@ -102,6 +102,43 @@ def test_min_overlap_nao_afeta_casos_de_borda_vazios():
     assert phase_advance_ex([], [5, 6], 3) == (0, [], False, False)
 
 
+# --------------------------------- min_overlap: exigência limitada pela evidência
+# REGRESSÃO (code-review B2): `m` nunca passa de `min(len(prev), len(new))`. Exigir
+# `min_overlap=3` quando só existem 1-2 números de histórico tornava a condição
+# INSATISFAZÍVEL e transformava um alinhamento perfeito e ÚNICO em `phase_uncertain`
+# — que aciona a DIR17 e re-ancora a fase na direção do CLIENTE, exatamente o vetor
+# que o `min_overlap` existe para fechar. Acontecia nos 2 primeiros giros depois de
+# TODO `nova_sessao` (o `_phase_results` acabou de ser zerado) e com janelas curtas.
+
+@pytest.mark.parametrize("prev,new,k_esperado", [
+    ([17], [32, 17], 1),                       # 1º giro após reset: só 1 de evidência
+    ([32, 17], [5, 32, 17], 1),                # 2º giro: 2 de evidência
+    ([17], [17], 0),                           # sem giro novo, evidência 1
+    ([32, 17], [9, 5, 32, 17], 2),             # gap de 1 com histórico curto
+])
+def test_min_overlap_nao_exige_mais_evidencia_do_que_pode_existir(prev, new, k_esperado):
+    gap, _inter, uncertain, ambiguo = phase_advance_ex(prev, new, 3)
+    assert (uncertain, ambiguo) == (False, False), (prev, new)
+    assert gap == max(0, k_esperado - 1)
+    # e o veredito é o MESMO do caminho legado, que também acertava estes casos.
+    assert reconcile_shift(prev, new, 20, 3) == (k_esperado, True)
+
+
+def test_min_overlap_ainda_barra_quando_a_evidencia_existia_e_nao_bastou():
+    """O teto NÃO desliga a regra: com prev/new longos o bastante, exigir 3 continua
+    valendo — só o que era impossível de satisfazer deixou de ser exigido."""
+    prev = [5, 32, 17]
+    new = [21, 1, 2, 3, 4, 6, 7, 8, 9, 5]      # casa só em k=9, com m=1 de 3 possíveis
+    _gap, _inter, uncertain, ambiguo = phase_advance_ex(prev, new, 3)
+    assert (uncertain, ambiguo) == (True, True)
+
+
+def test_teto_do_min_overlap_nao_afrouxa_a_fronteira_k9():
+    """Com histórico cheio (16) e janela 12 o teto é inerte: eff = min(3,16,12) = 3."""
+    for k in range(0, 12):
+        assert phase_advance_ex(PREV, _janela(k), 3)[2] is (k > 9)
+
+
 def test_reconcile_shift_min_overlap_zero_e_byte_identico():
     """INV ADITIVO: com min_overlap=0 o caminho é exatamente o legado."""
     for k in range(0, 12):
@@ -225,12 +262,25 @@ def test_phase_uncertain_nao_gera_falso_positivo(handler, monkeypatch):
 
 
 def test_metrica_ambigua_incrementa_no_handler(handler, monkeypatch):
+    """A métrica só é honesta se HOUVE alinhamento e a evidência é que não bastou.
+
+    Os 3 primeiros giros constroem `_phase_results = [5, 32, 17]` (evidência 3, o
+    máximo exigível). O 4º traz uma janela que casa APENAS em k=9, com m=1 — havia
+    alinhamento, a evidência era 1/3: ambíguo, `phase_uncertain` e nenhum giro
+    inventado. (Antes do teto de evidência, os giros 2 e 3 já falhavam aqui — ver
+    `test_min_overlap_nao_exige_mais_evidencia_do_que_pode_existir`.)
+    """
     from state import phase_metrics
     monkeypatch.setenv("SDA_PHASE_MIN_OVERLAP", "3")
     phase_metrics.reset()
     ws = _FakeWS()
-    _spin(handler, ws, 0, 17, HORARIO, [17])
-    _spin(handler, ws, 1, 32, ANTI, [32, 99, 98, 97, 96])   # 0 overlap com [17]
+    base = [17, 32, 5]
+    for i, n in enumerate(base):
+        _spin(handler, ws, i, n, HORARIO if i % 2 == 0 else ANTI,
+              list(reversed(base[: i + 1])))
+    assert phase_metrics.snapshot()["phase_ambiguo_total"] == 0, "buildup limpo"
+    _spin(handler, ws, 3, 21, HORARIO, [21, 1, 2, 3, 4, 6, 7, 8, 9, 5])
     snap = phase_metrics.snapshot()
-    assert snap["phase_uncertain_total"] >= 1
+    assert snap["phase_ambiguo_total"] == 1, snap
+    assert snap["phase_uncertain_total"] >= 1, snap
     phase_metrics.reset()

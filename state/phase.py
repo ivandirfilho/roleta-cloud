@@ -68,6 +68,14 @@ def _reconcile_shift_ex(prev, new, max_window: int = 20, min_overlap: int = 0):
         min_overlap = max(0, int(min_overlap))
     except (TypeError, ValueError):
         min_overlap = 0
+    # A evidência exigida é limitada pela evidência que PODE existir. `m` nunca passa
+    # de `min(len(prev), len(new))`, então exigir mais do que isso torna a condição
+    # INSATISFAZÍVEL e transforma um alinhamento perfeito e único (ex.: os 2 primeiros
+    # giros após um `nova_sessao`, quando `_phase_results` acabou de ser zerado, ou uma
+    # janela curta do cliente) em `phase_uncertain` — que dispara a DIR17 e re-ancora a
+    # fase na direção do CLIENTE, exatamente o vetor que este parâmetro existe para
+    # fechar. O teto é a contrapartida da regra que já isentava `prev` vazio.
+    min_overlap = min(min_overlap, len(prev), len(new))
     max_k = min(len(new), max_window)
     matches = []                     # [(k, m)] de todos os alinhamentos posicionais
     for k in range(0, max_k + 1):

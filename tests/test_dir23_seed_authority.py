@@ -313,3 +313,51 @@ def test_direction_source_vision_obsoleta_e_normalizada(make_handler, monkeypatc
         "timestamp": 1, "trace_id": "vision-002", "allNumbers": [17],
     }), "c1"))
     assert gs.direction_source == "deterministic_toggle"
+
+
+def test_ancora_do_operador_sobrevive_aos_primeiros_giros_com_min_overlap(
+    make_handler, monkeypatch
+):
+    """REGRESSÃO (code-review B2): logo após `nova_sessao` o `_phase_results` está
+    VAZIO. Exigir 3 números de overlap quando só existem 1 e 2 tornava os giros #2 e
+    #3 `phase_uncertain`, a DIR17 re-ancorava na direção do CLIENTE e a semente do
+    operador era destruída — pela própria trava que deveria protegê-la.
+
+    O operador ancora HORARIO travado; o cliente insiste em ANTI a cada giro. A fase
+    autoritativa tem de continuar sendo o toggle determinístico da âncora.
+    """
+    monkeypatch.setenv("SDA_SENTIDO_AUTORITATIVO", "1")
+    monkeypatch.setenv("SDA_PHASE_RECONCILE", "1")
+    monkeypatch.setenv("SDA_PHASE_MIN_OVERLAP", "3")
+    from state import phase_metrics
+    phase_metrics.reset()
+    h = make_handler(role="master")
+    gs = h.game_state
+    ws = _FakeWS()
+    asyncio.run(h.process_message(ws, json.dumps({"type": "nova_sessao"}), "c1"))
+    asyncio.run(h.process_message(ws, json.dumps({
+        "type": "set_seed", "direction": HORARIO, "locked": True}), "c1"))
+    seed_n = gs.seed_n
+
+    spins = [17, 32, 5, 21]
+    for i, n in enumerate(spins):
+        n_antes = gs.spin_seq       # a fase do giro é projetada ANTES do incremento
+        asyncio.run(h.process_message(ws, json.dumps({
+            "type": "novo_resultado", "numero": n, "direcao": ANTI,
+            "timestamp": 1_700_000_000_000 + i * 45_000, "trace_id": f"ovl-{i:03d}",
+            "allNumbers": list(reversed(spins[: i + 1])),
+        }), "c1"))
+        assert gs.spin_seq == n_antes + 1, f"giro {i}: giros inventados/perdidos"
+        assert gs.last_direction == project_phase(HORARIO, seed_n, n_antes), (
+            f"giro {i}: fase re-ancorada na direcao do cliente"
+        )
+
+    assert (gs.seed_parity, gs.seed_n) == (HORARIO, seed_n)
+    assert gs.direction_locked is True
+    assert gs.direction_source == "operator_seed"
+    # O sintoma direto: sem o teto de evidência, os giros #2 e #3 (histórico de 1 e 2
+    # números) viravam `phase_uncertain` — é isso que aciona a DIR17.
+    snap = phase_metrics.snapshot()
+    assert snap["phase_uncertain_total"] == 0, snap
+    assert snap["phase_ambiguo_total"] == 0, snap
+    phase_metrics.reset()
