@@ -366,3 +366,26 @@ byte-idêntico com as flags OFF — a correção não alterou o caminho legado.
 
 **Arquivos do adendo.** `state/phase.py`, `server/message_handler.py`,
 `tests/test_dir22_alternancia_metrica.py`, `tests/test_dir23_seed_authority.py`.
+
+### 2026-08-05 (adendo 2) · REBASE SOBRE O SPR-V2 · Executor
+
+O SPR-V2 (PR #52, ext 3.10.0) foi integrado à `main` primeiro — decisão do Diretor, porque o código
+da extensão fica **dormente até o reload** do navegador, enquanto as flags do V1 têm efeito imediato.
+Branch do V1 rebaseada sobre `origin/main` (`1bc45b7`).
+
+**Rebase limpo, sem conflitos.** O único arquivo em comum era `Manutenabilidade_iso.md` (o V2 inseriu
+o ADENDO dele antes do bloco final, o V1 anexa no fim) — os dois ADENDOs coexistem íntegros.
+Verificado que o diff `origin/main..HEAD` contém **apenas** os 20 arquivos do V1: `extension/`,
+`tests/js/`, `.github/workflows/ci.yml`, `sprints/SPR-V2.md` e `tests/test_dir13_lock_total.py`
+(piso de versão do manifest agora comparado por **tupla** `>= 3.9.1`, não por igualdade) continuam
+**idênticos à `main`** — nada do V2 foi sobrescrito.
+
+**Revalidação pós-rebase.** `pytest tests/` **890 passed, 9 skipped, 1 xfailed**. O job
+`extension-tests` que o V2 acrescentou ao CI (`node --test "tests/js/*.test.js"`) roda agora também
+neste PR: **53 passed** local e no CI. PR #53 com todos os checks verdes
+(`lint-and-test` 3.11/3.12/3.13 + `extension-tests` + `iso-guardrails` + `ci-ok`) e
+`mergeStateStatus: CLEAN`.
+
+**Ordem de rollout (inalterada, confirmada com o Diretor):** flags do V1 no host **antes** da
+instalação/reload da extensão 3.10.0 do V2. O servidor endurecido precisa estar de pé quando os
+clientes novos chegarem — não o contrário.
