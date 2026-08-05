@@ -2,8 +2,9 @@
 
 **Data:** 2026-08-05
 **Branch auditada:** `ivandirfilho-project-health-overview`
-**Base auditada:** `59ba329` (com `origin/main` integrado)
-**Entrega da auditoria:** `806c543`
+**Base funcional:** `origin/main` em `126ab48` (V5.1)
+**Entrega da auditoria:** `cfd7fad`
+**Sincronização V5.1:** `b82d2bfc17af`
 **Escopo:** arquitetura, runtime Azure, lift-and-shift HostDime → Azure, persistência,
 CI/CD, segurança operacional, backup/restore, PostgreSQL, Caddy e documentação.
 
@@ -24,9 +25,11 @@ O desenho em duas ondas continua correto:
 O canário Azure registrado no plano estava saudável antes desta auditoria
 (`/healthz` 200, WebSocket alcançável, portas do app em loopback), mas a imagem
 então publicada (`azure-80fe40c`) antecedia a V5 e a correção de eleição do PR
-#47. A imagem da auditoria foi publicada como `azure-806c543`, o canário foi
-redeployado por digest e Caddy/frontend foram validados na VM. Portanto, a
-imagem não é mais o bloqueio, mas **não há autorização para cutover**.
+#47. A auditoria foi publicada como `azure-806c543` e, após o avanço do `main`
+para V5.1 (#48), a branch foi sincronizada em `b82d2bfc17af`. A imagem atual foi
+publicada como `azure-b82d2bfc17af`, o canário foi redeployado por digest e
+Caddy/frontend foram validados novamente na VM. Portanto, a imagem não é mais o
+bloqueio, mas **não há autorização para cutover**.
 
 **Conclusão:** a arquitetura é viável e a preparação foi bem direcionada. A
 imagem, Caddy, frontend, health, WebSocket, backup e lifecycle já foram
@@ -37,9 +40,9 @@ pela cópia final com freeze humano.
 
 | Área | Estado | Evidência/observação |
 |---|---|---|
-| Código | `origin/main` integrado na branch | Merge local `59ba329`; `main` não foi alterado |
+| Código | `origin/main` V5.1 integrado na branch | Merge local `b82d2bfc17af`; `main` não foi alterado |
 | VM Azure | Canário previamente saudável | Debian 12, Docker/Compose, Caddy nativo e volume em `/opt/roleta/data` |
-| ACR | Atualizado sem mover `azure-latest` | `roleta-cloud:azure-806c543` e `roleta-cdc-worker:azure-806c543` publicados por digest |
+| ACR | Atualizado sem mover `azure-latest` | `roleta-cloud:azure-b82d2bfc17af` e `roleta-cdc-worker:azure-b82d2bfc17af` publicados por digest |
 | Key Vault | Existente e usado por Managed Identity | API key, PG, domínio e e-mail são lidos em runtime |
 | Storage | Backup validado; lifecycle aplicado | MI mantém `Storage Blob Data Contributor`; lifecycle foi aplicado por identidade Owner do operador |
 | PostgreSQL | Schema/grants aplicados até `0010_dir3_phase_columns` | `roleta_app` teve escrita em `shared.outbox` validada |
@@ -176,10 +179,10 @@ Executado nesta branch:
 | `docker compose ... config --quiet` sem CDC | OK |
 | `docker compose --profile cdc ... config --quiet` | OK |
 | Parse YAML dos workflows | OK |
-| `python -m pytest tests/ -q --tb=short` | **775 passed, 9 skipped, 1 xfailed** |
+| `python -m pytest tests/ -q --tb=short` | **798 passed, 9 skipped, 1 xfailed** |
 | `python tools/lint_silent_except.py` | OK (124 exceções catalogadas) |
 | `git diff --check` | OK |
-| `origin/main` integrado | OK (`59ba329` contém `19ba0ca`) |
+| `origin/main` V5.1 integrado | OK (`b82d2bfc17af` contém `126ab48`) |
 | Validação Caddy local | Não disponível: binário `caddy` não instalado neste workspace |
 | CI do PR #43 | OK: guardrails + Python 3.11/3.12/3.13 |
 
@@ -191,9 +194,9 @@ aprovação; a VM precisa executar `caddy validate` com o `EnvironmentFile` real
 
 | Verificação | Resultado |
 |---|---|
-| Imagem app | `roleta-cloud:azure-806c543`, digest `sha256:dc1481…` |
-| Imagem CDC | `roleta-cdc-worker:azure-806c543`, digest `sha256:201059…` |
-| Deploy canário | `ROLETA_TAG=azure-806c543 ./deploy-azure.sh --with-pg`; sem seed |
+| Imagem app | `roleta-cloud:azure-b82d2bfc17af`, digest `sha256:358a9f…` |
+| Imagem CDC | `roleta-cdc-worker:azure-b82d2bfc17af`, digest `sha256:89e5ef…` |
+| Deploy canário | `ROLETA_TAG=azure-b82d2bfc17af ./deploy-azure.sh --with-pg`; sem seed |
 | Backend/Caddy | `/healthz` interno e via Caddy: HTTP 200 |
 | WebSocket | handshake `/ws`: HTTP 101 |
 | Frontend | `index.html`, `app.js` e `style.css` publicados da mesma imagem |
