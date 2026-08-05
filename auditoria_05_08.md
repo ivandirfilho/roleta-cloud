@@ -262,8 +262,8 @@ validado com o `EnvironmentFile` ativo e com o staging dos dois domínios reais.
 
 ## 9. Limitações do Graphify e rastreabilidade
 
-O `graphify update .` final reconstruiu o grafo de código com **1.290 nós,
-1.498 arestas e 145 comunidades**. O transporte do MCP Graphify permaneceu
+O `graphify update .` final reconstruiu o grafo de código com **1.454 nós,
+1.654 arestas e 156 comunidades**. O transporte do MCP Graphify permaneceu
 fechado; por isso a auditoria usou o CLI local, o grafo regenerado e a leitura
 dos arquivos efetivos. As consultas semânticas de documentos continuam
 dependentes de backend LLM, mas isso não afeta a prova operacional executada nos
