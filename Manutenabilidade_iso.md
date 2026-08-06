@@ -3766,3 +3766,17 @@ que ele gera não é evidência: é "inverse crime". A separação `synthetic` /
 `eligible_for_go_gates` viajando dentro de cada artefato, foi o que impediu este sprint de fechar a
 própria DoD com números de bancada. **Toda taxa nasce com denominador, e todo denominador nasce com a
 classe da evidência que o produziu** — sem isso, um gate falseável vira um gate decorativo.
+
+---
+
+## ⚓ MUDANÇA DE CONVENÇÃO — 06/08/2026: ADENDOs agora vivem em `docs/iso/adendos/`
+
+Este documento permanece como **corpo histórico e arquitetural** do projeto, mas **deixa de
+receber ADENDOs incrementais por append**. Com múltiplos executores em paralelo, o append no
+fim deste arquivo (>300 KB) tornou-se o maior ponto de conflito de merge do repo — ADENDOs do
+mesmo dia acabaram intercalados em 4 posições diferentes e houve título duplicado.
+
+**A partir de 06/08/2026:** cada ADENDO é um arquivo próprio em
+[`docs/iso/adendos/`](docs/iso/adendos/README.md), no formato `AAAA-MM-DD-<slug>.md`, com o
+mesmo conteúdo mínimo de sempre (origem, decisão, flags, reversão, lição ISO). O índice fica
+no README da pasta. O guardrail de CI aceita a nova pasta como cumprimento da convenção ISO.

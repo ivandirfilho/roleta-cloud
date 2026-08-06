@@ -12,8 +12,10 @@
 - **NÃO commitar `graphify-out/`** (artefato pesado, regenerável); rode `graphify update .` apenas localmente.
 
 ## Fluxo de sprints (Diretor ↔ Executor)
-- **Diretor** orquestra (mantém `sprints/BOARD.md` + briefs), NÃO implementa.
-- **Executor** = 1 sprint por vez, em **worktree próprio** (`git worktree add ..\rc-SPR-XXX -b spr/SPR-XXX origin/main`), valida pela DoD, escreve o **ADENDO** em `Manutenabilidade_iso.md`, e **abre PR** (não faz merge).
+- **Diretor** orquestra (mantém `sprints/BOARD.md` + briefs), NÃO implementa. **Só o Diretor edita o BOARD** (em lote, pós-janela de integração) — Executor nunca, para não virar ímã de conflito.
+- **Executor** = 1 sprint por vez, no worktree da própria sessão: renomeie o branch para `spr/SPR-XXX` (tool `rename_branch`) no kickoff, valide pela DoD, escreva o **ADENDO como arquivo novo** em `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção no README da pasta; NÃO apendar em `Manutenabilidade_iso.md`), e **abra PR** (não faz merge) com **título começando com `SPR-XXX:`**.
+- **Lock check pré-PR (anti-silo):** `gh pr list` + arquivos dos PRs abertos; se seu diff colide com PR aberto, serialize (aguarde/rebase) em vez de abrir PR paralelo.
+- **Merge train:** proteção de main é `strict` → integre um PR por vez, update-branch entre cada; CI "Cancelled" em rajada costuma ser starvation de runner — re-run antes de suspeitar do código.
 - Detalhes operacionais: `fluxo_mental_24.md` §6, §9–§12. Aberturas/painel/GO: `evolução_24_junho.md` §0, §6, §8.
 
 ## Convenções

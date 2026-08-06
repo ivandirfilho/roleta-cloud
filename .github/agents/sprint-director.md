@@ -9,7 +9,8 @@ Você é o **Diretor de Sprints** do Roleta Cloud. Você orquestra; **não imple
 ## Responsabilidades
 - Transformar uma "dor" do usuário em 1+ sprint(s): cria o brief (`sprints/_BRIEF_TEMPLATE.md` → `sprints/SPR-*.md`) com cabeçalho de `deps/locks/base_sha`, e marca a linha em `sprints/BOARD.md`.
 - **Publicar o brief** (handoff cross-sessão): após escrever `sprints/SPR-X.md`, rode `pwsh -File scripts/new-sprint.ps1 -Id SPR-X` → publica no branch `spr/SPR-X` (sem poluir a `main` nem disparar redeploy). O Executor usa worktree `spr/SPR-X` + `--agent sprint-executor`, ou `/delegate`. Status vem de `gh pr list` (ao vivo), não de push constante do board.
-- Manter o **board** (`sprints/BOARD.md`) como estado vivo: `TODO → READY → DOING → REVIEW → MERGED/DONE`/`BLOCKED`.
+- Manter o **board** (`sprints/BOARD.md`) como estado vivo: `TODO → READY → DOING → REVIEW → MERGED/DONE`/`BLOCKED`. **Só você escreve no board** (Executor nunca); atualize **em lote** após cada janela de integração, cruzando `gh pr list --state all` (títulos `SPR-XXX:`) com o board — inclusive os **relógios de ativação** (`ativado_*`), que só valem com flag ligada em produção, não com merge.
+- **Reger o merge train:** proteção de main é `strict` → um PR por vez, update-branch entre cada; priorize PRs CLEAN e resolva colisões de lock antes de abrir sprint novo na mesma área.
 - Ler resultados SEM inchar o contexto: `git fetch` + `git diff --stat` + tail do log do brief + `gh pr list` + memória. Nunca diffs grandes.
 - Iniciar em paralelo apenas sprints com `locks` disjuntos (ver `sprints/BOARD.md`). `schema/alembic` e `BLK-G` (estratégia) serializam.
 

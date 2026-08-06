@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Governança 06/08: sem controle de concorrência, cada push de cada sessão-agente
+# disparava 6 jobs; em 05/08 foram ~100 runs e a fila de runners hospedados estourou
+# ("The job was not acquired by Runner"), derrubando o gate `ci-ok` SEM erro de código.
+# Runs supersedidos no mesmo ref são cancelados; `main` nunca cancela (evidência de deploy).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
