@@ -31,7 +31,7 @@ Extensão (spins + foto) ──WS──> Engine (SDA V4 + force17 + block_gale)
                                    └─> shared.outbox (56.466 processed, 0 pending, 0 error) ✅
                                          └─> cdc_worker (lag < 1 s)         ✅
                                                ├─ cw/ccw.spins_vectors      ✅ 3.584/3.364 · ⚠️ ae_latent = NULL (100%)
-                                               ├─ cw/ccw.spin_features      ✅ 2.991/2.763 (25 col, frescas)
+                                               ├─ cw/ccw.spin_features      ✅ 2.991/2.763 (25 col, frescas)  ⚠️ ver §7 (06/08): "frescas" era só recência de LINHA — o contexto vinha vazio
                                                ├─ shared.decision_dna       ✅ 41.266 (espelho)
                                                └─ AGE cw_graph/ccw_graph    ❌ 0 vértices, 0 arestas
 ```
@@ -63,7 +63,7 @@ funcionando: cada `result_actual` confere com o `spin_number` do giro seguinte; 
 | `shared.outbox` | ✅ 56.466 processed / **0 pending / 0 error** | zero backlog, CDC em tempo real |
 | `cw/ccw.spins_vectors.raw_features` vector(6) | ✅ populado, index ivfflat cosine + ts | busca por similaridade pronta |
 | `cw/ccw.spins_vectors.ae_latent` vector(4) | ❌ **100% NULL** | autoencoder (`scripts/train_autoencoder.py`) nunca rodou/backfillou |
-| `cw/ccw.spin_features` (25 col: recent_acc_10/50, streaks, last_20_hits, visão, direção) | ✅ frescas (último ts = segundos) | feature store pronta p/ treino |
+| `cw/ccw.spin_features` (25 col: recent_acc_10/50, streaks, last_20_hits, visão, direção) | ⚠️ **RETIFICADO em 06/08 — ver §7** — linhas frescas (último ts = segundos), mas as colunas de visão/direção estavam **100% vazias** | a auditoria mediu recência de linha, não fill-rate por coluna |
 | `shared.decision_dna` | ✅ 41.266 rows | espelho do SQLite |
 | AGE `cw_graph`/`ccw_graph` | ❌ **vazios** | camada de grafo provisionada e nunca populada |
 | Timescale | ✅ ativo | hypertables ok |
@@ -567,3 +567,121 @@ alguém rodar de novo. **Fechado com rotina permanente:** `scripts/ae-latent-nig
 `1.26.4` (wheels numpy≥2 exigem x86-64-v2, que a CPU do host não suporta) e scikit-learn
 `1.9.0` (versão exata dos `.joblib`). Testado 2× em produção: `+22` e `+4` rows.
 
+
+---
+
+## 7. Correção datada (06/08) — a projeção de contexto no PG nunca existiu
+
+### 7.1 O que a auditoria de 03/08 afirmou, e por que estava errado
+
+Em §1 e §2.2 este documento registrou `cw/ccw.spin_features` como **"25 col, frescas"** e
+**"feature store pronta p/ treino"**. A afirmação era verdadeira sobre **recência de linha** —
+o último `ts` era de segundos atrás — e **falsa sobre conteúdo**: a auditoria nunca mediu
+*fill-rate por coluna* no PG. Mediu no SQLite (§2.1, tabela de 46 colunas) e assumiu, sem
+verificar, que o espelho carregava o mesmo. Não carregava.
+
+**Estado real medido em 06/08 (leitura, sem escrita):**
+
+| Coluna em `cw/ccw.spin_features` | Fill-rate real | Esperado pela leitura de 03/08 |
+|---|---|---|
+| `dealer` | **0%** (100% no default `'unknown'`) | populado |
+| `"table"`, `provider`, `round_id` | **0%** (NULL) | populado |
+| `wheel_model`, `vision_confidence`, `vision_source` | **0%** (NULL) | populado |
+| `spin_seq`, `direction_source/confidence/next`, `phase_uncertain` | **0%** (NULL) | populado |
+| `centro_previsto`, `gale_level` | **0%** (NULL) | populado |
+| `session_id` (H3, 03/08) | ✅ populado | ✅ — o único contexto que realmente propagou |
+| `hit`, `spin_number`, lag features, vetores `raw`/`ae` | ✅ 100% | ✅ |
+
+**Não era lag de CDC.** `shared.outbox` estava com 66.599 processados, **0 pendentes e 0 erros**,
+worker `healthy`, e os vetores 6d/4d 100% preenchidos. Também **não era migração faltando**: as
+colunas de destino existem desde `0007_deal_dealer_table`, `0009_vision_features`,
+`0010_dir3_phase_columns` e `0012_session_id_features`.
+
+### 7.2 Causa-raiz — dois silêncios que se somaram
+
+1. **O produtor nunca emitiu.** `maybe_publish_spin_result()` publicava só
+   `{event_type, direction, decision_id, hit, actual_number, session_id}`. Nenhum campo de
+   contexto entrava no evento.
+2. **O worker nunca projetou.** `_apply_spin_result()` inseria só as colunas base + lag
+   features. As 12 colunas de contexto ficavam no default do DDL.
+
+E um terceiro silêncio, o que permitiu que os dois durassem: **o manifest mentia**.
+`database/schema_parity_manifest.json` listava `dealer`, `dealer_table`, `provider`, `round_id`,
+`wheel_model` e `vision_*` como `sqlite_only_allowed` — "só existem no SQLite, por decisão" —
+quando as migrations 0007/0009 **já haviam criado os destinos no PG**. Enquanto a mentira estava
+no manifest, nenhum teste de paridade podia falhar: o contrato declarava exatamente o buraco.
+
+### 7.3 O que este PR faz (e o que NÃO faz)
+
+Tudo atrás da flag **`SDA_PG_FEATURE_CONTEXT`, default OFF**, presente nos **dois** composes
+(app em `docker-compose.yml`, worker em `docker-compose.pg.yml`), lida **por evento**
+(`os.environ`, sem cache).
+
+- **Produtor** (`database/outbox_integration.py`): helper PURO `build_pg_feature_context()`
+  normaliza uma vez só (`''`→NULL, `dealer='unknown'`→NULL, confiança sem a origem pareada→NULL,
+  `spin_seq<=0`→NULL, `direction_next` normalizado para `cw|ccw`, `centro_previsto=0` preservado
+  porque a casa 0 existe). O evento `spin_result` passa a carregar o contexto **top-level**; o
+  `spin_features` ganha `meta.decision_context` **aninhado** (chaves legadas intactas).
+- **O evento é self-contained de propósito.** O worker consome com `FOR UPDATE SKIP LOCKED` em
+  múltiplas instâncias e com rollback por savepoint: buscar o contexto lá dentro seria corrida.
+- **A leitura é feita no publish, não na decisão.** `update_last_vision()` corrige
+  dealer/mesa/provider/visão na decisão mais recente **depois** do save, quando a foto/OCR chega.
+  Um contexto capturado no momento da decisão nasceria defasado — e divergiria do backfill.
+  Relendo a linha autoritativa na hora de publicar, o valor gravado ao vivo é **o mesmo** que uma
+  reconstrução posterior encontraria.
+- **Worker** (`workers/cdc_worker.py`): allowlist explícita chave→coluna, com o alias perigoso
+  `dealer_table` → coluna PG **`"table"`** (palavra reservada, citada). `spin_number` **não está**
+  no mapa: continua sendo o número REAL que resolveu a decisão anterior. Coerção total (lixo vira
+  NULL + métrica), identidade por `decision_id` (divergência rejeita), `session_id` divergente
+  **conta e loga, mas não rejeita** — um reset de sessão não invalida o dealer observado.
+  `ON CONFLICT (decision_id) DO NOTHING` **inalterado**.
+- **NÃO faz:** migração (nenhuma é necessária), backfill aplicado (`--apply` **não foi executado**
+  neste PR), mudança em decisão/stake/INV-3, ou qualquer acesso a host/SSH/produção.
+
+### 7.4 Ordem de rollout (worker primeiro — não inverta)
+
+```bash
+# 1) worker: código novo + flag ON
+docker compose -f docker-compose.pg.yml --profile cdc --env-file .env.pg build cdc-worker
+SDA_PG_FEATURE_CONTEXT=1 docker compose -f docker-compose.pg.yml --profile cdc \
+  --env-file .env.pg up -d --force-recreate cdc-worker
+docker exec roleta-cdc-worker printenv SDA_PG_FEATURE_CONTEXT   # tem que imprimir 1
+
+# 2) marco: congelar o corte ANTES de ligar o produtor
+#    SELECT max(id), datetime('now') FROM decisions;   (SQLite)
+
+# 3) só então o app (SDA_PG_FEATURE_CONTEXT=1 no .env + redeploy normal)
+
+# 4) verificação: apenas linhas com decision_id > marco devem vir preenchidas
+```
+
+**Por que nesta ordem:** com o produtor à frente, o evento enriquecido é consumido como legado e
+marcado `processed`; o `ON CONFLICT DO NOTHING` impede reparo por replay e a linha só se conserta
+via backfill. O worker loga `spin_result_context_ignored` se isso acontecer.
+
+**Rollback:** `SDA_PG_FEATURE_CONTEXT=0` + `up -d --force-recreate` (a env é fixa por container).
+Volta ao payload e ao SQL legados, byte a byte. Nenhuma linha já gravada é desfeita — e nenhuma
+precisa ser: o que foi escrito é dado verdadeiro.
+
+### 7.5 Descontinuidade declarada
+
+`centro_previsto` e `gale_level` passam de 100% NULL para populados no instante do flip. Qualquer
+série temporal sobre essas colunas tem uma **quebra na data do rollout** — não é regime novo, é
+observação que começou. O backfill trata essas duas colunas como **opt-in** (`--include-center-gale`)
+justamente para que preencher o passado seja uma decisão consciente, não um efeito colateral.
+
+Uma segunda mudança de semântica, menor e deliberada: com a flag ON, **ausência de dealer passa a
+gravar NULL** em vez do `DEFAULT 'unknown'` do DDL (0007). NULL diz "não observado"; `'unknown'`
+era um literal que se confundia com um dealer efetivamente chamado assim — e foi exatamente o que
+mascarou o furo por três auditorias (a coluna parecia preenchida). Nenhuma consulta de produção
+filtra por `'unknown'`, e o backfill aceita os dois estados como vazio
+(`dealer IS NULL OR dealer='unknown'`).
+
+### 7.6 Lição
+
+Três auditorias passaram por esta tabela e nenhuma a pegou, porque todas perguntaram *"tem linha
+nova?"* em vez de *"tem valor na coluna?"*. **Recência não é completude.** Uma tabela pode estar
+sendo escrita em tempo real, com zero backlog, worker saudável e índices quentes — e ainda assim
+entregar 100% de default numa coluna que alguém já contou como pronta para treino. O único
+antídoto barato é o que faltava: um contrato que amarre *manifest → produtor → worker* e quebre
+sozinho quando uma das três pontas se mexer.
