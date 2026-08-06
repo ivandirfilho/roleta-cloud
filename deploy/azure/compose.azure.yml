@@ -77,6 +77,11 @@ services:
       - SDA_SENTIDO_AUTORITATIVO=${SDA_SENTIDO_AUTORITATIVO:-1}
       - SDA_PHASE_RECONCILE=${SDA_PHASE_RECONCILE:-1}
       - SDA_DEDUP_SEQ=${SDA_DEDUP_SEQ:-1}
+      # SPR-V1: phase hardening remains default-OFF until the client rollout.
+      - SDA_PHASE_BUFFER_SYNC=${SDA_PHASE_BUFFER_SYNC:-0}
+      - SDA_PHASE_MIN_OVERLAP=${SDA_PHASE_MIN_OVERLAP:-0}
+      - SDA_MIN_SPIN_INTERVAL_MS=${SDA_MIN_SPIN_INTERVAL_MS:-0}
+      - SDA_PHASE_ALT_METRIC=${SDA_PHASE_ALT_METRIC:-0}
       # A HostDime liga DNA realize via .env. Na Azure o valor fica explícito no
       # compose porque kv-to-env.sh recria o .env a cada deploy.
       - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-1}
