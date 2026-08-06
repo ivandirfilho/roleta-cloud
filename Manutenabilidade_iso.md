@@ -3142,7 +3142,7 @@ a maioria descoberta em duas rodadas de revisão independente, e todas travadas 
 | Ler os bytes com `docker cp` | **descoberto reproduzindo o incidente em Docker real**: `docker cp` **não** lê pelo mount namespace do processo — para um bind mount o daemon **re-resolve o caminho de origem no host**. Num bind de *arquivo* com inode trocado ele devolve os bytes **novos** enquanto o processo continua lendo os **antigos**: a comparação vira host×host, uma **tautologia** que passa exatamente no cenário do incidente | leitura por `docker exec` (`sha256sum`, com fallback `cat`), que executa no namespace do container; sem leitor disponível ⇒ **fail-closed** (nunca cair num leitor que mente) |
 | Escalar qualquer falha para recriação | POST recusado, `reload_successful=0` ou "nunca ficou ready" não são consertados por recriar — e recriar um Prometheus que ainda servia a **última config boa** pode transformar um problema de recarga em **crash loop** e reiniciar o WAL replay | a verificação classifica a falha: **processo/transporte** (1) ⇒ falha e preserva a pendência, **sem** recriar; **conteúdo** (2, ready + reload fresco e bem-sucedido, leitura válida, mas bytes/regras divergentes — a assinatura do inode preso) ⇒ aí sim escala uma única vez |
 | `rule_files` por basename, sem glob | `/etc/prometheus/*.rules.yml` ou um subdiretório davam **0 regras declaradas**; como `0 != carregadas`, todo deploy virava falha (e recriação) eterna | resolução relativa ao mount, expansão de glob e subpaths, e o byte-check derivado da **mesma** lista; zero correspondência (glob vazio **ou** literal ausente) é **fail-closed** — guardrail deliberadamente mais estrito que o Prometheus, que ignora glob vazio em silêncio |
-| Erro de leitura tratado como divergência | `/api/v1/rules` fora do ar, `docker exec` falhando ou imagem sem leitor caíam na classe "conteúdo" e **forçavam recriação** — recriar não conserta um transporte quebrado, e ainda reinicia o WAL replay à toa | `same_bytes`/`rules_ok` devolvem **1 = transporte** e **2 = divergência real**; só a classe 2 escala |
+| Erro de leitura tratado como divergência | `/api/v1/rules` fora do ar, `docker exec` falhando ou imagem sem leitor caíam na classe "conteúdo" e **forçavam recriação** — recriar não conserta um transporte quebrado, e ainda reinicia o WAL replay à toa | vocabulário explícito na verificação de conteúdo — `MATCH` / `READ_ERROR` / `MISMATCH`: só `MISMATCH` (leitura válida e conteúdo diferente) escala; `READ_ERROR` é classe processo |
 | `rule_files` sobrepostos contados duas vezes | `alerts.yml` + `*alerts.yml` resolvem o mesmo arquivo ⇒ `declared` dobrado ⇒ `declared != loaded` **para sempre**: falha e recriação eternas numa config legal | alvos **deduplicados** antes da contagem e do byte-check (a mesma lista alimenta os dois) |
 | `grep -q` no fim de uma pipeline sob `pipefail` | o `/metrics` tem centenas de KB e a métrica aparece cedo: o `grep -q` sai no primeiro match, o produtor morre de **SIGPIPE (141)** e a pipeline inteira vira "falha" — a verificação **nunca** passaria, todo deploy de obs escalaria para recriação e a pendência ficaria presa em `escalated` para sempre | comparação por here-string (`grep -q … <<< "$body"`), sem pipeline |
 
@@ -3150,7 +3150,7 @@ Falha de observabilidade **não** faz rollback do app: ele já passou no healthc
 o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
 e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
 
-### D. Regressão (`tests/test_obs_reload.py`, 84 testes)
+### D. Regressão (`tests/test_obs_reload.py`, 85 testes)
 
 Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
 `prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
@@ -3209,16 +3209,17 @@ teste correspondente tem de reprovar; fontes restauradas ao fim):
 | erro de leitura classificado como conteúdo | `test_sem_reader_na_imagem_e_processo` + `test_docker_exec_falho_e_processo` |
 | API fora do ar classificada como conteúdo | `test_api_de_regras_fora_do_ar_e_processo` |
 | `verify` colapsando as duas classes | `test_sem_reader_na_imagem_e_processo` |
+| `declared != loaded` não escalando | `test_declared_diferente_de_loaded_escala_uma_vez` |
 | sem deduplicação dos `rule_files` | `test_literal_e_glob_sobrepostos_contam_uma_vez` + `test_dois_globs_sobrepostos_contam_uma_vez` |
 
 **Probes independentes** (`OBS_APPLY=<script>`, stubs próprios, fora do harness de teste): 15 cenários —
 namespace × host no bind de arquivo, mount de diretório, POST recusado / `reload_successful=0` /
 never-ready sem recriação, glob no topo, em subdiretório e sem correspondência, gate sem stack, API fora
-do ar, `docker exec` falho, imagem sem leitor, controle de hash divergente, sobreposição literal+glob e
-paths com espaço. Contra o `scripts/obs-apply.sh` de `554e66b`: **1/9** (o probe do namespace devolvia
-`rc=0` usando `docker cp` — o sucesso falso — e `forced=1` nos três casos de falha de processo). Contra
-`edcb9fd`: **11/15** (as quatro reprovações são exatamente os achados de classificação e deduplicação).
-Contra o código atual: **15/15**.
+do ar, `docker exec` falho, imagem sem leitor, controle de hash divergente, `declared != loaded`,
+sobreposição literal+glob e paths com espaço. Contra o `scripts/obs-apply.sh` de `554e66b`: **1/9** (o
+probe do namespace devolvia `rc=0` usando `docker cp` — o sucesso falso — e `forced=1` nos três casos de
+falha de processo). Contra `edcb9fd`/`3a75624` (mesmo blob): **11/15** (as quatro reprovações são
+exatamente os achados de classificação e deduplicação). Contra o código atual: **16/16**.
 
 ### E. Entrypoint durável (o que fazia o conserto não chegar em produção)
 
@@ -3248,7 +3249,7 @@ precisam ser mantidas em sincronia".
 **Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
 de bug, não alterado aqui para não recriar um container fora do incidente.
 
-**Suítes.** Python **988 passed, 9 skipped, 1 xfailed** (+84 sobre os 904 do adendo anterior).
+**Suítes.** Python **989 passed, 9 skipped, 1 xfailed** (+85 sobre os 904 do adendo anterior).
 `lint_silent_except` OK · `schema_symmetry` OK.
 
 **Evidência contra a rodada anterior.** A suíte funcional aceita `OBS_APPLY_UNDER_TEST=<script>` para

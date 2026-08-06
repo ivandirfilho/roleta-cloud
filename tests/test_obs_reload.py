@@ -822,6 +822,16 @@ class TestEscaladaSoComEvidencia(BashHarness):
         self.assertIn("--force-recreate", self.calls())
         self.assertNotIn("falha de PROCESSO", res.stdout)
 
+    def test_declared_diferente_de_loaded_escala_uma_vez(self):
+        """MISMATCH provado por leitura valida: bytes batem, mas a API carregou
+        menos regras do que o arquivo declara — escala exatamente uma vez."""
+        res = self.run_obs("apply", self.sha0, self.sha1, STUB_RULES_LOADED="1")
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("arquivo=2 carregadas=1", res.stdout)
+        forced = [c for c in self.calls().splitlines() if "--force-recreate" in c]
+        self.assertEqual(len(forced), 1, "declared!=loaded tem de escalar exatamente uma vez")
+        self.assertNotIn("falha de PROCESSO", res.stdout, "classificado como transporte")
+
 
 class TestRuleFilesResolucao(BashHarness):
     """`rule_files` com glob/subpath: basename + sem glob dava 0 declarado."""

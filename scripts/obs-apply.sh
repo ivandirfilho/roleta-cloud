@@ -85,6 +85,13 @@ SEEN_FILE="$STATE_DIR/obs_seen"
 TS_METRIC="prometheus_config_last_reload_success_timestamp_seconds"
 OK_METRIC="prometheus_config_last_reload_successful"
 
+# Vocabulario explicito da verificacao de conteudo. A distincao entre "nao consegui
+# LER" e "li e esta diferente" e o que decide se recriar o container faz sentido:
+# recriacao conserta inode preso, nao conserta daemon/API fora do ar.
+RC_MATCH=0        # bate
+RC_READ_ERROR=1   # nao foi possivel ler (transporte)  -> classe PROCESS
+RC_MISMATCH=2     # leitura valida, conteudo divergente -> classe CONTENT
+
 ACTION="none"     # none | reload | recreate
 ESCALATED="0"     # 1 = ja houve recriacao forcada BEM-SUCEDIDA nesta pendencia
 FORCE_FLAG=""     # "force" = bootstrap manual
@@ -358,28 +365,29 @@ container_sha() {
     return 1
 }
 
+# MATCH | READ_ERROR (nao deu para ler) | MISMATCH (leu e esta diferente)
 same_bytes() {
     local host_file="$1" ctr_path="$2" h c cid
     if [ ! -f "$host_file" ]; then
         log "FAIL arquivo ausente no repo: $host_file"
-        return 1
+        return "$RC_READ_ERROR"
     fi
     h="$(sha256sum < "$host_file" | awk '{print $1}')"
     cid="$(prom_cid)" || cid=""
     if [ -z "$cid" ]; then
         # nao conseguimos nem chegar no container: transporte, nao conteudo
         log "FAIL sem container em execucao para ler $ctr_path"
-        return 1
+        return "$RC_READ_ERROR"
     fi
     if ! c="$(container_sha "$cid" "$ctr_path")"; then
         log "FAIL nao foi possivel ler $ctr_path pela visao do container (imagem sem sha256sum/cat? container sumiu?)"
-        return 1
+        return "$RC_READ_ERROR"
     fi
     if [ "$h" = "$c" ]; then
-        return 0
+        return "$RC_MATCH"
     fi
     log "FAIL divergencia: $host_file (repo=${h:0:12}) != $ctr_path (container=${c:0:12})"
-    return 2
+    return "$RC_MISMATCH"
 }
 
 # --- rule_files: resolucao com glob/subpath --------------------------------
@@ -450,32 +458,32 @@ declared_rules() {
     printf '%s' "$total"
 }
 
-# Config + TODOS os rule_files resolvidos: os alvos do byte-check saem da MESMA
-# lista usada para contar as regras declaradas.
-# 0 = tudo igual | 1 = nao foi possivel LER (transporte) | 2 = conteudo divergente
+# Config + TODOS os rule_files resolvidos (ja deduplicados): os alvos do byte-check
+# saem da MESMA lista usada para contar as regras declaradas.
+# MATCH | READ_ERROR | MISMATCH — propaga a classe do primeiro alvo que falhar.
 content_matches() {
-    local targets="$1" line rc=0
+    local targets="$1" line rc="$RC_MATCH"
     same_bytes "$REPO_DIR/$CONF_HOST" "$CONF_CTR" || rc=$?
-    if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -ne "$RC_MATCH" ]; then
         return "$rc"
     fi
     while IFS= read -r line; do
         if [ -z "$line" ]; then
             continue
         fi
-        rc=0
+        rc="$RC_MATCH"
         same_bytes "${line#*|}" "${line%%|*}" || rc=$?
-        if [ "$rc" -ne 0 ]; then
+        if [ "$rc" -ne "$RC_MATCH" ]; then
             return "$rc"
         fi
     done <<< "$targets"
-    return 0
+    return "$RC_MATCH"
 }
 
 # Contagem de regras REALMENTE carregadas: cada objeto de regra da API tem
 # exatamente um campo "query" (os objetos de grupo nao tem). E o numero que
 # denunciou o incidente (18 carregadas x 21 no arquivo).
-# 0 = bate | 1 = API indisponivel/invalida (transporte) | 2 = contagem divergente
+# MATCH | READ_ERROR (API fora do ar/invalida) | MISMATCH (declared != loaded)
 rules_ok() {
     local targets="$1" declared loaded json
     declared="$(declared_rules "$targets")"
@@ -483,20 +491,20 @@ rules_ok() {
     if [ -z "$json" ]; then
         # nao conseguimos LER a API: recriar o container nao conserta isso
         log "FAIL /api/v1/rules indisponivel — impossivel provar que as regras carregaram"
-        return 1
+        return "$RC_READ_ERROR"
     fi
     if ! grep -q '"status":[[:space:]]*"success"' <<< "$json"; then
         log "FAIL /api/v1/rules sem status=success (resposta invalida)"
-        return 1
+        return "$RC_READ_ERROR"
     fi
     loaded="$(grep -o '"query":' <<< "$json" | wc -l | tr -d '[:space:]')" || loaded="0"
     loaded="${loaded:-0}"
     if [ "$declared" != "$loaded" ]; then
         log "FAIL regras: arquivo=$declared carregadas=$loaded (sintoma exato do incidente 21x18)"
-        return 2
+        return "$RC_MISMATCH"
     fi
     log "regras ok: arquivo=$declared carregadas=$loaded"
-    return 0
+    return "$RC_MATCH"
 }
 
 # 0 = verificado | 1 = falha de PROCESSO/TRANSPORTE (recriar nao conserta) |
@@ -529,14 +537,14 @@ verify_once() {
     fi
 
     # Daqui para baixo o processo esta comprovadamente saudavel e recarregou agora.
-    # Falha de LEITURA (docker exec, API fora) continua sendo classe 1: recriar o
-    # container nao conserta um transporte quebrado — e recriaria a toa.
-    rc=0
+    # READ_ERROR continua sendo classe PROCESS: recriar o container nao conserta um
+    # transporte quebrado (API fora do ar, docker exec falho) — e recriaria a toa.
+    rc="$RC_MATCH"
     content_matches "$targets" || rc=$?
-    if [ "$rc" -ne 0 ]; then return "$rc"; fi
-    rc=0
+    if [ "$rc" -ne "$RC_MATCH" ]; then return "$rc"; fi
+    rc="$RC_MATCH"
     rules_ok "$targets" || rc=$?
-    if [ "$rc" -ne 0 ]; then return "$rc"; fi
+    if [ "$rc" -ne "$RC_MATCH" ]; then return "$rc"; fi
     return 0
 }
 
