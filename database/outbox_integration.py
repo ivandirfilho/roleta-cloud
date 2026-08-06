@@ -18,7 +18,7 @@ import logging
 import os
 import threading
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional
 
 if TYPE_CHECKING:
     from database.models import Decision
@@ -120,6 +120,185 @@ def _extract_raw_features(decision: "Decision") -> list[float]:
     ]
 
 
+# ---------------------------------------------------------------------------
+# PG feature-context (correção 06/08): projeção do contexto da decisão
+# ---------------------------------------------------------------------------
+# Auditoria de produção: `cw/ccw.spin_features` tinha `dealer='unknown'` em 100%
+# das linhas e `spin_seq`/`direction_*`/`centro_previsto`/`gale_level` NULL em
+# 100% — embora as colunas de destino existam desde 0007/0009/0010/0012. A causa
+# NÃO era lag de CDC (outbox 100% processado): o produtor nunca emitia esses
+# campos no evento `spin_result` e o worker nunca os projetava.
+#
+# INVIOLÁVEL: comportamento novo nasce atrás de flag default-OFF no compose,
+# lida por chamada (`os.environ`, sem cache) — a env é fixa por container, então
+# ligar/desligar exige `up -d --force-recreate`.
+_CONTEXT_FLAG_ENV = "SDA_PG_FEATURE_CONTEXT"
+
+# Chaves do contexto → colunas de destino em cw|ccw.spin_features.
+# `dealer_table` mapeia para a coluna PG **"table"** (palavra reservada, citada
+# no worker). Mantido aqui como fonte única da verdade do contrato produtor.
+PG_FEATURE_CONTEXT_KEYS: tuple[str, ...] = (
+    "dealer",
+    "dealer_table",
+    "provider",
+    "round_id",
+    "wheel_model",
+    "vision_confidence",
+    "vision_source",
+    "spin_seq",
+    "direction_source",
+    "direction_confidence",
+    "direction_next",
+    "phase_uncertain",
+    "centro_previsto",
+    "applied_gale_level",
+)
+
+
+def pg_feature_context_enabled() -> bool:
+    """Flag default-OFF do enriquecimento de contexto (lida por chamada)."""
+    return os.environ.get(_CONTEXT_FLAG_ENV, "0").strip().lower() in (
+        "1", "true", "on", "yes",
+    )
+
+
+def _src_get(source: Any, key: str) -> Any:
+    """Lê `key` de um `Decision` (atributo), de um mapping ou de um `sqlite3.Row`.
+
+    O mesmo helper serve o caminho ao vivo (objeto `Decision`) e o backfill
+    (linha crua do SQLite) — é o que garante que os dois produzam o MESMO valor
+    para a mesma origem.
+    """
+    if isinstance(source, Mapping):
+        return source.get(key)
+    try:
+        keys = getattr(source, "keys", None)
+        if callable(keys):  # sqlite3.Row e afins: acesso por item
+            return source[key] if key in keys() else None
+    except Exception:  # noqa: BLE001 — fonte heterogênea nunca derruba o hook
+        return None
+    try:
+        return getattr(source, key)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _text_or_none(value: Any) -> str | None:
+    """String não-vazia, ou None. `''`/whitespace são ausência, não valor."""
+    if value is None:
+        return None
+    try:
+        text = str(value).strip()
+    except Exception:  # noqa: BLE001
+        return None
+    return text or None
+
+
+def _float_or_none(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError, ArithmeticError):
+        # ArithmeticError cobre OverflowError (int gigante -> float): a coerção
+        # é TOTAL por contrato, então valor impossível vira ausência.
+        return None
+
+
+def _int_or_none(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError, ArithmeticError):
+        # OverflowError: int(float('inf')).
+        return None
+
+
+# Faixa de INTEGER (int4) do PG. Valor fora daqui derrubaria o INSERT no banco
+# (e com ele o resultado essencial); melhor virar ausência já na normalização.
+_INT4_MIN, _INT4_MAX = -2147483648, 2147483647
+
+
+def _int4_or_none(value: Any) -> int | None:
+    number = _int_or_none(value)
+    if number is None or not (_INT4_MIN <= number <= _INT4_MAX):
+        return None
+    return number
+
+
+def build_pg_feature_context(source: Any) -> dict | None:
+    """Monta o contexto IMUTÁVEL da decisão para projeção no PG. Nunca levanta.
+
+    Helper PURO, compartilhado pela publicação do vetor inicial (`spin_features`)
+    e pelo evento de resultado (`spin_result`) — e reutilizado pelo backfill, de
+    modo que o valor gravado ao vivo e o valor reconstruído a posteriori saiam da
+    MESMA normalização.
+
+    `source` pode ser um `Decision` ou qualquer mapping com as mesmas chaves.
+
+    Normalização (uma única vez, aqui):
+      - string vazia → None (ausência não é valor);
+      - `dealer='unknown'` → None (é o DEFAULT da coluna, não uma observação);
+      - `vision_confidence` só existe se `vision_source` existir (par);
+      - `direction_confidence`/`phase_uncertain` idem em relação a
+        `direction_source` — sem a origem da fase, "não incerto" seria mentira;
+      - `spin_seq <= 0` → None (0 é o default do dataclass, não um giro);
+      - `direction_next` → alias conhecido (`cw|ccw`); não mapeável → None
+        (evita vocabulário misto 'horario'/'cw' na mesma coluna);
+      - `centro_previsto` preserva 0 (a casa 0 existe na roleta) e
+        `phase_uncertain` preserva `False` quando a fase É conhecida.
+
+    Devolve `None` quando não há fonte (nada a projetar).
+    """
+    if source is None:
+        return None
+    vision_source = _text_or_none(_src_get(source, "vision_source"))
+    direction_source = _text_or_none(_src_get(source, "direction_source"))
+    dealer = _text_or_none(_src_get(source, "dealer"))
+    if dealer is not None and dealer.lower() == "unknown":
+        dealer = None
+    spin_seq = _int4_or_none(_src_get(source, "spin_seq"))
+    if spin_seq is not None and spin_seq <= 0:
+        spin_seq = None
+    raw_phase_uncertain = _src_get(source, "phase_uncertain")
+    phase_uncertain = (
+        bool(raw_phase_uncertain)
+        if (direction_source is not None and raw_phase_uncertain is not None)
+        else None
+    )
+    return {
+        # Identidade: o worker rejeita contexto cujo decision_id não bate com o
+        # do evento (troca de contexto = dado errado na linha errada).
+        "decision_id": _int_or_none(_src_get(source, "id")),
+        # Divergência de sessão é REPORTADA, não rejeitada: um reset de sessão no
+        # meio da resolução não invalida o dealer/mesa observados na decisão.
+        "session_id": _text_or_none(_src_get(source, "session_id")),
+        "dealer": dealer,
+        "dealer_table": _text_or_none(_src_get(source, "dealer_table")),
+        "provider": _text_or_none(_src_get(source, "provider")),
+        "round_id": _text_or_none(_src_get(source, "round_id")),
+        "wheel_model": _text_or_none(_src_get(source, "wheel_model")),
+        "vision_confidence": (
+            _float_or_none(_src_get(source, "vision_confidence"))
+            if vision_source is not None else None
+        ),
+        "vision_source": vision_source,
+        "spin_seq": spin_seq,
+        "direction_source": direction_source,
+        "direction_confidence": (
+            _float_or_none(_src_get(source, "direction_confidence"))
+            if direction_source is not None else None
+        ),
+        "direction_next": _normalize_direction(
+            _text_or_none(_src_get(source, "direction_next")) or ""
+        ),
+        "phase_uncertain": phase_uncertain,
+        "centro_previsto": _int4_or_none(_src_get(source, "sda_center")),
+        "applied_gale_level": _int4_or_none(_src_get(source, "gale_level")),
+    }
+
+
 def _get_publisher() -> Optional["OutboxPublisher"]:
     """Lazy singleton com retry exponencial (VF-2 fix HOOK-1).
 
@@ -219,21 +398,28 @@ def maybe_publish_decision_features(decision: "Decision", decision_id: int) -> b
             _m_hook_skipped.labels(reason="publisher_none").inc()
             return False
         raw = _extract_raw_features(decision)
+        meta = {
+            "session_id": decision.session_id,
+            "final_action": decision.final_action,
+            "gale_level": decision.gale_level,
+            # OBS-25-01: observabilidade outbox — number/centro previsto
+            "spin_number": decision.spin_number,
+            "centro_previsto": decision.sda_center,
+            # GALE-25-04: clarificar semântica (gale_level é o "próximo",
+            # applied_gale_level espelha o valor no momento da decisão)
+            "applied_gale_level": decision.gale_level,
+        }
+        # Correção 06/08 (flag default-OFF): contexto ANINHADO em chave própria —
+        # as chaves legadas do meta seguem intactas (sem colisão de nomes).
+        if pg_feature_context_enabled():
+            context = build_pg_feature_context(decision)
+            if context is not None:
+                meta["decision_context"] = context
         pub.publish_spin_features(
             direction=direction,
             raw_features=raw,
             decision_id=decision_id,
-            meta={
-                "session_id": decision.session_id,
-                "final_action": decision.final_action,
-                "gale_level": decision.gale_level,
-                # OBS-25-01: observabilidade outbox — number/centro previsto
-                "spin_number": decision.spin_number,
-                "centro_previsto": decision.sda_center,
-                # GALE-25-04: clarificar semântica (gale_level é o "próximo",
-                # applied_gale_level espelha o valor no momento da decisão)
-                "applied_gale_level": decision.gale_level,
-            },
+            meta=meta,
         )
         _m_hook_published.inc()
         logger.info("dual_write_ok decision_id=%s direction=%s", decision_id, direction)
@@ -256,6 +442,7 @@ def maybe_publish_spin_result(
     hit: bool,
     actual_number: int,
     session_id: str | None = None,
+    context: dict | None = None,
 ) -> bool:
     """OBS-25-01 — publica evento `spin_result` quando o resultado é conhecido.
 
@@ -263,6 +450,13 @@ def maybe_publish_spin_result(
     engenharia reversa offline e backtest (S-STRAT-9) sem depender de logs.
     H3 (03/08): carrega session_id para o worker isolar a janela de lag
     features por sessão (payloads sem session_id seguem no modo global).
+
+    Correção 06/08 (flag `SDA_PG_FEATURE_CONTEXT`, default-OFF): `context`
+    carrega o contexto da decisão (dealer/mesa/visão/fase) DENTRO do evento —
+    o evento é SELF-CONTAINED de propósito. O worker consome com
+    `FOR UPDATE SKIP LOCKED` em múltiplas instâncias e com rollback por
+    savepoint: buscar o contexto lá (ex.: em `spins_vectors`) seria uma corrida.
+    Com a flag OFF o payload é BYTE-IDÊNTICO ao legado (sem a chave `context`).
 
     NUNCA levanta — guard-rail consistente com maybe_publish_decision_features.
     """
@@ -288,6 +482,8 @@ def maybe_publish_spin_result(
         }
         if session_id:
             payload["session_id"] = str(session_id)
+        if context is not None and pg_feature_context_enabled():
+            payload["context"] = dict(context)
         pub.publish(
             aggregate="spin_result",
             aggregate_id=f"{dir_norm}:{decision_id}",

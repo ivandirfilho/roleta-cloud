@@ -67,6 +67,63 @@ _ANALYZE_TABLES = (
 ALLOWED_DIRECTIONS = {"cw", "ccw"}
 EXPECTED_DIM = 6
 
+# ---------------------------------------------------------------------------
+# PG feature-context (correção 06/08)
+# ---------------------------------------------------------------------------
+# Auditoria de produção: cw/ccw.spin_features com dealer='unknown' 100% e
+# spin_seq/direction_*/centro_previsto/gale_level NULL 100%, embora as colunas
+# existam (0007/0009/0010/0012). O produtor não emitia o contexto e este worker
+# não o projetava. Flag default-OFF, lida A CADA EVENTO (env é fixa por
+# container: ligar/desligar exige `up -d --force-recreate`).
+#
+# ORDEM DE ROLLOUT: worker (código + flag) PRIMEIRO, produtor DEPOIS. Com o
+# produtor ligado antes do worker, os eventos enriquecidos são consumidos como
+# legado e marcados 'processed'; o ON CONFLICT DO NOTHING impede reparo por
+# replay e a única correção passa a ser o backfill. O log
+# `spin_result_context_ignored` abaixo denuncia essa inversão.
+CONTEXT_FLAG_ENV = "SDA_PG_FEATURE_CONTEXT"
+
+# Mapa EXPLÍCITO chave do contexto -> identificador SQL da coluna de destino.
+# `dealer_table` -> "table": a coluna PG (0007) usa a palavra reservada `table`
+# e por isso vai CITADA. Este mapa é o contrato testado (tests/test_cdc_worker_context.py).
+#
+# SEMÂNTICA DO `dealer`: com a flag ON, ausência de dealer grava NULL em vez do
+# DEFAULT 'unknown' do DDL (0007). É deliberado — NULL diz "não observado",
+# 'unknown' era um literal que se confundia com um dealer chamado assim. Nenhuma
+# consulta de produção filtra por 'unknown'; o backfill aceita os dois estados
+# como vazio (`dealer IS NULL OR dealer='unknown'`).
+CONTEXT_COLUMN_MAP: tuple[tuple[str, str], ...] = (
+    ("dealer", "dealer"),
+    ("dealer_table", '"table"'),
+    ("provider", "provider"),
+    ("round_id", "round_id"),
+    ("wheel_model", "wheel_model"),
+    ("vision_confidence", "vision_confidence"),
+    ("vision_source", "vision_source"),
+    ("spin_seq", "spin_seq"),
+    ("direction_source", "direction_source"),
+    ("direction_confidence", "direction_confidence"),
+    ("direction_next", "direction_next"),
+    ("phase_uncertain", "phase_uncertain"),
+)
+# Coerção por coluna — TOTAL (nunca levanta): valor inválido vira NULL e é
+# contado, jamais manda o resultado essencial para a DLQ. Defeito de mapeamento
+# ou de SQL continua falhando alto (não há try/except cego em volta do INSERT).
+CONTEXT_COLUMN_KINDS: dict[str, str] = {
+    "dealer": "text",
+    "dealer_table": "text",
+    "provider": "text",
+    "round_id": "text",
+    "wheel_model": "text",
+    "vision_confidence": "float",
+    "vision_source": "text",
+    "spin_seq": "int4",
+    "direction_source": "text",
+    "direction_confidence": "float",
+    "direction_next": "text",
+    "phase_uncertain": "bool",
+}
+
 _shutdown = False
 _notify_received_total = 0
 _notify_wakeups_total = 0
@@ -79,9 +136,19 @@ if _PROM_OK:
     M_BATCH_PROCESSED = Counter("cdc_batch_events_processed_total", "Total eventos processados em batches")
     M_LISTEN_RECONNECT = Counter("cdc_listen_reconnect_total", "Total reconexoes do canal LISTEN")
     M_LISTEN_STATE = Gauge("cdc_listen_state", "1 = LISTEN ativo, 0 = polling-only")
+    M_CONTEXT = Counter(
+        "cdc_spin_result_context_total",
+        "Projecao do contexto da decisao em spin_features por desfecho",
+        ["status"],
+    )
+    M_CONTEXT_SESSION_MISMATCH = Counter(
+        "cdc_spin_result_context_session_mismatch_total",
+        "Contexto com session_id diferente do evento (projetado mesmo assim)",
+    )
 else:
     M_NOTIFY_RECEIVED = M_NOTIFY_WAKEUPS = M_BATCH_PROCESSED = M_LISTEN_RECONNECT = None  # type: ignore
     M_LISTEN_STATE = None  # type: ignore
+    M_CONTEXT = M_CONTEXT_SESSION_MISMATCH = None  # type: ignore
 
 
 def _handle_signal(signum: int, _frame: Any) -> None:
@@ -159,11 +226,153 @@ def _apply_spin_features(cur: Any, payload: dict[str, Any]) -> None:
     cur.execute(sql, (decision_id, raw, Json(meta)))
 
 
+def context_enabled() -> bool:
+    """Flag default-OFF lida A CADA EVENTO (nunca cacheada)."""
+    return os.environ.get(CONTEXT_FLAG_ENV, "0").strip().lower() in (
+        "1", "true", "on", "yes",
+    )
+
+
+def _m_context(status: str) -> None:
+    if M_CONTEXT is not None:
+        M_CONTEXT.labels(status=status).inc()
+
+
+def _coerce_text(value: Any) -> Optional[str]:
+    if value is None or isinstance(value, (dict, list, tuple, bool)):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _coerce_float(value: Any) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError, ArithmeticError):
+        # ArithmeticError cobre OverflowError (int gigante vindo do JSONB).
+        # A coerção é TOTAL por contrato: nada aqui pode escapar e mandar o
+        # resultado essencial para a DLQ.
+        return None
+
+
+def _coerce_int(value: Any) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError, ArithmeticError):
+        return None
+
+
+# Faixa de INTEGER (int4) do PG: valor fora daqui faria o próprio banco recusar
+# o INSERT — o mesmo desfecho (linha perdida) que a coerção existe para evitar.
+_INT4_MIN, _INT4_MAX = -2147483648, 2147483647
+
+
+def _coerce_int4(value: Any) -> Optional[int]:
+    number = _coerce_int(value)
+    if number is None or not (_INT4_MIN <= number <= _INT4_MAX):
+        return None
+    return number
+
+
+def _coerce_bool(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in ("1", "true", "t", "yes", "on"):
+        return True
+    if text in ("0", "false", "f", "no", "off"):
+        return False
+    return None
+
+
+_COERCERS = {"text": _coerce_text, "float": _coerce_float,
+             "int": _coerce_int, "int4": _coerce_int4, "bool": _coerce_bool}
+
+
+def build_context_columns(
+    payload: dict[str, Any], session_id: Any,
+) -> tuple[list[str], list[Any], Optional[dict[str, Any]]]:
+    """Resolve as colunas de contexto a projetar. Devolve (colunas, valores, ctx).
+
+    Nunca levanta: cada valor passa por coerção TOTAL (lixo vira NULL) para que
+    um contexto malformado jamais mande o resultado essencial para a DLQ.
+    `ctx` volta None quando nada deve ser projetado (flag OFF, ausente ou
+    identidade divergente) — nesse caso o INSERT é exatamente o legado.
+
+    Identidade: `decision_id` divergente REJEITA o contexto (dado da decisão
+    errada). `session_id` divergente NÃO rejeita — um reset de sessão no meio da
+    resolução não invalida o dealer/mesa observados na decisão —, só é contado.
+    """
+    context = payload.get("context")
+    if not context_enabled():
+        if context is not None:
+            # Denuncia rollout fora de ordem (produtor ligado antes do worker):
+            # estas linhas nascem sem contexto e o ON CONFLICT DO NOTHING impede
+            # reparo por replay — só o backfill conserta.
+            logger.warning(
+                "spin_result_context_ignored decision_id=%s reason=worker_flag_off",
+                payload.get("decision_id"),
+            )
+        _m_context("disabled")
+        return [], [], None
+    if context is None:
+        _m_context("absent")
+        return [], [], None
+    if not isinstance(context, dict):
+        logger.warning("spin_result_context_invalid decision_id=%s type=%s",
+                       payload.get("decision_id"), type(context).__name__)
+        _m_context("invalid")
+        return [], [], None
+    ctx_decision_id = _coerce_int(context.get("decision_id"))
+    evt_decision_id = _coerce_int(payload.get("decision_id"))
+    if (ctx_decision_id is not None and evt_decision_id is not None
+            and ctx_decision_id != evt_decision_id):
+        logger.warning(
+            "spin_result_context_invalid decision_id=%s ctx_decision_id=%s "
+            "reason=decision_id_mismatch", evt_decision_id, ctx_decision_id,
+        )
+        _m_context("invalid")
+        return [], [], None
+    ctx_session = _coerce_text(context.get("session_id"))
+    evt_session = _coerce_text(session_id)
+    if ctx_session is not None and evt_session is not None and ctx_session != evt_session:
+        # session_id do evento continua autoritativo para a coluna session_id.
+        logger.warning(
+            "spin_result_context_session_mismatch decision_id=%s ctx=%s evt=%s",
+            evt_decision_id, ctx_session, evt_session,
+        )
+        if M_CONTEXT_SESSION_MISMATCH is not None:
+            M_CONTEXT_SESSION_MISMATCH.inc()
+    cols: list[str] = []
+    vals: list[Any] = []
+    for key, column in CONTEXT_COLUMN_MAP:
+        coerce = _COERCERS[CONTEXT_COLUMN_KINDS[key]]
+        cols.append(column)
+        vals.append(coerce(context.get(key)))
+    _m_context("applied")
+    return cols, vals, context
+
+
 def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
     """S-STRAT-8: insere row em cw|ccw.spin_features com lag features.
 
     Calcula via window query no próprio schema (acc_10, acc_50, streaks,
     last_20_hits) antes de inserir esta nova linha.
+
+    Correção 06/08: sob `SDA_PG_FEATURE_CONTEXT=1` projeta também o contexto da
+    decisão (dealer/mesa/provider/visão/fase) que vem DENTRO do evento. Nada é
+    buscado em outra tabela de propósito: o batch roda com FOR UPDATE SKIP
+    LOCKED em múltiplas instâncias e com rollback por savepoint — uma leitura
+    aqui seria corrida. `spin_number` NÃO faz parte do mapa de contexto: ele é,
+    e continua sendo, o número REAL que resolveu a decisão anterior.
     """
     direction = payload.get("direction")
     if direction not in ALLOWED_DIRECTIONS:
@@ -236,29 +445,50 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
     last_20_with_now = ([hit] + last_20)[:20]
 
     # H2+H3 (03/08): session_id na linha + ON CONFLICT anti-replay.
+    # Correção 06/08: colunas de contexto entram por allowlist (CONTEXT_COLUMN_MAP)
+    # DEPOIS das colunas base — `spin_number` não está no mapa, logo o contexto
+    # nunca sobrescreve o número real do resultado.
+    ctx_cols, ctx_vals, context = build_context_columns(payload, session_id)
+    if context is not None:
+        # Precedência: meta (legado) vence; o contexto só PREENCHE o que faltou.
+        # Para eventos `spin_result` o meta é sempre {}, então na prática o
+        # contexto preenche — a precedência é o guarda de compatibilidade que
+        # impede um evento legado enriquecido manualmente de ser reescrito.
+        if centro_previsto is None:
+            centro_previsto = _coerce_int4(context.get("centro_previsto"))
+        if gale_level is None:
+            gale_level = _coerce_int4(context.get("applied_gale_level"))
+
+    base_cols = [
+        "decision_id", "spin_number", "hit", "centro_previsto", "gale_level",
+        "recent_acc_10", "recent_acc_50", "streak_miss", "streak_hit",
+        "last_20_hits", "meta", "session_id",
+    ]
+    base_vals = [
+        decision_id,
+        spin_number,
+        hit,
+        centro_previsto,
+        gale_level,
+        acc_10,
+        acc_50,
+        streak_miss,
+        streak_hit,
+        last_20_with_now,
+        Json(meta if isinstance(meta, dict) else {}),
+        session_id,
+    ]
+    all_cols = base_cols + ctx_cols
+    all_vals = base_vals + ctx_vals
+    placeholders = ", ".join(["%s"] * len(all_cols))
     cur.execute(
         f"""
         INSERT INTO {schema}.spin_features
-            (decision_id, spin_number, hit, centro_previsto, gale_level,
-             recent_acc_10, recent_acc_50, streak_miss, streak_hit,
-             last_20_hits, meta, session_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ({", ".join(all_cols)})
+        VALUES ({placeholders})
         ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING;
         """,
-        (
-            decision_id,
-            spin_number,
-            hit,
-            centro_previsto,
-            gale_level,
-            acc_10,
-            acc_50,
-            streak_miss,
-            streak_hit,
-            last_20_with_now,
-            Json(meta if isinstance(meta, dict) else {}),
-            session_id,
-        ),
+        tuple(all_vals),
     )
 
 

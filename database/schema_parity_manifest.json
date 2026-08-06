@@ -1,5 +1,6 @@
 {
   "_doc": "SP-04 schema parity manifest. Atualize via `python tools/snapshot_sqlite_schema.py > database/schema_sqlite_snapshot.json` quando uma migracao SQLite for legitima. O teste tests/test_schema_parity.py compara o snapshot acima com o schema vivo do SQLiteDecisionRepository e valida a lista must_propagate_to_pg.",
+  "_doc_projection": "Correcao 06/08: `pg_projection_map` declara o caminho REAL de cada coluna SQLite ate o PG (evento, mecanismo e coluna de destino), incluindo aliases (dealer_table -> \"table\") e o fato de `spin_direction` nao ser coluna e sim o SCHEMA (cw|ccw). Antes, dealer/dealer_table/provider/round_id/wheel_model/vision_* estavam listados como `sqlite_only_allowed` — o que era FALSO desde as migrations 0007/0009 (as colunas de destino existiam; ninguem as preenchia). tests/test_pg_projection_contract.py valida este mapa contra o produtor e o worker sem exigir PG.",
   "must_propagate_to_pg": {
     "decisions": [
       "spin_number",
@@ -16,11 +17,45 @@
       "direction_source",
       "direction_confidence",
       "direction_next",
-      "phase_uncertain"
+      "phase_uncertain",
+      "dealer",
+      "dealer_table",
+      "provider",
+      "round_id",
+      "wheel_model",
+      "vision_confidence",
+      "vision_source"
     ]
   },
   "pg_target_table": {
     "decisions": ["cw.spin_features", "ccw.spin_features"]
+  },
+  "pg_projection_map": {
+    "decisions": {
+      "dealer": {"pg_column": "dealer", "event": "spin_result", "via": "context", "context_key": "dealer", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "dealer_table": {"pg_column": "table", "event": "spin_result", "via": "context", "context_key": "dealer_table", "flag": "SDA_PG_FEATURE_CONTEXT", "note": "palavra reservada: o worker cita a coluna (\"table\")"},
+      "provider": {"pg_column": "provider", "event": "spin_result", "via": "context", "context_key": "provider", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "round_id": {"pg_column": "round_id", "event": "spin_result", "via": "context", "context_key": "round_id", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "wheel_model": {"pg_column": "wheel_model", "event": "spin_result", "via": "context", "context_key": "wheel_model", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "vision_confidence": {"pg_column": "vision_confidence", "event": "spin_result", "via": "context", "context_key": "vision_confidence", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "vision_source": {"pg_column": "vision_source", "event": "spin_result", "via": "context", "context_key": "vision_source", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "spin_seq": {"pg_column": "spin_seq", "event": "spin_result", "via": "context", "context_key": "spin_seq", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "direction_source": {"pg_column": "direction_source", "event": "spin_result", "via": "context", "context_key": "direction_source", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "direction_confidence": {"pg_column": "direction_confidence", "event": "spin_result", "via": "context", "context_key": "direction_confidence", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "direction_next": {"pg_column": "direction_next", "event": "spin_result", "via": "context", "context_key": "direction_next", "flag": "SDA_PG_FEATURE_CONTEXT", "note": "normalizado para cw|ccw; alias desconhecido vira NULL"},
+      "phase_uncertain": {"pg_column": "phase_uncertain", "event": "spin_result", "via": "context", "context_key": "phase_uncertain", "flag": "SDA_PG_FEATURE_CONTEXT"},
+      "sda_center": {"pg_column": "centro_previsto", "event": "spin_result", "via": "context", "context_key": "centro_previsto", "flag": "SDA_PG_FEATURE_CONTEXT", "note": "coluna base do INSERT; meta legado tem precedencia e o contexto preenche"},
+      "gale_level": {"pg_column": "gale_level", "event": "spin_result", "via": "context", "context_key": "applied_gale_level", "flag": "SDA_PG_FEATURE_CONTEXT", "note": "coluna base do INSERT; meta legado tem precedencia e o contexto preenche"},
+      "session_id": {"pg_column": "session_id", "event": "spin_result", "via": "payload", "payload_key": "session_id", "note": "H3 03/08 — top-level do evento, autoritativo sobre o contexto"},
+      "result_actual": {"pg_column": "spin_number", "event": "spin_result", "via": "payload", "payload_key": "actual_number", "note": "spin_number no PG e o numero REAL que resolveu a decisao anterior, NAO o decisions.spin_number"},
+      "result_hit": {"pg_column": "hit", "event": "spin_result", "via": "payload", "payload_key": "hit"},
+      "spin_direction": {"pg_column": null, "event": "spin_result", "via": "schema", "note": "nao e coluna: escolhe o schema cw|ccw (horario->cw / anti-horario->ccw)"},
+      "spin_number": {"pg_column": null, "event": "spin_features", "via": "meta", "meta_key": "spin_number", "note": "vive no JSONB meta de spins_vectors; nao ha coluna dedicada"},
+      "sda_score": {"pg_column": null, "event": "spin_features", "via": "vector", "note": "raw_features[4] do vetor 6-dim em cw|ccw.spins_vectors"},
+      "sda_centers": {"pg_column": null, "event": "spin_features", "via": "derived", "note": "derivado de sda_center; sem coluna dedicada"},
+      "final_action": {"pg_column": null, "event": "spin_features", "via": "meta", "meta_key": "final_action"},
+      "calibration_error": {"pg_column": null, "event": "dna_realized", "via": "payload", "payload_key": "wheel_dist", "note": "shared.decision_dna.wheel_dist"}
+    }
   },
   "sqlite_only_allowed": [
     "performance_snapshot",
@@ -29,15 +64,8 @@
     "tr_reason",
     "tr_confidence",
     "sda_regions",
-    "dealer",
-    "dealer_table",
-    "provider",
-    "round_id",
     "result_region",
-  "pnl_units",
-  "wheel_model",
-  "vision_confidence",
-  "vision_source"
+    "pnl_units"
   ],
   "pg_only_allowed": [
     "last_20_hits",
