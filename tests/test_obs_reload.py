@@ -5,11 +5,14 @@ container `roleta-prometheus` continuava servindo 18. O deploy usa `git reset --
 reescreve arquivos via temp+rename (NOVO INODE), e a compose montava `obs/alerts.yml` como
 bind DE ARQUIVO — que fixa o inode. `POST /-/reload` nao resolvia; so recriar o container.
 
-Duas familias de teste:
+Tres familias de teste:
   1. estaticos — a compose precisa continuar montando o DIRETORIO `obs/` (se alguem voltar
      ao bind de arquivo, o bug volta silencioso e nenhum outro teste percebe);
-  2. funcionais — `scripts/obs-apply.sh` roda de verdade contra stubs de `docker`/`curl`,
-     cobrindo noop / reload / recriacao / promtool reprovado / INODE PRESO / pendencia.
+  2. entrypoint — o launcher instalado no host tem de continuar sendo um ponteiro para o
+     script versionado (senao a copia em /usr/local congela de novo);
+  3. funcionais — `scripts/obs-apply.sh` roda de verdade contra stubs COM ESTADO de
+     `docker`/`curl` (timestamp de reload, bytes vistos pelo container, regras carregadas),
+     cobrindo noop / reload / recriacao / frescor / promtool / pendencia / kill-switch.
 """
 from __future__ import annotations
 
@@ -18,12 +21,16 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 COMPOSE_OBS = REPO / "docker-compose.obs.yml"
 OBS_APPLY = REPO / "scripts" / "obs-apply.sh"
+LAUNCHER = REPO / "scripts" / "roleta-deploy-launcher.sh"
+DEPLOY = REPO / "scripts" / "roleta-deploy-pull.sh"
+LEGACY_DEPLOY = REPO / "tools" / "deploy_pull.sh"
 
 BASH = shutil.which("bash")
 
@@ -52,12 +59,15 @@ def _bash_path(path: Path) -> str | None:
     return None
 
 
+def _code(text: str) -> str:
+    return "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+
+
 class TestComposeMountKeepsUpWithInodeSwap(unittest.TestCase):
     """O mount de diretorio e a raiz da correcao — travado aqui."""
 
     def setUp(self):
         self.text = COMPOSE_OBS.read_text(encoding="utf-8")
-        # bloco do servico prometheus (ate o proximo servico no mesmo nivel)
         block = re.search(r"\n  prometheus:\n(.*?)(?=\n  [a-z0-9_-]+:\n)", self.text, re.S)
         self.assertIsNotNone(block, "servico prometheus nao encontrado na compose de obs")
         self.prom = block.group(1)
@@ -100,55 +110,77 @@ class TestComposeMountKeepsUpWithInodeSwap(unittest.TestCase):
         self.assertIn("- prometheus-data:/prometheus", self.prom)
 
 
-class TestDeployScriptsChamamObsApply(unittest.TestCase):
-    def setUp(self):
-        self.scripts = {
-            name: (REPO / name).read_text(encoding="utf-8")
-            for name in ("scripts/roleta-deploy-pull.sh", "tools/deploy_pull.sh")
-        }
+class TestDeployEntrypoint(unittest.TestCase):
+    """O entrypoint do host tem de ser um PONTEIRO, nao uma copia congelada."""
 
-    def test_hook_presente_nos_dois_scripts(self):
-        for name, body in self.scripts.items():
-            self.assertIn("obs-apply.sh", body, f"{name} nao chama o passo de observabilidade")
-            self.assertIn("obs_run apply", body, name)
-            self.assertIn("obs_run check", body, name)
+    def test_launcher_nao_tem_logica_de_deploy(self):
+        body = _code(LAUNCHER.read_text(encoding="utf-8"))
+        for forbidden in ("git reset", "docker compose", "alembic", "healthcheck"):
+            self.assertNotIn(
+                forbidden, body, "launcher tem de ficar minusculo (logica vive no repo)"
+            )
+
+    def test_launcher_executa_o_script_versionado(self):
+        body = _code(LAUNCHER.read_text(encoding="utf-8"))
+        self.assertIn("scripts/roleta-deploy-pull.sh", body)
+        self.assertIn("exec bash", body)
+
+    def test_duplicado_legado_delega(self):
+        """Duas copias do deploy = divergencia garantida; a antiga so delega."""
+        body = _code(LEGACY_DEPLOY.read_text(encoding="utf-8"))
+        self.assertIn("exec bash", body)
+        self.assertIn("scripts/roleta-deploy-pull.sh", body)
+        self.assertNotIn("git reset", body)
+        self.assertNotIn("docker compose", body)
+
+    def test_docs_instalam_o_launcher(self):
+        docs = (REPO / "docs" / "DEPLOY.md").read_text(encoding="utf-8")
+        self.assertIn("roleta-deploy-launcher.sh", docs)
+        self.assertNotIn(
+            "install -m755 tools/deploy_pull.sh",
+            docs,
+            "docs nao podem mandar instalar o duplicado legado",
+        )
+
+    def test_unit_systemd_continua_apontando_para_usr_local(self):
+        unit = (REPO / "tools" / "systemd" / "roleta-deploy.service").read_text(encoding="utf-8")
+        self.assertIn("/usr/local/bin/roleta-deploy-pull.sh", unit)
+
+
+class TestDeployScriptChamaObsApply(unittest.TestCase):
+    def setUp(self):
+        self.body = DEPLOY.read_text(encoding="utf-8")
+
+    def test_hook_presente(self):
+        for needle in ("obs-apply.sh", "obs_run apply", "obs_run check"):
+            self.assertIn(needle, self.body)
 
     def test_pendencia_retomada_antes_do_gate_noop(self):
         """Sem isso, a falha some no tick seguinte (LOCAL==REMOTE -> exit 0)."""
-        for name, body in self.scripts.items():
-            resume = body.find("obs_run resume")
-            noop = body.find('if [ "$LOCAL" = "$REMOTE" ]')
-            start = body.find("DEPLOY START")
-            self.assertGreater(resume, noop, f"{name}: resume precisa estar dentro do gate NOOP")
-            self.assertLess(resume, start, f"{name}: resume precisa vir antes do deploy normal")
+        resume = self.body.find("obs_run resume")
+        noop = self.body.find('if [ "$LOCAL" = "$REMOTE" ]')
+        start = self.body.find("DEPLOY START")
+        self.assertGreater(resume, noop, "resume precisa estar dentro do gate NOOP")
+        self.assertLess(resume, start, "resume precisa vir antes do deploy normal")
 
     def test_falha_de_obs_e_explicita(self):
-        for name, body in self.scripts.items():
-            self.assertIn("DEPLOY PARCIAL", body, f"{name}: falha de obs sem sinal explicito")
+        self.assertIn("DEPLOY PARCIAL", self.body)
 
     def test_nunca_remove_orphans(self):
-        def code_lines(text: str) -> str:
-            return "\n".join(
-                ln for ln in text.splitlines() if not ln.lstrip().startswith("#")
-            )
-
-        self.assertNotIn("--remove-orphans", code_lines(OBS_APPLY.read_text(encoding="utf-8")))
-        for name, script in self.scripts.items():
-            self.assertNotIn("--remove-orphans", code_lines(script), name)
+        self.assertNotIn("--remove-orphans", _code(OBS_APPLY.read_text(encoding="utf-8")))
+        self.assertNotIn("--remove-orphans", _code(self.body))
 
 
 @unittest.skipUnless(BASH, "bash nao disponivel")
-class TestObsApplyRuntime(unittest.TestCase):
-    """Roda o script de verdade contra stubs de `docker` e `curl`."""
+class BashHarness(unittest.TestCase):
+    """Base: repo git temporario + stubs COM ESTADO de docker/curl."""
 
-    ALERTS_V0 = "groups:\n  - name: r\n    rules:\n      - alert: A\n        expr: up == 0\n"
-    ALERTS_V1 = (
-        "groups:\n  - name: r\n    rules:\n      - alert: A\n        expr: up == 0\n"
-        "      - alert: B\n        expr: up == 1\n"
-    )
+    ALERTS_1 = "groups:\n  - name: r\n    rules:\n      - alert: A\n        expr: up == 0\n"
+    ALERTS_2 = ALERTS_1 + "      - alert: B\n        expr: up == 1\n"
     PROM_YML = "global:\n  scrape_interval: 15s\nrule_files:\n  - /etc/prometheus/alerts.yml\n"
     COMPOSE_V0 = "services:\n  prometheus:\n    image: prom/prometheus:v2.51.2\n"
-    COMPOSE_V1 = COMPOSE_V0 + "    mem_limit: 512m\n"
+    # mudanca que NAO altera a definicao do servico prometheus: `up -d` vira no-op
+    COMPOSE_V1 = COMPOSE_V0 + "  # comentario irrelevante para o servico\n"
 
     @classmethod
     def setUpClass(cls):
@@ -166,6 +198,10 @@ class TestObsApplyRuntime(unittest.TestCase):
             d.mkdir(parents=True, exist_ok=True)
         self.stub_log = self.tmp / "calls.log"
         self.stub_log.write_text("", encoding="utf-8")
+        self.ts_file = self.tmp / "reload_ts"
+        # epoch realista: o script usa o relogio do host como baseline quando o
+        # /metrics nao responde, e container/host compartilham o mesmo clock
+        self.ts_file.write_text(f"{int(time.time())}\n", encoding="utf-8", newline="\n")
 
         shutil.copyfile(OBS_APPLY, self.repo / "scripts" / "obs-apply.sh")
         self._write_stubs()
@@ -174,8 +210,7 @@ class TestObsApplyRuntime(unittest.TestCase):
     # ---- fixture helpers -------------------------------------------------
     def _git(self, *args: str) -> str:
         out = subprocess.run(
-            ["git", "-C", str(self.repo), *args],
-            capture_output=True, text=True, check=True,
+            ["git", "-C", str(self.repo), *args], capture_output=True, text=True, check=True
         )
         return out.stdout.strip()
 
@@ -195,7 +230,7 @@ class TestObsApplyRuntime(unittest.TestCase):
         subprocess.run(["git", "init", "-q", str(self.repo)], check=True, capture_output=True)
         self._git("config", "user.email", "t@t")
         self._git("config", "user.name", "t")
-        self._write_repo_files(self.ALERTS_V0, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_1, self.COMPOSE_V0)
         self._git("add", "-A")
         self._git("commit", "-qm", "v0")
         self.sha0 = self._git("rev-parse", "HEAD")
@@ -207,27 +242,42 @@ class TestObsApplyRuntime(unittest.TestCase):
         return self._git("rev-parse", "HEAD")
 
     def _write_stubs(self):
+        bump = (
+            'bump_ts() { if [ "${STUB_RELOAD_STICKY:-0}" = "1" ]; then return 0; fi; '
+            'cur=$(cat "$STUB_TS_FILE" 2>/dev/null || echo 1000); '
+            'echo $((cur + 1)) > "$STUB_TS_FILE"; }\n'
+        )
         docker = """#!/bin/bash
 echo "docker $*" >> "$STUB_LOG"
-args=" $* "
+""" + bump + """args=" $* "
 case "$args" in
     *" ps "*)
         if [ "${STUB_NO_PROM:-0}" = "1" ]; then exit "${STUB_PS_RC:-0}"; fi
         # `ps -a` inclui os containers efemeros do `compose run` (nome ordena antes)
         case "$args" in *" -aq "*|*" -a "*) echo "oneoff-run-999" ;; esac
         echo "ctr123"; exit 0 ;;
-    *promtool*)  exit "${STUB_PROMTOOL_RC:-0}" ;;
+    *promtool*)
+        if [ -n "${STUB_PROMTOOL_OUT:-}" ]; then echo "$STUB_PROMTOOL_OUT" >&2; fi
+        exit "${STUB_PROMTOOL_RC:-0}" ;;
     *" up "*)
         case "$args" in
-            *--force-recreate*) exit "${STUB_FORCE_UP_RC:-${STUB_UP_RC:-0}}" ;;
+            *--force-recreate*)
+                rc="${STUB_FORCE_UP_RC:-${STUB_UP_RC:-0}}"
+                if [ "$rc" = "0" ]; then bump_ts; fi   # container novo carrega a config
+                exit "$rc" ;;
         esac
+        # `up -d` puro: se a definicao do servico nao mudou, e no-op (nao recarrega).
+        # STUB_UP_RECREATES=1 simula o caso em que a definicao MUDOU (ex.: o mount
+        # novo): o container e recriado e passa a enxergar o repo.
+        if [ "${STUB_UP_RECREATES:-0}" = "1" ] && [ "${STUB_UP_RC:-0}" = "0" ]; then
+            cp "$STUB_REPO_OBS"/*.yml "$STUB_CTR_DIR"/ 2>/dev/null
+            bump_ts
+        fi
         exit "${STUB_UP_RC:-0}" ;;
     *" cp "*)
-        # simula o que o CONTAINER enxerga: tar do arquivo em $STUB_CTR_DIR.
-        # Um container efemero do `run` enxergaria SEMPRE o bind novo -> se o script
-        # verificar contra ele, o falso sucesso volta.
         src=""
         for a in "$@"; do case "$a" in *:/*) src="${a#*:}" ;; esac; done
+        # um container efemero do `run` enxergaria SEMPRE o bind novo
         case " $* " in
             *oneoff-run*) dir="$STUB_REPO_OBS" ;;
             *)            dir="$STUB_CTR_DIR" ;;
@@ -240,16 +290,24 @@ exit 0
 """
         curl = """#!/bin/bash
 echo "curl $*" >> "$STUB_LOG"
-url=""
+""" + bump + """url=""
 for a in "$@"; do case "$a" in http*) url="$a" ;; esac; done
+ts=$(cat "$STUB_TS_FILE" 2>/dev/null || echo 1000)
 case "$url" in
-    */-/reload) exit "${STUB_RELOAD_RC:-0}" ;;
-    */-/ready)  exit "${STUB_READY_RC:-0}" ;;
+    */-/reload)
+        rc="${STUB_RELOAD_RC:-0}"
+        if [ "$rc" = "0" ] || [ "${STUB_RELOAD_BUMP_ON_FAIL:-0}" = "1" ]; then bump_ts; fi
+        exit "$rc" ;;
+    */-/ready)
+        n=0
+        if [ -f "$STUB_READY_COUNT" ]; then n=$(cat "$STUB_READY_COUNT"); fi
+        n=$((n + 1)); echo "$n" > "$STUB_READY_COUNT"
+        if [ "$n" -le "${STUB_READY_FAILS:-0}" ]; then exit 7; fi
+        exit "${STUB_READY_RC:-0}" ;;
     */metrics)
-        # /metrics real tem centenas de KB e a metrica aparece CEDO: reproduz o
-        # cenario de SIGPIPE que quebrava `printf | grep -q` sob pipefail.
         echo "go_goroutines 42"
         echo "prometheus_config_last_reload_successful ${STUB_RELOAD_OK:-1}"
+        echo "prometheus_config_last_reload_success_timestamp_seconds $ts"
         if [ "${STUB_BIG_METRICS:-1}" = "1" ]; then
             i=0
             while [ "$i" -lt 4000 ]; do
@@ -258,7 +316,23 @@ case "$url" in
             done
         fi
         exit 0 ;;
-    */api/v1/rules) printf '%s' "${STUB_RULES_JSON:-}"; exit 0 ;;
+    */api/v1/rules)
+        if [ "${STUB_RULES_STATUS:-success}" != "success" ]; then
+            printf '{"status":"error"}'; exit 0
+        fi
+        n="${STUB_RULES_LOADED:-}"
+        if [ -z "$n" ]; then
+            n=$(grep -cE '^[[:space:]]*-[[:space:]]*alert:' "$STUB_CTR_DIR/alerts.yml" 2>/dev/null || echo 0)
+        fi
+        printf '{"status":"success","data":{"groups":[{"name":"g","rules":['
+        i=0
+        while [ "$i" -lt "$n" ]; do
+            if [ "$i" -gt 0 ]; then printf ','; fi
+            printf '{"name":"A","query":"up == 0","type":"alerting"}'
+            i=$((i + 1))
+        done
+        printf ']}]}}'
+        exit 0 ;;
 esac
 exit 0
 """
@@ -278,8 +352,12 @@ exit 0
             "STUB_LOG": _bash_path(self.stub_log),
             "STUB_CTR_DIR": _bash_path(self.ctr),
             "STUB_REPO_OBS": _bash_path(self.repo / "obs"),
-            "VERIFY_RETRIES": "1",
+            "STUB_TS_FILE": _bash_path(self.ts_file),
+            "STUB_READY_COUNT": _bash_path(self.tmp) + "/ready_count",
+            "VERIFY_RETRIES": "2",
             "VERIFY_INTERVAL": "0",
+            "READY_TIMEOUT": "20",
+            "READY_INTERVAL": "1",
         }
         env.update(env_over)
         for key, value in env.items():
@@ -289,27 +367,44 @@ exit 0
         wrapper = self.tmp / "run.sh"
         wrapper.write_text(
             f'#!/bin/bash\n{exports}\nexec bash "{script}" "$@"\n',
-            encoding="utf-8", newline="\n",
+            encoding="utf-8",
+            newline="\n",
         )
         os.chmod(wrapper, 0o755)
         return subprocess.run(
-            [BASH, _bash_path(wrapper), *args], capture_output=True, text=True, timeout=180
+            [BASH, _bash_path(wrapper), *args], capture_output=True, text=True, timeout=300
         )
 
     def calls(self) -> str:
         return self.stub_log.read_text(encoding="utf-8")
 
-    def pending(self) -> str:
-        p = self.state / "obs_pending"
-        return p.read_text(encoding="utf-8").strip() if p.exists() else ""
+    def reset_calls(self):
+        self.stub_log.write_text("", encoding="utf-8")
 
-    # ---- cenarios --------------------------------------------------------
+    def pending(self) -> dict:
+        p = self.state / "obs_pending"
+        if not p.exists():
+            return {}
+        out = {}
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                out[k] = v
+        return out
+
+    def write_pending(self, action: str, escalated: str, sha: str):
+        (self.state / "obs_pending").write_text(
+            f"action={action}\nescalated={escalated}\nsha={sha}\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+
+class TestObsApplyBasics(BashHarness):
     def test_sintaxe_bash(self):
-        for rel in ("scripts/obs-apply.sh", "scripts/roleta-deploy-pull.sh", "tools/deploy_pull.sh"):
-            res = subprocess.run(
-                [BASH, "-n", _bash_path(REPO / rel)], capture_output=True, text=True
-            )
-            self.assertEqual(res.returncode, 0, f"{rel}: {res.stderr}")
+        for path in (OBS_APPLY, DEPLOY, LEGACY_DEPLOY, LAUNCHER):
+            res = subprocess.run([BASH, "-n", _bash_path(path)], capture_output=True, text=True)
+            self.assertEqual(res.returncode, 0, f"{path.name}: {res.stderr}")
 
     def test_deploy_sem_mudanca_de_obs_nao_toca_prometheus(self):
         (self.repo / "README.md").write_text("x\n", encoding="utf-8", newline="\n")
@@ -320,48 +415,22 @@ exit 0
         self.assertEqual(self.calls().strip(), "", "Prometheus tocado num deploy sem obs")
 
     def test_alerts_mudou_valida_e_recarrega_sem_recriar(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
         sha1 = self._commit("nova regra")
         self._sync_container()  # mount de diretorio: container ve o arquivo novo
         res = self.run_obs("apply", self.sha0, sha1)
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
         calls = self.calls()
         self.assertIn("/bin/promtool", calls, "validou antes de aplicar?")
-        self.assertIn("check config", calls)
         self.assertIn("-X POST http://127.0.0.1:9090/-/reload", calls)
         self.assertNotIn(" up -d", calls, "reload nao pode recriar o container")
-        self.assertEqual(self.pending(), "", "pendencia deveria ter sido limpa")
+        self.assertEqual(self.pending(), {}, "pendencia deveria ter sido limpa")
         self.assertLess(
             calls.index("promtool"), calls.index("/-/reload"), "validacao tem de vir ANTES"
         )
 
-    def test_compose_mudou_recria_uma_vez_preservando_volume(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V1)
-        sha1 = self._commit("mount novo")
-        self._sync_container()
-        res = self.run_obs("apply", self.sha0, sha1)
-        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
-        calls = self.calls()
-        ups = [c for c in calls.splitlines() if " up -d" in c]
-        self.assertEqual(len(ups), 1, f"recriacao tem de ser unica: {ups}")
-        self.assertIn("--no-deps", ups[0], "so o prometheus pode ser tocado")
-        self.assertIn("prometheus", ups[0])
-        self.assertNotIn("--remove-orphans", ups[0])
-        self.assertNotIn("-v", ups[0].split("up -d")[1], "volume TSDB nao pode ser removido")
-        self.assertNotIn("/-/reload", calls, "compose novo nao precisa de reload extra")
-
-    def test_promtool_reprovado_aborta_sem_aplicar(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("regra quebrada")
-        res = self.run_obs("apply", self.sha0, sha1, STUB_PROMTOOL_RC="1")
-        self.assertEqual(res.returncode, 1)
-        calls = self.calls()
-        self.assertNotIn("/-/reload", calls, "nao pode recarregar config invalida")
-        self.assertNotIn(" up -d", calls, "nao pode recriar com config invalida")
-        self.assertIn("promtool reprovou", res.stdout)
-
     def test_check_isolado_nao_toca_container(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
         sha1 = self._commit("nova regra")
         res = self.run_obs("check", self.sha0, sha1)
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
@@ -370,43 +439,13 @@ exit 0
         self.assertNotIn("/-/reload", calls)
         self.assertNotIn(" up -d", calls)
 
-    def test_inode_preso_e_detectado_e_escalado_uma_unica_vez(self):
-        """O incidente literal: reload responde 200 e o container segue no arquivo velho."""
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("21 regras")
-        # container NAO sincronizado: continua lendo a versao antiga (inode preso)
-        res = self.run_obs("apply", self.sha0, sha1)
-        self.assertEqual(res.returncode, 1, "sucesso falso com container servindo bytes velhos")
-        self.assertIn("divergencia", res.stdout)
-        calls = self.calls()
-        self.assertIn("/-/reload", calls)
-        forced = [c for c in calls.splitlines() if "--force-recreate" in c]
-        self.assertEqual(len(forced), 1, "escala para UMA recriacao ao detectar inode preso")
-        self.assertEqual(self.pending(), "escalated", "pendencia precisa sobreviver ao deploy")
-
-        # tick seguinte (LOCAL==REMOTE): retoma sem recriar de novo -> sem loop de restart
-        self.stub_log.write_text("", encoding="utf-8")
-        res2 = self.run_obs("resume")
-        self.assertEqual(res2.returncode, 1)
-        self.assertNotIn("--force-recreate", self.calls(), "nao pode recriar a cada tick")
-
-        # operador/recriacao resolve: o container passa a ler o arquivo novo
-        self.stub_log.write_text("", encoding="utf-8")
-        self._sync_container()
-        res3 = self.run_obs("resume")
-        self.assertEqual(res3.returncode, 0, res3.stdout + res3.stderr)
-        self.assertEqual(self.pending(), "", "pendencia tem de ser limpa apos verificar")
-
-    def test_reload_sem_sucesso_de_config_falha(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("nova regra")
-        self._sync_container()
-        res = self.run_obs("apply", self.sha0, sha1, STUB_RELOAD_OK="0")
-        self.assertEqual(res.returncode, 1)
-        self.assertIn("prometheus_config_last_reload_successful != 1", res.stdout)
+    def test_resume_sem_pendencia_e_noop(self):
+        res = self.run_obs("resume")
+        self.assertEqual(res.returncode, 0)
+        self.assertEqual(self.calls().strip(), "")
 
     def test_host_sem_stack_pula_silenciosamente(self):
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
         sha1 = self._commit("nova regra")
         res = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
@@ -414,11 +453,11 @@ exit 0
 
     def test_prometheus_que_sumiu_e_falha_nao_skip(self):
         (self.state / "obs_seen").write_text("prometheus\n", encoding="utf-8", newline="\n")
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
         sha1 = self._commit("nova regra")
         res = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
         self.assertEqual(res.returncode, 1, "stack que existia e sumiu nao pode virar sucesso")
-        self.assertIn("ausente", res.stdout)
+        self.assertIn("fora do ar", res.stdout)
 
     def test_force_faz_bootstrap_do_mount_novo(self):
         """Bootstrap manual do host: recria mesmo sem diff (migracao do mount)."""
@@ -428,19 +467,22 @@ exit 0
         calls = self.calls()
         self.assertIn("promtool", calls)
         forced = [c for c in calls.splitlines() if "--force-recreate" in c]
-        self.assertEqual(len(forced), 1)
-        self.assertEqual(self.pending(), "")
+        self.assertEqual(len(forced), 1, "bootstrap recria uma unica vez")
+        self.assertIn("/-/reload", calls, "recriacao tambem tem de recarregar")
+        self.assertEqual(self.pending(), {})
 
-    def test_resume_sem_pendencia_e_noop(self):
-        res = self.run_obs("resume")
-        self.assertEqual(res.returncode, 0)
-        self.assertEqual(self.calls().strip(), "")
+    def test_reload_sem_sucesso_de_config_falha(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_RELOAD_OK="0")
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("prometheus_config_last_reload_successful=0", res.stdout)
 
-    # ---- regressoes vindas do code review --------------------------------
     def test_metrics_grande_nao_vira_falso_negativo(self):
         """`printf | grep -q` sob pipefail: grep sai no 1o match, produtor leva
         SIGPIPE(141) e a verificacao reprovava um reload que funcionou."""
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
         sha1 = self._commit("nova regra")
         self._sync_container()
         res = self.run_obs("apply", self.sha0, sha1, STUB_BIG_METRICS="1")
@@ -450,43 +492,351 @@ exit 0
     def test_verificacao_usa_container_em_execucao_nao_efemero(self):
         """`ps -a` traz os containers do `compose run`; verificar contra um deles
         (que monta o bind novo) devolveria sucesso com o Prometheus real velho."""
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("21 regras")
-        # container real segue no arquivo velho; o efemero veria o novo
-        res = self.run_obs("apply", self.sha0, sha1)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        res = self.run_obs("apply", self.sha0, sha1)  # container real segue no velho
         self.assertEqual(res.returncode, 1, "verificou contra o container errado")
         for line in self.calls().splitlines():
             if " ps " in line:
                 self.assertNotIn(" -aq", line, "listagem nao pode incluir containers efemeros")
                 self.assertNotIn(" -a ", line)
 
-    def test_check_nao_derruba_deploy_quando_a_stack_esta_fora(self):
-        """A falha do `check` faz o deploy dar `git reset --hard`: stack ausente
-        nao pode abortar um deploy de aplicacao valido."""
-        (self.state / "obs_seen").write_text("prometheus\n", encoding="utf-8", newline="\n")
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("nova regra")
-        res = self.run_obs("check", self.sha0, sha1, STUB_NO_PROM="1")
-        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
-        # ja o apply, esse sim, sinaliza a stack fora do ar
-        res2 = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
+
+class TestObsApplyIncidente(BashHarness):
+    """O incidente literal e suas variantes de sucesso falso."""
+
+    def test_inode_preso_e_detectado_e_escalado_uma_unica_vez(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        # container NAO sincronizado: continua lendo a versao antiga (inode preso)
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 1, "sucesso falso com container servindo bytes velhos")
+        self.assertIn("divergencia", res.stdout)
+        calls = self.calls()
+        self.assertIn("/-/reload", calls)
+        forced = [c for c in calls.splitlines() if "--force-recreate" in c]
+        self.assertEqual(len(forced), 1, "escala para UMA recriacao ao detectar inode preso")
+        self.assertEqual(self.pending().get("escalated"), "1")
+
+        # tick seguinte (LOCAL==REMOTE): retoma sem recriar de novo -> sem loop
+        self.reset_calls()
+        res2 = self.run_obs("resume")
         self.assertEqual(res2.returncode, 1)
+        self.assertNotIn("--force-recreate", self.calls(), "nao pode recriar a cada tick")
+
+        # a recriacao resolve: o container passa a ler o arquivo novo
+        self.reset_calls()
+        self._sync_container()
+        res3 = self.run_obs("resume")
+        self.assertEqual(res3.returncode, 0, res3.stdout + res3.stderr)
+        self.assertEqual(self.pending(), {}, "pendencia tem de ser limpa apos verificar")
+
+    def test_regras_nao_carregadas_nao_e_sucesso(self):
+        """Arquivo com 2 regras, API ainda com 1: exit NAO pode ser 0 (o incidente
+        original era 21 no disco x 18 na API, com todo o resto parecendo saudavel)."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()  # bytes batem; so a API ficou para tras
+        res = self.run_obs("apply", self.sha0, sha1, STUB_RULES_LOADED="1")
+        self.assertEqual(res.returncode, 1, "regras nao carregadas viraram sucesso")
+        self.assertIn("arquivo=2 carregadas=1", res.stdout)
+
+    def test_frescor_reload_que_nao_avanca_timestamp_reprova(self):
+        """`prometheus_config_last_reload_successful` e sticky: continua 1 de um
+        carregamento antigo. So o timestamp avancando prova que recarregou agora."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_RELOAD_STICKY="1")
+        self.assertEqual(res.returncode, 1, "reload que nao aconteceu virou sucesso")
+        self.assertIn("frescor", res.stdout)
+
+    def test_recreate_sempre_recarrega(self):
+        """`up -d` vira no-op quando a compose mudou sem alterar o servico
+        (comentario, outro bloco). Sem reload depois, a regra nova nunca carrega —
+        e ready + booleano sticky + bytes iguais fariam a verificacao passar."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V1)
+        sha1 = self._commit("compose com comentario + regra nova")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        calls = self.calls()
+        ups = [c for c in calls.splitlines() if " up -d" in c]
+        self.assertEqual(len(ups), 1, f"recriacao tem de ser unica: {ups}")
+        self.assertIn("--no-deps", ups[0], "so o prometheus pode ser tocado")
+        self.assertNotIn("--remove-orphans", ups[0])
+        self.assertIn(
+            "-X POST http://127.0.0.1:9090/-/reload",
+            calls,
+            "todo up/recriacao tem de ser seguido de reload",
+        )
+        self.assertLess(
+            calls.index(" up -d"), calls.index("/-/reload"), "reload vem DEPOIS do up"
+        )
+
+
+class TestObsApplyPendencia(BashHarness):
+    def test_pendencia_escalada_nao_engole_recreate_novo(self):
+        """`escalated` de um reload antigo nao pode rebaixar uma troca real de mount."""
+        self.write_pending("reload", "1", self.sha0)
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V1)
+        sha1 = self._commit("mount novo")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(" up -d", self.calls(), "mudanca de compose foi pulada pela pendencia")
+
+    def test_escalated_com_reload_falho_nao_vira_sucesso(self):
+        """`do_reload || true` engolia o POST falho e ainda limpava a pendencia.
+
+        Cenario deliberadamente cruel: tudo o MAIS parece saudavel (bytes batem,
+        regras batem e o timestamp ate avancou, porque outra coisa recarregou a
+        config) — o unico sinal de que a aplicacao nao aconteceu e o POST recusado.
+        """
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()
+        self.write_pending("reload", "1", sha1)
+        res = self.run_obs(
+            "apply", self.sha0, sha1, STUB_RELOAD_RC="7", STUB_RELOAD_BUMP_ON_FAIL="1"
+        )
+        self.assertEqual(res.returncode, 1, "POST falho virou sucesso")
+        self.assertIn("FAIL POST /-/reload", res.stdout)
+        self.assertNotEqual(self.pending(), {}, "falha nao pode limpar a pendencia")
+
+    def test_kill_switch_preserva_pendencia(self):
+        """OBS_ENABLED=0 e pausa operacional, nao 'esquece o que faltava aplicar'."""
+        self.write_pending("recreate", "0", self.sha0)
+        res = self.run_obs("resume", OBS_ENABLED="0")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(self.pending().get("action"), "recreate", "kill-switch apagou a pendencia")
+        self.assertEqual(self.calls().strip(), "", "kill-switch nao pode tocar no Prometheus")
+
+    def test_kill_switch_grava_a_mudanca_detectada(self):
+        """Pausa com mudanca NOVA: sem gravar a pendencia, ao religar o tick tem
+        LOCAL==REMOTE, nada para retomar e a mudanca se perde em silencio."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V1)
+        sha1 = self._commit("mount novo + regra nova")
+        res = self.run_obs("apply", self.sha0, sha1, OBS_ENABLED="0")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(
+            self.pending().get("action"), "recreate", "pausa descartou a mudanca detectada"
+        )
+        self.assertEqual(self.calls().strip(), "")
+
+        # religou: o tick seguinte (LOCAL==REMOTE) retoma pela pendencia
+        self.reset_calls()
+        self._sync_container()
+        res2 = self.run_obs("resume")
+        self.assertEqual(res2.returncode, 0, res2.stdout + res2.stderr)
+        self.assertIn(" up -d", self.calls())
+        self.assertEqual(self.pending(), {})
+
+    def test_stack_fora_do_ar_grava_a_pendencia(self):
+        """O deploy ja fez `git reset --hard`: se a mudanca nao virar pendencia,
+        o proximo tick sai 0 (systemd volta a success) e os diffs seguintes nao
+        contem mais aquela mudanca — perda silenciosa."""
+        (self.state / "obs_seen").write_text("prometheus\n", encoding="utf-8", newline="\n")
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("regra nova")
+        res = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
+        self.assertEqual(res.returncode, 1)
+        self.assertEqual(self.pending().get("action"), "reload", "falha nao deixou pendencia")
+
+        # Prometheus voltou: o tick seguinte aplica sem depender do diff antigo
+        self.reset_calls()
+        self._sync_container()
+        res2 = self.run_obs("resume")
+        self.assertEqual(res2.returncode, 0, res2.stdout + res2.stderr)
+        self.assertIn("/-/reload", self.calls())
+        self.assertEqual(self.pending(), {})
 
     def test_recriacao_que_falha_nao_tranca_a_pendencia(self):
         """Marcar `escalated` antes do `up` dar certo trancaria a pendencia num
         estado que so faz reload — e reload nao conserta inode preso."""
-        self._write_repo_files(self.ALERTS_V1, self.COMPOSE_V0)
-        sha1 = self._commit("21 regras")  # container fica no arquivo velho
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")  # container fica no arquivo velho
         res = self.run_obs("apply", self.sha0, sha1, STUB_FORCE_UP_RC="1")
         self.assertEqual(res.returncode, 1)
-        self.assertEqual(self.pending(), "reload", "pendencia tem de permitir nova recriacao")
+        self.assertEqual(self.pending().get("escalated"), "0", "pendencia trancada sem recriar")
 
-        # tick seguinte: pode (e deve) tentar a recriacao de novo
-        self.stub_log.write_text("", encoding="utf-8")
+        self.reset_calls()
         self._sync_container()
         res2 = self.run_obs("resume")
         self.assertEqual(res2.returncode, 0, res2.stdout + res2.stderr)
-        self.assertEqual(self.pending(), "")
+        self.assertEqual(self.pending(), {})
+
+    def test_pendencia_no_formato_antigo_e_lida(self):
+        (self.state / "obs_pending").write_text("escalated\n", encoding="utf-8", newline="\n")
+        self._sync_container()
+        res = self.run_obs("resume")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("retomando pendencia", res.stdout)
+
+    def test_resume_de_pendencia_antiga_recria_quando_preciso(self):
+        """O marcador antigo `escalated` representa um episodio que precisou de
+        RECRIACAO. Lido como `reload`, um `resume` nunca recria — e reload nao
+        conserta inode preso: fica falhando a cada 2 min para sempre."""
+        (self.state / "obs_pending").write_text("escalated\n", encoding="utf-8", newline="\n")
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        self._commit("2 regras")  # container fica no arquivo velho
+        res = self.run_obs("resume", STUB_UP_RECREATES="1")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(" up -d", self.calls(), "pendencia antiga foi rebaixada para reload")
+        self.assertEqual(self.pending(), {})
+
+    def test_pendencia_antiga_sem_sha_nao_bloqueia_a_recriacao(self):
+        """O marcador antigo `escalated` so era gravado apos uma recriacao (logo,
+        acao = recreate) e nao carrega SHA. Se ele for lido como `reload` ou se a
+        ausencia de SHA pular o reset de episodio, o inode preso fica sem conserto
+        por episodios inteiros — falhando a cada 2 min sem nunca recriar."""
+        (self.state / "obs_pending").write_text("escalated\n", encoding="utf-8", newline="\n")
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")  # container fica no arquivo velho
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn(
+            "--force-recreate",
+            self.calls(),
+            "episodio novo tem de poder recriar apesar da pendencia antiga",
+        )
+
+
+class TestObsApplyOperacional(BashHarness):
+    def test_promtool_inexecutavel_nao_derruba_o_deploy_do_app(self):
+        """`check` reprovado faz o deploy dar `git reset --hard`: so rejeicao de
+        sintaxe COMPROVADA pode chegar la (daemon fora/imagem ausente nao)."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        env = dict(
+            STUB_PROMTOOL_RC="125",
+            STUB_PROMTOOL_OUT="docker: Error response from daemon: no space left on device",
+        )
+        res = self.run_obs("check", self.sha0, sha1, **env)
+        self.assertEqual(res.returncode, 0, "indisponibilidade operacional derrubou o deploy")
+        self.assertIn("INDISPONIVEL", res.stdout)
+        # o apply, esse sim, sinaliza a falha
+        res2 = self.run_obs("apply", self.sha0, sha1, **env)
+        self.assertEqual(res2.returncode, 1)
+        self.assertNotEqual(self.pending(), {}, "pendencia mantida para o proximo tick")
+
+    def test_config_invalida_comprovada_reprova_o_check(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("regra quebrada")
+        res = self.run_obs(
+            "check",
+            self.sha0,
+            sha1,
+            STUB_PROMTOOL_RC="1",
+            STUB_PROMTOOL_OUT="  FAILED: parsing YAML file /etc/prometheus/alerts.yml",
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("config INVALIDA", res.stdout)
+        self.assertNotIn("/-/reload", self.calls(), "nao pode recarregar config invalida")
+
+    def test_check_nao_derruba_deploy_quando_a_stack_esta_fora(self):
+        (self.state / "obs_seen").write_text("prometheus\n", encoding="utf-8", newline="\n")
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        res = self.run_obs("check", self.sha0, sha1, STUB_NO_PROM="1")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        res2 = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
+        self.assertEqual(res2.returncode, 1)
+
+    def test_startup_lento_nao_forca_recriacao(self):
+        """WAL replay: /-/ready demora. Confundir 'ainda subindo' com 'nao aplicou'
+        recriaria o container no meio do replay, repetidamente."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_READY_FAILS="8")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertNotIn("--force-recreate", self.calls(), "recriou durante o WAL replay")
+        self.assertIn("ready apos", res.stdout)
+
+    def test_prometheus_que_nunca_fica_ready_falha(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        self._sync_container()
+        res = self.run_obs(
+            "apply", self.sha0, sha1, STUB_READY_RC="7", READY_TIMEOUT="2", READY_INTERVAL="1"
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("nao ficou ready", res.stdout)
+
+    def test_git_diff_quebrado_nao_vira_noop(self):
+        """Deteccao que falha em silencio esconde justamente o deploy que precisava
+        do reload — a acao conservadora e assumir que mudou."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        self._commit("nova regra")
+        self._sync_container()
+        res = self.run_obs("apply", "0000000000000000000000000000000000000000", "HEADHEAD")
+        self.assertIn("WARN", res.stdout, "falha de deteccao tem de ser explicita")
+        self.assertNotEqual(self.calls().strip(), "", "noop silencioso apos git diff quebrado")
+
+    def test_api_de_regras_invalida_nao_e_sucesso(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_RULES_STATUS="error")
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("status=success", res.stdout)
+
+
+@unittest.skipUnless(BASH, "bash nao disponivel")
+class TestLauncherRuntime(unittest.TestCase):
+    """O launcher tem de rodar SEMPRE a versao do repo (anti-drift)."""
+
+    @classmethod
+    def setUpClass(cls):
+        if _bash_path(LAUNCHER) is None:
+            raise unittest.SkipTest("bash nao consegue ler o path do repo")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="launcher-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = self.tmp / "repo"
+        (self.repo / "scripts").mkdir(parents=True)
+        self.target = self.repo / "scripts" / "roleta-deploy-pull.sh"
+        # copia "instalada" em /usr/local, que NAO deve ser atualizada nunca mais
+        self.installed = self.tmp / "usr-local-roleta-deploy-pull.sh"
+        shutil.copyfile(LAUNCHER, self.installed)
+
+    def _run(self, *args: str):
+        wrapper = self.tmp / "run.sh"
+        wrapper.write_text(
+            "#!/bin/bash\n"
+            f'export REPO_DIR="{_bash_path(self.repo)}"\n'
+            f'exec bash "{_bash_path(self.installed)}" "$@"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(wrapper, 0o755)
+        return subprocess.run(
+            [BASH, _bash_path(wrapper), *args], capture_output=True, text=True, timeout=120
+        )
+
+    def test_roda_a_versao_do_repo_e_acompanha_mudancas(self):
+        self.target.write_text(
+            '#!/bin/bash\necho "VERSAO-1 args=$*"\n', encoding="utf-8", newline="\n"
+        )
+        res = self._run("apply", "x")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("VERSAO-1 args=apply x", res.stdout)
+
+        # deploy novo chega pelo git: a copia instalada NAO muda, mas o comportamento sim
+        self.target.write_text('#!/bin/bash\necho "VERSAO-2"\n', encoding="utf-8", newline="\n")
+        res2 = self._run()
+        self.assertIn("VERSAO-2", res2.stdout, "launcher congelou a versao antiga (drift)")
+
+    def test_propaga_codigo_de_saida(self):
+        self.target.write_text("#!/bin/bash\nexit 3\n", encoding="utf-8", newline="\n")
+        self.assertEqual(self._run().returncode, 3)
+
+    def test_falha_explicita_se_o_checkout_sumir(self):
+        res = self._run()
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("LAUNCHER FAIL", res.stderr)
 
 
 if __name__ == "__main__":
