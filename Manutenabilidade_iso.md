@@ -3148,7 +3148,7 @@ Falha de observabilidade **não** faz rollback do app: ele já passou no healthc
 o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
 e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
 
-### D. Regressão (`tests/test_obs_reload.py`, 69 testes)
+### D. Regressão (`tests/test_obs_reload.py`, 75 testes)
 
 Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
 `prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
@@ -3199,6 +3199,18 @@ teste correspondente tem de reprovar; fontes restauradas ao fim):
 | `rule_files` por basename, sem glob | `test_glob_e_subdiretorio_sao_resolvidos` |
 | zero match tratado como zero regras | `test_glob_sem_correspondencia_falha_fechado` |
 | gate sem stack descartando a mudança | `test_host_sem_marcador_ainda_guarda_a_mudanca` |
+| `--check` sem distinguir launcher antigo de cópia | `test_check_distingue_launcher_desatualizado_de_copia_congelada` |
+| launcher sem marcador estável | `test_check_distingue_launcher_desatualizado_de_copia_congelada` |
+| `--check` ruidoso a cada tick | `test_check_e_silencioso_quando_esta_em_dia` |
+| unit sem sonda / com sonda fatal | `test_unit_systemd_roda_a_sonda_de_forma_nao_fatal` |
+| sonda sem `REPO_DIR` explícito | `test_deploy_passa_repo_dir_para_a_sonda` |
+
+**Probes independentes** (`OBS_APPLY=<script>`, stubs próprios, fora do harness de teste): 9 cenários —
+namespace × host no bind de arquivo, mount de diretório, POST recusado / `reload_successful=0` /
+never-ready sem recriação, glob no topo e em subdiretório, glob sem correspondência e gate sem stack.
+Contra o `scripts/obs-apply.sh` de `554e66b`: **1/9**, com o probe do namespace devolvendo `rc=0` usando
+`docker cp` (o sucesso falso) e `forced_recreates=1` nos três casos de falha de processo. Contra o
+código atual: **9/9**.
 
 ### E. Entrypoint durável (o que fazia o conserto não chegar em produção)
 
@@ -3212,9 +3224,15 @@ Três peças fecham isso:
 
 | Peça | Papel |
 |---|---|
-| `scripts/roleta-deploy-launcher.sh` | ~10 linhas, zero lógica de deploy: resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. Instalado **uma vez** no mesmo caminho (a unit systemd não muda), a partir daí todo o deploy — inclusive o passo de observabilidade — viaja pelo git |
-| `scripts/roleta-deploy-install.sh` | bootstrap/atualização **operacionalizada**: idempotente (não reescreve se já for o launcher), guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/`, `--check` read-only para diagnóstico e `--rollback` para desfazer |
-| sonda no deploy | ao fim de cada deploy bem-sucedido, `roleta-deploy-install.sh --check` (**não-fatal**) loga `INSTALL DRIFT …` se o entrypoint voltar a ser uma cópia. O deploy **não** se auto-instala de propósito: reescrever o próprio entrypoint em execução pode deixar o host sem deploy funcional se o arquivo novo estiver quebrado — a correção é um comando único e reversível |
+| `scripts/roleta-deploy-launcher.sh` | ~10 linhas, zero lógica de deploy: resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. Instalado **uma vez** no mesmo caminho (a unit systemd não muda), a partir daí todo o deploy — inclusive o passo de observabilidade — viaja pelo git. Carrega um **marcador estável** (`ROLETA-DEPLOY-LAUNCHER`) |
+| `scripts/roleta-deploy-install.sh` | bootstrap/atualização **operacionalizada**: idempotente (não reescreve se já for o launcher), guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/`, `--check` read-only e `--rollback` para desfazer |
+| sonda de drift | roda no fim de cada deploy **e** em `ExecStartPre=-…` da unit (o `-` a torna não-fatal). **Limite honesto e documentado:** a sonda vive no script versionado, então **não detecta o congelamento atual** — a cópia congelada nunca a executa. Ela protege contra **re-congelamento futuro**; o caso de hoje só o bootstrap manual resolve |
+
+`--check` é **tri-estado**, porque hash diferente não prova que o deploy versionado parou de chegar:
+`ok` (idêntico, silencioso para não poluir o journal a cada 2 min) · `DESATUALIZADO` (hash diferente
+**com** o marcador — ainda é um launcher, as mudanças continuam chegando) · `DRIFT` (sem o marcador =
+cópia congelada, exit 1 com o comando de correção). O deploy passa `REPO_DIR` explicitamente à sonda,
+para funcionar em checkouts fora do path default.
 
 O duplicado `tools/deploy_pull.sh` virou delegador do canônico, eliminando a classe "duas cópias que
 precisam ser mantidas em sincronia".
@@ -3222,7 +3240,7 @@ precisam ser mantidas em sincronia".
 **Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
 de bug, não alterado aqui para não recriar um container fora do incidente.
 
-**Suítes.** Python **973 passed, 9 skipped, 1 xfailed** (+69 sobre os 904 do adendo anterior).
+**Suítes.** Python **979 passed, 9 skipped, 1 xfailed** (+75 sobre os 904 do adendo anterior).
 `lint_silent_except` OK · `schema_symmetry` OK.
 
 **Evidência contra a rodada anterior.** A suíte funcional aceita `OBS_APPLY_UNDER_TEST=<script>` para

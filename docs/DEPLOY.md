@@ -70,11 +70,28 @@ EOF
 O caminho e o nome do arquivo instalado **não mudam**, então a unit systemd
 (`ExecStart=/usr/local/bin/roleta-deploy-pull.sh`) continua igual.
 
-**Drift é sinalizado sozinho.** Ao fim de cada deploy bem-sucedido, o script roda
-`roleta-deploy-install.sh --check` (read-only, **não-fatal**) e, se o entrypoint ainda for a cópia
-congelada, o log recebe `INSTALL DRIFT …` com o comando de correção. O deploy **não** se auto-instala
-de propósito: reescrever o próprio entrypoint em execução pode deixar o host sem deploy funcional se o
-arquivo novo estiver quebrado — a correção é um comando único e reversível.
+**Drift é sinalizado sozinho — com um limite importante.** Ao fim de cada deploy bem-sucedido, o
+script roda `roleta-deploy-install.sh --check` (read-only, **não-fatal**), e a unit systemd roda a
+mesma sonda em `ExecStartPre=-…` (o `-` a torna não-fatal).
+
+> ⚠️ **A sonda NÃO detecta o congelamento atual.** Ela vive no script **versionado**; enquanto o
+> entrypoint for a cópia congelada de antes deste PR, essa cópia **nunca executa a sonda**. A sonda só
+> protege contra um **re-congelamento futuro** (alguém reinstalar uma cópia por engano). O caso de
+> hoje só é resolvido pelo **bootstrap manual — obrigatório**, abaixo. A chamada em `ExecStartPre`
+> ajuda apenas nos hosts onde a unit for reinstalada (ela também é uma cópia).
+
+O deploy **não** se auto-instala de propósito: reescrever o próprio entrypoint em execução pode deixar
+o host sem deploy funcional se o arquivo novo estiver quebrado — a correção é um comando único e
+reversível.
+
+**`--check` distingue três estados** (hash diferente, sozinho, não prova que o deploy versionado parou
+de chegar — um launcher de outra versão continua fazendo `exec` do script do repo):
+
+| Estado | Como é reconhecido | Saída |
+|---|---|---|
+| em dia | hash idêntico ao `scripts/roleta-deploy-launcher.sh` | `0`, silencioso (use `OBS_VERBOSE=1` para logar) |
+| launcher desatualizado | hash diferente **mas** com o marcador `ROLETA-DEPLOY-LAUNCHER` | `0` + `DESATUALIZADO` (mudanças versionadas continuam chegando) |
+| cópia congelada | sem o marcador | `1` + `DRIFT` com o comando de correção |
 
 ## Operacao
 
@@ -198,24 +215,27 @@ Regras do passo `apply`:
 - Falha ⇒ log `OBS FAIL` + `DEPLOY PARCIAL` e **exit 1** (unit do systemd fica `failed`). O app
   **não** sofre rollback: ele já está saudável no SHA novo.
 
-### Bootstrap one-time no servidor (obrigatório uma vez)
+### Bootstrap one-time no servidor (OBRIGATÓRIO — nada o substitui)
 
 O systemd chama `/usr/local/bin/roleta-deploy-pull.sh`. Hoje esse arquivo é uma **cópia congelada**
 do deploy — byte-idêntica ao `scripts/roleta-deploy-pull.sh` do repo, mas que não acompanha o git.
-Enquanto ela não for trocada pelo **launcher**, o passo de observabilidade nunca roda e o Prometheus
-continua com o mount antigo:
+**Nenhuma automação deste PR corrige isso sozinha**: a sonda de drift vive no script versionado, e a
+cópia congelada nunca a executa. Enquanto este passo não for feito, o passo de observabilidade nunca
+roda e o Prometheus continua com o mount antigo:
 
 ```bash
 cd /root/roleta-cloud
 git log --oneline -1                       # confirmar que o fix ja chegou via timer
 bash scripts/roleta-deploy-install.sh      # troca a copia congelada pelo launcher (idempotente)
+install -m644 tools/systemd/roleta-deploy.service /etc/systemd/system/   # sonda em ExecStartPre
+systemctl daemon-reload
 bash scripts/obs-apply.sh force            # valida + recria o Prometheus + verifica
 # esperado: "INSTALL launcher instalado ..." e "regras ok: arquivo=21 carregadas=21"
 ```
 
-Este é o **único** passo manual: a partir dele, qualquer mudança futura no deploy ou no passo de
-observabilidade chega sozinha pelo timer. Se alguém reinstalar uma cópia por engano no futuro, o
-próximo deploy loga `INSTALL DRIFT …` — e `bash scripts/roleta-deploy-install.sh` volta a corrigir.
+Depois dele, qualquer mudança futura no deploy ou no passo de observabilidade chega sozinha pelo timer,
+e um re-congelamento acidental passa a ser sinalizado (`INSTALL DRIFT …`) tanto no
+`/var/log/roleta-deploy.log` quanto no journal da unit.
 
 Verificação independente:
 

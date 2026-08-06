@@ -200,6 +200,29 @@ class TestDeployEntrypoint(unittest.TestCase):
             self.assertNotIn(
                 dependente, comandos, f"{dependente} nao existe mais depois do revert"
             )
+    def test_deploy_passa_repo_dir_para_a_sonda(self):
+        """Bypass/checkout em path nao-default: a sonda tem de herdar o REPO_DIR."""
+        body = DEPLOY.read_text(encoding="utf-8")
+        probe = body.find("roleta-deploy-install.sh")
+        trecho = body[max(0, probe - 120) : probe + 200]
+        self.assertIn('REPO_DIR="$REPO_DIR"', trecho, "sonda sem REPO_DIR explicito")
+
+    def test_unit_systemd_roda_a_sonda_de_forma_nao_fatal(self):
+        """A copia congelada nunca executa a sonda versionada; a unit executa."""
+        unit = (REPO / "tools" / "systemd" / "roleta-deploy.service").read_text(encoding="utf-8")
+        linha = [ln for ln in unit.splitlines() if ln.startswith("ExecStartPre=")]
+        self.assertTrue(linha, "unit sem sonda de drift")
+        self.assertIn("roleta-deploy-install.sh --check", linha[0])
+        self.assertTrue(
+            linha[0].startswith("ExecStartPre=-"),
+            "a sonda nao pode bloquear o deploy (falta o prefixo '-')",
+        )
+
+    def test_docs_dizem_que_a_sonda_nao_pega_o_congelamento_atual(self):
+        docs = (REPO / "docs" / "DEPLOY.md").read_text(encoding="utf-8")
+        self.assertIn("NÃO detecta o congelamento atual", docs)
+        self.assertIn("OBRIGATÓRIO", docs, "bootstrap tem de estar marcado como obrigatorio")
+
     def test_unit_systemd_continua_apontando_para_usr_local(self):
         unit = (REPO / "tools" / "systemd" / "roleta-deploy.service").read_text(encoding="utf-8")
         self.assertIn("/usr/local/bin/roleta-deploy-pull.sh", unit)
@@ -1101,13 +1124,15 @@ class TestInstaladorDoEntrypoint(unittest.TestCase):
         self.entrypoint.parent.mkdir(parents=True)
         self.backup_dir = self.tmp / "backup"
 
-    def _run(self, *args: str):
+    def _run(self, *args: str, **env_over: str):
+        extra = "\n".join(f'export {k}="{v}"' for k, v in env_over.items())
         wrapper = self.tmp / "run.sh"
         wrapper.write_text(
             "#!/bin/bash\n"
             f'export REPO_DIR="{_bash_path(self.repo)}"\n'
             f'export ENTRYPOINT="{_bash_path(self.entrypoint.parent)}/roleta-deploy-pull.sh"\n'
             f'export BACKUP_DIR="{_bash_path(self.backup_dir.parent)}/backup"\n'
+            f"{extra}\n"
             f'exec bash "{_bash_path(self.repo / "scripts" / "roleta-deploy-install.sh")}" "$@"\n',
             encoding="utf-8",
             newline="\n",
@@ -1131,6 +1156,35 @@ class TestInstaladorDoEntrypoint(unittest.TestCase):
         self.assertEqual(res.returncode, 1, "copia congelada precisa ser sinalizada")
         self.assertIn("DRIFT", res.stdout)
         self.assertIn("roleta-deploy-install.sh", res.stdout, "log tem de dizer como corrigir")
+
+    def test_check_distingue_launcher_desatualizado_de_copia_congelada(self):
+        """Hash diferente NAO prova que o deploy versionado parou de chegar: um
+        launcher de outra versao continua fazendo `exec` do script do repo."""
+        antigo = LAUNCHER.read_text(encoding="utf-8") + "\n# variacao de versao anterior\n"
+        self.entrypoint.write_text(antigo, encoding="utf-8", newline="\n")
+        res = self._run("--check")
+        self.assertEqual(res.returncode, 0, "launcher desatualizado nao e drift")
+        self.assertIn("DESATUALIZADO", res.stdout)
+        self.assertNotIn("DRIFT", res.stdout)
+
+        # ja uma copia SEM o marcador continua sendo drift
+        self._freeze_copy()
+        res2 = self._run("--check")
+        self.assertEqual(res2.returncode, 1)
+        self.assertIn("DRIFT", res2.stdout)
+
+    def test_check_e_silencioso_quando_esta_em_dia(self):
+        """Roda a cada tick (ExecStartPre + fim do deploy): nao pode poluir o log."""
+        self._run()  # instala
+        res = self._run("--check")
+        self.assertEqual(res.returncode, 0)
+        self.assertEqual(res.stdout.strip(), "", "sonda em dia nao pode logar a cada 2 min")
+
+    def test_check_verboso_quando_pedido(self):
+        self._run()
+        res = self._run("--check", OBS_VERBOSE="1")
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("ok", res.stdout)
 
     def test_check_nao_escreve_nada(self):
         self._freeze_copy()

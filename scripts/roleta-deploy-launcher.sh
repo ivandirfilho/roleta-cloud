@@ -1,4 +1,9 @@
 #!/bin/bash
+# ROLETA-DEPLOY-LAUNCHER — marcador estavel; NAO remover esta linha.
+# (scripts/roleta-deploy-install.sh --check procura por ela para distinguir
+#  "launcher, talvez de uma versao anterior" de "copia congelada do deploy":
+#  no primeiro caso as mudancas versionadas continuam chegando, no segundo nao.)
+#
 # Launcher ESTAVEL do deploy — instalado em /usr/local/bin/roleta-deploy-pull.sh.
 #
 # POR QUE ELE EXISTE

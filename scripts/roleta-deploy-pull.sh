@@ -143,12 +143,18 @@ log "DEPLOY OK (app) sha=$REMOTE"
 # O systemd roda /usr/local/bin/roleta-deploy-pull.sh, que fica FORA do repo. Se
 # ainda for a copia congelada, este proprio arquivo (versionado) nao e o que roda
 # em producao — foi assim que o passo de observabilidade poderia nunca chegar la.
-# Sonda READ-ONLY e NAO-FATAL: torna o congelamento visivel no log em vez de
-# silencioso. Deliberadamente NAO se auto-instala: um deploy que reescreve o
-# proprio entrypoint pode se tornar irrecuperavel se o arquivo novo estiver
-# quebrado; a correcao e um comando unico, documentado em docs/DEPLOY.md.
+#
+# LIMITE: esta sonda vive no script VERSIONADO, entao ela nao detecta o
+# congelamento ATUAL (a copia congelada nunca a executa) — so protege contra um
+# re-congelamento FUTURO. Quem cobre o caso atual e o bootstrap manual, e a unit
+# systemd chama a mesma sonda em ExecStartPre (nao-fatal), independente de qual
+# script esteja instalado.
+#
+# READ-ONLY e NAO-FATAL. Deliberadamente NAO se auto-instala: um deploy que
+# reescreve o proprio entrypoint pode se tornar irrecuperavel se o arquivo novo
+# estiver quebrado; a correcao e um comando unico, documentado em docs/DEPLOY.md.
 if [ -f "$REPO_DIR/scripts/roleta-deploy-install.sh" ]; then
-    bash "$REPO_DIR/scripts/roleta-deploy-install.sh" --check || true
+    REPO_DIR="$REPO_DIR" bash "$REPO_DIR/scripts/roleta-deploy-install.sh" --check || true
 fi
 
 # --- Observabilidade (OBS-INODE, 05/08/2026) -------------------------------
