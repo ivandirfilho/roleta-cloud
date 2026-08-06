@@ -21,8 +21,12 @@
 #      AVANCOU em relacao ao momento anterior a esta execucao (FRESCOR — o booleano
 #      sozinho e "sticky": continua 1 do carregamento anterior mesmo que nada tenha sido
 #      recarregado agora);
-#   c) os bytes que o container le sao os mesmos do repo (detector do inode preso);
-#   d) o numero de regras carregadas na API bate com o declarado nos rule_files.
+#   c) os bytes que o container le sao os mesmos do repo — lidos pela VISAO DO
+#      PROCESSO (`docker exec`), nunca por `docker cp`: o daemon re-resolve o caminho
+#      de origem no host, entao num bind de arquivo com inode trocado ele devolveria
+#      os bytes NOVOS enquanto o processo continua lendo os ANTIGOS (tautologia);
+#   d) o numero de regras carregadas na API bate com o declarado nos rule_files
+#      (resolvidos com glob/subpath, fail-closed se algum padrao nao casar).
 #   Qualquer uma que falhe = FALHA EXPLICITA. Sem sucesso falso.
 #
 # USO
@@ -70,10 +74,10 @@ CURL_MAX_TIME="${CURL_MAX_TIME:-5}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
 CURL_BIN="${CURL_BIN:-curl}"
 
-CONF_HOST="obs/prometheus.yml"
-CONF_CTR="/etc/prometheus/prometheus.yml"
-ALERTS_HOST="obs/alerts.yml"
-ALERTS_CTR="/etc/prometheus/alerts.yml"
+OBS_DIR="${OBS_DIR:-obs}"
+MOUNT_TARGET="${MOUNT_TARGET:-/etc/prometheus}"
+CONF_HOST="$OBS_DIR/prometheus.yml"
+CONF_CTR="$MOUNT_TARGET/prometheus.yml"
 
 PENDING_FILE="$STATE_DIR/obs_pending"
 SEEN_FILE="$STATE_DIR/obs_seen"
@@ -331,26 +335,45 @@ is_newer() {
     awk -v a="${1:-0}" -v b="${2:-0}" 'BEGIN { exit !(a + 0 > b + 0) }'
 }
 
-# Le os bytes que o CONTAINER enxerga no caminho montado. Usa `docker cp` (e nao
-# `exec cat`) de proposito: nao depende de shell/coreutils dentro da imagem, entao
-# continua valendo se o prom/prometheus virar distroless.
-container_bytes() {
-    local cid
-    cid="$(prom_cid)" || return 1
-    if [ -z "$cid" ]; then
-        return 1
+# Le o hash do arquivo COMO O PROCESSO DENTRO DO CONTAINER o enxerga.
+#
+# NAO usar `docker cp`: o daemon re-resolve o caminho de ORIGEM NO HOST para um bind
+# mount, entao num bind de ARQUIVO com inode trocado ele devolve os bytes NOVOS
+# enquanto o processo continua lendo os ANTIGOS. A comparacao viraria host x host —
+# tautologia — e passaria exatamente no cenario do incidente. `docker exec` executa
+# no mount namespace do container e e a unica leitura que prova o que o Prometheus le.
+#
+# Fail-closed: se nao houver como ler pela visao do container, a verificacao REPROVA
+# (nao ha prova de que a config chegou), em vez de cair num leitor que mente.
+container_sha() {
+    local cid="$1" path="$2" out=""
+    if out="$("$DOCKER_BIN" exec "$cid" sha256sum "$path" 2>/dev/null)"; then
+        printf '%s' "$out" | awk '{print $1}'
+        return 0
     fi
-    "$DOCKER_BIN" cp "$cid:$1" - 2>/dev/null | tar -xO 2>/dev/null
+    if out="$("$DOCKER_BIN" exec "$cid" cat "$path" 2>/dev/null | sha256sum)"; then
+        printf '%s' "$out" | awk '{print $1}'
+        return 0
+    fi
+    return 1
 }
 
 same_bytes() {
-    local host_file="$1" ctr_path="$2" h c
-    if [ ! -f "$REPO_DIR/$host_file" ]; then
+    local host_file="$1" ctr_path="$2" h c cid
+    if [ ! -f "$host_file" ]; then
         log "FAIL arquivo ausente no repo: $host_file"
         return 1
     fi
-    h="$(sha256sum < "$REPO_DIR/$host_file" | awk '{print $1}')"
-    c="$(container_bytes "$ctr_path" | sha256sum | awk '{print $1}')" || c=""
+    h="$(sha256sum < "$host_file" | awk '{print $1}')"
+    cid="$(prom_cid)" || cid=""
+    if [ -z "$cid" ]; then
+        log "FAIL sem container em execucao para ler $ctr_path"
+        return 1
+    fi
+    if ! c="$(container_sha "$cid" "$ctr_path")"; then
+        log "FAIL nao foi possivel ler $ctr_path pela visao do container (imagem sem sha256sum/cat?)"
+        return 1
+    fi
     if [ "$h" = "$c" ]; then
         return 0
     fi
@@ -358,36 +381,90 @@ same_bytes() {
     return 1
 }
 
-# Caminhos declarados em `rule_files:` do prometheus.yml (resolvidos no repo).
+# --- rule_files: resolucao com glob/subpath --------------------------------
+# Entradas cruas do bloco `rule_files:` do prometheus.yml.
 rule_file_names() {
     awk '
         /^rule_files:/            { inblk = 1; next }
-        inblk && /^[[:space:]]*-/ { sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/"/, ""); print; next }
+        inblk && /^[[:space:]]*-/ { sub(/^[[:space:]]*-[[:space:]]*/, ""); gsub(/["'"'"']/, ""); print; next }
         inblk && /^[^[:space:]]/  { inblk = 0 }
     ' "$REPO_DIR/$CONF_HOST"
 }
 
-declared_rules() {
-    local total=0 path name n
-    while IFS= read -r path; do
-        if [ -z "$path" ]; then
+# Ecoa "<caminho no container>|<caminho no host>" para CADA arquivo de regra,
+# expandindo globs e preservando subdiretorios. Usar basename e ignorar globs fazia
+# `/etc/prometheus/*.rules.yml` valer 0 regras declaradas — e 0 != carregadas vira
+# falha (e recriacao) eterna. Zero correspondencia e FAIL-CLOSED: config que aponta
+# para arquivo inexistente nao pode ser tratada como "nenhuma regra".
+rule_file_targets() {
+    local pattern host_pattern matches f rel
+    while IFS= read -r pattern; do
+        if [ -z "$pattern" ]; then
             continue
         fi
-        name="$(basename "$path")"
-        if [ -f "$REPO_DIR/obs/$name" ]; then
-            n="$(grep -cE '^[[:space:]]*-[[:space:]]*(alert|record):' "$REPO_DIR/obs/$name")" || n=0
-            total=$((total + n))
+        case "$pattern" in
+            /*) ;;                                    # absoluto no container
+            *)  pattern="$MOUNT_TARGET/$pattern" ;;   # relativo ao dir da config
+        esac
+        case "$pattern" in
+            "$MOUNT_TARGET"/*) host_pattern="$REPO_DIR/$OBS_DIR/${pattern#"$MOUNT_TARGET"/}" ;;
+            *)
+                # `log` vai para stderr: esta funcao e consumida por `$(...)`, entao
+                # qualquer coisa em stdout viraria "alvo" no lugar de mensagem.
+                log "FAIL rule_file fora do diretorio montado ($MOUNT_TARGET): $pattern" >&2
+                return 1
+                ;;
+        esac
+        if ! matches="$(compgen -G "$host_pattern")"; then
+            log "FAIL rule_files sem correspondencia no repo: $pattern (procurado em $host_pattern)" >&2
+            return 1
         fi
+        while IFS= read -r f; do
+            if [ -f "$f" ]; then
+                rel="${f#"$REPO_DIR/$OBS_DIR/"}"
+                printf '%s|%s\n' "$MOUNT_TARGET/$rel" "$f"
+            fi
+        done <<< "$matches"
     done < <(rule_file_names)
+}
+
+declared_rules() {
+    local total=0 line host n
+    while IFS= read -r line; do
+        if [ -z "$line" ]; then
+            continue
+        fi
+        host="${line#*|}"
+        n="$(grep -cE '^[[:space:]]*-[[:space:]]*(alert|record):' "$host")" || n=0
+        total=$((total + n))
+    done <<< "$1"
     printf '%s' "$total"
+}
+
+# Config + TODOS os rule_files resolvidos: os alvos do byte-check saem da MESMA
+# lista usada para contar as regras declaradas.
+content_matches() {
+    local targets="$1" line
+    if ! same_bytes "$REPO_DIR/$CONF_HOST" "$CONF_CTR"; then
+        return 1
+    fi
+    while IFS= read -r line; do
+        if [ -z "$line" ]; then
+            continue
+        fi
+        if ! same_bytes "${line#*|}" "${line%%|*}"; then
+            return 1
+        fi
+    done <<< "$targets"
+    return 0
 }
 
 # Contagem de regras REALMENTE carregadas: cada objeto de regra da API tem
 # exatamente um campo "query" (os objetos de grupo nao tem). E o numero que
 # denunciou o incidente (18 carregadas x 21 no arquivo).
 rules_ok() {
-    local declared loaded json
-    declared="$(declared_rules)"
+    local targets="$1" declared loaded json
+    declared="$(declared_rules "$targets")"
     json="$("$CURL_BIN" -fsS --max-time "$CURL_MAX_TIME" "$PROM_URL/api/v1/rules" 2>/dev/null)" || json=""
     if [ -z "$json" ]; then
         log "FAIL /api/v1/rules indisponivel — impossivel provar que as regras carregaram"
@@ -407,8 +484,10 @@ rules_ok() {
     return 0
 }
 
+# 0 = verificado | 1 = falha de PROCESSO (recriar nao conserta) | 2 = CONTEUDO
+# divergente com o processo saudavel (assinatura do inode preso: recriar conserta)
 verify_once() {
-    local before="${1:-0}" body="" ok="" ts=""
+    local before="${1:-0}" body="" ok="" ts="" targets=""
 
     body="$(metrics_body)" || body=""
     if [ -z "$body" ]; then
@@ -430,32 +509,40 @@ verify_once() {
         return 1
     fi
 
-    if ! same_bytes "$CONF_HOST" "$CONF_CTR"; then return 1; fi
-    if ! same_bytes "$ALERTS_HOST" "$ALERTS_CTR"; then return 1; fi
-    if ! rules_ok; then return 1; fi
+    if ! targets="$(rule_file_targets)"; then
+        return 1
+    fi
+
+    # Daqui para baixo o processo esta comprovadamente saudavel e recarregou agora:
+    # o que sobra so pode ser o conteudo que ele enxerga.
+    if ! content_matches "$targets"; then return 2; fi
+    if ! rules_ok "$targets"; then return 2; fi
     return 0
 }
 
 verify() {
-    local before="${1:-0}" i
+    local before="${1:-0}" i rc=1
     for i in $(seq 1 "$VERIFY_RETRIES"); do
-        if verify_once "$before"; then
+        rc=0
+        verify_once "$before" || rc=$?
+        if [ "$rc" -eq 0 ]; then
             log "verificado (try $i): ready + reload fresco + bytes == repo + regras carregadas"
             return 0
         fi
         sleep "$VERIFY_INTERVAL"
     done
-    log "FAIL verificacao apos $VERIFY_RETRIES tentativas"
-    return 1
+    log "FAIL verificacao apos $VERIFY_RETRIES tentativas (classe=$([ "$rc" -eq 2 ] && echo conteudo || echo processo))"
+    return "$rc"
 }
 
 # ready -> reload (SEMPRE, inclusive depois de up/recriacao: um `up -d` que virou
 # no-op nao recarrega nada) -> verificacao com frescor.
 apply_and_verify() {
-    local before="${1:-0}"
+    local before="${1:-0}" rc=0
     if ! wait_ready; then return 1; fi
     if ! do_reload; then return 1; fi
-    verify "$before"
+    verify "$before" || rc=$?
+    return "$rc"
 }
 
 do_apply() {
@@ -484,22 +571,34 @@ do_apply() {
         fi
     fi
 
-    if apply_and_verify "$before"; then
+    rc=0
+    apply_and_verify "$before" || rc=$?
+    if [ "$rc" -eq 0 ]; then
         pending_clear
         log "aplicado e verificado (acao=$ACTION)"
         return 0
     fi
 
-    if [ "$ESCALATED" = "1" ]; then
-        log "FAIL observabilidade NAO aplicada (acao=$ACTION) — ja houve recriacao nesta pendencia, nao recria de novo"
+    # Escalar so com EVIDENCIA de que recriar resolve. Falha de PROCESSO (POST
+    # recusado, reload rejeitado, nunca ficou ready) nao e consertada por recriacao —
+    # e e pior: recriar um Prometheus que ainda servia a ultima config boa pode
+    # transformar um problema de recarga em crash loop e reiniciar o WAL replay.
+    if [ "$rc" -ne 2 ]; then
+        log "FAIL observabilidade NAO aplicada (acao=$ACTION) — falha de PROCESSO; recriacao nao ajudaria (pendencia mantida)"
         return 1
     fi
 
-    # Nao refletiu: e o inode preso (ou um reload que nao pegou). Recria UMA vez.
-    # A marca `escalated` so vai para a pendencia DEPOIS que a recriacao deu certo —
-    # senao uma falha transitoria do `up` trancaria a pendencia num estado que nunca
-    # mais recria (e reload, por definicao, nao conserta inode preso).
-    log "estado do container nao reflete o repo — escalando para recriacao unica"
+    if [ "$ESCALATED" = "1" ]; then
+        log "FAIL conteudo ainda divergente (acao=$ACTION) — ja houve recriacao nesta pendencia, nao recria de novo"
+        return 1
+    fi
+
+    # Processo comprovadamente saudavel (ready + reload fresco e bem-sucedido) mas
+    # com conteudo divergente: e a assinatura do inode preso, e ai sim recriar
+    # conserta. A marca `escalated` so vai para a pendencia DEPOIS que a recriacao
+    # deu certo — senao uma falha transitoria do `up` trancaria a pendencia num
+    # estado que nunca mais recria.
+    log "processo saudavel e conteudo divergente — escalando para recriacao unica"
     before="$(reload_ts)"
     if ! do_up force; then
         log "FAIL up -d --force-recreate $PROM_SERVICE (pendencia segue '$ACTION' para nova tentativa)"
@@ -592,10 +691,10 @@ main() {
     # detectada: no tick seguinte LOCAL==REMOTE, nao ha pendencia para retomar, e o
     # diff dos deploys seguintes ja nao contem aquela mudanca — ela se perde em
     # silencio, que e exatamente o incidente que este script existe para impedir.
-    # (gate=3 = host que nunca teve a stack: nao ha o que preservar.)
-    if [ "$gate" -ne 3 ]; then
-        pending_save "$ACTION" "$ESCALATED" "$sha"
-    fi
+    # Vale INCLUSIVE para gate=3 (host sem `obs_seen`): a stack pode estar apenas
+    # temporariamente fora, e perder a mudanca por causa disso seria pior do que
+    # carregar uma pendencia inofensiva num host que de fato nao roda a stack.
+    pending_save "$ACTION" "$ESCALATED" "$sha"
 
     case "$gate" in
         1|3) return 0 ;;

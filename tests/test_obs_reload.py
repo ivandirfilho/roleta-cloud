@@ -174,6 +174,32 @@ class TestDeployEntrypoint(unittest.TestCase):
         self.assertNotIn("roleta-deploy-install.sh install", body)
         self.assertNotIn("install -m755", body)
 
+    def test_rollback_documentado_funciona_apos_revert(self):
+        """O `git revert` remove os próprios scripts: os COMANDOS do rollback não
+        podem depender de `obs-apply.sh` nem de `roleta-deploy-install.sh`."""
+        docs = (REPO / "docs" / "DEPLOY.md").read_text(encoding="utf-8")
+        inicio = docs.find("### Rollback após `git revert`")
+        self.assertGreater(inicio, 0, "falta a secao de rollback pos-revert")
+        resto = docs[inicio + 10 :]
+        fim = resto.find("\n## ")
+        bloco = resto[: fim if fim > 0 else len(resto)]
+
+        fence = re.search(r"```bash\n(.*?)```", bloco, re.S)
+        self.assertIsNotNone(fence, "secao de rollback sem bloco de comandos")
+        comandos = "\n".join(
+            ln.strip()
+            for ln in fence.group(1).splitlines()
+            if ln.strip() and not ln.strip().startswith("#")
+        )
+
+        self.assertIn("docker compose", comandos, "rollback tem de recriar via compose")
+        self.assertIn("--force-recreate", comandos)
+        self.assertIn("--no-deps", comandos, "rollback nao pode tocar os outros containers")
+        self.assertNotIn("--remove-orphans", comandos)
+        for dependente in ("obs-apply.sh", "roleta-deploy-install.sh", "roleta-deploy-launcher.sh"):
+            self.assertNotIn(
+                dependente, comandos, f"{dependente} nao existe mais depois do revert"
+            )
     def test_unit_systemd_continua_apontando_para_usr_local(self):
         unit = (REPO / "tools" / "systemd" / "roleta-deploy.service").read_text(encoding="utf-8")
         self.assertIn("/usr/local/bin/roleta-deploy-pull.sh", unit)
@@ -254,9 +280,9 @@ class BashHarness(unittest.TestCase):
         (self.repo / "docker-compose.obs.yml").write_text(compose, encoding="utf-8", newline="\n")
 
     def _sync_container(self):
-        """Container passa a enxergar exatamente o que esta no repo."""
-        for name in ("alerts.yml", "prometheus.yml"):
-            shutil.copyfile(self.repo / "obs" / name, self.ctr / name)
+        """Container passa a enxergar exatamente o que esta no repo (inclui subdirs)."""
+        shutil.rmtree(self.ctr, ignore_errors=True)
+        shutil.copytree(self.repo / "obs", self.ctr)
 
     def _git_repo(self):
         subprocess.run(["git", "init", "-q", str(self.repo)], check=True, capture_output=True)
@@ -282,6 +308,13 @@ class BashHarness(unittest.TestCase):
         docker = """#!/bin/bash
 echo "docker $*" >> "$STUB_LOG"
 """ + bump + """args=" $* "
+ctr_path_to_src() {
+    # traduz um caminho do container para o diretorio que representa a visao dele
+    local p="$1" root="$2" base sub
+    base=$(basename "$p")
+    sub=$(dirname "$p"); sub=${sub#/etc/prometheus}; sub=${sub#/}
+    if [ -n "$sub" ]; then echo "$root/$sub/$base"; else echo "$root/$base"; fi
+}
 case "$args" in
     *" ps "*)
         if [ "${STUB_NO_PROM:-0}" = "1" ]; then exit "${STUB_PS_RC:-0}"; fi
@@ -302,21 +335,40 @@ case "$args" in
         # STUB_UP_RECREATES=1 simula o caso em que a definicao MUDOU (ex.: o mount
         # novo): o container e recriado e passa a enxergar o repo.
         if [ "${STUB_UP_RECREATES:-0}" = "1" ] && [ "${STUB_UP_RC:-0}" = "0" ]; then
-            cp "$STUB_REPO_OBS"/*.yml "$STUB_CTR_DIR"/ 2>/dev/null
+            cp -r "$STUB_REPO_OBS"/. "$STUB_CTR_DIR"/ 2>/dev/null
             bump_ts
         fi
         exit "${STUB_UP_RC:-0}" ;;
-    *" cp "*)
-        src=""
-        for a in "$@"; do case "$a" in *:/*) src="${a#*:}" ;; esac; done
-        # um container efemero do `run` enxergaria SEMPRE o bind novo
-        case " $* " in
-            *oneoff-run*) dir="$STUB_REPO_OBS" ;;
-            *)            dir="$STUB_CTR_DIR" ;;
+    *" exec "*)
+        # `docker exec` roda no MOUNT NAMESPACE do container: e a unica leitura que
+        # mostra o que o PROCESSO enxerga (STUB_CTR_DIR).
+        while [ "$#" -gt 0 ] && [ "$1" != "exec" ]; do shift; done
+        shift
+        while [ "$#" -gt 0 ]; do case "$1" in -*) shift ;; *) break ;; esac; done
+        cid="${1:-}"; tool="${2:-}"; path="${3:-}"
+        if [ "$cid" != "ctr123" ]; then exit 1; fi   # so o container EM EXECUCAO
+        src=$(ctr_path_to_src "$path" "$STUB_CTR_DIR")
+        if [ ! -f "$src" ]; then exit 1; fi
+        case "$tool" in
+            sha256sum)
+                if [ "${STUB_NO_SHA256:-0}" = "1" ] || [ "${STUB_NO_READER:-0}" = "1" ]; then exit 126; fi
+                sha256sum "$src" ;;
+            cat)
+                if [ "${STUB_NO_READER:-0}" = "1" ]; then exit 126; fi
+                cat "$src" ;;
+            *) exit 127 ;;
         esac
-        base=$(basename "$src")
-        if [ ! -f "$dir/$base" ]; then exit 1; fi
-        tar -cf - -C "$dir" "$base"; exit 0 ;;
+        exit 0 ;;
+    *" cp "*)
+        # `docker cp` NAO le pelo namespace do processo: para um bind mount o daemon
+        # RE-RESOLVE o caminho de origem NO HOST. Por isso devolve os bytes NOVOS
+        # mesmo com o container preso no inode antigo — verificar com isto seria
+        # comparar host com host (tautologia).
+        src_arg=""
+        for a in "$@"; do case "$a" in *:/*) src_arg="${a#*:}" ;; esac; done
+        src=$(ctr_path_to_src "$src_arg" "$STUB_REPO_OBS")
+        if [ ! -f "$src" ]; then exit 1; fi
+        tar -cf - -C "$(dirname "$src")" "$(basename "$src")"; exit 0 ;;
 esac
 exit 0
 """
@@ -354,7 +406,9 @@ case "$url" in
         fi
         n="${STUB_RULES_LOADED:-}"
         if [ -z "$n" ]; then
-            n=$(grep -cE '^[[:space:]]*-[[:space:]]*alert:' "$STUB_CTR_DIR/alerts.yml" 2>/dev/null || echo 0)
+            # o que o CONTAINER enxerga (todos os rule files, inclusive subdirs)
+            n=$(find "$STUB_CTR_DIR" -name '*.yml' ! -name 'prometheus.yml' -exec cat {} + 2>/dev/null \\
+                | grep -cE '^[[:space:]]*-[[:space:]]*(alert|record):' || echo 0)
         fi
         printf '{"status":"success","data":{"groups":[{"name":"g","rules":['
         i=0
@@ -483,6 +537,22 @@ class TestObsApplyBasics(BashHarness):
         self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
         self.assertIn("skip", res.stdout)
 
+    def test_host_sem_marcador_ainda_guarda_a_mudanca(self):
+        """Primeira mudanca de obs num host sem `obs_seen`: se a stack estiver
+        apenas temporariamente fora, descartar a mudanca a perderia para sempre."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("nova regra")
+        res = self.run_obs("apply", self.sha0, sha1, STUB_NO_PROM="1")
+        self.assertEqual(res.returncode, 0, "host sem stack nao pode ser quebrado")
+        self.assertEqual(self.pending().get("action"), "reload", "mudanca descartada sem pendencia")
+
+        # a stack sobe: o tick seguinte aplica pela pendencia, sem depender do diff
+        self.reset_calls()
+        self._sync_container()
+        res2 = self.run_obs("resume")
+        self.assertEqual(res2.returncode, 0, res2.stdout + res2.stderr)
+        self.assertEqual(self.pending(), {})
+
     def test_prometheus_que_sumiu_e_falha_nao_skip(self):
         (self.state / "obs_seen").write_text("prometheus\n", encoding="utf-8", newline="\n")
         self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
@@ -605,6 +675,146 @@ class TestObsApplyIncidente(BashHarness):
         self.assertLess(
             calls.index(" up -d"), calls.index("/-/reload"), "reload vem DEPOIS do up"
         )
+
+
+class TestVisaoDoContainer(BashHarness):
+    """A leitura dos bytes tem de ser a do PROCESSO, nao a do daemon."""
+
+    def test_bytes_lidos_pela_visao_do_container(self):
+        """Bind de ARQUIVO com inode trocado: host tem NEW, o namespace do processo
+        continua em OLD. `docker cp` mentiria (o daemon re-resolve o caminho no host
+        e devolve NEW), então a comparação viraria host×host — tautologia."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras no host")
+        # container preso no arquivo antigo (1 regra), mas a API "concorda" com o
+        # arquivo novo: só a leitura pelo namespace pode denunciar a divergência
+        res = self.run_obs("apply", self.sha0, sha1, STUB_RULES_LOADED="2")
+        self.assertEqual(res.returncode, 1, "verificacao tautologica: leu o host, nao o container")
+        self.assertIn("divergencia", res.stdout)
+        self.assertNotIn("docker cp", self.calls(), "docker cp nao prova o que o processo le")
+
+    def test_directory_bind_passa(self):
+        """Mesmo cenário com mount de diretório: o container acompanha a troca de
+        inode, os bytes batem e a verificação passa."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()  # semantica do bind de DIRETORIO
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertNotIn("--force-recreate", self.calls())
+
+    def test_sem_leitor_no_container_falha_fechado(self):
+        """Imagem sem sha256sum e sem cat: nao ha como provar o que o processo le."""
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_NO_READER="1")
+        self.assertEqual(res.returncode, 1, "sem leitor tem de reprovar, nao presumir sucesso")
+        self.assertIn("visao do container", res.stdout)
+
+    def test_fallback_para_cat_quando_nao_ha_sha256sum(self):
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        sha1 = self._commit("2 regras")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1, STUB_NO_SHA256="1")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+
+class TestEscaladaSoComEvidencia(BashHarness):
+    """Recriar um Prometheus que servia a ultima config boa pode virar crash loop
+    e reiniciar o WAL replay: so escala com evidencia de que recriar conserta."""
+
+    def setUp(self):
+        super().setUp()
+        self._write_repo_files(self.ALERTS_2, self.COMPOSE_V0)
+        self.sha1 = self._commit("2 regras")
+        self._sync_container()
+
+    def test_post_recusado_nao_recria(self):
+        res = self.run_obs("apply", self.sha0, self.sha1, STUB_RELOAD_RC="7")
+        self.assertEqual(res.returncode, 1)
+        self.assertNotIn("--force-recreate", self.calls(), "POST recusado nao se conserta recriando")
+        self.assertNotEqual(self.pending(), {})
+
+    def test_reload_rejeitado_nao_recria(self):
+        res = self.run_obs("apply", self.sha0, self.sha1, STUB_RELOAD_OK="0")
+        self.assertEqual(res.returncode, 1)
+        self.assertNotIn("--force-recreate", self.calls(), "config rejeitada viraria crash loop")
+        self.assertIn("PROCESSO", res.stdout)
+
+    def test_never_ready_nao_recria(self):
+        res = self.run_obs(
+            "apply", self.sha0, self.sha1, STUB_READY_RC="7", READY_TIMEOUT="2", READY_INTERVAL="1"
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertNotIn(
+            "--force-recreate", self.calls(), "recriar no meio de um WAL replay reinicia o replay"
+        )
+
+    def test_conteudo_divergente_ainda_escala(self):
+        """O caminho legitimo da escalada continua valendo."""
+        self.ctr.joinpath("alerts.yml").write_text(self.ALERTS_1, encoding="utf-8", newline="\n")
+        res = self.run_obs("apply", self.sha0, self.sha1)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("--force-recreate", self.calls(), "assinatura do inode preso deve escalar")
+
+
+class TestRuleFilesResolucao(BashHarness):
+    """`rule_files` com glob/subpath: basename + sem glob dava 0 declarado."""
+
+    PROM_GLOB = (
+        "global:\n  scrape_interval: 15s\n"
+        "rule_files:\n  - /etc/prometheus/alerts.yml\n  - /etc/prometheus/rules/*.yml\n"
+    )
+
+    def test_glob_e_subdiretorio_sao_resolvidos(self):
+        (self.repo / "obs" / "rules").mkdir()
+        (self.repo / "obs" / "rules" / "extra.yml").write_text(
+            "groups:\n  - name: x\n    rules:\n      - alert: C\n        expr: up == 2\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (self.repo / "obs" / "prometheus.yml").write_text(
+            self.PROM_GLOB, encoding="utf-8", newline="\n"
+        )
+        (self.repo / "obs" / "alerts.yml").write_text(
+            self.ALERTS_2, encoding="utf-8", newline="\n"
+        )
+        sha1 = self._commit("regras em subdir por glob")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("arquivo=3 carregadas=3", res.stdout, "glob/subdir nao entrou na contagem")
+        # o byte-check tem de cobrir os arquivos resolvidos, nao so alerts.yml
+        self.assertIn("/etc/prometheus/rules/extra.yml", self.calls())
+
+    def test_glob_sem_correspondencia_falha_fechado(self):
+        (self.repo / "obs" / "prometheus.yml").write_text(
+            self.PROM_GLOB, encoding="utf-8", newline="\n"
+        )
+        (self.repo / "obs" / "alerts.yml").write_text(
+            self.ALERTS_2, encoding="utf-8", newline="\n"
+        )
+        sha1 = self._commit("glob que nao casa com nada")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 1, "0 declarado nao pode ser tratado como sucesso")
+        self.assertIn("sem correspondencia", res.stdout + res.stderr)
+        self.assertNotIn(
+            "--force-recreate", self.calls(), "config quebrada nao se conserta recriando"
+        )
+
+    def test_rule_file_fora_do_mount_falha(self):
+        (self.repo / "obs" / "prometheus.yml").write_text(
+            "global:\n  scrape_interval: 15s\nrule_files:\n  - /var/lib/outro/a.yml\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        sha1 = self._commit("rule_file fora do mount")
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("fora do diretorio montado", res.stdout + res.stderr)
 
 
 class TestObsApplyPendencia(BashHarness):

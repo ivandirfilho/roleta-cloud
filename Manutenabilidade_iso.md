@@ -3102,14 +3102,16 @@ o container quanto o host estavam "certos" cada um com a sua versão.
      anterior à execução — **o booleano sozinho é *sticky***: continua 1 do carregamento anterior
      mesmo que nada tenha sido recarregado agora, e foi exatamente assim que a primeira versão
      deste script conseguiu declarar sucesso sem recarregar nada;
-  3. **SHA-256 do arquivo no repo == SHA-256 do que o container lê**. Os bytes do container saem por
-     `docker cp <cid>:<path> - | tar -xO` (não `exec cat`: não depende de shell/coreutils na imagem)
-     e o `<cid>` vem de `ps -q` — **sem `-a`**, porque `-a` traria os containers efêmeros que o
-     próprio `promtool` cria, e verificar contra um deles (que carrega o bind novo) devolveria
-     "sucesso" com o Prometheus real ainda nas regras velhas;
-  4. **número de regras carregadas na API == declarado nos `rule_files`** — `arquivo=21 carregadas=18`
-     é o sintoma literal do incidente, e nenhuma das outras três provas o pega quando o arquivo já
-     está montado corretamente mas o processo não releu.
+  3. **SHA-256 do arquivo no repo == SHA-256 do que o container lê**, lido por `docker exec`
+     (`sha256sum`, com fallback `cat`) — **nunca** por `docker cp`, que faz o daemon re-resolver o
+     caminho no host e devolveria os bytes novos que o processo talvez nunca tenha visto. O `<cid>` vem
+     de `ps -q` — **sem `-a`**, porque `-a` traria os containers efêmeros que o próprio `promtool` cria,
+     e verificar contra um deles (que carrega o bind novo) devolveria "sucesso" com o Prometheus real
+     ainda nas regras velhas;
+  4. **número de regras carregadas na API == declarado nos `rule_files`** (resolvidos com glob/subpath,
+     fail-closed quando um padrão não casa) — `arquivo=21 carregadas=18` é o sintoma literal do
+     incidente, e nenhuma das outras três provas o pega quando o arquivo já está montado corretamente
+     mas o processo não releu.
 
   **Depois de qualquer `up`/recriação vem sempre um `POST /-/reload`.** Um `up -d` puro é no-op
   quando a definição do serviço não mudou (a compose mudou num comentário ou em outro serviço),
@@ -3137,13 +3139,16 @@ a maioria descoberta em duas rodadas de revisão independente, e todas travadas 
 | Detecção que falha em silêncio | `git diff` com erro virava "nada mudou" — justamente no deploy que precisava do reload | erro logado + **ação conservadora** (`recreate`) |
 | Prometheus que sumiu vira "skip" | host sem stack e host com stack derrubada são indistinguíveis | marcador `$STATE_DIR/obs_seen`: se a stack já existiu neste host e agora não existe, é **falha**, não skip. O passo `check` é a exceção deliberada: como a falha dele derruba o deploy do **app**, stack indisponível ali só adia a decisão para o `apply` |
 | Verificar contra o container errado | `ps -a` lista os containers efêmeros do `compose run` (o nome deles ordena antes do `roleta-prometheus`) e eles carregam o bind **novo** ⇒ os bytes batem e o script declara sucesso com o Prometheus real ainda velho | seleção por `ps -q` (só em execução) + aviso se vier mais de um ID |
+| Ler os bytes com `docker cp` | **descoberto reproduzindo o incidente em Docker real**: `docker cp` **não** lê pelo mount namespace do processo — para um bind mount o daemon **re-resolve o caminho de origem no host**. Num bind de *arquivo* com inode trocado ele devolve os bytes **novos** enquanto o processo continua lendo os **antigos**: a comparação vira host×host, uma **tautologia** que passa exatamente no cenário do incidente | leitura por `docker exec` (`sha256sum`, com fallback `cat`), que executa no namespace do container; sem leitor disponível ⇒ **fail-closed** (nunca cair num leitor que mente) |
+| Escalar qualquer falha para recriação | POST recusado, `reload_successful=0` ou "nunca ficou ready" não são consertados por recriar — e recriar um Prometheus que ainda servia a **última config boa** pode transformar um problema de recarga em **crash loop** e reiniciar o WAL replay | a verificação classifica a falha: **processo** (1) ⇒ falha e preserva a pendência, **sem** recriar; **conteúdo** (2, ready + reload fresco e bem-sucedido mas bytes/regras divergentes — a assinatura do inode preso) ⇒ aí sim escala uma única vez |
+| `rule_files` por basename, sem glob | `/etc/prometheus/*.rules.yml` ou um subdiretório davam **0 regras declaradas**; como `0 != carregadas`, todo deploy virava falha (e recriação) eterna | resolução relativa ao mount, expansão de glob e subpaths, e o byte-check derivado da **mesma** lista; zero correspondência é **fail-closed** (config que aponta para arquivo inexistente não é "nenhuma regra") |
 | `grep -q` no fim de uma pipeline sob `pipefail` | o `/metrics` tem centenas de KB e a métrica aparece cedo: o `grep -q` sai no primeiro match, o produtor morre de **SIGPIPE (141)** e a pipeline inteira vira "falha" — a verificação **nunca** passaria, todo deploy de obs escalaria para recriação e a pendência ficaria presa em `escalated` para sempre | comparação por here-string (`grep -q … <<< "$body"`), sem pipeline |
 
 Falha de observabilidade **não** faz rollback do app: ele já passou no healthcheck no SHA novo, e derrubar
 o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
 e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
 
-### D. Regressão (`tests/test_obs_reload.py`, 56 testes)
+### D. Regressão (`tests/test_obs_reload.py`, 69 testes)
 
 Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
 `prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
@@ -3188,6 +3193,12 @@ teste correspondente tem de reprovar; fontes restauradas ao fim):
 | instalador sem backup (rollback impossível) | `test_rollback_restaura_o_entrypoint_anterior` |
 | sonda de drift fatal (derrubaria o deploy) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
 | sonda de drift desligada (drift silencioso) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
+| ler os bytes com `docker cp` (tautologia) | `test_bytes_lidos_pela_visao_do_container` |
+| leitor ausente presumindo sucesso | `test_sem_leitor_no_container_falha_fechado` |
+| escalar qualquer falha para recriação | `test_post_recusado_nao_recria` + `test_reload_rejeitado_nao_recria` + `test_never_ready_nao_recria` |
+| `rule_files` por basename, sem glob | `test_glob_e_subdiretorio_sao_resolvidos` |
+| zero match tratado como zero regras | `test_glob_sem_correspondencia_falha_fechado` |
+| gate sem stack descartando a mudança | `test_host_sem_marcador_ainda_guarda_a_mudanca` |
 
 ### E. Entrypoint durável (o que fazia o conserto não chegar em produção)
 
@@ -3211,7 +3222,7 @@ precisam ser mantidas em sincronia".
 **Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
 de bug, não alterado aqui para não recriar um container fora do incidente.
 
-**Suítes.** Python **960 passed, 9 skipped, 1 xfailed** (+56 sobre os 904 do adendo anterior).
+**Suítes.** Python **973 passed, 9 skipped, 1 xfailed** (+69 sobre os 904 do adendo anterior).
 `lint_silent_except` OK · `schema_symmetry` OK.
 
 **Evidência contra a rodada anterior.** A suíte funcional aceita `OBS_APPLY_UNDER_TEST=<script>` para
@@ -3226,7 +3237,14 @@ externamente errado**: o Prometheus concordava consigo mesmo sobre 18 regras enq
 todo diagnóstico feito *de dentro dele* (promtool no container, `/api/v1/rules`) confirmava a versão
 errada. Sempre que um artefato versionado é entregue por cópia/mount, a verificação tem de comparar
 **as duas pontas** — bytes do repo contra bytes que o consumidor realmente lê — e nunca aceitar o "200 OK"
-do comando de recarga como prova de que a mudança chegou. E há um corolário que este ciclo custou duas
-rodadas de revisão para aprender: **sinal que sobrevive ao próprio evento não prova nada**. Um booleano
-"último reload deu certo" continua verdadeiro para sempre depois do primeiro sucesso; só o *frescor*
-(um relógio que precisa ter avançado) distingue "recarregou agora" de "recarregou algum dia".
+do comando de recarga como prova de que a mudança chegou. Dois corolários que este ciclo custou três
+rodadas de revisão para aprender:
+
+1. **Sinal que sobrevive ao próprio evento não prova nada.** Um booleano "último reload deu certo"
+   continua verdadeiro para sempre depois do primeiro sucesso; só o *frescor* (um relógio que precisa ter
+   avançado) distingue "recarregou agora" de "recarregou algum dia".
+2. **Verificar exige saber de qual ponto de vista se está lendo.** `docker cp` e `docker exec` parecem
+   equivalentes para "ler um arquivo do container", mas só o segundo passa pelo mount namespace do
+   processo: o primeiro faz o *daemon* re-resolver o caminho no host e, num bind de arquivo com inode
+   trocado, devolve alegremente os bytes novos que o processo nunca viu. Uma verificação que lê pelo lado
+   errado não é fraca — é **tautológica**, e passa com mais confiança justamente no caso que deveria pegar.

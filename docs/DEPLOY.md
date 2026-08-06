@@ -177,19 +177,24 @@ Regras do passo `apply`:
   2. `prometheus_config_last_reload_successful` = 1 **e** o timestamp
      (`prometheus_config_last_reload_success_timestamp_seconds`) **avançou** em relação ao momento
      anterior — o booleano sozinho é *sticky*, continua 1 de um carregamento antigo;
-  3. **SHA-256 do arquivo no repo == SHA-256 do que o container lê** (`docker cp` do caminho
-     montado, do container **em execução** — `ps -q`, nunca `-a`, para não verificar contra um
-     container efêmero do `compose run`): é o detector exato do inode preso;
-  4. **número de regras carregadas na API == declarado nos `rule_files`** (`arquivo=21 carregadas=18`
-     era o sintoma do incidente).
-- Se a verificação reprovar, o script **escala para uma única recriação** (`--force-recreate`) e só
-  então grava `escalated` na pendência (`/var/lib/roleta-deploy/obs_pending`) — o próximo tick
-  retoma sem recriar de novo (sem loop de restart a cada 2 min); se a própria recriação falhar, a
-  pendência **não** avança, para que a tentativa se repita.
+  3. **SHA-256 do arquivo no repo == SHA-256 do que o container lê**, obtido por `docker exec`
+     (`sha256sum`, com fallback `cat`) no container **em execução** (`ps -q`, nunca `-a`).
+     **Não** se usa `docker cp`: para um bind mount o daemon re-resolve o caminho de origem no host,
+     então num bind de arquivo com inode trocado ele devolve os bytes *novos* enquanto o processo lê os
+     *antigos* — a comparação viraria host×host. Sem leitor na imagem ⇒ **falha** (fail-closed);
+  4. **número de regras carregadas na API == declarado nos `rule_files`** (resolvidos com glob e
+     subdiretórios; padrão sem correspondência ⇒ **falha**, não "zero regras").
+- Se a verificação reprovar, o script só **escala para uma única recriação** (`--force-recreate`)
+  quando há evidência de que recriar resolve: processo saudável (ready + reload fresco e bem-sucedido)
+  mas **conteúdo divergente** — a assinatura do inode preso. POST recusado, reload rejeitado ou
+  "nunca ficou ready" **falham sem recriar**: recriar um Prometheus que ainda servia a última config
+  boa pode virar crash loop e reiniciar o WAL replay. A marca `escalated` só é gravada depois que a
+  recriação dá certo; se ela falhar, a pendência **não** avança, para que a tentativa se repita.
 - **Nenhuma falha limpa a pendência** — nem um `POST /-/reload` recusado, nem promtool
   inexecutável. Ela só é apagada após uma aplicação comprovada.
 - `OBS_ENABLED=0` é kill-switch operacional: pula o passo **preservando** a pendência (retoma
-  quando religar). `OBS_ENABLED=1` exige a stack presente (ausência vira falha).
+  quando religar). `OBS_ENABLED=1` exige a stack presente (ausência vira falha). Em host sem a stack
+  a pendência também é gravada — se ela estiver só temporariamente fora, a mudança não se perde.
 - Falha ⇒ log `OBS FAIL` + `DEPLOY PARCIAL` e **exit 1** (unit do systemd fica `failed`). O app
   **não** sofre rollback: ele já está saudável no SHA novo.
 
@@ -215,16 +220,51 @@ próximo deploy loga `INSTALL DRIFT …` — e `bash scripts/roleta-deploy-insta
 Verificação independente:
 
 ```bash
-docker exec roleta-prometheus sha256sum /etc/prometheus/alerts.yml
-sha256sum /root/roleta-cloud/obs/alerts.yml            # tem de bater
+docker exec roleta-prometheus sha256sum /etc/prometheus/alerts.yml   # visao do PROCESSO
+sha256sum /root/roleta-cloud/obs/alerts.yml                          # tem de bater
 curl -s http://127.0.0.1:9090/api/v1/rules | grep -o '"query":' | wc -l
 curl -s http://127.0.0.1:9090/metrics | grep prometheus_config_last_reload
 docker volume ls | grep prometheus-data                # TSDB preservado
 ```
 
-Rollback: `git revert` do PR (volta ao bind de arquivo e remove o passo) + `bash scripts/obs-apply.sh force`
-para recriar o container com a definição antiga. Nada disso toca `prometheus-data`. Para pausar só o
-passo de observabilidade sem revert: `OBS_ENABLED=0` no ambiente do deploy (a pendência é preservada).
+> ⚠️ Não troque o `docker exec` por `docker cp` nesta verificação: `docker cp` faz o **daemon**
+> re-resolver o caminho de origem no host, então num bind de arquivo com inode trocado ele mostra os
+> bytes novos que o processo **não** está lendo — exatamente o erro que esconderia o incidente.
+
+Rollback: veja a seção abaixo — o `git revert` remove os próprios scripts, então o procedimento não
+pode depender deles.
+
+### Rollback após `git revert`
+
+O revert deste PR apaga `scripts/obs-apply.sh`, `scripts/roleta-deploy-launcher.sh` e
+`scripts/roleta-deploy-install.sh` do checkout — qualquer receita que os invoque **não roda mais**.
+Depois do revert (esperar o timer, ~2 min, ou `systemctl start roleta-deploy.service`):
+
+```bash
+cd /root/roleta-cloud
+
+# 1) Prometheus volta para a definicao antiga (bind de arquivo) com o TSDB intacto.
+#    `--no-deps` protege Grafana/AlertManager/app; NUNCA usar --remove-orphans.
+docker compose -f docker-compose.obs.yml up -d --no-deps --force-recreate prometheus
+
+# 2) (opcional) entrypoint de volta para a copia congelada, se o launcher tiver sido instalado
+install -m755 /usr/local/lib/roleta-deploy/roleta-deploy-pull.sh.bak /usr/local/bin/roleta-deploy-pull.sh
+#    (sem backup? use a versao revertida do repo:)
+#    install -m755 /root/roleta-cloud/scripts/roleta-deploy-pull.sh /usr/local/bin/roleta-deploy-pull.sh
+
+# 3) limpar estado que so o passo revertido usava (inofensivo, evita confusao)
+rm -f /var/lib/roleta-deploy/obs_pending /var/lib/roleta-deploy/obs_seen
+
+# 4) conferir
+docker volume ls | grep prometheus-data          # TSDB preservado
+curl -s http://127.0.0.1:9090/-/ready
+```
+
+O volume nomeado `prometheus-data` **não** é tocado em nenhum dos passos: `--force-recreate`
+substitui o container, não o volume.
+
+**Pausar sem reverter** (mantém tudo instalado): `OBS_ENABLED=0` no ambiente do deploy — o passo é
+pulado e a pendência é preservada para quando religar.
 
 > **Follow-up conhecido:** `obs/alertmanager.yml` ainda é bind **de arquivo** (mesma classe de bug).
 > Não foi alterado aqui para não recriar um container fora do escopo do incidente.
