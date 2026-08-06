@@ -25,6 +25,15 @@ def test_phase_metrics_module_disponivel():
         "phase_ambiguo_total",
         "spin_implausivel_total",
         "alternancia_violada_total",
+        # SPR-V4 (05/08): contrato direction_event + trilha phase_events.
+        "vision_event_total",
+        "vision_agree_total",
+        "vision_disagree_total",
+        "vision_stale_total",
+        "vision_unbound_total",
+        "vision_selfcontradict_total",
+        "vision_missing_total",
+        "phase_events_write_error_total",
     }
 
 
@@ -44,6 +53,14 @@ def test_health_server_define_metricas_phase():
     assert "phase_ambiguo" in pm
     assert "spin_implausivel" in pm
     assert "alternancia_violada" in pm
+    # SPR-V4 (05/08): 8 gauges do contrato/trilha + o ratio de COBERTURA (sem ele,
+    # uma taxa de acordo alta pode estar apoiada em pouquissimas amostras).
+    for _g in (
+        "vision_event", "vision_agree", "vision_disagree", "vision_stale",
+        "vision_unbound", "vision_selfcontradict", "vision_missing",
+        "phase_events_write_error", "vision_coverage_ratio",
+    ):
+        assert _g in pm, f"gauge SPR-V4 ausente: {_g}"
 
 
 def test_refresh_custom_metrics_atualiza_phase(monkeypatch):
@@ -76,8 +93,36 @@ def test_refresh_custom_metrics_atualiza_phase(monkeypatch):
     assert pm["phase_ambiguo"]._value.get() == 5.0
     assert pm["spin_implausivel"]._value.get() == 6.0
     assert pm["alternancia_violada"]._value.get() == 7.0
+    # SPR-V4: espelho + cobertura derivada. 3 bound (2 agree + 1 disagree) em 5
+    # giros elegiveis (+1 stale +1 missing) = 0.6.
+    phase_metrics.incr("vision_event_total", 4)
+    phase_metrics.incr("vision_agree_total", 2)
+    phase_metrics.incr("vision_disagree_total", 1)
+    phase_metrics.incr("vision_stale_total", 1)
+    phase_metrics.incr("vision_missing_total", 1)
+    phase_metrics.incr("phase_events_write_error_total", 2)
+    health_server._refresh_custom_metrics()
+    assert pm["vision_event"]._value.get() == 4.0
+    assert pm["vision_agree"]._value.get() == 2.0
+    assert pm["vision_disagree"]._value.get() == 1.0
+    assert pm["vision_stale"]._value.get() == 1.0
+    assert pm["vision_missing"]._value.get() == 1.0
+    assert pm["phase_events_write_error"]._value.get() == 2.0
+    assert abs(pm["vision_coverage_ratio"]._value.get() - 0.6) < 1e-9
     # Limpar
     phase_metrics.reset()
+
+
+def test_cobertura_sem_giro_elegivel_e_zero():
+    """SPR-V4: denominador zero ⇒ 0.0, NUNCA 1.0. Reportar cobertura perfeita
+    quando nao houve giro elegivel transformaria 'sem dado' em 'prova'."""
+    from state import phase_metrics
+    from server import health_server
+    if not health_server._METRICS_AVAILABLE:
+        return
+    phase_metrics.reset()
+    health_server._refresh_custom_metrics()
+    assert health_server._PROM_METRICS["vision_coverage_ratio"]._value.get() == 0.0
 
 
 def test_refresh_tolerante_a_falha_silenciosa(monkeypatch):

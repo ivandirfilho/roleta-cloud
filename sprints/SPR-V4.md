@@ -224,3 +224,84 @@ promtool check rules obs/alerts.yml         # ou validação YAML equivalente
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+- **2026-08-05 · CONCLUÍDO (PR aberto) · SPR-V4: contrato `direction_event` + trilha `phase_events`.**
+  **Entregue:** (1) evento com identidade (`event_id` do cliente preservado; UUID do servidor quando
+  ausente, origem em `meta_json.event_id_origin`), **giro-alvo do servidor** sob `state_lock` pela
+  fórmula fixa `target_spin_seq = spin_seq_corrente + 1`, **TTL no relógio monotônico do servidor**
+  (`SDA_DIRECTION_VISION_TTL_MS=30000`, intervalo semiaberto, `captured_at_ms` do cliente só
+  diagnóstico) e **consumo único estrutural**; (2) trilha `phase_events` SQLite append-only com
+  **atomicidade decisão+disposição na MESMA transação** (`save_decision_with_phase_events`, rollback
+  total provado com falha injetada, retry idempotente); (3) shadow + 8 counters, 9 gauges, 2 alertas,
+  3 flags default-OFF na compose.
+  **Ordem garantida na corrida `direction_event` × `novo_resultado`:** o snapshot de
+  `session_id`/`spin_seq` e a atribuição do alvo acontecem **dentro** do `state_lock`; a
+  classificação acontece **também dentro** do lock, logo após `spin_seq += 1` (portanto já com a
+  direção final pós-autoridade), e devolve as linhas numa **variável local** da função — nunca em
+  `self` — para que dois giros jamais disputem a mesma disposição. I/O de SQLite e `send()` do ack
+  ficam **fora** do lock (`busy_timeout=5000` e `drain()` de produtor lento parariam o caminho do giro).
+  **Desvio deliberado do DDL do brief:** `UNIQUE(event_id, kind, target_spin_seq)` em vez de
+  `UNIQUE(event_id, kind)` — com a chave global, um produtor reutilizando um `event_id` estável
+  gravava 1 linha por kind para a vida inteira (reproduzido: 6 giros → counters 6, trilha 1),
+  fazendo a decisão comitar sem disposição e a taxa de acordo subir artificialmente. Justificativa
+  completa no ADENDO §E. Supressões por conflito agora **contam** `phase_events_write_error_total`.
+  **Validação:** `pytest tests/` **973 verde** (965 antes; +64 testes do sprint, 3 baselines
+  atualizados: `test_dir12` set exato, `test_dir9` `sentido.stats`, `.silent_except_baseline.json` e
+  `schema_sqlite_snapshot.json`). Replay congelado do SPR-V1 **byte-idêntico** com as flags novas OFF,
+  com `SDA_DIRECTION_VISION=1` e com o shadow ON. `obs/alerts.yml` validado por parse YAML +
+  estrutural (5 grupos, 23 regras; `promtool` ausente na máquina — validar no CI/host).
+  `sqlite3 .schema phase_events` + `SELECT kind, COUNT(*) GROUP BY 1` conferidos ponta a ponta.
+  **Crescimento MEDIDO (2.000 giros):** 223 B/giro sem produtor de visão (6,4 MB/30d a 1.000
+  giros/dia) e 1.313 B/giro com produtor ativo (37,6 MB/30d). **Retenção NÃO entregue** — abrir
+  `SPR-V4R` antes de ~60 dias com a auditoria ligada; até lá a purga é manual e do operador.
+  **Code-review:** 6 achados, 6 corrigidos antes do PR (chave única global; denominador da cobertura
+  poluído por invalidações de ingresso; fallback que podia duplicar a decisão no ledger; `await send`
+  dentro do lock; reconstrução do pendente sem call site de produção + `save()` ausente no ingresso;
+  testes de idempotência com cobertura ilusória). Detalhe no ADENDO §N.
+  **Arquivos:** `server/message_handler.py`, `database/sqlite_repo.py`, `database/service.py`,
+  `state/game.py`, `state/phase_metrics.py`, `server/health_server.py`, `app_config/settings.py`,
+  `obs/alerts.yml`, `docker-compose.yml`, `tests/replay_harness_v1.py`,
+  `tests/test_v4_direction_event_contract.py`, `tests/test_v4_phase_events_trail.py`,
+  `tests/test_v4_nao_interferencia_replay.py`, `tests/test_dir12_metrics_exporter.py`,
+  `tests/test_dir9_sentido_na_sugestao.py`, `Manutenabilidade_iso.md`.
+
+- **2026-08-05 (noite-2) · FIX no MESMO PR (#55) · 2 bugs de integridade da trilha achados por review independente.**
+  **(1) Recuperação pós-restart era inalcançável.** `_reconstruir_pendente_da_trilha` filtrava
+  pela sessão corrente, mas `current_session_id` nasce UUID NOVO no `__init__` — a linha `received`
+  órfã tem o id ANTERIOR. O teste que a "cobria" só zerava o pendente em memória mantendo a MESMA
+  sessão (nunca atravessava a fronteira de processo). **Corrigido separando as duas verdades:**
+  com `state.json` (bind-mount, o caso real) a continuidade é PROVADA e o evento antigo vira
+  **`stale`**; sem `state.json` não há como provar, então o giro é **`missing`** (honesto) e o órfão
+  é encerrado por **FAXINA** de manutenção — transação própria, `decision_ref` NULL, `spin_seq` NULL,
+  sem contador. **Não há adoção de órfão por coincidência de `target_spin_seq`**: o contador REINICIA
+  a cada sessão, então o alvo 1 de uma mesa morta coincide com o giro 1 de qualquer sessão nova —
+  adotar rotularia como `stale` um giro honestamente `missing` (atribuição cruzada entre mesas).
+  **(2) `NOT EXISTS` fechava o ciclo por `event_id` GLOBAL**, mas a identidade é por giro: com
+  `event_id` reutilizado, o terminal do giro N mascarava o `received` do N+1/de outra sessão.
+  **Corrigido** para correlacionar por `(session_id, event_id, target_spin_seq)` = a chave única.
+  Isso exigiu o par que faltava: o **terminal passou a carregar as coordenadas do EVENTO**, com as
+  do GIRO em **colunas próprias** (`spin_session_id`/`spin_seq`) — senão um evento de alvo 5
+  classificado no giro 7 gravava terminal com alvo 7 e deixava o `received` de alvo 5 aberto.
+  Invariante consultável: `spin_seq IS NOT NULL` ⇔ a linha é disposição de GIRO (denominador da
+  cobertura). `UNIQUE` passou a `(session_id, event_id, kind, target_spin_seq)` — sem `session_id`
+  o giro 1 da sessão B colidia com o da sessão A e a linha da sessão NOVA era suprimida.
+  **Bônus achado no caminho:** `received_persisted` era marcado DEPOIS do `gs.save()`, então nunca
+  ia ao `state.json` — após restart a linha era re-emitida e o conflito suprimido contava como erro
+  de escrita inexistente. Agora nasce antes do `save()` e é desfeito se a gravação falhar (auto-cura).
+  **Validação:** `pytest tests/` **981 verde** (973 antes). **Mutação:** com o código de produção
+  revertido para `c970b65` e os testes novos mantidos, **10 testes falham**; cada fix mutado
+  isoladamente **matou o mutante** (correlação global: 2; `UNIQUE` sem sessão, mutação cirúrgica: 2;
+  terminal com coordenadas do giro: 2; faxina removida: 3; marca de persistência no lugar antigo: 3).
+  `promtool` segue ausente — `obs/alerts.yml` inalterado nesta rodada. INV-3/shadow/flags intactos.
+  **Arquivos:** `database/sqlite_repo.py`, `database/service.py`, `server/message_handler.py`,
+  `database/schema_sqlite_snapshot.json`, `.silent_except_baseline.json`,
+  `tests/test_v4_phase_events_trail.py`, `Manutenabilidade_iso.md`.
+  **Code-review dos próprios fixes (3ª rodada, 3 achados, 3 corrigidos):** (a) a guarda da faxina
+  comparava só o `event_id` e, com produtor de id estável, pulava TODO órfão de sessão morta —
+  passou a comparar a identidade completa `(session_id, event_id, target_spin_seq)`; (b) num banco
+  com a forma antiga, o `ON CONFLICT` ficava sem alvo e **todo** insert da trilha estourava
+  (auditoria 100% morta + erro por giro) — a chave virou **índice único ADITIVO**
+  (`ux_phase_events_lifecycle`), que um banco antigo ganha no boot seguinte sem DROP, com teste
+  partindo da tabela na forma antiga; (c) a auto-cura da marca `received_persisted` era cobertura
+  ilusória (nenhum teste injetava falha no INGRESSO) — teste adicionado.
+  **Mutação da 3ª rodada:** guarda só por `event_id` (mata 1), índice do ciclo removido (mata 41),
+  auto-cura removida (mata 1). Suíte final: **984 verde**.
