@@ -65,19 +65,29 @@
 
   /**
    * Intervalo mínimo ENTRE FRAMES ACEITOS para que o guard `stride_too_small` não seja
-   * inevitável. Sai direto da aritmética do cabeçalho:
+   * inevitável. Sai direto da aritmética do guard:
    *
    *     Δt_do_par = stride × intervalo   e   Δt_do_par ≥ minAliasSafetyDeg / (rev_min × 360)
    *
-   * Com os defaults: 19,46° / 72°/s / 3 = **90 ms** ⇒ ~11 fps EFETIVOS.
-   * Um feed a 25-30 fps precisa ser DECIMADO até essa cadência: gravar 6 frames
-   * consecutivos de um stream de 30 fps dá 167 ms de janela total e o estimador abstém
+   * Com os defaults: 19,46° / 72°/s / 3 = 90,09 ms — e devolvemos esse mínimo com uma
+   * **margem de 2%** (91,9 ms), porque o guard compara `>=` sobre floats calculados por
+   * caminhos diferentes: aceitar exatamente no limite deixa a decisão na mão do último bit
+   * da mantissa. ~11 fps efetivos.
+   *
+   * Um feed a 12, 24, 25, 30 ou 60 fps precisa ser DECIMADO até essa cadência: gravar 6
+   * frames consecutivos de um stream de 30 fps dá 167 ms de janela e o estimador abstém
    * sempre — o coletor mediria zero e o campo leria isso como "o mundo não coopera".
    */
-  function recommendedFrameIntervalS(options) {
+  function minimumFrameIntervalS(options) {
     var cfg = Object.assign({}, DEFAULTS, options || {});
     var stride = Math.max(1, cfg.pairStride | 0);
     return cfg.minAliasSafetyDeg / (cfg.rotorRevPerSecMin * 360) / stride;
+  }
+
+  var FRAME_INTERVAL_SAFETY = 1.02;
+
+  function recommendedFrameIntervalS(options) {
+    return minimumFrameIntervalS(options) * FRAME_INTERVAL_SAFETY;
   }
 
   function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
@@ -455,6 +465,8 @@
     analyzeWindow: analyzeWindow,
     circularXCorr: circularXCorr,
     recommendedFrameIntervalS: recommendedFrameIntervalS,
+    minimumFrameIntervalS: minimumFrameIntervalS,
+    FRAME_INTERVAL_SAFETY: FRAME_INTERVAL_SAFETY,
     findZeroLandmark: findZeroLandmark,
     highPassWindow: highPassWindow,
     _localMaxima: localMaxima,

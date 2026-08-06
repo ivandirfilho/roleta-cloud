@@ -95,9 +95,10 @@
   }
 
   // Grava `count` frames DECIMADOS até a cadência segura (ver `createDecimator`), com
-  // timeout: o rVFC pode parar de disparar (aba oculta, stream travado, dealer pausou) e
-  // uma Promise que nunca liquida deixaria `state.busy` preso em `true` para sempre.
-  function captureBurst(video, calib, count, timeoutMs) {
+  // timeout e ORÇAMENTO DE MEMÓRIA CUMULATIVO: paramos de alocar quando o teto é atingido,
+  // em vez de encher a memória e cortar depois — cortar depois já pagou o custo inteiro,
+  // que é exatamente o que se queria evitar num renderer de terceiro.
+  function captureBurst(video, calib, count, timeoutMs, maxBytes) {
     count = count || CAPTURE_FRAMES;
     timeoutMs = timeoutMs || BURST_TIMEOUT_MS;
     return new Promise(function (resolve) {
@@ -106,6 +107,7 @@
       }
       var frames = [];
       var settled = false;
+      var budget = globalThis.VSExportStream.createByteBudget(maxBytes || 0);
       var t0 = performance.now();
       var dec = globalThis.VSRvfcMeter.createDecimator({
         targetIntervalS: globalThis.VSDirection.recommendedFrameIntervalS()
@@ -113,14 +115,14 @@
       var timer = setTimeout(function () {
         if (settled) return;
         settled = true;
-        resolve({ error: { name: 'rvfc_timeout' }, frames: frames, decimator: dec.stats() });
+        resolve({ error: { name: 'rvfc_timeout' }, frames: frames, bytes: budget.used(), decimator: dec.stats() });
       }, timeoutMs);
 
       function done(r) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve(r);
+        resolve(Object.assign({ bytes: budget.used(), decimator: dec.stats() }, r));
       }
 
       function step(now, meta) {
@@ -133,6 +135,12 @@
         }
         var g = grabRoi(video, calib);
         if (!g || g.error) return done({ error: (g && g.error) || { name: 'grab_failed' }, frames: frames });
+        // Consulta o teto ANTES de guardar: quando o próximo frame não cabe, para.
+        // Guardar e cortar depois já teria pago o custo inteiro.
+        if (!budget.fits(g.frame.data.length)) {
+          return done({ error: { name: 'memory_budget' }, frames: frames });
+        }
+        budget.add(g.frame.data.length);
         frames.push({
           index: frames.length,
           wallMs: performance.now() - t0,
@@ -143,7 +151,7 @@
           box: g.box,
           calib: g.calib
         });
-        if (frames.length >= count) return done({ frames: frames, decimator: dec.stats() });
+        if (frames.length >= count) return done({ frames: frames });
         video.requestVideoFrameCallback(step);
       }
       video.requestVideoFrameCallback(step);
@@ -152,6 +160,10 @@
 
   function analyze(frames, calib) {
     var D = globalThis.VSDirection, U = globalThis.VSUnwrap, E = globalThis.VSEllipse;
+    // FAIL-CLOSED: sem assinatura de cena na CALIBRAÇÃO não existe referência legítima.
+    // Cair no primeiro frame aqui compararia a cena com ela mesma — o guard de NCC nunca
+    // dispararia e o veredito *pareceria* totalmente guardado. Sem referência ⇒ ncc NaN
+    // ⇒ `scene_ncc_low` ⇒ abstenção.
     var sceneRef = calib.sceneSignature ? Float64Array.from(calib.sceneSignature) : null;
     var profiles = frames.map(function (it) {
       var un = U.unwrapRotor(it.frame, it.calib);
@@ -159,17 +171,18 @@
       if (!un.ok || !sc.ok) {
         return { chroma: new Float64Array(0), meanLuma: NaN, invalidFrac: 1, ncc: NaN };
       }
-      if (!sceneRef) sceneRef = Float64Array.from(sc.signature);
       return {
         tMs: it.wallMs,
         mediaTimeS: it.mediaTimeS,
         chroma: un.chroma,
         meanLuma: un.meanLuma,
         invalidFrac: Math.max(un.invalidFrac, sc.invalidFrac),
-        ncc: E.ncc(sceneRef, sc.signature)
+        ncc: sceneRef ? E.ncc(sceneRef, sc.signature) : NaN
       };
     });
-    return D.analyzeWindow(profiles, calib);
+    var res = D.analyzeWindow(profiles, calib);
+    res.sceneReference = sceneRef ? 'calibration' : 'missing_calibration';
+    return res;
   }
 
   function pushVerdict(rec) {
@@ -246,6 +259,7 @@
         confidence: res.confidence,
         confidence_kind: res.confidenceKind,
         guards: res.guards,
+        scene_reference: res.sceneReference,   // 'calibration' | 'missing_calibration'
         deg_per_s: res.degreesPerSecond,
         alias_margin: res.aliasMargin,
         landmark_worst_deg: res.landmarkWorstDisagreementDeg,
@@ -281,27 +295,23 @@
     if (!video) return { ok: false, reason: 'no_video_in_frame' };
     if (!state.calibration) return { ok: false, reason: 'no_calibration' };
     state.busy = true;
-    // Sem timeout curto: a gravação é longa por natureza (300 frames a ~10 fps ≈ 30 s).
-    captureBurst(video, state.calibration, count, Math.max(20000, count * 400))
+    // Sem timeout curto: a gravação é longa por natureza (300 frames a ~11 fps ≈ 28 s).
+    captureBurst(video, state.calibration, count, Math.max(20000, count * 400), RECORD_MAX_BYTES)
       .then(function (r) {
         if (!r.frames.length) return;
-        var bytes = r.frames.length * r.frames[0].frame.data.length;
-        var frames = r.frames;
-        if (bytes > RECORD_MAX_BYTES) {
-          var keep = Math.floor(RECORD_MAX_BYTES / r.frames[0].frame.data.length);
-          frames = r.frames.slice(0, keep);
-        }
-        var meta = captureMeta(frames);
+        var meta = captureMeta(r.frames);
         meta.record = {
-          requested: count, obtained: frames.length,
-          truncated_by_memory: frames.length < r.frames.length,
-          error: r.error ? r.error.name : null,
+          requested: count,
+          obtained: r.frames.length,
+          bytes: r.bytes,
+          stopped_by: r.error ? r.error.name : null,
+          budget_bytes: RECORD_MAX_BYTES,
           decimator: r.decimator
         };
-        state.lastCapture = { meta: meta, frames: frames.map(function (f) { return f.frame.data; }) };
+        state.lastCapture = { meta: meta, frames: r.frames.map(function (f) { return f.frame.data; }) };
       })
       .finally(function () { state.busy = false; });
-    return { ok: true, recording: count };
+    return { ok: true, recording: count, budgetBytes: RECORD_MAX_BYTES };
   }
 
   function tick() {
@@ -401,22 +411,31 @@
     return false;
   });
 
-  // Exportação da captura: streaming por PORT, do content script direto para o popup.
+  // Exportação da captura: streaming por PORT com ACK, backpressure e RETOMADA
+  // (`lib/export_stream.js`). O destinatário é `probe/export.html` — uma PÁGINA de
+  // extensão, não o popup: o popup fecha ao primeiro clique fora dele e levava junto uma
+  // transferência de ~100 MB, e com ela uma coleta de campo inteira.
   // Sai da máquina? NÃO: o destino é um `download` do próprio navegador, em disco local.
-  // O frame SEM captura apenas desconecta — se ele respondesse "não tenho", o popup (que
-  // recebe de todos os frames) abortaria o export do iframe que de fato gravou.
+  // O frame SEM captura apenas desconecta — se ele respondesse "não tenho", o destinatário
+  // (que recebe de todos os frames) abortaria o export do iframe que de fato gravou.
   chrome.runtime.onConnect.addListener(function (port) {
     if (port.name !== 'vs_export') return;
     if (!state.lastCapture) { port.disconnect(); return; }
     var cap = state.lastCapture;
-    port.postMessage({ type: 'meta', meta: cap.meta, frameCount: cap.frames.length });
-    for (var i = 0; i < cap.frames.length; i++) {
-      port.postMessage({
-        type: 'frame', index: i,
-        data: Array.from(cap.frames[i])      // estruturado-clonável
-      });
-    }
-    port.postMessage({ type: 'end' });
+    var sender = globalThis.VSExportStream.createSender({
+      frames: cap.frames,
+      meta: cap.meta,
+      chunkFrames: 1,
+      window: 2,
+      post: function (m) {
+        try { port.postMessage(m); } catch (e) { /* port morto: o destinatário retoma */ }
+      }
+    });
+    port.onMessage.addListener(function (m) {
+      if (!m) return;
+      if (m.type === 'start' || m.type === 'resume') sender.start(m.from || 0);
+      else if (m.type === 'ack') sender.onAck(m.to);
+    });
   });
 
   chrome.storage.local.get(POLICY_KEY, function (o) {

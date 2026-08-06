@@ -20,11 +20,13 @@
       "matches": ["<all_urls>"],
       "js": [
         "lib/evidence.js",
+        "lib/algo_sha.js",
         "lib/ellipse.js",
         "lib/unwrap.js",
         "lib/direction_core.js",
         "lib/rvfc_meter.js",
         "lib/motion_trigger.js",
+        "lib/export_stream.js",
         "probe/probe_e0.js",
         "probe/probe_e0b.js",
         "probe/collector.js"

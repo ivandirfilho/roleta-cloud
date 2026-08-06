@@ -76,6 +76,38 @@ test('referência de cena vinda do 1º frame é DENUNCIADA como modo de teste', 
   assert.ok(r.warnings.includes('scene_reference_from_first_frame_not_calibration'));
 });
 
+test('FAIL-CLOSED: sem `sceneSignature` na calibração o anti-cena NÃO é desligado em silêncio', () => {
+  // O coletor usa `failClosedScene: true`. Sem isso ele caía no primeiro frame, comparava
+  // a cena com ela mesma, o guard de NCC nunca disparava — e o veredito PARECIA totalmente
+  // guardado. "Não sei" tem de virar abstenção, não aprovação.
+  const seq = Syn.makeSequence({ direction: 'cw', count: 8, fps: 10 });
+  const semCalib = Object.assign({}, seq.calibration);
+  delete semCalib.sceneSignature;
+
+  const r = P.run(seq.frames, semCalib, { failClosedScene: true, truthDirection: 'cw' });
+  assert.equal(r.sceneRefSource, 'missing_calibration');
+  assert.ok(r.warnings.includes('scene_reference_missing_calibration_fail_closed'));
+  assert.equal(r.summary.emitted, 0, 'sem referência de cena NADA pode ser emitido');
+  for (const w of r.windows) {
+    assert.equal(w.direction, null);
+    assert.ok(w.guards.includes('scene_ncc_low'), JSON.stringify(w.guards));
+    assert.equal(w.sceneReference, 'missing_calibration');
+  }
+});
+
+test('todo veredito diz CONTRA O QUE a cena foi comparada', () => {
+  const U = require('../lib/unwrap.js');
+  const seq = Syn.makeSequence({ direction: 'cw', count: 8, fps: 10 });
+
+  const semRef = P.run(seq.frames, seq.calibration, {});
+  assert.ok(semRef.windows.every((w) => w.sceneReference === 'first_frame'));
+
+  const sig = U.sceneSignature(seq.frames[0].frame, seq.calibration);
+  const calib = Object.assign({}, seq.calibration, { sceneSignature: Array.from(sig.signature) });
+  const comRef = P.run(seq.frames, calib, {});
+  assert.ok(comRef.windows.every((w) => w.sceneReference === 'calibration'));
+});
+
 test('com assinatura de cena da CALIBRAÇÃO o guard de NCC volta a existir', () => {
   const U = require('../lib/unwrap.js');
   const base = Syn.makeSequence({ direction: 'cw', count: 8, fps: 10 });
@@ -119,20 +151,24 @@ test('gerador sintético é DETERMINÍSTICO (replay reproduzível)', () => {
     Array.from(b.frames[2].frame.data.slice(0, 400)));
 });
 
-test('REGRESSÃO: feed a 25-30 fps sem decimação abstém 100% — com decimação, emite', () => {
+test('REGRESSÃO: feed a 12/24/25/30/60 fps — sem decimação abstém; com decimação, emite', () => {
   // O bug que isto trava: `captureBurst` gravava 6 frames CONSECUTIVOS na taxa nativa.
   // A 25 fps a rajada inteira dura 200 ms e o guard `stride_too_small` (que exige
   // Δt_par ≥ 270 ms) dispara SEMPRE. Em campo isso daria cobertura 0/N — um NO-GO que
   // seria defeito de ferramental, não propriedade do mundo.
+  //
+  // 12, 24 e 60 fps são o SEGUNDO bug: com o decimador aceitando a 90% do alvo, o
+  // intervalo aceito (83 ms) passava no decimador e reprovava no guard (precisa de 90 ms).
+  // O limiar dos dois tem de ser o MESMO número.
   const D = require('../lib/direction_core.js');
   const Meter = require('../lib/rvfc_meter.js');
 
-  for (const fps of [25, 30]) {
-    const seq = Syn.makeSequence({ direction: 'cw', count: 40, fps, revPerS: 0.35 });
+  for (const fps of [12, 24, 25, 30, 60]) {
+    const seq = Syn.makeSequence({ direction: 'cw', count: Math.round(fps * 3), fps, revPerS: 0.35 });
 
     const cru = P.run(seq.frames, seq.calibration, { truthDirection: 'cw' });
     assert.equal(cru.summary.emitted, 0, `fps=${fps} sem decimação deveria abster tudo`);
-    assert.ok(cru.summary.guards.stride_too_small > 0);
+    assert.ok(cru.summary.guards.stride_too_small > 0, `fps=${fps}`);
 
     const dec = Meter.createDecimator({ targetIntervalS: D.recommendedFrameIntervalS() });
     const decimados = seq.frames
@@ -140,8 +176,54 @@ test('REGRESSÃO: feed a 25-30 fps sem decimação abstém 100% — com decimaç
       .map((f, i) => Object.assign({}, f, { index: i }));
     const bom = P.run(decimados, seq.calibration, { truthDirection: 'cw' });
     assert.ok(bom.summary.emitted > 0, `fps=${fps} com decimação deveria emitir`);
-    assert.equal(bom.summary.wrong, 0);
-    assert.equal(bom.summary.guards.stride_too_small, undefined);
+    assert.equal(bom.summary.wrong, 0, `fps=${fps}`);
+    assert.equal(bom.summary.guards.stride_too_small, undefined,
+      `fps=${fps}: decimador e guard têm de concordar`);
+  }
+});
+
+test('REGRESSÃO: com JITTER de chegada, a decimação continua satisfazendo o guard', () => {
+  // Um stream real não entrega em grade perfeita. Se o decimador aceitasse "quase" no
+  // alvo, o jitter empurraria pares para baixo do limiar e a cobertura cairia em campo
+  // sem explicação nenhuma nos vereditos.
+  const D = require('../lib/direction_core.js');
+  const Meter = require('../lib/rvfc_meter.js');
+
+  for (const fps of [12, 25, 30, 60]) {
+    for (const jitterFrac of [0.2, 0.45]) {
+      const seq = Syn.makeSequence({
+        direction: 'ccw', count: Math.round(fps * 3), fps, revPerS: 0.30, jitterFrac
+      });
+      const dec = Meter.createDecimator({ targetIntervalS: D.recommendedFrameIntervalS() });
+      const decimados = seq.frames
+        .filter((f) => dec.accept(f.mediaTimeS))
+        .map((f, i) => Object.assign({}, f, { index: i }));
+      const r = P.run(decimados, seq.calibration, { truthDirection: 'ccw' });
+      assert.equal(r.summary.guards.stride_too_small, undefined,
+        `fps=${fps} jitter=${jitterFrac}`);
+      assert.ok(r.summary.emitted > 0, `fps=${fps} jitter=${jitterFrac} deveria emitir`);
+      assert.equal(r.summary.wrong, 0, `fps=${fps} jitter=${jitterFrac}`);
+    }
+  }
+});
+
+test('INVARIANTE: todo gap aceito pelo decimador satisfaz o guard `stride_too_small`', () => {
+  const D = require('../lib/direction_core.js');
+  const Meter = require('../lib/rvfc_meter.js');
+  const target = D.recommendedFrameIntervalS();
+  const stride = D.DEFAULTS.pairStride;
+  const dec = Meter.createDecimator({ targetIntervalS: target });
+
+  const aceitos = [];
+  for (let i = 0; i < 400; i++) {
+    const t = i / 60 + (i % 7) * 0.0013;         // 60 fps com jitter determinístico
+    if (dec.accept(t)) aceitos.push(t);
+  }
+  for (let i = stride; i < aceitos.length; i++) {
+    const dtPar = aceitos[i] - aceitos[i - stride];
+    const minExpectedDeg = D.DEFAULTS.rotorRevPerSecMin * 360 * dtPar;
+    assert.ok(minExpectedDeg >= D.DEFAULTS.minAliasSafetyDeg,
+      `par ${i}: ${minExpectedDeg} < ${D.DEFAULTS.minAliasSafetyDeg}`);
   }
 });
 
@@ -191,6 +273,51 @@ test('loadCapture lê o formato `data_file` exportado pelo navegador', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('EOL: LF e CRLF do MESMO fonte produzem o MESMO algorithm_sha', () => {
+  // Regressão do achado HIGH: com `core.autocrlf=true` (padrão do Git no Windows) o blob é
+  // LF e a cópia de trabalho é CRLF. O mesmo commit dava um sha no Windows e outro no
+  // Linux/CI — um identificador de algoritmo que muda com o sistema operacional não
+  // identifica algoritmo nenhum, e o aviso de divergência do replay viraria ruído.
+  const AlgoSha = require('../lib/algo_sha.js');
+  const crypto = require('node:crypto');
+  const lf = 'function f() {\n  return 1;\n}\n';
+  const crlf = lf.replace(/\n/g, '\r\n');
+  const enc = (s) => new Uint8Array(Buffer.from(s, 'utf8'));
+
+  const shaOf = (src) => crypto.createHash('sha256')
+    .update(AlgoSha.canonicalBytes(() => enc(src))).digest('hex').slice(0, 16);
+
+  assert.equal(shaOf(lf), shaOf(crlf));
+  // E a normalização não pode ser "apagar todo CR": um CR solto é byte de conteúdo.
+  assert.notEqual(shaOf(lf), shaOf('function f() {\rreturn 1;\r}'));
+});
+
+test('normalizeEol converte só CRLF, preserva CR solto e LF isolado', () => {
+  const { normalizeEol } = require('../lib/algo_sha.js');
+  assert.deepEqual(Array.from(normalizeEol(new Uint8Array([65, 13, 10, 66]))), [65, 10, 66]);
+  assert.deepEqual(Array.from(normalizeEol(new Uint8Array([65, 13, 66]))), [65, 13, 66]);
+  assert.deepEqual(Array.from(normalizeEol(new Uint8Array([65, 10, 66]))), [65, 10, 66]);
+  assert.deepEqual(Array.from(normalizeEol(new Uint8Array([13, 10, 13, 10]))), [10, 10]);
+});
+
+test('algorithmSha do repo é o mesmo com o arquivo em LF ou CRLF em disco', () => {
+  // Prova end-to-end: reescreve os bytes reais dos 4 arquivos nos dois EOL e compara.
+  const AlgoSha = require('../lib/algo_sha.js');
+  const crypto = require('node:crypto');
+  const raw = {};
+  for (const rel of AlgoSha.ALGORITHM_FILES) {
+    raw[rel] = fs.readFileSync(path.join(__dirname, '..', rel));
+  }
+  const toLf = (b) => new Uint8Array(Buffer.from(b.toString('utf8').replace(/\r\n/g, '\n'), 'utf8'));
+  const toCrlf = (b) => new Uint8Array(
+    Buffer.from(b.toString('utf8').replace(/\r\n/g, '\n').replace(/\n/g, '\r\n'), 'utf8'));
+  const sha = (conv) => crypto.createHash('sha256')
+    .update(AlgoSha.canonicalBytes((rel) => conv(raw[rel]))).digest('hex').slice(0, 16);
+
+  assert.equal(sha(toLf), sha(toCrlf));
+  assert.equal(sha(toLf), Replay.algorithmSha());
 });
 
 test('algorithmSha é estável e tem o formato que o RESULTADO.md cita', () => {

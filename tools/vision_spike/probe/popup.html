@@ -43,10 +43,22 @@
   </fieldset>
 
   <fieldset>
-    <legend>E0b · cobertura (aba oculta / minimizada)</legend>
-    <button id="e0bStart">Iniciar</button>
-    <button id="e0bStop">Parar</button>
-    <button id="e0bStatus">Status</button>
+    <legend>E0b · cobertura (as 4 fases do protocolo)</legend>
+    <div>
+      <button id="e0bStart">Iniciar (fase A)</button>
+      <button id="e0bStop">Parar</button>
+      <button id="e0bStatus">Status</button>
+    </div>
+    <div style="margin-top:6px">
+      marcar fase:
+      <button id="phaseB">B · outra aba</button>
+      <button id="phaseC">C · minimizada</button>
+      <button id="phaseD">D · retorno</button>
+    </div>
+    <div style="color:#9aa4b2;margin-top:4px">
+      Marque a fase <b>antes</b> de esconder/minimizar. Fase silenciosa (0 callbacks) é
+      resultado, não ausência de medição.
+    </div>
     <pre id="e0bOut">—</pre>
   </fieldset>
 
@@ -70,7 +82,7 @@
     <legend>Evidência (local)</legend>
     <button id="dlEvidence">Baixar evidência (JSON)</button>
     <button id="dlVerdicts">Baixar vereditos (JSON)</button>
-    <button id="dlCapture">Baixar captura (replay)</button>
+    <button id="dlCapture">Exportar captura (abre aba)</button>
     <button id="clear">Limpar</button>
     <pre id="evOut">—</pre>
   </fieldset>

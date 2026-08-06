@@ -100,6 +100,66 @@ test('trigger: precisa de amostras quietas para rearmar (não metralha por giro)
   assert.equal(t.push(a, 9000).fired, true);
 });
 
+test('FASES do E0b: uma linha por fase, INCLUSIVE a silenciosa', () => {
+  // O achado mais importante que este instrumento pode produzir é "0 callbacks em 180 s
+  // com a janela minimizada". Antes, uma fase sem amostra nenhuma simplesmente não
+  // existia no relatório: `null` ou fase ausente. Ausência de dado não pode ser
+  // indistinguível de ausência de entrega.
+  const m = R.createFrameRateMeter({ bucketMs: 1000 });
+  m.markPhase('A_visivel', 0);
+  for (let i = 0; i < 30; i++) m.record({ wallMs: i * 100, mediaTime: i * 0.1, visibilityState: 'visible' });
+
+  m.markPhase('B_outra_aba', 3000);
+  for (let i = 0; i < 6; i++) m.record({ wallMs: 3000 + i * 500, mediaTime: 3 + i * 0.5, visibilityState: 'hidden' });
+
+  m.markPhase('C_minimizada', 6000);      // ZERO callbacks nesta fase
+  m.markPhase('D_retorno', 9000);
+  for (let i = 0; i < 30; i++) m.record({ wallMs: 9000 + i * 100, mediaTime: 9 + i * 0.1, visibilityState: 'visible' });
+
+  const phases = m.summary(12000).byPhase;
+  assert.equal(phases.length, 4);
+  assert.deepEqual(phases.map((p) => p.name), ['A_visivel', 'B_outra_aba', 'C_minimizada', 'D_retorno']);
+
+  assert.equal(phases[0].callbacks, 30);
+  assert.ok(Math.abs(phases[0].callbacksPerSecond - 10) < 0.01);
+  assert.equal(phases[0].silent, false);
+
+  assert.equal(phases[1].callbacks, 6);
+  assert.ok(Math.abs(phases[1].callbacksPerSecond - 2) < 0.01);
+
+  // A fase silenciosa: 0/3 s = 0, e NÃO `null`.
+  assert.equal(phases[2].callbacks, 0);
+  assert.equal(phases[2].durationSeconds, 3);
+  assert.equal(phases[2].callbacksPerSecond, 0);
+  assert.equal(phases[2].silent, true);
+  assert.equal(phases[2].mediaTimeAdvancedS, 0);
+
+  assert.equal(phases[3].open, true);      // fase corrente ainda aberta
+  assert.equal(phases[3].callbacks, 30);
+});
+
+test('a duração da fase é wall-clock e vale mesmo sem callback nenhum', () => {
+  const m = R.createFrameRateMeter({ bucketMs: 1000 });
+  m.markPhase('C_minimizada', 1000);
+  const p = m.summary(181000).byPhase[0];
+  assert.equal(p.durationSeconds, 180);
+  assert.equal(p.callbacks, 0);
+  assert.equal(p.callbacksPerSecond, 0);
+  assert.equal(p.silent, true);
+});
+
+test('a série cobre 12 min de buckets sem truncar os primeiros minutos', () => {
+  const m = R.createFrameRateMeter({ bucketMs: 1000, maxBuckets: 7200 });
+  for (let s = 0; s < 720; s++) {
+    for (let k = 0; k < 10; k++) m.record({ wallMs: s * 1000 + k * 100, mediaTime: s + k * 0.1 });
+  }
+  const serie = m.series();
+  assert.equal(serie.length, 720);
+  assert.equal(serie[0].t0, 0, 'o primeiro minuto NÃO pode ser descartado');
+  assert.equal(serie[0].count, 10);
+  assert.equal(serie[719].t0, 719000);
+});
+
 test('meanAbsDiff ignora NaN e recusa tamanhos diferentes', () => {
   assert.equal(M.meanAbsDiff([1, 2, 3], [1, 2, 3]), 0);
   assert.equal(M.meanAbsDiff([1, NaN, 3], [1, 99, 5]), 1);
@@ -117,9 +177,26 @@ test('`intervals` é um RING — o soak de 2h não vira sort quadrático', () =>
 
 test('decimador: intervalo recomendado sai da ARITMÉTICA do guard, não de um palpite', () => {
   const D = require('../lib/direction_core.js');
-  // minAliasSafetyDeg / (rev_min × 360) / stride = 19,4595 / 72 / 3
-  assert.ok(Math.abs(D.recommendedFrameIntervalS() - 0.09009) < 1e-4);
-  assert.ok(Math.abs(D.recommendedFrameIntervalS({ pairStride: 1 }) - 0.27027) < 1e-4);
+  // minAliasSafetyDeg / (rev_min × 360) / stride = 19,4595 / 72 / 3 = 90,09 ms
+  assert.ok(Math.abs(D.minimumFrameIntervalS() - 0.09009) < 1e-4);
+  assert.ok(Math.abs(D.minimumFrameIntervalS({ pairStride: 1 }) - 0.27027) < 1e-4);
+  // O recomendado carrega uma margem pequena sobre o mínimo: aceitar EXATAMENTE no limite
+  // deixaria a decisão do guard na mão do último bit da mantissa.
+  assert.ok(D.recommendedFrameIntervalS() > D.minimumFrameIntervalS());
+  assert.ok(D.recommendedFrameIntervalS() < D.minimumFrameIntervalS() * 1.1);
+});
+
+test('decimador NÃO aceita abaixo do alvo (o limiar dele é o do guard)', () => {
+  // Regressão do achado HIGH nº 2: com tolerância de 90% o decimador aceitava 83 ms
+  // enquanto o guard exigia 90 ms — 12/24/60 fps caíam nessa fresta e davam cobertura 0/N.
+  const D = require('../lib/direction_core.js');
+  const target = D.recommendedFrameIntervalS();
+  const dec = R.createDecimator({ targetIntervalS: target });
+  assert.equal(dec.minGapS, target, 'tolerância tem de ser 1.0');
+  assert.equal(dec.accept(0), true);
+  assert.equal(dec.accept(target * 0.95), false, '95% do alvo NÃO pode passar');
+  assert.equal(dec.accept(target * 0.999), false);
+  assert.equal(dec.accept(target), true);
 });
 
 test('decimador reduz 30 fps nativos à cadência segura (~11 fps efetivos)', () => {
@@ -131,9 +208,9 @@ test('decimador reduz 30 fps nativos à cadência segura (~11 fps efetivos)', ()
     if (dec.accept(t)) aceitos.push(t);
   }
   assert.equal(dec.stats().seen, 60);
-  assert.ok(aceitos.length >= 18 && aceitos.length <= 21, `aceitos=${aceitos.length}`);
+  assert.ok(aceitos.length >= 15 && aceitos.length <= 21, `aceitos=${aceitos.length}`);
   for (let i = 1; i < aceitos.length; i++) {
-    assert.ok(aceitos[i] - aceitos[i - 1] >= dec.minGapS - 1e-9);
+    assert.ok(aceitos[i] - aceitos[i - 1] >= dec.minGapS - 1e-12);
   }
 });
 

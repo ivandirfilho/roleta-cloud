@@ -77,7 +77,7 @@ Modo alternativo (um arquivo por frame): omita `data_file` e preencha `file` com
 | `video.width/height` | o `.rgba` é cru: sem dimensões, os bytes não têm forma. O replay recusa arquivos com tamanho ≠ `w*h*4` |
 | `calibration` | sem elipse não há unwrap; sem `sceneSignature` o guard de NCC vira decorativo |
 | `mediaTimeS` | é a **régua do stream**. Sem ele o Δt cai para wall-clock e o estimador registra o guard `dt_from_wall_clock`. É também a régua da **decimação** |
-| `algorithm_sha` | um número de gate sem o SHA do algoritmo que o produziu não é reproduzível. O coletor o preenche a partir de `lib/algo_sha.js`, a **mesma receita** que o `replay.js` usa — se der `null`, o replay avisa que não dá para comparar |
+| `algorithm_sha` | um número de gate sem o SHA do algoritmo que o produziu não é reproduzível. O coletor o preenche a partir de `lib/algo_sha.js`, a **mesma receita** que o `replay.js` usa — com **EOL normalizado**, senão o mesmo commit daria hashes diferentes no Windows (CRLF na cópia de trabalho) e no Linux/CI (LF). Se der `null`, o replay avisa que não dá para comparar |
 | `evidence_class` | separa bancada de campo. O coletor grava aqui **o que o operador declarou no popup** — nunca um literal `field` |
 
 ## Disciplina de coleta (contra tuning-no-avaliado)
@@ -94,10 +94,12 @@ Modo alternativo (um arquivo por frame): omita `data_file` e preencha `file` com
 ## Como gerar
 
 - **Navegador (gravação para o gate de sinal)**: popup → **Gravar p/ replay** com ≥ 250
-  frames → depois **Baixar captura (replay)**. Saem `capture.json` + `frames.bin` no seu
-  disco. O coletor **decima** os frames até a cadência segura (~90 ms entre frames aceitos),
-  então 300 frames ≈ 30 s de vídeo, e a captura já vem com `algorithm_sha` e `config`
-  preenchidos pelo próprio coletor.
+  frames → **Exportar captura** (abre uma aba durável, com ack/retomada) → *Salvar*. Saem
+  `capture.json` + `frames.bin` no seu disco. O coletor **decima** os frames até a cadência
+  segura (~92 ms entre frames aceitos), então 300 frames ≈ 28 s de vídeo, e a captura já
+  vem com `algorithm_sha` e `config` preenchidos pelo próprio coletor. A gravação respeita
+  um **teto de memória cumulativo**: se a ROI for grande, ela para cedo e registra
+  `record.stopped_by: "memory_budget"` — nunca aloca além do teto para cortar depois.
 - **Navegador (um giro só)**: marque *guardar captura* antes de *Iniciar* o coletor. Sai uma
   captura de 6 frames — serve para depurar uma medição, **não** para o gate de sinal
   (teto aritmético de 6 frames = 16,7%).

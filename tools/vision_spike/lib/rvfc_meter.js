@@ -40,6 +40,29 @@
     var mediaFirst = null, mediaLast = null;
     var dropped = 0;
     var total = 0;
+    // Fases do protocolo E0b. Registradas por MARCA EXPLÍCITA, não inferidas das amostras:
+    // se o player parar de entregar frames com a janela minimizada, NÃO chega amostra
+    // nenhuma — e uma fase silenciosa inferida de amostras simplesmente não existiria.
+    // O resultado "0 callbacks em 180 s" é o achado mais importante que este instrumento
+    // pode produzir; ele não pode virar `null`/fase ausente.
+    var phases = [];           // {name, startedAtMs, endedAtMs, callbacks, mediaStartS, mediaEndS}
+    var currentPhase = null;
+
+    function markPhase(name, wallMs) {
+      if (!isFinite(wallMs)) wallMs = (typeof performance !== 'undefined' && performance.now)
+        ? performance.now() : Date.now();
+      if (currentPhase) currentPhase.endedAtMs = wallMs;
+      currentPhase = {
+        name: String(name || 'unnamed'),
+        startedAtMs: wallMs,
+        endedAtMs: null,
+        callbacks: 0,
+        mediaStartS: null,
+        mediaEndS: null
+      };
+      phases.push(currentPhase);
+      return currentPhase;
+    }
 
     function bucketFor(wallMs) {
       var t0 = Math.floor(wallMs / cfg.bucketMs) * cfg.bucketMs;
@@ -79,7 +102,12 @@
       if (isFinite(s.mediaTime)) {
         if (mediaFirst === null) mediaFirst = s.mediaTime;
         mediaLast = s.mediaTime;
+        if (currentPhase) {
+          if (currentPhase.mediaStartS === null) currentPhase.mediaStartS = s.mediaTime;
+          currentPhase.mediaEndS = s.mediaTime;
+        }
       }
+      if (currentPhase) currentPhase.callbacks++;
       if (isFinite(s.presentedFrames)) {
         if (presentedFirst === null) presentedFirst = s.presentedFrames;
         else if (s.presentedFrames - presentedLast > 1) {
@@ -96,7 +124,7 @@
       return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
     }
 
-    function summary() {
+    function summary(nowMs) {
       var medInt = medianOf(intervals);
       gaps = [];
       for (var i = 0; i < intervals.length; i++) {
@@ -134,8 +162,37 @@
         // callbacks perdidos entre apresentações consecutivas do compositor
         missedPresentedFrames: dropped,
         buckets: counts.length,
-        byVisibility: { visible: stat(visibleBuckets), hidden: stat(hiddenBuckets) }
+        byVisibility: { visible: stat(visibleBuckets), hidden: stat(hiddenBuckets) },
+        byPhase: phaseSummary(nowMs)
       };
+    }
+
+    /**
+     * Uma linha por fase do protocolo, SEMPRE — inclusive as silenciosas.
+     * `callbacksPerSecond: 0` com `durationSeconds: 180` é um resultado; `null` seria a
+     * ausência de um. É essa distinção que separa "o player parou" de "ninguém mediu".
+     */
+    function phaseSummary(nowMs) {
+      if (!isFinite(nowMs)) {
+        nowMs = (typeof performance !== 'undefined' && performance.now)
+          ? performance.now() : Date.now();
+      }
+      return phases.map(function (p) {
+        var end = p.endedAtMs === null ? nowMs : p.endedAtMs;
+        var durS = Math.max(0, (end - p.startedAtMs) / 1000);
+        return {
+          name: p.name,
+          startedAtMs: p.startedAtMs,
+          endedAtMs: p.endedAtMs,
+          open: p.endedAtMs === null,
+          durationSeconds: durS,
+          callbacks: p.callbacks,
+          callbacksPerSecond: durS > 0 ? p.callbacks / durS : (p.callbacks > 0 ? null : 0),
+          mediaTimeAdvancedS: (p.mediaStartS !== null && p.mediaEndS !== null)
+            ? p.mediaEndS - p.mediaStartS : 0,
+          silent: p.callbacks === 0
+        };
+      });
     }
 
     function series() {
@@ -147,10 +204,14 @@
     function reset() {
       buckets = []; first = null; last = null; intervals = []; gaps = [];
       presentedFirst = presentedLast = mediaFirst = mediaLast = null;
-      dropped = 0; total = 0;
+      dropped = 0; total = 0; phases = []; currentPhase = null;
     }
 
-    return { record: record, summary: summary, series: series, reset: reset, config: cfg };
+    return {
+      record: record, summary: summary, series: series, reset: reset,
+      markPhase: markPhase, phases: function () { return phaseSummary(); },
+      config: cfg
+    };
   }
 
   /**
@@ -163,13 +224,19 @@
    *
    * Este decimador aceita um frame só quando ele está a `targetIntervalS` do último
    * aceito, medido preferencialmente em `mediaTime` (a régua do stream).
-   * A folga de 10% evita descartar um feed que roda exatamente na cadência alvo.
+   *
+   * ⚠️ `tolerance` **é 1.0 e não deve ser reduzida**. A versão anterior aceitava a 90% do
+   * alvo, o que parecia inofensivo e não era: o guard `stride_too_small` exige **100%** do
+   * intervalo, então feeds de 12, 24 e 60 fps caíam num ponto em que o decimador aceitava
+   * (dt = 83 ms ≥ 90 % de 90 ms) e o guard reprovava (83 < 90) — cobertura 0/N de novo,
+   * exatamente o defeito que o decimador existe para consertar. O limiar do decimador e o
+   * do guard têm de ser **o mesmo número**.
    *
    * @param {{targetIntervalS:number, tolerance?:number}} opts
    */
   function createDecimator(opts) {
     var target = (opts && opts.targetIntervalS) || 0.1;
-    var tol = (opts && opts.tolerance) || 0.9;
+    var tol = (opts && opts.tolerance != null) ? opts.tolerance : 1.0;
     var minGap = target * tol;
     var lastT = null;
     var seen = 0, accepted = 0;

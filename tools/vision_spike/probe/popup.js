@@ -66,9 +66,14 @@ document.querySelectorAll('input[name=cls]').forEach(r => {
   r.onchange = async () => { await chrome.storage.local.set({ vsEvidenceClass: r.value }); refreshPolicy(); };
 });
 
-$('e0bStart').onclick = async () => { $('e0bOut').textContent = JSON.stringify(await sendToFrames({ type: 'vs_e0b', action: 'start' }), null, 1); };
+$('e0bStart').onclick = async () => { $('e0bOut').textContent = JSON.stringify(await sendToFrames({ type: 'vs_e0b', action: 'start', phase: 'A_visivel' }), null, 1); };
 $('e0bStop').onclick = async () => { $('e0bOut').textContent = JSON.stringify(await sendToFrames({ type: 'vs_e0b', action: 'stop' }), null, 1); };
 $('e0bStatus').onclick = async () => { $('e0bOut').textContent = JSON.stringify(await sendToFrames({ type: 'vs_e0b', action: 'status' }), null, 1); };
+for (const [id, name] of [['phaseB', 'B_outra_aba'], ['phaseC', 'C_minimizada'], ['phaseD', 'D_retorno']]) {
+  $(id).onclick = async () => {
+    $('e0bOut').textContent = JSON.stringify(await sendToFrames({ type: 'vs_e0b', action: 'phase', phase: name }), null, 1);
+  };
+}
 
 $('calib').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('probe/calibrate.html') });
 $('colStart').onclick = async () => {
@@ -100,47 +105,11 @@ $('clear').onclick = async () => {
   refreshPolicy();
 };
 
-// Captura → dois arquivos que o `replay.js` lê direto (ver FORMATO_CAPTURA.md):
-// `capture.json` (com `data_file`) e `frames.bin` (RGBA concatenado, stride = w*h*4).
-// O port é aberto contra TODOS os frames da aba; os que não têm captura apenas
-// desconectam. Por isso a ausência de captura é detectada por TIMEOUT, e não pela primeira
-// desconexão — senão o top frame (que nunca grava) abortaria o export do iframe da mesa.
+// A exportação vive numa ABA de extensão (`probe/export.html`), não aqui: o popup fecha
+// ao primeiro clique fora dele e levaria junto uma transferência de ~100 MB.
 $('dlCapture').onclick = async () => {
-  const tabId = await activeTabId();
-  if (tabId == null) return;
-  const port = chrome.tabs.connect(tabId, { name: 'vs_export' });
-  const chunks = [];
-  let meta = null;
-  let finished = false;
-  const timeout = setTimeout(() => {
-    if (finished || meta) return;
-    finished = true;
-    $('colOut').textContent = 'nenhuma captura guardada neste frame ' +
-      '(marque "guardar captura" ou use "Gravar p/ replay" antes)';
-    try { port.disconnect(); } catch (_) { }
-  }, 4000);
-
-  port.onMessage.addListener((m) => {
-    if (finished) return;
-    if (m.type === 'meta') { meta = m.meta; return; }
-    if (m.type === 'frame') { chunks[m.index] = new Uint8Array(m.data); return; }
-    if (m.type === 'end') {
-      finished = true;
-      clearTimeout(timeout);
-      const total = chunks.reduce((a, c) => a + (c ? c.length : 0), 0);
-      const buf = new Uint8Array(total);
-      let off = 0;
-      for (const c of chunks) { if (c) { buf.set(c, off); off += c.length; } }
-      meta.data_file = 'frames.bin';
-      meta.frames = meta.frames.map((f, i) => ({ ...f, file: null, offset: i }));
-      saveJson('capture.json', meta);
-      save('frames.bin', new Blob([buf], { type: 'application/octet-stream' }));
-      $('colOut').textContent = `captura exportada: ${chunks.length} frames, ` +
-        `${(total / 1e6).toFixed(1)} MB, evidence_class=${meta.evidence_class}` +
-        (chunks.length < 250 ? '\n⚠️ < 250 frames: insuficiente para o gate de sinal (98%).' : '');
-      port.disconnect();
-    }
-  });
+  await activeTabId();                         // registra a aba da mesa para o exportador
+  chrome.tabs.create({ url: chrome.runtime.getURL('probe/export.html') });
 };
 
 refreshPolicy();

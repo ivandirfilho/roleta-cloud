@@ -54,15 +54,21 @@
     var env = globalThis.VSEvidence.envelope('E0b', globalThis.VSEvidence.CLASS.FIELD, {
       final: !!final,
       summary: s,
-      series_tail: meter.series().slice(-30),
-      // O contraste que interessa: `visible` vs `hidden` no MESMO instrumento.
+      // A série completa só viaja no registro FINAL. Mandá-la a cada 2 s encheria o ring
+      // de evidência com 360 cópias crescentes e os primeiros minutos seriam os primeiros
+      // a ser descartados — exatamente os que interessam (a fase "aba visível" é a
+      // referência contra a qual as outras três são lidas).
+      series: final ? meter.series() : undefined,
+      series_tail: final ? undefined : meter.series().slice(-15),
       note: 'callbacks/s medidos em wall-clock; avanco do stream em mediaTime; ' +
-        'presentedFrames vem do compositor. Nao comparar as tres reguas entre si.'
+        'presentedFrames vem do compositor. Nao comparar as tres reguas entre si. ' +
+        'byPhase traz uma linha por fase do protocolo, INCLUSIVE as silenciosas ' +
+        '(callbacks 0 com duracao > 0 e um resultado, nao a ausencia de um).'
     });
     try { chrome.runtime.sendMessage({ type: 'vs_evidence', evidence: env }); } catch (e) { }
   }
 
-  function start() {
+  function start(phaseName) {
     if (running) return { ok: false, reason: 'already_running' };
     video = pickVideo();
     if (!video) return { ok: false, reason: 'no_video_in_frame' };
@@ -79,10 +85,24 @@
       return { ok: false, reason: 'rvfc_unsupported' };
     }
     meter = globalThis.VSRvfcMeter.createFrameRateMeter({ bucketMs: 1000, maxBuckets: 7200 });
+    meter.markPhase(phaseName || 'A_visivel', performance.now());
     running = true;
     handle = video.requestVideoFrameCallback(onFrame);
     flushTimer = setInterval(flush, FLUSH_MS);
-    return { ok: true };
+    return { ok: true, phase: phaseName || 'A_visivel' };
+  }
+
+  /**
+   * Marca a fronteira entre as fases do protocolo (visível → outra aba → minimizada →
+   * retorno). É marca EXPLÍCITA e não inferência: se o player parar de entregar frames com
+   * a janela minimizada, não chega amostra nenhuma — e uma fase inferida das amostras
+   * simplesmente não existiria. "0 callbacks em 180 s" é o achado mais importante que este
+   * instrumento pode produzir.
+   */
+  function phase(name) {
+    if (!running || !meter) return { ok: false, reason: 'not_running' };
+    meter.markPhase(name, performance.now());
+    return { ok: true, phase: name, phases: meter.phases() };
   }
 
   function stop() {
@@ -103,10 +123,15 @@
     // apenas a PRIMEIRA resposta, e o top frame (que nunca tem o vídeo da mesa, porque
     // ele vive no iframe) mascararia o resultado do frame que importa.
     if (!pickVideo()) return false;
-    if (msg.action === 'start') sendResponse(start());
+    if (msg.action === 'start') sendResponse(start(msg.phase));
     else if (msg.action === 'stop') sendResponse(stop());
+    else if (msg.action === 'phase') sendResponse(phase(msg.phase));
     else if (msg.action === 'status') {
-      sendResponse({ running: running, summary: meter ? meter.summary() : null });
+      sendResponse({
+        running: running,
+        summary: meter ? meter.summary() : null,
+        phases: meter ? meter.phases() : null
+      });
     }
     return true;
   });
@@ -115,5 +140,8 @@
     if (o && o[POLICY_KEY] === 'on' && o.vsAutoStartE0b === true) start();
   });
 
-  globalThis.VSProbeE0b = { start: start, stop: stop, isRunning: function () { return running; } };
+  globalThis.VSProbeE0b = {
+    start: start, stop: stop, phase: phase,
+    isRunning: function () { return running; }
+  };
 }());

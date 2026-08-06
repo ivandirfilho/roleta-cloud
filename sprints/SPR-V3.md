@@ -218,44 +218,46 @@ não detecta e o `zero_landmark_*` seria decorativo.
 
 #### Validação
 ```
-node --test "tools/vision_spike/tests/*.test.js"   →  74 passed, 0 fail
+node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"  → 148 passed, 0 fail
+  (95 do spike + 53 do V2 — é o MESMO comando do job `extension-tests` do ci.yml)
 python -m pytest tests/ -q                          →  904 passed, 9 skipped, 1 xfailed (= baseline)
-node --test "tests/js/*.test.js"                    →  53 passed (V2 intacto)
 tools/lint_silent_except.py · tools/lint_dna_coverage.py · scripts/schema_symmetry.py → OK
 node replay.js --synthetic cw --count 300           →  295/295 emitidos, 0 errados, sinal 98,33%
                                                        (⚠️ evidence_class: synthetic ⇒ NÃO vale gate)
 node replay.js --synthetic cw --case noGreen        →  0/15 emitidos — abstenção total, como esperado
-node replay.js --synthetic cw --fps 25 --decimate   →  9/9 emitidos (sem `--decimate`: 0/35, ver abaixo)
-custo (bancada, Node, --bench): unwrap p50 0,74 ms/frame (p95 1,02) · análise p50 8,78 ms/medição (p95 13,59)
-algorithm_sha: fc91867da0601918
+custo (bancada, Node, --bench): unwrap p50 0,75 ms/frame (p95 1,14) · análise p50 8,28 ms/medição (p95 12,65)
+algorithm_sha: 4f7566da2f44e9b4  (estável entre LF e CRLF — provado por teste)
+git diff --check limpo · worktree limpo
 ```
 ⚠️ `node --test tools/vision_spike/` **não funciona** (o Node tenta carregar o diretório como módulo);
-use o glob. Mesma pegadinha já documentada no `ci.yml` para `tests/js/`.
+use o glob.
 
-#### Code-review: 1 defeito crítico + 8 relevantes, todos corrigidos neste PR
+#### Rodada 1 de code-review: 1 defeito crítico + 8 relevantes
 O mais grave: `captureBurst` gravava 6 frames **consecutivos** na taxa nativa do stream. A 25-30 fps
 (o que uma mesa ao vivo entrega) a rajada dura 167-200 ms e o guard `stride_too_small` — que exige
 Δt de par ≥ 270 ms — dispararia em **toda** janela. O V3-B teria produzido **cobertura 0/N** e um
-NO-GO que seria defeito de ferramental lido como propriedade do mundo. Corrigido com decimação por
-`mediaTime` (`recommendedFrameIntervalS()` sai da própria aritmética do guard: 90 ms ⇒ ~11 fps
-efetivos), mais `--decimate` no replay e um teste de regressão a 25 e 30 fps.
-Os outros oito (export de captura abortado pelo frame errado, respostas de frames sem `<video>`
-mascarando o iframe da mesa, `busy` travado sem timeout, `evidence_class: 'field'` hardcoded na
-captura, captura de 6 frames contra um gate que exige 250, ring de intervalos do medidor,
-calibração pedindo snapshot à própria aba, e escritas concorrentes de evidência no SW) estão
-detalhados no §I do ADENDO ISO.
-**Lição:** todos os testes rodavam a `fps: 10` — a única taxa em que os defaults funcionavam.
-Suíte verde pode estar medindo só a região onde o código já está certo.
+NO-GO que seria defeito de ferramental lido como propriedade do mundo. Detalhes no §I do ADENDO ISO.
+
+#### Rodada 2 de revisão: 6 bloqueantes + 1 menor, todos com regressão que FALHA sem o conserto
+| # | Sev | Defeito | Prova |
+|---|---|---|---|
+| 1 | HIGH | `algorithm_sha` não era cross-platform (CRLF no Windows × LF no CI) | teste LF↔CRLF falha sem a normalização |
+| 2 | HIGH | decimador aceitava a 90% do alvo e o guard exige 100% ⇒ **12/24/60 fps** davam cobertura 0/N | regressão 12/24/25/30/60 fps **+ jitter** falha com tolerância 0,9 |
+| 3 | MED | E0b não separava as 4 fases; fase silenciosa virava `null` | teste da fase C (0 callbacks / 180 s) falha sem a marca explícita |
+| 4 | MED | teto de memória cortava **depois** de alocar tudo | teste do orçamento cumulativo falha sem o `fits()` |
+| 5 | MED | export sem ack/backpressure/retomada, stall não rearmado, popup volátil | testes de backpressure e de stall falham sem os consertos |
+| 6 | MED | NCC desligado em silêncio sem `sceneSignature` na calibração | teste fail-closed falha com o fallback para o 1º frame |
+| — | minor | `srcobject_other` afirmava `mse_confirmed: false` | virou `null` ("não sei" é resposta) |
+
+**Lição das duas rodadas:** na primeira, todos os testes rodavam a `fps: 10`; na segunda,
+descobriu-se que o conserto tinha sido calibrado só para 25/30 e abria uma fresta nova em
+12/24/60. Um limiar duplicado é um limiar que vai divergir — o decimador e o guard agora
+leem **o mesmo número**.
 
 #### Arquivos tocados
-`tools/vision_spike/**` (31 novos) · `Manutenabilidade_iso.md` (ADENDO) · `sprints/SPR-V3.md` (este Log).
-**Não tocados:** `extension/`, `server/`, `state/`, `docker-compose.yml`, migrations, `ci.yml`.
-
-#### Pedido ao Diretor (fora do lock declarado)
-O job `extension-tests` do `.github/workflows/ci.yml` roda `node --test "tests/js/*.test.js"` e **não
-enxerga** `tools/vision_spike/tests/`. Ampliar o glob é uma linha, mas `ci.yml` está fora de
-`locks`/`touches` deste brief — **não foi tocado**. Peço ampliação formal do lock (ou um sprint de
-higiene) para o spike não apodrecer.
+`tools/vision_spike/**` (35 arquivos) · `Manutenabilidade_iso.md` (ADENDO) · `sprints/SPR-V3.md`
+(este Log) · `.github/workflows/ci.yml` (**lock ampliado com autorização formal do Diretor**).
+**Não tocados:** `extension/`, `server/`, `state/`, compose, migrations, `.gitattributes`.
 
 #### ⛔ O que falta (V3-B — só um humano com mesa ao vivo faz)
 1. **E0 em mesa real**: `<video>` existe no iframe? `srcObject`/MSE? **taint sim/não?**
@@ -268,4 +270,3 @@ higiene) para o spike não apodrecer.
 5. **Soak de 2 h** (opcional) + a decisão humana de GO/NO-GO.
 
 Roteiro pronto e executável por não-autor: `tools/vision_spike/PROTOCOLO_CAMPO.md`.
-

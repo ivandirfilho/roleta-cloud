@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- SPR-V3 · vision_spike — exportação DURÁVEL da captura.
+     Esta página existe porque o popup morre: ele fecha ao primeiro clique fora dele, e
+     levava junto uma transferência de ~100 MB — e com ela uma coleta de campo inteira.
+     Uma aba de extensão sobrevive, mostra progresso e RETOMA de onde parou.
+     Os frames continuam locais: o destino é um download no disco do operador. -->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>SPR-V3 · exportar captura</title>
+  <style>
+    body { font: 13px/1.6 system-ui, sans-serif; background: #14171c; color: #e6e6e6; margin: 0; padding: 18px; }
+    h1 { font-size: 15px; margin: 0 0 10px; }
+    button { background: #26303d; color: #e6e6e6; border: 1px solid #3a4756; padding: 7px 12px; margin-right: 8px; border-radius: 3px; cursor: pointer; }
+    button:hover { background: #33404f; }
+    button:disabled { opacity: .5; cursor: default; }
+    pre { background: #0d1014; padding: 10px; max-width: 780px; overflow: auto; }
+    .bar { background: #0d1014; height: 14px; width: 420px; border: 1px solid #2c3340; border-radius: 3px; overflow: hidden; }
+    .bar > div { background: #2f7a45; height: 100%; width: 0; }
+    .note { background: #22252c; padding: 8px 10px; border-radius: 3px; max-width: 780px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Exportar captura para o replay</h1>
+  <div class="note">
+    Mantenha <b>esta aba aberta</b> até o fim. Se a conexão cair, clique em
+    <b>Retomar</b> — a transferência continua do primeiro frame que faltar, sem recomeçar.
+    Os frames <b>não saem da máquina</b>: o destino é o seu disco.
+  </div>
+  <div>
+    <button id="start">Iniciar</button>
+    <button id="resume" disabled>Retomar</button>
+    <button id="save" disabled>Salvar capture.json + frames.bin</button>
+  </div>
+  <p><span class="bar"><div id="fill"></div></span> <span id="pct">0%</span></p>
+  <pre id="out">aguardando…</pre>
+
+  <script src="../lib/export_stream.js"></script>
+  <script src="export.js"></script>
+</body>
+</html>

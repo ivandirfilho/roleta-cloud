@@ -10,7 +10,7 @@
 | **Veredito GO/NO-GO** | ⬜ **VAZIO — não declarado.** GO/NO-GO é decisão de investimento do operador (§10.6-1) |
 | **V3-A (ferramental, protocolo, replay)** | ✅ entregue neste PR |
 | **V3-B (40-60 giros anotados + soak 2 h)** | ⬜ **não executado** — exige mesa ao vivo e operador |
-| `algorithm_sha` da entrega | `fc91867da0601918` (`lib/unwrap.js` + `lib/ellipse.js` + `lib/direction_core.js` + `lib/pipeline.js`) |
+| `algorithm_sha` da entrega | `4f7566da2f44e9b4` (`lib/unwrap.js` + `lib/ellipse.js` + `lib/direction_core.js` + `lib/pipeline.js`) |
 
 ---
 
@@ -63,13 +63,19 @@ Instrumento entregue (`probe/probe_e0b.js` + `lib/rvfc_meter.js`) e **testado co
 
 Observação livre do operador na fase C: ⬜
 
+As fases são marcadas **explicitamente** pelo operador (botões no popup), não inferidas das
+amostras: uma fase totalmente silenciosa não produz amostra nenhuma, e uma fase inferida de
+amostras simplesmente não existiria no relatório. O instrumento reporta
+`callbacksPerSecond: 0` com `durationSeconds: 180` — que é um **resultado**, e não `null`,
+que seria a ausência de um. É essa distinção que separa "o player parou" de "ninguém mediu".
+
 > **Não presuma.** `captureVisibleTab` é cego com a janela minimizada; o `<video>` pode não
 > ser. O aceite formal desta cobertura é **decisão humana** (§10.6-2).
 
 ## 3. E1 — replay offline · cenários SINTÉTICOS  ✅ preenchido · ❌ `eligible_for_go_gates: false`
 
 `node tools/vision_spike/replay.js --synthetic <dir> --case <caso>` · janela 6 frames ·
-stride 3 · `algorithm_sha fc91867da0601918`. Referência de cena = primeiro frame
+stride 3 · `algorithm_sha 4f7566da2f44e9b4`. Referência de cena = primeiro frame
 (modo de teste, denunciado pelo próprio replay).
 
 | Caso | O que simula | Emitidos / janelas | Errados | Guards dominantes | Comportamento esperado |
@@ -99,8 +105,22 @@ sairia 0/N e o V3-B leria como propriedade do mundo o que é defeito de ferramen
 
 | Feed | sem decimação | com decimação |
 |---|---|---|
-| 25 fps, 40 frames | 0 emitidos · `stride_too_small` em 35/35 janelas | 9/9 emitidos, 0 errados |
-| 30 fps, 60 frames | 0 emitidos · `stride_too_small` | 15/15 emitidos, 0 errados |
+| 12 fps, 36 frames | 0 emitidos · `stride_too_small` | emite, 0 errados |
+| 24 fps, 72 frames | 0 emitidos · `stride_too_small` | emite, 0 errados |
+| 25 fps, 75 frames | 0 emitidos · `stride_too_small` | emite, 0 errados |
+| 30 fps, 90 frames | 0 emitidos · `stride_too_small` | emite, 0 errados |
+| 60 fps, 180 frames | 0 emitidos · `stride_too_small` | emite, 0 errados |
+
+O limiar do decimador é **o mesmo número** do guard, não uma aproximação: aceitar a 90% do
+alvo (como na primeira versão) fazia 12, 24 e 60 fps passarem no decimador e reprovarem no
+guard. Coberto por teste também **com jitter** de chegada (±20% e ±45% do intervalo), porque
+um stream real não entrega em grade perfeita.
+
+**Referência de cena.** Todo veredito diz contra o que a cena foi comparada
+(`sceneReference`: `calibration` | `first_frame` | `missing_calibration`). O coletor roda
+**fail-closed**: sem `sceneSignature` na calibração, o NCC não é inventado a partir do
+primeiro frame — ele vira `NaN`, o guard dispara e o veredito é abstenção. Um resultado
+nunca pode *parecer* totalmente guardado quando o anti-cena está desligado.
 
 ## 4. Bancada — instrumento contra `<video>` local  ⚠️ parcial · ❌ não elegível a gate
 
@@ -111,7 +131,8 @@ sairia 0/N e o V3-B leria como propriedade do mundo o que é defeito de ferramen
 | Teste de taint pelo mesmo caminho da probe | ✅ entregue e rodável |
 | Benchmark p50/p95/máx **no renderer** | ✅ entregue (botão *Medir 120 frames*) |
 | Números do renderer preenchidos | ⬜ dependem de quem rodar a bancada (ver `ORCAMENTO.md`) |
-| Custo medido em Node (bancada, `--bench`, 300 frames) | unwrap p50 **0,74 ms** / p95 1,02 / máx 1,57 · análise p50 **8,78 ms** / p95 13,59 / máx 15,87 por medição |
+| Custo medido em Node (bancada, `--bench`, 300 frames) | unwrap p50 **0,75 ms** / p95 1,14 / máx 1,53 · análise p50 **8,28 ms** / p95 12,65 / máx 29,07 por medição |
+| `algorithm_sha` estável entre plataformas | ✅ EOL normalizado na receita (`lib/algo_sha.js`): LF e CRLF do mesmo fonte dão o mesmo hash |
 
 ## 5. Gates de GO  ⬜ TODOS VAZIOS — só `evidence_class: field` preenche
 

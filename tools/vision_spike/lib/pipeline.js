@@ -23,15 +23,24 @@
    * Converte frames crus em perfis prontos para o estimador.
    *
    * A assinatura de cena de REFERÊNCIA deve vir da CALIBRAÇÃO (thumbnail salva pelo
-   * operador). Quando ela falta, caímos no primeiro frame e marcamos
-   * `sceneRefSource:'first_frame'` — que é um MODO DE TESTE: em campo isso mediria a cena
-   * contra ela mesma e o guard de NCC nunca dispararia.
+   * operador). Quando ela falta há dois comportamentos, e a diferença importa:
+   *
+   *  • `failClosedScene: true` (o COLETOR usa isto) — nenhuma referência é inventada:
+   *    `ncc` vira `NaN`, o guard `scene_ncc_low` dispara e o veredito é abstenção. Sem
+   *    isso o coletor rodaria com o anti-cena **desligado em silêncio** e emitiria
+   *    vereditos que *parecem* totalmente guardados.
+   *  • `false` (o REPLAY usa isto) — cai no primeiro frame para permitir iterar offline,
+   *    e marca `sceneRefSource: 'first_frame'`. Cada janela carrega `sceneReference`,
+   *    então nenhum resultado sai por aí sem dizer contra o que a cena foi comparada.
    */
   function buildProfiles(frames, calibration, options) {
     options = options || {};
-    var sceneRef = calibration && calibration.sceneSignature
-      ? Float64Array.from(calibration.sceneSignature) : null;
-    var sceneRefSource = sceneRef ? 'calibration' : 'first_frame';
+    var hasCalibScene = !!(calibration && calibration.sceneSignature);
+    var failClosed = options.failClosedScene === true;
+    var sceneRef = hasCalibScene ? Float64Array.from(calibration.sceneSignature) : null;
+    var sceneRefSource = hasCalibScene
+      ? 'calibration'
+      : (failClosed ? 'missing_calibration' : 'first_frame');
     var profiles = [];
     var warnings = [];
 
@@ -45,11 +54,12 @@
           index: item.index != null ? item.index : i,
           tMs: item.wallMs, mediaTimeS: item.mediaTimeS,
           chroma: new Float64Array(0), meanLuma: NaN, invalidFrac: 1, ncc: NaN,
+          sceneRefSource: sceneRefSource,
           error: (un.reason || sc.reason)
         });
         continue;
       }
-      if (!sceneRef) sceneRef = Float64Array.from(sc.signature);
+      if (!sceneRef && !failClosed) sceneRef = Float64Array.from(sc.signature);
       profiles.push({
         index: item.index != null ? item.index : i,
         tMs: item.wallMs,
@@ -58,12 +68,17 @@
         luma: un.luma,
         meanLuma: un.meanLuma,
         invalidFrac: Math.max(un.invalidFrac, sc.invalidFrac),
-        ncc: Ellipse.ncc(sceneRef, sc.signature),
+        // Sem referência de calibração em modo fail-closed, `ncc` é NaN = "não sei" —
+        // e "não sei" é guard, nunca aprovação.
+        ncc: sceneRef ? Ellipse.ncc(sceneRef, sc.signature) : NaN,
+        sceneRefSource: sceneRefSource,
         sceneSignature: sc.signature
       });
     }
     if (sceneRefSource === 'first_frame') {
       warnings.push('scene_reference_from_first_frame_not_calibration');
+    } else if (sceneRefSource === 'missing_calibration') {
+      warnings.push('scene_reference_missing_calibration_fail_closed');
     }
     return { profiles: profiles, sceneRefSource: sceneRefSource, warnings: warnings };
   }
@@ -83,6 +98,9 @@
         emitted: r.emitted,
         confidence: r.confidence,
         guards: r.guards,
+        // Nenhum veredito sai sem dizer contra O QUE a cena foi comparada. Um resultado
+        // com `first_frame` ou `missing_calibration` NÃO está totalmente guardado.
+        sceneReference: (win[0] && win[0].sceneRefSource) || 'unknown',
         degreesPerSecond: r.degreesPerSecond,
         aliasMargin: r.aliasMargin,
         evidence: r.evidence

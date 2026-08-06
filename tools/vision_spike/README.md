@@ -33,7 +33,8 @@ estão **vazios** e só um humano com mesa ao vivo pode preenchê-los.
 | `lib/pipeline.js` | cola frames→perfis→janelas→sumário **com denominadores explícitos** |
 | `lib/synthetic.js` | gerador determinístico de cena (⚠️ `evidence_class: synthetic`) |
 | `lib/evidence.js` | envelope de evidência: `synthetic` / `fixture` / `field` |
-| `lib/algo_sha.js` | receita ÚNICA do `algorithm_sha`, compartilhada por Node e service worker |
+| `lib/algo_sha.js` | receita ÚNICA do `algorithm_sha` (EOL normalizado), compartilhada por Node e service worker |
+| `lib/export_stream.js` | transferência da captura com ACK, backpressure, retomada e orçamento de bytes |
 | `replay.js` | CLI do replay offline (E1) |
 | `manifest.json` + `probe/` | extensão de **diagnóstico separada** (probes E0/E0b, calibração, coletor) |
 | `PROTOCOLO_CAMPO.md` | roteiro executável por humano não-autor (V3-B) |
@@ -44,10 +45,13 @@ estão **vazios** e só um humano com mesa ao vivo pode preenchê-los.
 ## Rodar
 
 ```bash
-# testes da lógica pura (74 testes, sem Chrome)
+# testes da lógica pura (95 testes, sem Chrome). É o MESMO comando do job
+# `extension-tests` do ci.yml, que roda os dois globs:
+node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"
+# só o spike:
 node --test "tools/vision_spike/tests/*.test.js"
 # NB: `node --test tools/vision_spike/` NÃO funciona — o Node tenta carregar o diretório
-# como módulo. Mesma pegadinha já documentada no job `extension-tests` do ci.yml.
+# como módulo.
 
 # replay offline sobre uma captura gravada
 node tools/vision_spike/replay.js --capture caminho/da/captura
@@ -78,6 +82,10 @@ Casos sintéticos disponíveis: `clean`, `noise`, `blur`, `overlay`, `noGreen`, 
    `tools/vision_spike/`) e abra `probe/fixture_video.html`. Ela gera uma roda sintética
    num `<canvas>`, converte com `captureStream()` num `<video>` real e permite exercitar
    E0 (taint), E0b (cobertura) e o custo por frame **no renderer**.
+5. **Exportar captura**: popup → *Exportar captura* abre `probe/export.html` numa ABA.
+   A transferência tem ack, backpressure e **retomada** — se a conexão cair, o botão
+   *Retomar* continua do primeiro frame que falta. (O popup não serve para isso: ele fecha
+   ao primeiro clique fora dele e levaria a transferência junto.)
 
 ## Fronteira de evidência (a regra que o resto do sprint depende)
 

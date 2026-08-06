@@ -54,20 +54,24 @@ Com a mesa aberta e visível, abra o popup → **Baixar evidência (JSON)**. Pro
 Cada fase dura **3 minutos**. Não pule nenhuma: `captureVisibleTab` é cego com a janela
 minimizada, mas **o `<video>` pode não ser** — é exatamente isso que se está medindo.
 
-1. Popup → seção E0b → **Iniciar**.
+1. Popup → seção E0b → **Iniciar (fase A)**.
 2. **Fase A (3 min)** — aba da mesa **visível e em foco**. Não mexa.
-3. **Fase B (3 min)** — mude para **outra aba** na mesma janela (a mesa fica *hidden*).
-4. **Fase C (3 min)** — **minimize a janela** inteira.
-5. **Fase D (3 min)** — volte a janela e a aba (visível de novo).
+3. Clique **B · outra aba** no popup e **só então** mude para outra aba. **Fase B (3 min)**.
+4. Clique **C · minimizada** no popup e **só então** minimize a janela. **Fase C (3 min)**.
+5. Restaure a janela, clique **D · retorno**. **Fase D (3 min)**.
 6. Popup → **Parar** → **Baixar evidência (JSON)**.
 
-Copie do registro `kind: "E0b"` para o `RESULTADO.md`:
-`summary.callbacksPerSecond`, `summary.byVisibility.visible.fpsMean`,
-`summary.byVisibility.hidden.fpsMean`, `summary.gapCount`, `summary.longestGapMs`,
-`summary.mediaTimeAdvancedS`, `summary.missedPresentedFrames`.
+> Marque a fase **antes** de esconder/minimizar: é a marca explícita que dá existência à
+> fase. Se o player parar de entregar frames, não chega amostra nenhuma — e sem a marca a
+> fase silenciosa simplesmente não apareceria no relatório. `callbacksPerSecond: 0` com
+> `durationSeconds: 180` é o achado; `null` seria a ausência dele.
 
-> Anote **também** o que você observou na fase C separadamente. `visibilityState` nem sempre
-> vira `hidden` ao minimizar, dependendo do sistema — por isso a fase C é anotada à mão.
+Copie do registro `kind: "E0b"` (o **final**, com `final: true`) para o `RESULTADO.md`:
+`summary.byPhase[]` (uma linha por fase, com `callbacks`, `durationSeconds`,
+`callbacksPerSecond`, `mediaTimeAdvancedS`, `silent`), mais `summary.gapCount`,
+`summary.longestGapMs` e `summary.missedPresentedFrames`. A série completa por segundo vem
+em `payload.series` **apenas no registro final** (os periódicos trazem só a cauda, para não
+encher o ring e descartar justamente os primeiros minutos).
 
 ## Etapa 3 — calibração (3 minutos, refazer se a janela mudar de tamanho)
 
@@ -111,8 +115,13 @@ O gate de **sinal** roda sobre uma captura gravada, e exige **≥ 250 frames**. 
 normal tem 6 — insuficiente por construção.
 
 1. Popup → **Gravar p/ replay** com `300` frames. A gravação leva ~30 s (o coletor decima
-   os frames para ~11 fps efetivos; frames mais rápidos que isso são inúteis para a medida).
-2. Popup → **Baixar captura (replay)** → salva `capture.json` + `frames.bin` (~100 MB).
+   os frames para ~11 fps efetivos; frames mais rápidos que isso são inúteis para a medida)
+   e respeita um **teto de memória** — se a ROI for grande, ele para cedo e diz por quê
+   (`record.stopped_by: "memory_budget"`), em vez de encher a memória e cortar depois.
+2. Popup → **Exportar captura** → abre uma **aba** (`export.html`). Clique *Iniciar*,
+   acompanhe o progresso e, ao final, *Salvar* → `capture.json` + `frames.bin` (~100 MB).
+   Se a conexão cair, clique **Retomar**: continua do primeiro frame que falta.
+   **Mantenha a aba aberta até o fim.**
 3. Anote qual era o sentido do rotor durante a gravação e preencha
    `"truth": {"direction": "cw"|"ccw"}` no `capture.json` — **à mão, antes de rodar o replay**.
 4. Rode: `node tools/vision_spike/replay.js --capture <pasta>`.

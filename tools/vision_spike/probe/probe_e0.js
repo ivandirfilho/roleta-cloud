@@ -56,7 +56,10 @@
           delivery: kind,
           // MediaStream é COMPATÍVEL com WebRTC, mas também com captureStream() local.
           webrtc_confirmed: null,
-          mse_confirmed: false,
+          // `srcObject` que NÃO é MediaStream é justamente o caso que não sabemos
+          // classificar (MediaSource pode ser anexado por srcObject em navegadores
+          // recentes). Afirmar `false` aqui seria inventar; `null` = "não sei".
+          mse_confirmed: kind === 'mediastream' ? false : null,
           tracks: tracks,
           src_scheme: null
         };

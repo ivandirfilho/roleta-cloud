@@ -3590,16 +3590,19 @@ Consistência entre os 3 pares entra como **guard**, jamais como prova.
 
 ### H2. Dívida declarada (não entregue, de propósito)
 
-1. **CI não cobre o spike.** O job `extension-tests` do `.github/workflows/ci.yml` roda
-   `node --test "tests/js/*.test.js"` e não enxerga `tools/vision_spike/tests/`. Ampliar o glob é
-   uma linha, mas `ci.yml` está **fora do `locks`/`touches` declarados no brief** — pedido formal ao
-   Diretor em vez de mudança silenciosa. Enquanto isso, a validação é registrada neste PR.
-2. **`node --test tools/vision_spike/` não funciona** (o Node tenta carregar o diretório como módulo):
-   use o glob `node --test "tools/vision_spike/tests/*.test.js"`. É a mesma pegadinha já documentada
-   no `ci.yml` para `tests/js/`.
-3. **Custo no renderer não medido por este PR**: os números de `ORCAMENTO.md` são de bancada em Node
-   sobre buffers em memória. O botão *Medir 120 frames* da bancada entrega p50/p95/máx no navegador —
-   e ainda assim é `fixture`, não mesa.
+1. **CI não cobre o spike.** ~~O job `extension-tests`…~~ **QUITADA na 2ª rodada** (§I2): com
+   autorização formal do Diretor, `ci.yml` entrou no escopo e o job roda os dois globs.
+2. **`node --test tools/vision_spike/` não funciona** (o Node tenta carregar o diretório como
+   módulo): use o glob `node --test "tools/vision_spike/tests/*.test.js"`. É a mesma pegadinha
+   já documentada no `ci.yml` para `tests/js/`.
+3. **Custo no renderer não medido por este PR**: os números de `ORCAMENTO.md` são de bancada
+   em Node sobre buffers em memória. O botão *Medir 120 frames* da bancada entrega p50/p95/máx
+   no navegador — e ainda assim é `fixture`, não mesa.
+4. **Caminhos exclusivos do navegador sem teste de unidade**: `probe/collector.js`,
+   `probe/probe_e0*.js`, `probe/export.js` e `probe/calibrate.js` dependem de `chrome.*` e do
+   `<video>`. A lógica que dava para extrair FOI extraída e testada (`export_stream`,
+   `rvfc_meter`, `direction_core`, `pipeline`, `algo_sha`); o que sobrou é encanamento, e é
+   verificado por leitura e pela bancada `probe/fixture_video.html`. Declarado, não escondido.
 
 ### I. Achados do code-review incorporados (rodada de revisão antes do PR)
 
@@ -3626,6 +3629,32 @@ Além disso, `--bench` foi acrescentado ao replay para que os p95/máx citados e
 **Lição do próprio review:** todos os cenários de teste rodavam a `fps: 10` — exatamente a
 única taxa em que os defaults funcionavam. Uma suíte verde pode estar medindo só a região
 onde o código já está certo. O teste de regressão novo exercita 25 e 30 fps.
+
+### I2. Segunda rodada de revisão — 6 achados bloqueantes + 1 menor
+
+A revisão independente barrou o PR. Todos foram corrigidos **com teste que falha no código
+anterior** (prova executada revertendo cada correção e rodando o teste-alvo):
+
+| # | Sev | Defeito | Por que importava |
+|---|---|---|---|
+| 1 | HIGH | **`algorithm_sha` não era cross-platform.** Com `core.autocrlf=true` o blob é LF e a cópia de trabalho é CRLF: o mesmo commit dava `fc918…` no Windows e outro hash no Linux/CI. Agora a receita compartilhada normaliza **CRLF→LF** antes de hashear (CR solto é preservado — é byte de conteúdo). | Um identificador de algoritmo que muda com o sistema operacional não identifica algoritmo nenhum; e o aviso de divergência do `replay.js` viraria ruído permanente, que é como uma trava morre. |
+| 2 | HIGH | **Decimador e guard usavam limiares diferentes.** O decimador aceitava a 90% do alvo; o guard `stride_too_small` exige 100%. Feeds de **12, 24 e 60 fps** caíam na fresta: passavam no decimador e reprovavam no guard. Os dois agora usam **o mesmo número**, com margem de 2% sobre o mínimo aritmético. | Cobertura 0/N em campo de novo — o mesmo defeito que a rodada anterior tinha "consertado", agora em outras cadências. |
+| 3 | MED | **E0b não separava as 4 fases** e uma fase silenciosa virava `null`/fase ausente. Agora há marca **explícita** de fase (o operador clica antes de esconder/minimizar), duração em wall-clock e taxa `0/N` quando não chega callback. A série completa (12 min = 720 buckets) viaja no registro **final**; os periódicos levam só a cauda. | "0 callbacks em 180 s com a janela minimizada" é o achado mais importante que este instrumento pode produzir. Ausência de dado não pode ser indistinguível de ausência de entrega — e truncar a série descartaria justamente a fase A, que é a referência das outras três. |
+| 4 | MED | **Teto de memória cortava depois de alocar tudo.** Virou orçamento **cumulativo** consultado antes de guardar cada frame (`createByteBudget`), com `record.stopped_by: "memory_budget"` no relatório. | Cortar depois já pagou o custo inteiro dentro do renderer de um terceiro — exatamente o que o teto existia para evitar. |
+| 5 | MED | **Export sem backpressure, sem ack e sem retomada**, num popup que fecha ao primeiro clique fora dele; `Array.from` por frame; o timeout não rearmava depois do `meta`. Agora: `lib/export_stream.js` (ack + janela de backpressure + retomada pelo primeiro índice faltante), destinatário durável em `probe/export.html` (aba), stall **rearmado a cada mensagem**, e captura incompleta **falha alto**. | Perder a transferência de ~100 MB é perder a coleta de campo inteira — e o operador só descobriria depois de a mesa já ter mudado. |
+| 6 | MED | **NCC desligado em silêncio** quando faltava `calibration.sceneSignature`: o coletor caía no primeiro frame e comparava a cena com ela mesma. Agora é **fail-closed** (`ncc: NaN` ⇒ `scene_ncc_low` ⇒ abstenção) e **todo veredito declara `sceneReference`**. | Um veredito com o anti-cena desligado *parecia* totalmente guardado. |
+| — | minor | `srcobject_other` afirmava `mse_confirmed: false` sem testar `MediaSource`. Virou `null`. | Mesma disciplina do `blob:`: "não sei" é resposta; inventar não é. |
+
+**Prova das regressões** (cada correção revertida isoladamente, teste-alvo executado):
+`algorithm_sha` CRLF↔LF ✗ · decimador 12/24/60 fps ✗ · fail-closed do NCC ✗ · orçamento de
+memória ✗ · stall rearmado ✗ · backpressure ✗ · fase silenciosa do E0b ✗ — todas falham sem
+o respectivo conserto, e passam com ele.
+
+**Lock ampliado.** Com autorização formal do Diretor, `.github/workflows/ci.yml` entrou no
+escopo: o job `extension-tests` passou a rodar
+`node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"`. A dívida declarada
+no §H2 item 1 está **quitada**; `.gitattributes` não foi necessário, porque a normalização
+vive na receita do hash e não depende de configuração de checkout.
 
 ### J. Rollback
 

@@ -193,8 +193,20 @@
     var sign = direction === 'ccw' ? -1 : (direction === 'static' ? 0 : 1);
     var scene = Object.assign({}, DEFAULT_SCENE, o.scene || {});
     var frames = [];
+    // Jitter determinístico de chegada de frame (fração do intervalo nominal). Um stream
+    // real não entrega em grade perfeita, e a decimação tem de sobreviver a isso.
+    var jitter = o.jitterFrac || 0;
+    var jrnd = mulberry32((o.seed || scene.seed) ^ 0x5EED);
+    var tPrev = -1;
     for (var i = 0; i < count; i++) {
       var tS = i / fps;
+      if (jitter) {
+        tS += (jrnd() - 0.5) * 2 * jitter / fps;
+        if (tS <= tPrev) tS = tPrev + 1e-4;      // tempo nunca anda para trás
+      }
+      tPrev = tS;
+      // A rotação é derivada do tempo REAL do frame: com jitter, a cena continua
+      // fisicamente coerente com o timestamp que o estimador vai usar.
       var rot = sign * revPerS * 360 * tS;
       // Deriva de cena a partir de um índice (para testar o guard de NCC): usa
       // `sceneOcclusion`, que é o único que encosta na SCENE_BAND. `occlusion` cobre só o

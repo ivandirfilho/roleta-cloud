@@ -33,11 +33,11 @@ aquecimento de JIT — reproduzível por
 
 | Etapa | p50 | p95 | máx |
 |---|---|---|---|
-| unwrap do rotor + assinatura de cena (**por frame**) | **0,74 ms** | 1,02 ms | 1,57 ms |
-| correlação + guards (**por medição**: 6 frames, 3 pares) | **8,78 ms** | 13,59 ms | 15,87 ms |
+| unwrap do rotor + assinatura de cena (**por frame**) | **0,75 ms** | 1,14 ms | 1,53 ms |
+| correlação + guards (**por medição**: 6 frames, 3 pares) | **8,28 ms** | 12,65 ms | 29,07 ms |
 
 Orçamento por giro, com 6 frames por medição:
-`6 × 0,74 ms + 8,78 ms ≈ **13,2 ms por giro**` — num ciclo de mesa de ~44 s.
+`6 × 0,75 ms + 8,28 ms ≈ **12,8 ms por giro**` — num ciclo de mesa de ~44 s.
 
 ⚠️ **O que estes números NÃO provam.** São de **bancada em Node**, sobre buffers já em
 memória. Faltam nessa conta, e só a mesa real fecha:
@@ -58,12 +58,18 @@ mede o instrumento, não a mesa.
 | perfil angular (720 × Float64 × 2 canais) | ~11,5 KB por frame |
 | janela de 6 frames (só perfis) | ~69 KB |
 | captura opcional em memória (6 frames de ROI 320×260 RGBA) | ~2 MB por giro |
-| gravação para replay (300 frames, mesma ROI) | ~100 MB, com teto de 350 MB |
+| gravação para replay (300 frames, mesma ROI) | ~100 MB, com **orçamento cumulativo** de 350 MB |
 | ring de vereditos em `chrome.storage.local` | 500 registros de metadados |
 | ring de intervalos do medidor E0b | 7200 amostras (teto fixo) |
 
 A captura só existe se o operador marcar *guardar captura* ou usar *Gravar p/ replay*. Sem
 isso, os pixels são descartados assim que o perfil é extraído.
+
+O orçamento é consultado **antes** de guardar cada frame: quando o próximo não cabe, a
+gravação para e registra `record.stopped_by: "memory_budget"`. Estime pelo SEU recorte:
+`bytes_por_frame = largura_da_ROI × altura_da_ROI × 4`, e a ROI é a caixa que contém a
+`SCENE_BAND` inteira (ρ até 1,45 da elipse calibrada) — numa mesa 1280×720 com a roda
+ocupando meia tela, isso passa fácil de 1 MB por frame, e 300 frames encostam no teto.
 
 ## 4. Custo de manutenção (o item que o §10.6-1 manda pesar)
 
