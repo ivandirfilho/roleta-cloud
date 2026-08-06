@@ -11,11 +11,12 @@
 - **`main` é produção:** o systemd timer puxa `origin/main` e faz deploy em ~2 min. NUNCA push/checkout/reset/merge direto em `main`; entregue por **PR**. Sem ssh/host/deploy a partir de um sprint.
 - **NÃO commitar `graphify-out/`** (artefato pesado, regenerável); rode `graphify update .` apenas localmente.
 
-## Fluxo de sprints (Diretor ↔ Executor)
-- **Diretor** orquestra (mantém `sprints/BOARD.md` + briefs), NÃO implementa. **Só o Diretor edita o BOARD** (em lote, pós-janela de integração) — Executor nunca, para não virar ímã de conflito.
-- **Executor** = 1 sprint por vez, no worktree da própria sessão: renomeie o branch para `spr/SPR-XXX` (tool `rename_branch`) no kickoff, valide pela DoD, escreva o **ADENDO como arquivo novo** em `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção no README da pasta; NÃO apendar em `Manutenabilidade_iso.md`), e **abra PR** (não faz merge) com **título começando com `SPR-XXX:`**.
+## Fluxo de sprints (Diretor ↔ Executor) — ciclo zero-humano
+- **Diretor** orquestra (mantém `sprints/BOARD.md` + briefs), NÃO implementa. **Só o Diretor edita o BOARD** (em lote, pós-integração) — Executor nunca, para não virar ímã de conflito.
+- **Executor** = 1 sprint por vez, no worktree da própria sessão: renomeie o branch para `spr/SPR-XXX` (tool `rename_branch`) no kickoff, valide pela DoD, escreva o **ADENDO como arquivo novo** em `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção no README da pasta; NÃO apendar em `Manutenabilidade_iso.md`), **abra PR** com título **`SPR-XXX:`** e **arme auto-merge** (`gh pr merge --auto --squash <nº>`) — o PR mergeia sozinho quando `ci-ok` ficar verde. NUNCA `--admin`/bypass; NUNCA merge manual.
 - **Lock check pré-PR (anti-silo):** `gh pr list` + arquivos dos PRs abertos; se seu diff colide com PR aberto, serialize (aguarde/rebase) em vez de abrir PR paralelo.
-- **Merge train:** proteção de main é `strict` → integre um PR por vez, update-branch entre cada; CI "Cancelled" em rajada costuma ser starvation de runner — re-run antes de suspeitar do código.
+- **Ativação também é PR — nunca "ação humana pendente":** sprint com flag default-OFF só está entregue quando a flag liga. Política: flags **shadow/audit** (sem efeito em aposta) ligam IMEDIATAMENTE via PR de ativação (branch `flag/ativar-<slug>`, muda o default na compose + adendo + auto-merge); flags de **comportamento** ligam após janela shadow limpa registrada em adendo. Deploy ~2min pós-merge; rollback = revert (~4min).
+- **main vermelho pós-merge:** o CI abre issue `main-red` sozinho → vira sessão de agente (revert ou fix-forward). Rede de segurança: `ci-ok` required + matrix completa no push de main + tudo nasce flag-OFF + revert barato (strict OFF por design, para o auto-merge fluir sem humano).
 - Detalhes operacionais: `fluxo_mental_24.md` §6, §9–§12. Aberturas/painel/GO: `evolução_24_junho.md` §0, §6, §8.
 
 ## Convenções

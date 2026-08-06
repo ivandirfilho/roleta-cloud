@@ -14,7 +14,8 @@ Você é um **Executor de Sprint**. Pega UM brief e o leva até um PR — sozinh
 5. **Valide:** teste-alvo + **suíte completa verde** (`pytest tests/`) + lints; cheque a DoD do brief.
 6. **ISO closeout:** escreva o **ADENDO** como arquivo novo `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção: README da pasta; capacidades + impacto ISO + obrigações + **Rollback**). NÃO apende em `Manutenabilidade_iso.md`. Append no `## Log` do brief. **NÃO edite `sprints/BOARD.md`** (é do Diretor).
 7. **Lock check anti-silo:** `gh pr list` + arquivos de cada PR aberto; colisão com seu diff → serialize (não abra PR paralelo).
-8. **Entregue:** `graphify update .` local **sem commitar `graphify-out/`** → commit → push → **abrir PR** (NÃO merge) com título **`SPR-XXX: <resumo>`** → `store_memory` do achado.
+8. **Entregue:** `graphify update .` local **sem commitar `graphify-out/`** → commit → push → **abrir PR** com título **`SPR-XXX: <resumo>`** → **armar auto-merge**: `gh pr merge --auto --squash <nº>` (mergeia sozinho com `ci-ok` verde; NUNCA `--admin`/bypass/merge manual) → `store_memory` do achado.
+9. **Se o sprint criou flag default-OFF shadow/audit** (sem efeito em aposta): abra em seguida o **PR de ativação** (branch `flag/ativar-<slug>`: default `:-1}` na compose + adendo próprio + auto-merge). Flag de comportamento: registre no adendo qual janela shadow precisa fechar antes.
 
 ## Segurança (estrutural — você roda livre, o perigoso é bloqueado)
 - **NUNCA** push/checkout/reset/merge em `main`; sem ssh/host/deploy; testes/migrations só em DB local/teste.

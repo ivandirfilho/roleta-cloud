@@ -35,10 +35,15 @@ buffer-sync → confirmar ext 3.10.0 instalada → só então o gate temporal �
 `ativado_audit_shadow = PENDENTE` (`SDA_PHASE_EVENT_AUDIT=0` **e** `SDA_DIRECTION_VISION_SHADOW=0` →
 os 7 dias do gate T4 ainda NÃO começaram a contar).
 
-**Fila de integração 06/08 (merge train — `strict:true` exige um por vez, update-branch entre cada):**
-PR **#60** (CLEAN) → **#61** → **#58** → **#43** (fatiar: 39 arquivos misturam MIG-0+Azure+ISO).
-⚠️ #58/#60 colidem em `message_handler.py`+`outbox_integration.py`+`.silent_except_baseline.json`;
-quem mergear depois resolve o conflito. Não abrir sprint novo com esses locks até a fila esvaziar.
+**Fila de integração 06/08 — AUTOMÁTICA desde 06/08 à noite:** auto-merge armado em #60, #61, #58
+(mergeiam sozinhos com `ci-ok` verde; `strict` OFF por design). **#43** fica FORA do auto-merge:
+39 arquivos misturando MIG-0+Azure+ISO → fatiar em PRs pequenos antes.
+⚠️ #58/#60 colidem em `message_handler.py`+`outbox_integration.py`+baseline; o que mergear depois
+fica CONFLICTING → Diretor delega resolução a um executor. `main` vermelho pós-merge → issue
+`main-red` abre sozinha e vira sessão de agente.
+**Ativação:** PR `flag/ativar-audit-shadow` liga `SDA_PHASE_EVENT_AUDIT=1` +
+`SDA_DIRECTION_VISION_SHADOW=1` (shadow por design, zero efeito em aposta) → merge inicia o
+relógio de 7d do gate T4. Registrar `ativado_audit_shadow=<data do merge>` no próximo lote.
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|

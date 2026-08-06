@@ -33,3 +33,4 @@ serializar no documento-mãe.
 | Data | Arquivo | Origem |
 |---|---|---|
 | 2026-08-06 | `2026-08-06-governanca-fluxo-pr.md` | Diagnóstico de silos de PR (sessão fix-fluxo-ci-governanca) |
+| 2026-08-06 | `2026-08-06-fluxo-zero-humano.md` | Auto-merge + ativação por PR + main-red (mesma sessão, noite) |

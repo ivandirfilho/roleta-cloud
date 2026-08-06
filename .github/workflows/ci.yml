@@ -132,3 +132,25 @@ jobs:
             echo "extension-tests=${{ needs.extension-tests.result }}"; exit 1
           fi
           echo "ci-ok"
+
+  # Zero-humano: matrix completa quebrou em main pós-merge (merge skew) →
+  # abre issue 'main-red' automaticamente, que vira sessão de agente
+  # (revert do último merge ou fix-forward). Dedup: 1 issue aberta por vez.
+  main-red-alert:
+    needs: [lint-and-test, extension-tests]
+    runs-on: ubuntu-latest
+    if: always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      issues: write
+    steps:
+      - name: Abrir issue urgente (dedup por label main-red)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "🔴 main vermelho pós-merge — run $GITHUB_RUN_ID" \
+              --label main-red \
+              --body "Matrix completa falhou em push na main: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — produção deploya main (~2min); flags default-OFF protegem o runtime, mas avalie revert do último merge ou fix-forward. Abra uma sessão de agente nesta issue."
+          fi
