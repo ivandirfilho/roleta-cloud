@@ -2848,7 +2848,7 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 |---|---|---|---|
 | `SDA_PHASE_BUFFER_SYNC` | B1 | `GameState.sync_phase_buffer()` espelha no `_phase_results` os números recuperados no gap; limpa o buffer na correção de histórico. | **Passo 1** — maior ganho, menor risco. Junto com o B5. |
 | `SDA_PHASE_MIN_OVERLAP` | B2 | Evidência mínima para aceitar um shift (`reconcile_shift`/`phase_advance_ex`); recusa também `k` ambíguo em sequências periódicas. Sugestão: `3`. | **Passo 2**, depois do B1 estabilizar. |
-| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | **Passo 4 — por último**, só depois da extensão V2 instalada e confirmada (ver I.4). |
+| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | **4º, somente após instalar/validar a extensão 3.10.0** (ver I.4). |
 | `SDA_PHASE_ALT_METRIC` | B5 | Métrica de alternância (`alternancia_violada_total`). Puramente observável. | **Passo 1**, junto com o B1. |
 
 Sem flag (aditivos ou fail-close): role-gate MASTER, `_apply_seed` como caminho único, preservação de lock em `set_seed`, reprojeção da âncora do operador na re-ancoragem, fail-close da visão, bloco `phase_authority` no overlay, 4 contadores + 4 gauges + 3 alertas.
@@ -2914,9 +2914,9 @@ Com as 4 flags OFF: `final_action`, cobertura (`sda_numbers`/`sda_centers`), sta
    *Pré-requisito não numerado:* merge/deploy com as flags novas **OFF**.
    (1) `SDA_PHASE_BUFFER_SYNC=1` + `SDA_PHASE_ALT_METRIC=1` → observar `roleta_phase_uncertain_total`
    cair e `roleta_alternancia_violada_total` em 0; (2) `SDA_PHASE_MIN_OVERLAP=3` → observar
-   `roleta_phase_ambiguo_total`; (3) **instalar/recarregar a extensão 3.10.0 do SPR-V2** e confirmar
-   `phase_authority` + telemetria no cliente; (4) **somente depois**
-   `SDA_MIN_SPIN_INTERVAL_MS=15000`.
+   `roleta_phase_ambiguo_total` → (3) **instalar/recarregar a extensão 3.10.0 do SPR-V2 e confirmar
+   `phase_authority`** (+ telemetria DIR20 no cliente) → (4) **SOMENTE ENTÃO
+   `SDA_MIN_SPIN_INTERVAL_MS=15000`**.
    **Por que o gate temporal vem por último:** ele faz o servidor *rejeitar* o giro fantasma, mas um
    cliente antigo **não desfaz o flip local** — servidor correto e popup/local phase espelhado. Reverter
    o flip rejeitado é a razão de existir do SPR-V2, então ligar o gate antes da extensão abre
