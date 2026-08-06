@@ -4033,3 +4033,17 @@ produtor emite e onde o worker grava. Enquanto essas três verdades moram em arq
 conhecem, cada uma pode estar internamente consistente e o conjunto estar vazio. O teste que
 faltava não é sobre PostgreSQL: é sobre **o contrato entre camadas quebrar sozinho quando uma
 delas se mexe**.
+
+---
+
+## ⚓ MUDANÇA DE CONVENÇÃO — 06/08/2026: ADENDOs agora vivem em `docs/iso/adendos/`
+
+Este documento permanece como **corpo histórico e arquitetural** do projeto, mas **deixa de
+receber ADENDOs incrementais por append**. Com múltiplos executores em paralelo, o append no
+fim deste arquivo (>300 KB) tornou-se o maior ponto de conflito de merge do repo — ADENDOs do
+mesmo dia acabaram intercalados em 4 posições diferentes e houve título duplicado.
+
+**A partir de 06/08/2026:** cada ADENDO é um arquivo próprio em
+[`docs/iso/adendos/`](docs/iso/adendos/README.md), no formato `AAAA-MM-DD-<slug>.md`, com o
+mesmo conteúdo mínimo de sempre (origem, decisão, flags, reversão, lição ISO). O índice fica
+no README da pasta. O guardrail de CI aceita a nova pasta como cumprimento da convenção ISO.
