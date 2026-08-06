@@ -82,8 +82,16 @@
     var out = new Uint8Array((clean * 3) >> 2);
     var acc = 0, bits = 0, o = 0;
     for (var i = 0; i < clean; i++) {
-      var d = B64_LOOKUP[str.charCodeAt(i)];
-      if (d < 0) throw new Error('base64 invalido: caractere na posicao ' + i);
+      var c = str.charCodeAt(i);
+      // A tabela tem 256 posições; `charCodeAt` de um caractere não-Latin-1 devolve >255 e
+      // um índice fora do TypedArray devolve **`undefined`** — e `undefined < 0` é `false`.
+      // Ou seja, a checagem ingênua `if (d < 0)` deixava passar `'\u0100'`, que virava 0 na
+      // conta de bits: lixo decodificado em silêncio. A comparação é TOTAL de propósito:
+      // `!(d >= 0)` rejeita negativo, `undefined` e `NaN` de uma vez.
+      var d = c < 256 ? B64_LOOKUP[c] : -1;
+      if (!(d >= 0)) {
+        throw new Error('base64 invalido: caractere na posicao ' + i + ' (charCode ' + c + ')');
+      }
       acc = (acc << 6) | d;
       bits += 6;
       if (bits >= 8) {
@@ -179,8 +187,47 @@
     var received = 0;
     var lastMessageAt = null;
     var complete = false;
-    var rejected = [];             // {index, reason} — nunca somem em silêncio
+    // Recusas COM índice conhecido: são recuperáveis, porque a retomada reenvia aquele
+    // índice. Guardadas por índice (não em lista append-only) justamente para poderem
+    // SUMIR quando o frame chegar bom — senão o export ficava num beco: a retomada
+    // entregava o frame certo, `complete` continuava `false` para sempre e o `assemble()`
+    // recusava, enquanto a interface seguia oferecendo "Retomar".
+    var rejectedByIndex = {};
+    var rejectedCount = 0;
+    // Recusas SEM índice atribuível (lote malformado, frame sem `index`): não dá para
+    // saber o que reenviar. Não são recuperáveis por retomada — a interface tem de mandar
+    // recomeçar, e é mais honesto dizer isso do que oferecer um botão que não resolve.
+    var protocolFaults = [];
     var now = o.now || function () { return Date.now(); };
+
+    function reject(idx, reason) {
+      if (idx === null || idx === undefined) {
+        protocolFaults.push({ index: null, reason: reason });
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(rejectedByIndex, idx)) rejectedCount++;
+      rejectedByIndex[idx] = reason;
+    }
+
+    function clearRejection(idx) {
+      if (Object.prototype.hasOwnProperty.call(rejectedByIndex, idx)) {
+        delete rejectedByIndex[idx];
+        rejectedCount--;
+      }
+    }
+
+    function rejectedList() {
+      var out = [];
+      for (var k in rejectedByIndex) {
+        if (Object.prototype.hasOwnProperty.call(rejectedByIndex, k)) {
+          out.push({ index: Number(k), reason: rejectedByIndex[k], recoverable: true });
+        }
+      }
+      for (var i = 0; i < protocolFaults.length; i++) {
+        out.push({ index: null, reason: protocolFaults[i].reason, recoverable: false });
+      }
+      return out;
+    }
 
     /**
      * Decodifica UM frame do fio. Recusa tudo que não for base64 com `length` declarado —
@@ -225,19 +272,21 @@
         var ok = 0;
         for (var i = 0; i < msg.frames.length; i++) {
           var f = msg.frames[i];
-          var idx = (f && typeof f.index === 'number') ? f.index : null;
+          var idx = (f && typeof f.index === 'number' && f.index >= 0) ? f.index : null;
           try {
             var bytes = decodeFrame(f);
             if (frames[f.index] === undefined) {
               frames[f.index] = bytes;
               received++;
             }
+            // A retransmissão válida APAGA a recusa anterior daquele índice.
+            clearRejection(f.index);
             ok++;
           } catch (e) {
             // Frame inválido NÃO é armazenado e NÃO é confirmado: ele continua "faltando",
             // então `complete` nunca vira true e `assemble()` recusa. Silenciar aqui seria
             // reintroduzir o arquivo de 0 byte que se declara completo.
-            rejected.push({ index: idx, reason: e.message });
+            reject(idx, e.message);
           }
         }
         // Só confirma o lote se TUDO nele entrou. Ack parcial faria o remetente seguir em
@@ -247,7 +296,7 @@
       if (msg.type === 'end') {
         expected = msg.frameCount != null ? msg.frameCount : expected;
         complete = (expected != null && expected > 0 && received >= expected &&
-          missingFrom() === null && rejected.length === 0);
+          missingFrom() === null && rejectedCount === 0 && protocolFaults.length === 0);
         return [];
       }
       return [];
@@ -273,14 +322,17 @@
     }
 
     function progress() {
+      var lista = rejectedList();
       return {
         received: received,
         expected: expected,
         missingFrom: missingFrom(),
         complete: complete,
         hasMeta: !!meta,
-        rejected: rejected.length,
-        rejectedDetail: rejected.slice(0, 5)
+        rejected: lista.length,
+        rejectedDetail: lista.slice(0, 5),
+        // `false` ⇒ a retomada NÃO resolve; a interface tem de mandar recomeçar.
+        recoverable: protocolFaults.length === 0
       };
     }
 
@@ -292,9 +344,10 @@
     function assemble() {
       if (expected == null) throw new Error('export sem meta: nada a montar');
       if (!(expected > 0)) throw new Error('export com 0 frames: nada a montar');
-      if (rejected.length) {
-        throw new Error('export com ' + rejected.length + ' frame(s) recusado(s): ' +
-          rejected.slice(0, 3).map(function (r) { return '#' + r.index + ' ' + r.reason; }).join(' · '));
+      var pendentes = rejectedList();
+      if (pendentes.length) {
+        throw new Error('export com ' + pendentes.length + ' frame(s) recusado(s): ' +
+          pendentes.slice(0, 3).map(function (r) { return '#' + r.index + ' ' + r.reason; }).join(' · '));
       }
       var falta = missingFrom();
       if (falta !== null) throw new Error('export incompleto: falta o frame ' + falta);
@@ -317,7 +370,7 @@
     return {
       handle: handle, missingFrom: missingFrom, isStalled: isStalled,
       progress: progress, assemble: assemble,
-      rejected: function () { return rejected.slice(); },
+      rejected: rejectedList,
       touch: function () { lastMessageAt = now(); }
     };
   }

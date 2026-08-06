@@ -3704,6 +3704,48 @@ testado dos dois lados do fio, mas nunca **através** dele, dá cobertura alta e
 nenhuma. E o modo de falha a temer não é a exceção: é o caminho que devolve um resultado
 plausível — `0` — sem reclamar.
 
+### I4. Quarta rodada — 2 LOWs no receptor do export (rodada final)
+
+A revisão do `74d667e` confirmou o HIGH do transporte totalmente corrigido e apontou dois
+defeitos pequenos, ambos do tipo "o código faz o que parece, não o que precisa".
+
+**LOW 1 — `rejected` era append-only, e isso criava um beco sem saída.** Um frame recusado
+que chegasse **válido na retomada** era armazenado, mas a recusa antiga permanecia na lista.
+Resultado: `complete` nunca virava `true`, o `assemble()` recusava **para sempre** — e a
+interface continuava oferecendo *Retomar*. O operador clicaria num botão que nunca resolve,
+sobre uma captura que já estava íntegra na memória.
+Conserto: as recusas passaram a ser indexadas (`rejectedByIndex`) e **somem** quando o mesmo
+índice chega válido. Recusas **sem índice atribuível** (lote malformado, frame sem `index`)
+viraram `protocolFaults`: são honestamente **não recuperáveis** por retomada, e a interface
+passa a mandar *Iniciar* em vez de oferecer um botão inútil. `progress().recoverable` diz
+qual dos dois casos é.
+
+**LOW 2 — `fromBase64` aceitava `charCode > 255` e decodificava lixo em silêncio.**
+`B64_LOOKUP` é um `Int16Array(256)`; um caractere não-Latin-1 devolve índice fora do
+TypedArray, que é **`undefined`** — e `undefined < 0` é `false`. A checagem `if (d < 0)`
+deixava `'\u0100'` passar como válido; ele virava `0` na conta de bits (`x | undefined === x | 0`)
+e o frame decodificava lixo sem uma linha de aviso. Conserto: comparação **total**
+(`if (!(d >= 0))`, que rejeita negativo, `undefined` e `NaN` de uma vez) e faixa explícita
+(`c < 256 ? tabela[c] : -1`).
+
+**Prova por mutação** (cada reversão isolada, teste-alvo executado):
+recusa não limpa pela retransmissão ✗ · `recoverable` sempre `true` ✗ · `charCode > 255`
+decodificado como lixo ✗. Todas falham sem o conserto.
+
+Testes novos: recuperação **na fronteira JSON** (lote corrompido → retransmissão válida do
+mesmo índice → `rejected: 0`, `complete: true`, bytes exatos), recusa repetida que não infla
+o contador, recusa sem índice marcada como não recuperável, e Unicode fora da tabela
+(`\u0100`, `\u00FF`, `\u20AC`, `\uFFFD`, emoji) recusado tanto no codec quanto no receptor.
+
+**Lição (Confiabilidade).** Os dois defeitos são a mesma família: uma comparação que
+*parece* total (`d < 0`) e um estado que *parece* monotônico (`rejected` só cresce). Em
+JavaScript, comparar com `undefined` devolve `false` em ambos os lados — `undefined < 0` e
+`undefined >= 0` são os dois `false` — então a única checagem honesta é a que exige a
+condição desejada, não a que nega a indesejada. E estado de erro que nunca é limpo
+transforma qualquer recuperação em teatro.
+
+`algorithm_sha` **inalterado** (`4f7566da2f44e9b4`): o transporte não faz parte do algoritmo.
+
 ### J. Rollback
 
 | # | Camada | Ação | Efeito |

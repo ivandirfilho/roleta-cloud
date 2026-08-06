@@ -30,8 +30,19 @@ function progressUi() {
   $('fill').style.width = pct + '%';
   $('pct').textContent = pct + '%';
   if (p.rejected) {
-    fail(`${p.rejected} frame(s) recusado(s) — ${p.rejectedDetail.map((r) => `#${r.index}: ${r.reason}`).join(' · ')}`);
-    $('resume').disabled = false;
+    const detalhe = p.rejectedDetail.map((r) => `#${r.index ?? '?'}: ${r.reason}`).join(' · ');
+    if (p.recoverable) {
+      // Recusa com índice conhecido: a retomada reenvia aquele frame e a recusa some.
+      fail(`${p.rejected} frame(s) recusado(s) — ${detalhe}\n` +
+        `Clique em Retomar: a retransmissão válida do mesmo frame limpa a recusa.`);
+      $('resume').disabled = false;
+    } else {
+      // Sem índice atribuível não há o que reenviar. Oferecer "Retomar" seria um botão
+      // que nunca resolve — o operador clicaria para sempre.
+      fail(`${p.rejected} falha(s) de protocolo sem índice atribuível — ${detalhe}\n` +
+        `A retomada NÃO resolve este caso: clique em Iniciar para recomeçar do zero.`);
+      $('resume').disabled = true;
+    }
     return;
   }
   log(`recebidos ${p.received}/${p.expected} frames` +

@@ -45,7 +45,7 @@ estão **vazios** e só um humano com mesa ao vivo pode preenchê-los.
 ## Rodar
 
 ```bash
-# testes da lógica pura (104 testes, sem Chrome). É o MESMO comando do job
+# testes da lógica pura (109 testes, sem Chrome). É o MESMO comando do job
 # `extension-tests` do ci.yml, que roda os dois globs:
 node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"
 # só o spike:

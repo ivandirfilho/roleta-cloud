@@ -113,9 +113,110 @@ test('TRANSPORT BOUNDARY: base64 ida e volta é exato para 0..255 e para restos 
   }
 });
 
+test('TRANSPORT BOUNDARY · RECUPERAÇÃO: lote corrompido → retransmissão válida limpa a recusa', () => {
+  // O beco que isto conserta: `rejected` era append-only. A retomada entregava o frame
+  // certo, mas a recusa antiga continuava lá — `complete` nunca virava `true` e
+  // `assemble()` recusava PARA SEMPRE, enquanto a interface seguia oferecendo "Retomar".
+  // O operador clicaria num botão que nunca resolve.
+  const frames = fakeFrames(12, 32);
+  const meta = { format: 'vision_spike_capture', frames: [] };
+
+  // 1ª tentativa: o 4º lote chega com o base64 corrompido (índice preservado).
+  const first = pump(frames, meta, {
+    corruptBatch: 4,
+    corrupt: (m) => ({
+      ...m,
+      frames: m.frames.map((f) => ({ ...f, b64: f.b64.slice(0, -4) + '@@@@' }))
+    })
+  });
+  const p1 = first.assembler.progress();
+  assert.equal(p1.rejected, 1, JSON.stringify(p1.rejectedDetail));
+  assert.equal(p1.recoverable, true, 'recusa com índice conhecido é recuperável');
+  assert.equal(p1.complete, false);
+  const retomarDe = first.assembler.missingFrom();
+  assert.equal(retomarDe, 3, 'a retomada parte do frame recusado');
+
+  // 2ª tentativa: mesmo assembler, dados válidos a partir do índice recusado.
+  const second = pump(frames, meta, { assembler: first.assembler, from: retomarDe });
+  const p2 = second.assembler.progress();
+  assert.equal(p2.rejected, 0, 'a retransmissão válida APAGA a recusa');
+  assert.equal(p2.complete, true);
+  assert.equal(p2.missingFrom, null);
+
+  const out = second.assembler.assemble();
+  assert.equal(out.frameCount, 12);
+  assert.equal(out.bytes.length, 12 * 32);
+  for (let f = 0; f < 12; f++) {
+    for (let i = 0; i < 32; i++) {
+      assert.equal(out.bytes[f * 32 + i], frames[f][i], `frame ${f} byte ${i}`);
+    }
+  }
+});
+
+test('recusa SEM índice atribuível não é recuperável — a UI tem de mandar recomeçar', () => {
+  const a = X.createAssembler({});
+  a.handle({ type: 'meta', wire: X.WIRE, meta: {}, frameCount: 2 });
+  // Lote malformado: sem `index`, não há o que reenviar.
+  a.handle({ type: 'frames', wire: X.WIRE, from: 0, to: 0, frames: [{ b64: 'AAAA', length: 3 }] });
+  const p = a.progress();
+  assert.equal(p.rejected, 1);
+  assert.equal(p.recoverable, false, 'sem índice, retomar não resolve');
+  assert.equal(p.rejectedDetail[0].index, null);
+  assert.throws(() => a.assemble(), /recusado/);
+});
+
+test('a mesma recusa repetida não infla o contador (e some de uma vez)', () => {
+  const a = X.createAssembler({});
+  a.handle({ type: 'meta', wire: X.WIRE, meta: {}, frameCount: 1 });
+  const ruim = { type: 'frames', wire: X.WIRE, from: 0, to: 0, frames: [{ index: 0, b64: '@@@@', length: 3 }] };
+  a.handle(ruim);
+  a.handle(ruim);
+  a.handle(ruim);
+  assert.equal(a.progress().rejected, 1, 'recusa e por INDICE, nao uma lista que so cresce');
+
+  const bom = new Uint8Array([1, 2, 3]);
+  a.handle({
+    type: 'frames', wire: X.WIRE, from: 0, to: 0,
+    frames: [{ index: 0, b64: X.toBase64(bom), length: 3 }]
+  });
+  a.handle({ type: 'end', frameCount: 1 });
+  assert.equal(a.progress().rejected, 0);
+  assert.equal(a.progress().complete, true);
+  assert.deepEqual(Array.from(a.assemble().bytes), [1, 2, 3]);
+});
+
 test('base64 recusa entrada inválida em vez de devolver lixo', () => {
   assert.throws(() => X.fromBase64('abc$'), /base64 invalido/);
   assert.throws(() => X.fromBase64(null), /nao e string/);
+  assert.throws(() => X.fromBase64('ab c'), /base64 invalido/);   // espaço
+  assert.throws(() => X.fromBase64('ab\u0000c'), /base64 invalido/);
+});
+
+test('base64 recusa caractere UNICODE fora da tabela (charCode > 255)', () => {
+  // O defeito: `B64_LOOKUP` tem 256 posições; `charCodeAt` de um caractere não-Latin-1
+  // devolve >255, o índice fora do TypedArray devolve `undefined`, e `undefined < 0` é
+  // `false`. A checagem ingênua deixava `'\u0100'` passar como se fosse válido — ele
+  // virava 0 na conta de bits e o frame decodificava LIXO em silêncio.
+  for (const ch of ['\u0100', '\u00FF', '\u20AC', '\uFFFD', '😀']) {
+    assert.throws(() => X.fromBase64('AA' + ch + 'A'), /base64 invalido/,
+      `deveria recusar ${JSON.stringify(ch)}`);
+  }
+  // E não é só lançar: o caso concreto do relatório NÃO pode decodificar nada.
+  assert.throws(() => X.fromBase64('AA\u0100A'), /charCode 256/);
+});
+
+test('um frame com Unicode no b64 é RECUSADO, não decodificado como lixo', () => {
+  const a = X.createAssembler({});
+  a.handle({ type: 'meta', wire: X.WIRE, meta: {}, frameCount: 1 });
+  const acks = a.handle({
+    type: 'frames', wire: X.WIRE, from: 0, to: 0,
+    frames: [{ index: 0, b64: 'AA\u0100A', length: 3 }]
+  });
+  assert.deepEqual(acks, [], 'lixo nao pode ser confirmado');
+  assert.equal(a.progress().rejected, 1);
+  assert.equal(a.progress().recoverable, true);
+  a.handle({ type: 'end', frameCount: 1 });
+  assert.equal(a.progress().complete, false);
 });
 
 test('REGRESSÃO: typed array crua (wire antigo) vira objeto sem length no JSON e FALHA ALTO', () => {

@@ -277,6 +277,25 @@ validação ✗ — todas falham. Novo teste **TRANSPORT BOUNDARY** passa cada m
 o objeto **em memória** — testavam os dois lados do fio, nunca **através** dele. E o modo de
 falha a temer não é a exceção: é o caminho que devolve um resultado plausível (`0`) calado.
 
+#### Rodada 4 (final): 2 LOWs no receptor do export
+1. **`rejected` era append-only** ⇒ frame recusado que chegava válido na retomada era
+   armazenado, mas a recusa antiga ficava: `complete` nunca virava `true`, `assemble()`
+   recusava para sempre e a UI seguia oferecendo *Retomar* — um botão que nunca resolve.
+   Agora a recusa é **por índice** e **some** com a retransmissão válida; recusa sem índice
+   atribuível vira `protocolFault`, marcada **não recuperável**, e a UI manda *Iniciar*.
+2. **`fromBase64` aceitava `charCode > 255`**: índice fora do `Int16Array(256)` devolve
+   `undefined`, e `undefined < 0` é `false` — `'AA\u0100A'` decodificava lixo em silêncio.
+   Agora a comparação é **total** (`!(d >= 0)`) e a faixa é explícita.
+
+Prova por mutação: recusa não limpa ✗ · `recoverable` sempre `true` ✗ · `charCode > 255`
+como lixo ✗. Testes novos cobrem recuperação **na fronteira JSON** (corrompe → retransmite →
+`rejected: 0`, `complete: true`, bytes exatos) e Unicode fora da tabela.
+
+**Lição:** os dois são a mesma família — uma comparação que *parece* total (`d < 0`) e um
+estado que *parece* monotônico (`rejected` só cresce). `undefined < 0` e `undefined >= 0`
+são **os dois** `false`: a única checagem honesta exige a condição desejada, não nega a
+indesejada. E estado de erro que nunca é limpo transforma recuperação em teatro.
+
 #### Arquivos tocados
 `tools/vision_spike/**` (35 arquivos) · `Manutenabilidade_iso.md` (ADENDO) · `sprints/SPR-V3.md`
 (este Log) · `.github/workflows/ci.yml` (**lock ampliado com autorização formal do Diretor**).
