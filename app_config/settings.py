@@ -541,3 +541,39 @@ def phase_alt_metric_enabled() -> bool:
     Ligar: SDA_PHASE_ALT_METRIC=1."""
     import os
     return os.environ.get("SDA_PHASE_ALT_METRIC", "0").strip().lower() in ("1", "true", "on")
+
+
+def phase_event_audit_enabled() -> bool:
+    """SPR-V4 (Bloco 2): persiste a trilha `phase_events` (SQLite, append-only). Sem
+    esta flag NADA e gravado — o contrato do evento continua sendo aplicado em memoria
+    (identidade/alvo/TTL/one-shot), mas nao ha prova duravel. E requisito de EVIDENCIA
+    do gate T4: counters Prometheus zeram a cada restart do container e logs tem
+    retencao limitada. Default OFF. Ligar: SDA_PHASE_EVENT_AUDIT=1."""
+    import os
+    return os.environ.get("SDA_PHASE_EVENT_AUDIT", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_shadow_enabled() -> bool:
+    """SPR-V4 (Bloco 3): SHADOW da visao. A cada `novo_resultado`, compara o evento
+    fresco e BOUND com a direcao final POS-autoridade e classifica agree/disagree
+    (ou stale/unbound/selfcontradict/missing). ZERO efeito em direcao, seed, timeline,
+    decisao ou stake — e so leitura + contador + (se SDA_PHASE_EVENT_AUDIT) trilha.
+    NAO confundir com SDA_DIRECTION_VISION (congelada em 0 pelo fail-close do SPR-V1:
+    visao NAO tem autoridade sobre o giro). Default OFF.
+    Ligar: SDA_DIRECTION_VISION_SHADOW=1."""
+    import os
+    return os.environ.get("SDA_DIRECTION_VISION_SHADOW", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_ttl_ms() -> int:
+    """SPR-V4 (Bloco 1): prazo de validade (ms) de um `direction_event`, contado do
+    RECEBIMENTO no relogio MONOTONICO DO SERVIDOR (`time.monotonic()`), nunca do
+    `captured_at_ms` do cliente — senao um cliente com relogio adulterado renova o
+    proprio prazo. Default 30000 (menor que o ciclo real de ~44s, entao um evento
+    nunca sobrevive ate o giro seguinte). Idade >= TTL ⇒ `stale`.
+    Ler via SDA_DIRECTION_VISION_TTL_MS."""
+    import os
+    try:
+        return max(0, int(os.environ.get("SDA_DIRECTION_VISION_TTL_MS", "30000").strip()))
+    except (TypeError, ValueError):
+        return 30000

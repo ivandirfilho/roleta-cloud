@@ -152,6 +152,10 @@ services:
       # fase autoritativa por mensagem nao autenticada. NAO LIGUE esta flag antes do V7:
       # com o fail-close no codigo ela nao tem efeito sobre o giro. Rollback do
       # fail-close = git revert do SPR-V1 (nao ha flag para reabrir o vetor).
+      # SPR-V4 (05/08): CONTINUA CONGELADA EM 0 — "nao ligar; visao corrige ANCORA,
+      # nao spin (ver SPR-V7)". Este sprint NAO reabre autoridade per-spin: ele so
+      # transforma o evento em trilha auditavel (SDA_PHASE_EVENT_AUDIT) e comparacao
+      # em shadow (SDA_DIRECTION_VISION_SHADOW), ambas sem efeito sobre o giro.
       - SDA_DIRECTION_VISION=${SDA_DIRECTION_VISION:-0}
       - SDA_DIRECTION_VISION_MIN_CONF=${SDA_DIRECTION_VISION_MIN_CONF:-0.7}
       # DIR16 (sentido-fase): FIX CRITICO #S/#W/#X — reset_session zera seed_parity
@@ -209,6 +213,26 @@ services:
       # denunciam fase corrompida. Puramente observavel (nao muda aposta) — pode ir
       # a 1 junto com o B1. Rollback: SDA_PHASE_ALT_METRIC=0.
       - SDA_PHASE_ALT_METRIC=${SDA_PHASE_ALT_METRIC:-0}
+      # ===== SPR-V4 (05/08): contrato `direction_event` + trilha `phase_events` =====
+      # SHADOW-ONLY. Nada aqui toca indicacao, cobertura ou stake (INV-3): a visao
+      # continua SEM autoridade sobre o giro (fail-close do SPR-V1). O evento vira
+      # trilha de auditoria com identidade, giro-alvo, prazo e consumo unico.
+      # Ordem sugerida de ativacao: (1) AUDIT — so grava a trilha, custo ~100-300
+      # bytes/giro; (2) SHADOW — passa a classificar agree/disagree por giro. Ligar
+      # SHADOW sem AUDIT produz metrica sem prova (counters zeram no restart).
+      # ATENCAO — RETENCAO: este sprint NAO entrega job de purga (o hot path so
+      # INSERE). Enquanto o SPR-V4R nao existir, a purga e MANUAL e do operador;
+      # nao deixe a auditoria ligada por mais de ~60 dias sem purgar.
+      # Rollback: SDA_PHASE_EVENT_AUDIT=0 + SDA_DIRECTION_VISION_SHADOW=0 + redeploy
+      # (minutos). A TABELA PERMANECE (aditiva, inofensiva) — o rollback de deploy
+      # nao faz downgrade de schema.
+      - SDA_PHASE_EVENT_AUDIT=${SDA_PHASE_EVENT_AUDIT:-0}
+      - SDA_DIRECTION_VISION_SHADOW=${SDA_DIRECTION_VISION_SHADOW:-0}
+      # Prazo (ms) contado do RECEBIMENTO no relogio monotonico do SERVIDOR — o
+      # `captured_at_ms` do cliente e so diagnostico. 30000 < ciclo real (~44s),
+      # entao um evento nunca sobrevive ate o giro seguinte (que ja e o sentido
+      # OPOSTO: um veredito correto do giro N e a direcao ERRADA do giro N+1).
+      - SDA_DIRECTION_VISION_TTL_MS=${SDA_DIRECTION_VISION_TTL_MS:-30000}
     # VF-4: healthcheck via endpoint HTTP /health (sem poluir logs de WS handshake)
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8766/health"]

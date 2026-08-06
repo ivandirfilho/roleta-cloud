@@ -18,16 +18,18 @@ def test_compose_keeps_state_in_the_persistent_volume():
 
 
 def test_deploy_scripts_fail_closed_before_state_migration():
-    for relative_path in (
-        "scripts/roleta-deploy-pull.sh",
-        "tools/deploy_pull.sh",
-    ):
-        deploy_script = (ROOT / relative_path).read_text(encoding="utf-8")
-        assert "STATE MIGRATION REQUIRED" in deploy_script
-        assert "docker volume inspect" in deploy_script
-        assert "docker compose config --format json" in deploy_script
-        assert "docker volume ls" in deploy_script
-        assert "state.json" in deploy_script
+    canonical = (ROOT / "scripts/roleta-deploy-pull.sh").read_text(encoding="utf-8")
+    assert "STATE MIGRATION REQUIRED" in canonical
+    assert "docker volume inspect" in canonical
+    assert "docker compose config --format json" in canonical
+    assert "docker volume ls" in canonical
+    assert "state.json" in canonical
+
+    # The legacy path is intentionally a thin delegator after SP-03. Its
+    # fail-closed behavior comes from the canonical script it execs.
+    legacy = (ROOT / "tools/deploy_pull.sh").read_text(encoding="utf-8")
+    assert 'TARGET="${DEPLOY_SCRIPT:-$REPO_DIR/scripts/roleta-deploy-pull.sh}"' in legacy
+    assert 'exec bash "$TARGET" "$@"' in legacy
 
 
 def test_deploy_and_resume_paths_guard_before_starting_the_new_app():
@@ -38,10 +40,7 @@ def test_deploy_and_resume_paths_guard_before_starting_the_new_app():
     assert canonical.index("if ! assert_state_volume_ready") < canonical.index(
         'docker compose run --rm "$SERVICE" alembic upgrade head'
     )
-    legacy_guard = legacy.index("if ! assert_state_volume_ready")
-    legacy_guard = legacy[legacy_guard : legacy.index("\nfi", legacy_guard)]
-    assert 'docker compose build --quiet "$SERVICE" || true' in legacy_guard
-    assert 'docker compose up -d "$SERVICE" || true' in legacy_guard
+    assert 'exec bash "$TARGET" "$@"' in legacy
     assert resume.index("assert_state_volume_ready\n") < resume.index("docker compose up -d")
 
 

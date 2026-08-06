@@ -119,18 +119,18 @@ Coleta de 40-60 giros anotados + soak de 2h. Preenche os gates.
   Diretor cita ao destravar (ou não) o SPR-V5.
 
 ## Critério de "pronto" (Definition of Done — só V3-A)
-- [ ] `tools/vision_spike/` roda isolado, **sem** import a partir de `server/`, `state/` ou do
+- [x] `tools/vision_spike/` roda isolado, **sem** import a partir de `server/`, `state/` ou do
       `background.js` de produção.
-- [ ] E0 respondido por escrito com evidência bruta (acesso, srcObject/MSE, taint sim/não).
+- [x] E0 respondido por escrito com evidência bruta (acesso, srcObject/MSE, taint sim/não).
       **Em V3-A: a probe existe, roda e grava — o campo em `RESULTADO.md` fica VAZIO.**
-- [ ] E0b: instrumento de medição entregue e testado contra um `<video>` local/fixture.
+- [x] E0b: instrumento de medição entregue e testado contra um `<video>` local/fixture.
       **A medição em mesa real (aba oculta / janela minimizada) é V3-B.**
-- [ ] Replay offline reproduz o algoritmo sobre frames gravados e emite `{direction, confidence,
+- [x] Replay offline reproduz o algoritmo sobre frames gravados e emite `{direction, confidence,
       guards}` — com **abstenção** quando qualquer guard dispara.
-- [ ] Protocolo de campo escrito e executável por um humano não-autor.
-- [ ] `RESULTADO.md` criado com a tabela de gates e os campos de V3-B explicitamente **vazios**.
-- [ ] `pytest tests/` completo verde (nada do spike entra no caminho de produção).
-- [ ] Sprint termina em **`WAITING_HUMAN_EVIDENCE`** no Log, com a mensagem ao Diretor.
+- [x] Protocolo de campo escrito e executável por um humano não-autor.
+- [x] `RESULTADO.md` criado com a tabela de gates e os campos de V3-B explicitamente **vazios**.
+- [x] `pytest tests/` completo verde (nada do spike entra no caminho de produção).
+- [x] Sprint termina em **`WAITING_HUMAN_EVIDENCE`** no Log, com a mensagem ao Diretor.
 
 ## Guardrails (inviolável)
 - **Zero autoridade.** Nenhum `direction_event` é emitido para produção a partir deste sprint.
@@ -157,10 +157,11 @@ O spike vive em `tools/vision_spike/` e não é importado por produção ⇒ rol
 (mesma disciplina do SPR-V2).
 
 ## Conformidade ISO
-- [ ] Nada default-ON; nada no caminho de produção.
-- [ ] **INV-3** intacto; `pytest tests/` verde.
-- [ ] Mexeu em `extension/` → bump de versão + nota de reload (se aplicável).
-- [ ] ADENDO ISO registra: decisão de investimento pendente de humano (§10.6-1) e aceite formal da
+- [x] Nada default-ON; nada no caminho de produção.
+- [x] **INV-3** intacto; `pytest tests/` verde (904 passed — idêntico ao baseline).
+- [x] Mexeu em `extension/` → bump de versão + nota de reload (se aplicável). **N/A: `extension/`
+      não foi tocado** — a extensão de diagnóstico tem manifest próprio em `tools/vision_spike/`.
+- [x] ADENDO ISO registra: decisão de investimento pendente de humano (§10.6-1) e aceite formal da
       cobertura medida (§10.6-2).
 
 ## Closeout
@@ -174,3 +175,140 @@ O spike vive em `tools/vision_spike/` e não é importado por produção ⇒ rol
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+
+### 2026-08-05 · `WAITING_HUMAN_EVIDENCE` · V3-A entregue, V3-B pendente
+
+**Base:** `origin/main` `0e7543e` (já com SPR-V1 e SPR-V2 / ext 3.10.0). **Branch:** `ivandirfilho-scaling-bassoon`.
+
+**GO/NO-GO: NÃO DECLARADO.** É decisão de investimento do operador (§10.6-1) sobre números de campo
+que este PR, por definição de escopo, não pode produzir.
+
+#### Entregue (V3-A)
+- `tools/vision_spike/` — 31 arquivos, **zero import** de `server/`, `state/` ou `extension/`.
+- **E0** (`probe/probe_e0.js`): acesso ao `<video>` em `all_frames`, classificação da entrega
+  (`mediastream` / `blob_url` / `url_*`) e teste de taint em **um único try/catch**
+  (`createImageBitmap` + `OffscreenCanvas` + `getImageData`). Grava evidência local.
+- **E0b** (`probe/probe_e0b.js` + `lib/rvfc_meter.js`): conta callbacks/s por wall-clock, avanço do
+  stream por `mediaTime` e `presentedFrames` do compositor — **três réguas separadas** —, anotando
+  `visibilityState` e `hasFocus`; série por bucket de 1 s, detecção de gaps, contraste visível×oculto.
+- **E1**: calibração de elipse (centro + ≥4 pontos sobre snapshot **1:1 em coordenadas intrínsecas**,
+  não sobre o `<video>` renderizado), persistida com thumbnail **e** assinatura numérica do anel
+  estático (invalidação automática por NCC < 0,6); `replay.js` roda o algoritmo sobre captura gravada
+  e emite `{direction, confidence, guards}` por janela.
+- **Trigger** de movimento a ~1 FPS **na própria ROI** (zero seletor de DOM novo). `MutationObserver`
+  de status **não** implementado, como o brief manda.
+- Extensão de **diagnóstico separada** (`tools/vision_spike/manifest.json`), uma só permissão
+  (`storage`), probes **default-OFF** (`vsProbePolicy: 'off'`).
+- `PROTOCOLO_CAMPO.md`, `FORMATO_CAPTURA.md`, `ORCAMENTO.md`, `RESULTADO.md` (campos de V3-B **vazios**).
+
+#### Evidência bruta de E0/E0b (o que existe hoje)
+- **E0 em mesa real:** ⬜ **VAZIO** — a probe existe, roda e grava; executá-la exige mesa ao vivo e
+  operador ⇒ V3-B. Rodada contra o `<video>` local da bancada, devolve
+  `pixel_read_ok: true, tainted: false, delivery: "mediastream", webrtc_confirmed: null`
+  (`evidence_class: fixture`, **inelegível a gate**).
+- **E0b em mesa real:** ⬜ **VAZIO**. Instrumento testado contra `<video>` local
+  (`probe/fixture_video.html`, `canvas.captureStream()`) e com 9 testes de unidade sobre séries
+  sintéticas: callbacks/s, gaps, `presentedFrames` perdidos, contraste visível×oculto.
+
+#### Achado técnico do sprint (custou a bancada, não a mesa)
+A prominência por MAD **não discrimina** o setor verde: com fundo bimodal vermelho/preto o MAD é
+enorme e o verde legítimo marca z≈3,9 — indistinguível de ruído. Substituída por **margem de
+unicidade** (≈1,43 com verde, ≈0,00 sem). Sem esse conserto, o spike teria embarcado um detector que
+não detecta e o `zero_landmark_*` seria decorativo.
+
+#### Validação
+```
+node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"  → 148 passed, 0 fail
+  (95 do spike + 53 do V2 — é o MESMO comando do job `extension-tests` do ci.yml)
+python -m pytest tests/ -q                          →  904 passed, 9 skipped, 1 xfailed (= baseline)
+tools/lint_silent_except.py · tools/lint_dna_coverage.py · scripts/schema_symmetry.py → OK
+node replay.js --synthetic cw --count 300           →  295/295 emitidos, 0 errados, sinal 98,33%
+                                                       (⚠️ evidence_class: synthetic ⇒ NÃO vale gate)
+node replay.js --synthetic cw --case noGreen        →  0/15 emitidos — abstenção total, como esperado
+custo (bancada, Node, --bench): unwrap p50 0,75 ms/frame (p95 1,14) · análise p50 8,28 ms/medição (p95 12,65)
+algorithm_sha: 4f7566da2f44e9b4  (estável entre LF e CRLF — provado por teste)
+git diff --check limpo · worktree limpo
+```
+⚠️ `node --test tools/vision_spike/` **não funciona** (o Node tenta carregar o diretório como módulo);
+use o glob.
+
+#### Rodada 1 de code-review: 1 defeito crítico + 8 relevantes
+O mais grave: `captureBurst` gravava 6 frames **consecutivos** na taxa nativa do stream. A 25-30 fps
+(o que uma mesa ao vivo entrega) a rajada dura 167-200 ms e o guard `stride_too_small` — que exige
+Δt de par ≥ 270 ms — dispararia em **toda** janela. O V3-B teria produzido **cobertura 0/N** e um
+NO-GO que seria defeito de ferramental lido como propriedade do mundo. Detalhes no §I do ADENDO ISO.
+
+#### Rodada 2 de revisão: 6 bloqueantes + 1 menor, todos com regressão que FALHA sem o conserto
+| # | Sev | Defeito | Prova |
+|---|---|---|---|
+| 1 | HIGH | `algorithm_sha` não era cross-platform (CRLF no Windows × LF no CI) | teste LF↔CRLF falha sem a normalização |
+| 2 | HIGH | decimador aceitava a 90% do alvo e o guard exige 100% ⇒ **12/24/60 fps** davam cobertura 0/N | regressão 12/24/25/30/60 fps **+ jitter** falha com tolerância 0,9 |
+| 3 | MED | E0b não separava as 4 fases; fase silenciosa virava `null` | teste da fase C (0 callbacks / 180 s) falha sem a marca explícita |
+| 4 | MED | teto de memória cortava **depois** de alocar tudo | teste do orçamento cumulativo falha sem o `fits()` |
+| 5 | MED | export sem ack/backpressure/retomada, stall não rearmado, popup volátil | testes de backpressure e de stall falham sem os consertos |
+| 6 | MED | NCC desligado em silêncio sem `sceneSignature` na calibração | teste fail-closed falha com o fallback para o 1º frame |
+| — | minor | `srcobject_other` afirmava `mse_confirmed: false` | virou `null` ("não sei" é resposta) |
+
+**Lição das duas rodadas:** na primeira, todos os testes rodavam a `fps: 10`; na segunda,
+descobriu-se que o conserto tinha sido calibrado só para 25/30 e abria uma fresta nova em
+12/24/60. Um limiar duplicado é um limiar que vai divergir — o decimador e o guard agora
+leem **o mesmo número**.
+
+#### Rodada 3: 1 HIGH — a regressão que o conserto nº 5 da rodada 2 introduziu
+`chrome.runtime.Port` **serializa em JSON**: a `Uint8ClampedArray` mandada crua chegava do
+outro lado como `{"0":12,…}`, sem `.length`. `stride` virava `undefined`,
+`new Uint8Array(NaN)` dava comprimento 0, **nada lançava**, e o operador salvava um
+`frames.bin` de **0 byte** com a interface dizendo "300 frames, completo" — a perda só
+apareceria ao rodar o replay, com a mesa já fechada.
+
+Conserto: wire **base64** com `length` declarado (codec próprio, sem `btoa`/`Buffer`, mesmo
+código no navegador e no Node), campo `wire` versionado, frame inválido **recusado** (não
+confirmado, continua faltando ⇒ nunca "completo"), `assemble()` validando tipo/stride/
+tamanho/0-byte, e erro **na tela** do `export.js`, nunca só no console.
+
+Custo medido do fio: **1,333×** (contra ~3,57× de um `Array` em JSON), 13,4 ms encode e
+3,3 ms decode por frame de 330 KB ⇒ +34 MB e ~5 s numa captura de 300 frames, offline.
+
+Prova por mutação: wire cru ✗ · receptor aceitando objeto sem `length` ✗ · `assemble()` sem
+validação ✗ — todas falham. Novo teste **TRANSPORT BOUNDARY** passa cada mensagem por
+`JSON.parse(JSON.stringify(...))` e compara byte a byte.
+
+**Lição:** fronteira de serialização é fronteira de teste. Os testes da rodada 2 entregavam
+o objeto **em memória** — testavam os dois lados do fio, nunca **através** dele. E o modo de
+falha a temer não é a exceção: é o caminho que devolve um resultado plausível (`0`) calado.
+
+#### Rodada 4 (final): 2 LOWs no receptor do export
+1. **`rejected` era append-only** ⇒ frame recusado que chegava válido na retomada era
+   armazenado, mas a recusa antiga ficava: `complete` nunca virava `true`, `assemble()`
+   recusava para sempre e a UI seguia oferecendo *Retomar* — um botão que nunca resolve.
+   Agora a recusa é **por índice** e **some** com a retransmissão válida; recusa sem índice
+   atribuível vira `protocolFault`, marcada **não recuperável**, e a UI manda *Iniciar*.
+2. **`fromBase64` aceitava `charCode > 255`**: índice fora do `Int16Array(256)` devolve
+   `undefined`, e `undefined < 0` é `false` — `'AA\u0100A'` decodificava lixo em silêncio.
+   Agora a comparação é **total** (`!(d >= 0)`) e a faixa é explícita.
+
+Prova por mutação: recusa não limpa ✗ · `recoverable` sempre `true` ✗ · `charCode > 255`
+como lixo ✗. Testes novos cobrem recuperação **na fronteira JSON** (corrompe → retransmite →
+`rejected: 0`, `complete: true`, bytes exatos) e Unicode fora da tabela.
+
+**Lição:** os dois são a mesma família — uma comparação que *parece* total (`d < 0`) e um
+estado que *parece* monotônico (`rejected` só cresce). `undefined < 0` e `undefined >= 0`
+são **os dois** `false`: a única checagem honesta exige a condição desejada, não nega a
+indesejada. E estado de erro que nunca é limpo transforma recuperação em teatro.
+
+#### Arquivos tocados
+`tools/vision_spike/**` (35 arquivos) · `Manutenabilidade_iso.md` (ADENDO) · `sprints/SPR-V3.md`
+(este Log) · `.github/workflows/ci.yml` (**lock ampliado com autorização formal do Diretor**).
+**Não tocados:** `extension/`, `server/`, `state/`, compose, migrations, `.gitattributes`.
+
+#### ⛔ O que falta (V3-B — só um humano com mesa ao vivo faz)
+1. **E0 em mesa real**: `<video>` existe no iframe? `srcObject`/MSE? **taint sim/não?**
+2. **E0b em mesa real**: callbacks/s com aba **visível**, **oculta** e **janela minimizada** (4 fases
+   de 3 min). `captureVisibleTab` é cego minimizado — o `<video>` **não deve ser presumido**.
+3. **40-60 giros anotados**: sentido do **rotor** anotado pelo operador **antes** de ver o veredito.
+4. **Os 4 gates com denominador**: H2 (≥40 giros anotados), cobertura ≥0,50 (medida **antes** da
+   acurácia), acurácia ≥29/30 com **≥30 emitidos** (senão NO-GO por escassez), sinal ≥98% no replay
+   (captura **≥250 frames**).
+5. **Soak de 2 h** (opcional) + a decisão humana de GO/NO-GO.
+
+Roteiro pronto e executável por não-autor: `tools/vision_spike/PROTOCOLO_CAMPO.md`.

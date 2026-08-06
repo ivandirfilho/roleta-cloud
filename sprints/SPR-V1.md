@@ -386,7 +386,8 @@ byte-idêntico com as flags OFF — a correção não alterou o caminho legado.
 ### 2026-08-05 (adendo 2) · REBASE SOBRE O SPR-V2 · Executor
 
 O SPR-V2 (PR #52, ext 3.10.0) foi integrado à `main` primeiro — decisão do Diretor, porque o código
-da extensão fica **dormente até o reload** do navegador, enquanto as flags do V1 têm efeito imediato.
+da extensão fica **dormente até o reload** do navegador. Ordem de rollout: **BUFFER_SYNC/ALT_METRIC e
+MIN_OVERLAP antes do reload; MIN_SPIN_INTERVAL somente depois da extensão 3.10.0 validada.**
 Branch do V1 rebaseada sobre `origin/main` (`1bc45b7`).
 
 **Rebase limpo, sem conflitos.** O único arquivo em comum era `Manutenabilidade_iso.md` (o V2 inseriu
@@ -402,9 +403,9 @@ neste PR: **53 passed** local e no CI. PR #53 com todos os checks verdes
 (`lint-and-test` 3.11/3.12/3.13 + `extension-tests` + `iso-guardrails` + `ci-ok`) e
 `mergeStateStatus: CLEAN`.
 
-**Ordem de rollout (corrigida com o Diretor):** flags de buffer/telemetria/overlap antes; gate
-temporal somente depois do V2. O gate faz o servidor rejeitar o giro fantasma, mas só a extensão
-3.10.0 desfaz o flip local do cliente.
+**Ordem de rollout (corrigida com o Diretor):** BUFFER_SYNC/ALT_METRIC e MIN_OVERLAP antes do reload;
+MIN_SPIN_INTERVAL somente depois da extensão 3.10.0 validada. O gate faz o servidor rejeitar o giro
+fantasma, mas só a extensão 3.10.0 desfaz o flip local do cliente.
 
 ### Adendo — contrato `phase_authority` validado contra o SPR-V2 (consumidor)
 

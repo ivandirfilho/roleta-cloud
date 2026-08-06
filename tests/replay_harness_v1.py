@@ -123,6 +123,8 @@ def run_replay() -> Dict[str, Any]:
     captured: List[Dict[str, Any]] = []
 
     real_save = mh_mod.db_service.save_decision
+    real_save_trail = getattr(
+        mh_mod.db_service, "save_decision_with_phase_events", None)
     counter = {"n": 0}
 
     def _save_decision(decision):
@@ -131,6 +133,13 @@ def run_replay() -> Dict[str, Any]:
         return counter["n"]
 
     mh_mod.db_service.save_decision = _save_decision
+    # SPR-V4: o caminho ATÔMICO (decisão + disposição da trilha) é outro call site.
+    # Sem capturá-lo aqui, um replay com `SDA_PHASE_EVENT_AUDIT=1` devolveria zero
+    # decisões e a comparação passaria vazia — provando nada.
+    if real_save_trail is not None:
+        mh_mod.db_service.save_decision_with_phase_events = (
+            lambda decision, rows, on_suppressed=None: _save_decision(decision)
+        )
 
     real_broadcast = mh_mod.connection_manager.broadcast
     real_get_role = mh_mod.connection_manager.get_role
@@ -159,6 +168,8 @@ def run_replay() -> Dict[str, Any]:
             asyncio.run(handler.process_message(ws, json.dumps(data), "conn-replay"))
     finally:
         mh_mod.db_service.save_decision = real_save
+        if real_save_trail is not None:
+            mh_mod.db_service.save_decision_with_phase_events = real_save_trail
         mh_mod.connection_manager.broadcast = real_broadcast
         mh_mod.connection_manager.get_role = real_get_role
 

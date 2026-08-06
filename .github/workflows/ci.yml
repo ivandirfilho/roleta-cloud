@@ -90,7 +90,10 @@ jobs:
   # SPR-V2: a lógica de alinhamento de fase da extensão MV3 (o que impede a extensão de
   # FABRICAR giros) só é coberta por `node --test`. Sem este job a única proteção contra a
   # regressão rodaria apenas na máquina de quem lembrasse de digitar o comando.
-  # NB: `node --test tests/js/` tenta executar o harness como suíte — use o glob.
+  # SPR-V3: o mesmo vale para `tools/vision_spike/` — o spike não é caminho de produção,
+  # mas é ele que decide se o SPR-V5 destrava; um estimador que apodrece em silêncio
+  # produziria um GO/NO-GO sobre código que ninguém mais executa.
+  # NB: `node --test <dir>` tenta carregar o diretório como módulo — use os globs.
   extension-tests:
     runs-on: ubuntu-latest
     steps:
@@ -102,7 +105,7 @@ jobs:
           node-version: "22"
 
       - name: Run extension unit + flow tests
-        run: node --test "tests/js/*.test.js"
+        run: node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"
 
   ci-ok:
     needs: [lint-and-test, extension-tests]
