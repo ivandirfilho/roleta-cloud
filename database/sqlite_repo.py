@@ -321,17 +321,36 @@ class SQLiteDecisionRepository(DecisionRepository):
                 --
                 -- DESVIO DELIBERADO do DDL literal do brief, que pedia
                 -- `UNIQUE(event_id, kind)`: `event_id` e o valor DO CLIENTE quando
-                -- presente e nada o prende a um giro. Com a chave global, um produtor
-                -- que reutilize o mesmo id (id estavel de camera/sensor) gravaria UMA
-                -- linha por kind para a vida inteira enquanto os counters continuam
-                -- subindo — a trilha SUB-REGISTRA em silencio e a taxa de acordo sobe
-                -- artificialmente (some `missing` do denominador), que e exatamente a
-                -- metrica enganosa que este sprint existe para impedir. Reproduzido:
-                -- 6 giros com `event_id` constante => counters 6, trilha 1.
-                -- `target_spin_seq` na chave preserva a idempotencia que o brief quer
-                -- (retry do MESMO evento no MESMO giro nao duplica) e devolve a
-                -- separacao entre giros. Suspensoes por conflito sao CONTADAS
+                -- presente e nada o prende a um giro nem a uma sessao. Com a chave
+                -- global, um produtor que reutilize o mesmo id (id estavel de
+                -- camera/sensor) gravaria UMA linha por kind para a vida inteira
+                -- enquanto os counters continuam subindo — a trilha SUB-REGISTRA em
+                -- silencio e a taxa de acordo sobe artificialmente (some `missing` do
+                -- denominador), que e exatamente a metrica enganosa que este sprint
+                -- existe para impedir. Reproduzido: 6 giros com `event_id` constante
+                -- => counters 6, trilha 1.
+                --
+                -- A chave inclui `session_id` porque `spin_seq` REINICIA em cada
+                -- sessao: sem ele, o giro 1 da sessao B colidiria com o giro 1 da
+                -- sessao A sempre que o `event_id` se repetisse, e a linha da sessao
+                -- nova seria suprimida. Suspensoes por conflito sao CONTADAS
                 -- (`phase_events_write_error_total`), nunca silenciosas.
+                --
+                -- DUAS COORDENADAS, ambas CONSULTAVEIS (nao escondidas em meta_json):
+                --   `session_id`/`target_spin_seq` = coordenadas do EVENTO — o slot do
+                --     ciclo de vida. E por elas que um terminal fecha o seu `received`.
+                --   `spin_session_id`/`spin_seq`   = coordenadas do GIRO que decidiu.
+                --     NULL em linhas que NAO sao disposicao de giro (`received`,
+                --     supersede, invalidacao por `nova_sessao`, faxina de orfao).
+                -- Invariante consultavel: `spin_seq IS NOT NULL` <=> a linha participa
+                -- da particao dos GIROS ELEGIVEIS (denominador da cobertura).
+                -- A chave de ciclo de vida vive num INDICE UNICO EXPLICITO (e nao
+                -- num `UNIQUE` de tabela) de proposito: indice e ADITIVO — um banco
+                -- criado por um commit intermediario deste PR ganha a chave certa no
+                -- proximo boot, sem DROP/rebuild. Um `UNIQUE` de tabela so mudaria
+                -- recriando a tabela, e `ON CONFLICT(...)` exige um indice unico que
+                -- CASE exatamente com as colunas — sem ele, TODO insert da trilha
+                -- estoura com OperationalError e a auditoria morre inteira.
                 CREATE TABLE IF NOT EXISTS phase_events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     event_id TEXT NOT NULL,
@@ -345,8 +364,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                     reference_direction TEXT,
                     confidence REAL,
                     decision_ref TEXT,
-                    meta_json TEXT NOT NULL DEFAULT '{}',
-                    UNIQUE(event_id, kind, target_spin_seq)
+                    spin_session_id TEXT,
+                    spin_seq INTEGER,
+                    meta_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE INDEX IF NOT EXISTS ix_phase_events_session_spin
                     ON phase_events(session_id, target_spin_seq);
@@ -456,6 +476,60 @@ class SQLiteDecisionRepository(DecisionRepository):
                 conn.commit()
             except sqlite3.OperationalError as _e:
                 logger.warning(f"Migration ISO-S6 (gale_windows.result) skipped: {_e}")
+
+            # SPR-V4: coordenadas do GIRO como colunas consultaveis. Aditivo
+            # idempotente (padrao SP-13). `phase_events` nasce neste sprint, entao
+            # este caminho so encontra bancos criados por um commit intermediario
+            # do PROPRIO PR — nunca um banco de producao.
+            try:
+                conn.execute("SELECT spin_seq FROM phase_events LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    conn.execute("ALTER TABLE phase_events ADD COLUMN spin_session_id TEXT")
+                    conn.execute("ALTER TABLE phase_events ADD COLUMN spin_seq INTEGER")
+                    conn.commit()
+                    logger.info("Migration SPR-V4: added spin_session_id/spin_seq to phase_events")
+                except sqlite3.OperationalError as _e:
+                    logger.warning(f"Migration SPR-V4 (phase_events spin coords) skipped: {_e}")
+
+            # SPR-V4: a identidade do ciclo de vida PRECISA incluir `session_id`
+            # (`spin_seq` reinicia a cada sessao). Criada como INDICE UNICO — e o
+            # alvo do `ON CONFLICT` do insert da trilha e, por ser indice, e ADITIVA:
+            # um banco criado por um commit intermediario deste PR ganha a chave
+            # certa aqui, sem DROP/rebuild. Sem este indice, TODO insert da trilha
+            # estouraria com "ON CONFLICT clause does not match any PRIMARY KEY or
+            # UNIQUE constraint" e a auditoria ficaria 100% morta.
+            try:
+                conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ux_phase_events_lifecycle "
+                    "ON phase_events(session_id, event_id, kind, target_spin_seq)"
+                )
+                conn.commit()
+            except sqlite3.OperationalError as _e:
+                logger.error(
+                    "phase_events: falha ao criar ux_phase_events_lifecycle (%s) — "
+                    "os inserts da trilha vao falhar ate isto ser resolvido", _e,
+                )
+
+            # Um banco criado pelo commit intermediario ainda carrega o UNIQUE de
+            # TABELA antigo, que e ESTRITO DEMAIS (sem `session_id`): a linha da
+            # sessao nova colide com a da anterior sempre que o `event_id` se repetir.
+            # Remover um UNIQUE de tabela exige recriar a tabela (DROP), proibido
+            # pelos invioaveis — e nenhum banco de PRODUCAO tem a forma antiga
+            # (`phase_events` nasce neste PR). Avisa ALTO e segue.
+            try:
+                _ddl = conn.execute(
+                    "SELECT sql FROM sqlite_master WHERE type='table' AND name='phase_events'"
+                ).fetchone()
+                if _ddl and "UNIQUE(" in (_ddl[0] or ""):
+                    logger.error(
+                        "phase_events com UNIQUE de TABELA legado (sem session_id): "
+                        "linhas de uma sessao nova podem ser rejeitadas quando o "
+                        "event_id se repete. Banco criado por um commit intermediario "
+                        "do SPR-V4 — APAGUE o .db de desenvolvimento para recria-lo."
+                    )
+            except sqlite3.Error as _e:
+                logger.warning(f"Checagem do UNIQUE de phase_events falhou: {_e}")
     
     # SPR-V4: SQL + params da decisão extraídos para constante/helper porque agora
     # existem DOIS caminhos de escrita (`save_decision` e o atômico
@@ -567,8 +641,8 @@ class SQLiteDecisionRepository(DecisionRepository):
 
     #: `kind`s que ENCERRAM o ciclo de vida de um evento. `received` e `bound` são
     #: transições intermediárias: um `received` sem nenhum destes é um evento
-    #: PENDENTE (reconstruído após restart — e `stale` por definição, porque
-    #: `time.monotonic()` não sobrevive ao processo).
+    #: PENDENTE. Depois de um restart ele é `stale` por definição, porque
+    #: `time.monotonic()` não sobrevive ao processo.
     TERMINAL_PHASE_EVENT_KINDS = (
         "agree", "disagree", "stale", "unbound", "missing", "selfcontradict",
     )
@@ -583,9 +657,9 @@ class SQLiteDecisionRepository(DecisionRepository):
                 INSERT INTO phase_events (
                     event_id, ts_srv_ms, session_id, round_id, target_spin_seq,
                     kind, source, observed_direction, reference_direction,
-                    confidence, decision_ref, meta_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(event_id, kind, target_spin_seq) DO NOTHING
+                    confidence, decision_ref, spin_session_id, spin_seq, meta_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id, event_id, kind, target_spin_seq) DO NOTHING
             """
 
     @staticmethod
@@ -608,6 +682,8 @@ class SQLiteDecisionRepository(DecisionRepository):
             row.get("reference_direction"),
             row.get("confidence"),
             (decision_ref if decision_ref is not None else row.get("decision_ref")),
+            row.get("spin_session_id"),
+            row.get("spin_seq"),
             _meta,
         )
 
@@ -731,42 +807,67 @@ class SQLiteDecisionRepository(DecisionRepository):
                     logger.error("rollback defensivo da trilha falhou", exc_info=True)
             conn.close()
 
-    def get_pending_phase_event(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Última linha `received` da sessão SEM disposição terminal.
+    def get_pending_phase_events(self, session_id: Optional[str] = None,
+                                 limit: int = 20,
+                                 scan: int = 200) -> List[Dict[str, Any]]:
+        """Linhas `received` SEM disposição terminal (eventos com o ciclo em aberto).
 
-        É como um evento pendente é reconstruído depois de um restart — e ele é
-        `stale` por definição, porque `received_at_mono` (monotônico) não é
-        persistido de propósito.
+        **A correlação é `(session_id, event_id, target_spin_seq)` — exatamente a
+        identidade do `UNIQUE` do DDL.** Fechar por `event_id` sozinho era o BUG-2:
+        com um produtor reutilizando um id estável, o terminal do giro N mascarava o
+        `received` do giro N+1 (ou de outra sessão), que aparecia como já encerrado.
+
+        Trabalho LIMITADO por construção (isto pode ser chamado no caminho do giro):
+        varre no máximo os `scan` `received` mais recentes (varredura pelo índice da
+        PK, independente do tamanho da tabela) e devolve no máximo `limit`.
         """
-        _placeholders = ",".join("?" for _ in self.TERMINAL_PHASE_EVENT_KINDS)
+        _kinds = self.TERMINAL_PHASE_EVENT_KINDS
+        _placeholders = ",".join("?" for _ in _kinds)
         conn = self._get_connection()
         try:
             cur = conn.execute(
                 f"""
-                SELECT * FROM phase_events pe
-                 WHERE pe.kind = 'received' AND pe.session_id = ?
-                   AND NOT EXISTS (
+                SELECT * FROM (
+                    SELECT * FROM phase_events
+                     WHERE kind = 'received'
+                       AND (? IS NULL OR session_id = ?)
+                     ORDER BY id DESC LIMIT ?
+                ) pe
+                 WHERE NOT EXISTS (
                        SELECT 1 FROM phase_events t
                         WHERE t.event_id = pe.event_id
+                          AND t.session_id = pe.session_id
+                          AND t.target_spin_seq = pe.target_spin_seq
                           AND t.kind IN ({_placeholders})
                    )
-                 ORDER BY pe.id DESC LIMIT 1
+                 ORDER BY pe.id DESC LIMIT ?
                 """,
-                (session_id, *self.TERMINAL_PHASE_EVENT_KINDS),
+                (session_id, session_id, int(scan), *_kinds, int(limit)),
             )
-            row = cur.fetchone()
-            return dict(row) if row else None
+            return [dict(r) for r in cur.fetchall()]
         finally:
             conn.close()
 
+    def get_pending_phase_event(self, session_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Último `received` sem disposição terminal (ou `None`)."""
+        rows = self.get_pending_phase_events(session_id=session_id, limit=1)
+        return rows[0] if rows else None
+
     def count_phase_events_by_kind(self, session_id: Optional[str] = None) -> Dict[str, int]:
-        """Agregado por `kind` (auditoria/gate T4)."""
+        """Agregado por `kind` (auditoria/gate T4).
+
+        O filtro por sessão usa `COALESCE(spin_session_id, session_id)`: uma
+        disposição pertence à sessão do GIRO que a decidiu (é ela que particiona os
+        giros elegíveis), enquanto `received`/manutenção — que não têm giro —
+        pertencem à sessão do EVENTO.
+        """
         conn = self._get_connection()
         try:
             if session_id:
                 cur = conn.execute(
                     "SELECT kind, COUNT(*) AS n FROM phase_events "
-                    "WHERE session_id = ? GROUP BY kind", (session_id,))
+                    "WHERE COALESCE(spin_session_id, session_id) = ? GROUP BY kind",
+                    (session_id,))
             else:
                 cur = conn.execute(
                     "SELECT kind, COUNT(*) AS n FROM phase_events GROUP BY kind")

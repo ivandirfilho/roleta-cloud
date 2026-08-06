@@ -53,8 +53,20 @@ def _phase_event_row(kind: str, ev: Optional[Dict[str, Any]], *, session_id: str
                      reference_direction: Optional[str] = None,
                      event_id: Optional[str] = None,
                      round_id: Optional[str] = None,
+                     spin_session_id: Optional[str] = None,
+                     spin_seq: Optional[int] = None,
                      extra_meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Monta UMA linha imutável da trilha. Sem I/O, sem estado global — puro."""
+    """Monta UMA linha imutável da trilha. Sem I/O, sem estado global — puro.
+
+    DUAS coordenadas, ambas em colunas consultáveis:
+      * `session_id`/`target_spin_seq` — do **EVENTO**: é o slot do ciclo de vida, e
+        é por ele que um terminal fecha o seu `received` (idem o `UNIQUE` do DDL);
+      * `spin_session_id`/`spin_seq` — do **GIRO** que decidiu a disposição. Fica
+        `NULL` em tudo que **não** é disposição de giro (`received`, supersede,
+        invalidação por `nova_sessao`, faxina de órfão), de modo que
+        `spin_seq IS NOT NULL` seja exatamente a partição dos **giros elegíveis**
+        (o denominador honesto da cobertura).
+    """
     ev = ev or {}
     meta = dict(ev.get("meta") or {})
     if extra_meta:
@@ -71,6 +83,8 @@ def _phase_event_row(kind: str, ev: Optional[Dict[str, Any]], *, session_id: str
         "reference_direction": reference_direction or None,
         "confidence": ev.get("confidence"),
         "decision_ref": None,
+        "spin_session_id": spin_session_id,
+        "spin_seq": (int(spin_seq) if spin_seq is not None else None),
         "meta_json": meta,
     }
 
@@ -1964,81 +1978,106 @@ class MessageHandler:
     # SPR-V4 — helpers da trilha (nunca quebram o fluxo do giro)
     # ========================================================================
 
-    def _write_phase_events(self, rows: list) -> None:
+    def _write_phase_events(self, rows: list) -> bool:
         """Grava linhas da trilha FORA do ciclo de uma decisão (`received`,
-        supersede, invalidação por `nova_sessao`).
+        supersede, invalidação por `nova_sessao`, faxina de órfão).
 
-        Falha aqui NÃO altera aceitação do giro nem a aposta: conta
-        `phase_events_write_error_total`, loga e segue — a janela deixa de valer
-        como evidência para o gate T4, que é exatamente o que a métrica denuncia.
-        Linha suprimida por conflito conta igual: evidência não gravada é evidência
-        que não existe.
+        Devolve `True` quando TODAS as linhas entraram. Falha aqui NÃO altera
+        aceitação do giro nem a aposta: conta `phase_events_write_error_total`, loga
+        e segue — a janela deixa de valer como evidência para o gate T4, que é
+        exatamente o que a métrica denuncia. Linha suprimida por conflito conta
+        igual: evidência não gravada é evidência que não existe.
         """
         if not rows:
-            return
+            return True
         from app_config.settings import phase_event_audit_enabled
         if not phase_event_audit_enabled():
-            return
+            return False
         from state import phase_metrics as _pm
         try:
             gravadas = db_service.insert_phase_events(rows)
             if gravadas < len(rows):
                 _pm.incr("phase_events_write_error_total", len(rows) - gravadas)
+                return False
+            return True
         except Exception as e:  # noqa: BLE001 — trilha é evidência, não caminho crítico
             _pm.incr("phase_events_write_error_total", len(rows))
             logger.error(f"[V4] falha ao gravar trilha phase_events: {e}")
+            return False
 
-    def _reconstruir_pendente_da_trilha(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """SPR-V4: reconstrói o evento pendente a partir da última linha `received`
-        SEM disposição terminal.
+    def _faxina_orfaos_da_trilha(self) -> None:
+        """SPR-V4: fecha ciclos que ficaram ABERTOS na trilha (linha `received` sem
+        disposição terminal) — **sem nunca adotá-los como evento do giro corrente**.
 
-        É a rede de segurança para o `state.json` perdido/corrompido: sem ela, um
-        `received` gravado antes de um crash ficaria órfão para sempre e a trilha
-        teria um buraco que ninguém consegue explicar. O evento volta SEM
-        `received_at_mono` (o monotônico não sobrevive ao processo), portanto é
-        `stale` por definição — jamais volta a ser acionável.
+        Um órfão só existe quando o processo caiu entre o ingresso e o giro: o
+        `nova_sessao` já terminaliza o pendente, e o supersede também. Depois de um
+        crash, `current_session_id` é um **UUID novo** — não há como provar que um
+        órfão pertence a esta continuidade. Adotá-lo por coincidência de
+        `target_spin_seq` (que **reinicia** a cada sessão) rotularia este giro como
+        `stale` quando ele foi honestamente `missing`: falsificaria a evidência que
+        a trilha existe para sustentar.
 
-        Roda UMA vez por sessão (consulta indexada em tabela pequena); o resultado,
-        positivo ou negativo, encerra a busca.
+        Por isso as duas verdades ficam **separadas**:
+          * o **giro** sem pendente em memória é `missing` (caminho normal);
+          * o **órfão** é encerrado aqui como `stale` de MANUTENÇÃO — `decision_ref`
+            NULL, `spin_seq` NULL (não é disposição de giro, não entra no
+            denominador da cobertura) e **sem contador**.
+
+        A continuidade REAL de um restart é provada pelo `state.json` (bind-mount):
+        o `pending_direction_event` volta com o seu `session_id` e `mono_lost=True`,
+        e aí sim é o evento deste giro — classificado `stale`, jamais acionável.
+
+        Roda UMA vez por processo, com trabalho limitado (varredura indexada).
         """
-        if getattr(self, "_v4_trail_lookup_session", None) == session_id:
-            return None
-        self._v4_trail_lookup_session = session_id
-        from state import phase_metrics as _pm
-        try:
-            row = db_service.get_pending_phase_event(session_id)
-        except Exception as e:  # noqa: BLE001
-            _pm.incr("phase_events_write_error_total")
-            logger.error(f"[V4] leitura do pendente na trilha falhou: {e}")
-            return None
-        if not row:
-            return None
-        try:
-            meta = json.loads(row.get("meta_json") or "{}")
-        except (TypeError, ValueError):
-            meta = {}
+        if getattr(self, "_v4_faxina_feita", False):
+            return
+        self._v4_faxina_feita = True
+        from app_config.settings import phase_event_audit_enabled
+        if not phase_event_audit_enabled():
+            return
+        pendente_vivo = self.game_state.pending_direction_event
+        vivo = None
+        if isinstance(pendente_vivo, dict):
+            # Identidade COMPLETA do ciclo — a mesma do índice único. Comparar só o
+            # `event_id` reintroduziria o BUG-2 por outro caminho: com um produtor de
+            # id estável, TODO órfão de sessão morta carrega o mesmo id do pendente
+            # vivo e seria pulado para sempre (a faxina roda uma vez por processo).
+            vivo = (
+                pendente_vivo.get("session_id"),
+                pendente_vivo.get("event_id"),
+                int(pendente_vivo.get("target_spin_seq") or 0),
+            )
+        rows = []
+        for row in db_service.get_pending_phase_events(limit=20):
+            if vivo is not None and vivo == (
+                row.get("session_id"), row.get("event_id"),
+                int(row.get("target_spin_seq") or 0),
+            ):
+                # O pendente restaurado do `state.json` ainda vai ser classificado
+                # pelo giro — não é órfão.
+                continue
+            rows.append(_phase_event_row(
+                "stale", None,
+                session_id=row.get("session_id") or "",
+                target_spin_seq=int(row.get("target_spin_seq") or 0),
+                event_id=row.get("event_id"),
+                round_id=row.get("round_id"),
+                source=row.get("source") or "vision",
+                extra_meta={
+                    "reason": "orfao_sem_continuidade",
+                    "manutencao": True,
+                    "fechado_por_sessao": getattr(self, "current_session_id", ""),
+                },
+            ))
+        if not rows:
+            return
         logger.info(
-            "[V4] evento pendente reconstruido da trilha (event_id=%s alvo=%s) — "
-            "stale por definicao (relogio monotonico perdido)",
-            row.get("event_id"), row.get("target_spin_seq"),
+            "[V4] faxina da trilha: %d ciclo(s) orfao(s) encerrado(s) como `stale` "
+            "de manutencao (nao contam como giro)", len(rows),
         )
-        return {
-            "event_id": row.get("event_id"),
-            "source": row.get("source") or "vision",
-            "direction": row.get("observed_direction") or "",
-            "confidence": row.get("confidence"),
-            "session_id": row.get("session_id"),
-            "round_id": row.get("round_id"),
-            "target_spin_seq": int(row.get("target_spin_seq") or 0),
-            "received_at_mono": None,
-            "ts_srv_ms": row.get("ts_srv_ms"),
-            "consumed": False,
-            "self_contradict": False,
-            "mono_lost": True,
-            "received_persisted": True,
-            "meta": {**meta, "reconstruido_da_trilha": True},
-        }
-
+        # Transação PRÓPRIA: manutenção não pode compartilhar a transação atômica do
+        # giro — um erro dela levaria junto a decisão e a disposição legítimas.
+        self._write_phase_events(rows)
 
     def _save_decision_with_trail(self, decision, rows: list) -> Optional[int]:
         """SPR-V4: decisão + disposição terminal na MESMA transação, com política de
@@ -2104,9 +2143,10 @@ class MessageHandler:
         gs = self.game_state
         session_id = getattr(self, "current_session_id", "") or ""
         ev = gs.pending_direction_event if isinstance(gs.pending_direction_event, dict) else None
-        if ev is None and phase_event_audit_enabled():
-            # `state.json` perdido/corrompido: a trilha ainda sabe do `received`.
-            ev = self._reconstruir_pendente_da_trilha(session_id)
+        # Faxina dos ciclos abertos por um crash anterior. NÃO adota nada como
+        # evento deste giro (ver `_faxina_orfaos_da_trilha`): a continuidade real de
+        # um restart chega pelo `state.json`, não por coincidência de contador.
+        self._faxina_orfaos_da_trilha()
         spin_seq = int(gs.spin_seq)
         kind, motivo = classify_direction_event(
             ev, session_id=session_id, spin_seq=spin_seq,
@@ -2122,31 +2162,40 @@ class MessageHandler:
             "missing": "vision_missing_total",
         }[kind])
 
+        # Coordenadas do EVENTO (slot do ciclo de vida) x coordenadas do GIRO.
+        # Usar as do giro no terminal deixaria o `received` órfão sempre que o
+        # evento fosse `stale`/`unbound` por gap (evento com alvo 5 classificado no
+        # giro 7 gravava terminal com alvo 7, que não fecha o `received` de alvo 5).
+        ev_session = (ev.get("session_id") if ev else None) or session_id
+        ev_target = int(ev.get("target_spin_seq", spin_seq)) if ev else spin_seq
         rows: list = []
         if phase_event_audit_enabled():
             if kind == "missing":
-                # Id DETERMINÍSTICO por sessão/giro: o retry do mesmo giro colide em
-                # `UNIQUE(event_id, kind)` e não duplica a linha.
+                # Sem evento: o "slot" É o giro. Id DETERMINÍSTICO por sessão/giro —
+                # o retry do mesmo giro colide na chave única e não duplica a linha.
                 rows.append(_phase_event_row(
                     "missing", None, session_id=session_id,
                     target_spin_seq=spin_seq, source="server",
                     reference_direction=final_direction,
                     event_id=f"missing:{session_id}:{spin_seq}",
                     round_id=spin_round_id,
+                    spin_session_id=session_id, spin_seq=spin_seq,
                     extra_meta={"reason": motivo},
                 ))
             else:
                 if kind in ("agree", "disagree"):
                     # `bound` é transição, não disposição: fica na MESMA transação.
                     rows.append(_phase_event_row(
-                        "bound", ev, session_id=session_id,
-                        target_spin_seq=spin_seq,
+                        "bound", ev, session_id=ev_session,
+                        target_spin_seq=ev_target,
                         reference_direction=final_direction,
+                        spin_session_id=session_id, spin_seq=spin_seq,
                         extra_meta={"spin_round_id": spin_round_id},
                     ))
                 rows.append(_phase_event_row(
-                    kind, ev, session_id=session_id, target_spin_seq=spin_seq,
+                    kind, ev, session_id=ev_session, target_spin_seq=ev_target,
                     reference_direction=final_direction,
+                    spin_session_id=session_id, spin_seq=spin_seq,
                     extra_meta={"reason": motivo, "spin_round_id": spin_round_id},
                 ))
             # Se a auditoria foi ligada DEPOIS do ingresso, o `received` não existe —
@@ -2155,8 +2204,8 @@ class MessageHandler:
             # como erro de escrita (e mascararia sub-registro real).
             if ev is not None and not ev.get("received_persisted"):
                 rows.insert(0, _phase_event_row(
-                    "received", ev, session_id=(ev.get("session_id") or session_id),
-                    target_spin_seq=int(ev.get("target_spin_seq", spin_seq)),
+                    "received", ev, session_id=ev_session,
+                    target_spin_seq=ev_target,
                 ))
 
         if ev is not None:
@@ -2264,6 +2313,12 @@ class MessageHandler:
                     "ts_srv_ms": now_ms(),
                     "consumed": False,
                     "self_contradict": False,
+                    # Otimista, e ANTES do `save()`: a marca precisa ir para o
+                    # `state.json`, senão um evento restaurado após restart não sabe
+                    # que o `received` já existe, re-emite a linha, e o conflito
+                    # suprimido conta como erro de escrita que nunca houve. Se a
+                    # gravação falhar de fato, a marca é desfeita abaixo.
+                    "received_persisted": phase_event_audit_enabled(),
                     "meta": meta,
                 }
                 gs.pending_direction_event = ev
@@ -2291,14 +2346,13 @@ class MessageHandler:
         # `state_lock` em qualquer um dos dois pararia o caminho do giro.
         _rows = ([superseded_row] if superseded_row else []) \
             + ([received_row] if received_row else [])
-        _antes = len(_rows)
-        self._write_phase_events(_rows)
-        if received_row is not None and _antes and phase_event_audit_enabled():
-            # Marca que o `received` já está na trilha — a classificação do giro não
-            # deve reinseri-lo (conflito suprimido contaria como erro de escrita).
+        _ok = self._write_phase_events(_rows)
+        if received_row is not None and not _ok:
+            # A gravação falhou: desfaz a marca otimista para que a classificação do
+            # giro re-emita o `received` (auto-cura da trilha).
             _pend = self.game_state.pending_direction_event
             if isinstance(_pend, dict) and _pend.get("event_id") == event_id:
-                _pend["received_persisted"] = True
+                _pend["received_persisted"] = False
         await websocket.send(json.dumps({
             "type": "ack", "message": "direction_event recebido",
             "direction": direction, "event_id": ack_event_id,

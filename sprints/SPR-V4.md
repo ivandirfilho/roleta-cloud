@@ -263,3 +263,45 @@ promtool check rules obs/alerts.yml         # ou validação YAML equivalente
   `tests/test_v4_direction_event_contract.py`, `tests/test_v4_phase_events_trail.py`,
   `tests/test_v4_nao_interferencia_replay.py`, `tests/test_dir12_metrics_exporter.py`,
   `tests/test_dir9_sentido_na_sugestao.py`, `Manutenabilidade_iso.md`.
+
+- **2026-08-05 (noite-2) · FIX no MESMO PR (#55) · 2 bugs de integridade da trilha achados por review independente.**
+  **(1) Recuperação pós-restart era inalcançável.** `_reconstruir_pendente_da_trilha` filtrava
+  pela sessão corrente, mas `current_session_id` nasce UUID NOVO no `__init__` — a linha `received`
+  órfã tem o id ANTERIOR. O teste que a "cobria" só zerava o pendente em memória mantendo a MESMA
+  sessão (nunca atravessava a fronteira de processo). **Corrigido separando as duas verdades:**
+  com `state.json` (bind-mount, o caso real) a continuidade é PROVADA e o evento antigo vira
+  **`stale`**; sem `state.json` não há como provar, então o giro é **`missing`** (honesto) e o órfão
+  é encerrado por **FAXINA** de manutenção — transação própria, `decision_ref` NULL, `spin_seq` NULL,
+  sem contador. **Não há adoção de órfão por coincidência de `target_spin_seq`**: o contador REINICIA
+  a cada sessão, então o alvo 1 de uma mesa morta coincide com o giro 1 de qualquer sessão nova —
+  adotar rotularia como `stale` um giro honestamente `missing` (atribuição cruzada entre mesas).
+  **(2) `NOT EXISTS` fechava o ciclo por `event_id` GLOBAL**, mas a identidade é por giro: com
+  `event_id` reutilizado, o terminal do giro N mascarava o `received` do N+1/de outra sessão.
+  **Corrigido** para correlacionar por `(session_id, event_id, target_spin_seq)` = a chave única.
+  Isso exigiu o par que faltava: o **terminal passou a carregar as coordenadas do EVENTO**, com as
+  do GIRO em **colunas próprias** (`spin_session_id`/`spin_seq`) — senão um evento de alvo 5
+  classificado no giro 7 gravava terminal com alvo 7 e deixava o `received` de alvo 5 aberto.
+  Invariante consultável: `spin_seq IS NOT NULL` ⇔ a linha é disposição de GIRO (denominador da
+  cobertura). `UNIQUE` passou a `(session_id, event_id, kind, target_spin_seq)` — sem `session_id`
+  o giro 1 da sessão B colidia com o da sessão A e a linha da sessão NOVA era suprimida.
+  **Bônus achado no caminho:** `received_persisted` era marcado DEPOIS do `gs.save()`, então nunca
+  ia ao `state.json` — após restart a linha era re-emitida e o conflito suprimido contava como erro
+  de escrita inexistente. Agora nasce antes do `save()` e é desfeito se a gravação falhar (auto-cura).
+  **Validação:** `pytest tests/` **981 verde** (973 antes). **Mutação:** com o código de produção
+  revertido para `c970b65` e os testes novos mantidos, **10 testes falham**; cada fix mutado
+  isoladamente **matou o mutante** (correlação global: 2; `UNIQUE` sem sessão, mutação cirúrgica: 2;
+  terminal com coordenadas do giro: 2; faxina removida: 3; marca de persistência no lugar antigo: 3).
+  `promtool` segue ausente — `obs/alerts.yml` inalterado nesta rodada. INV-3/shadow/flags intactos.
+  **Arquivos:** `database/sqlite_repo.py`, `database/service.py`, `server/message_handler.py`,
+  `database/schema_sqlite_snapshot.json`, `.silent_except_baseline.json`,
+  `tests/test_v4_phase_events_trail.py`, `Manutenabilidade_iso.md`.
+  **Code-review dos próprios fixes (3ª rodada, 3 achados, 3 corrigidos):** (a) a guarda da faxina
+  comparava só o `event_id` e, com produtor de id estável, pulava TODO órfão de sessão morta —
+  passou a comparar a identidade completa `(session_id, event_id, target_spin_seq)`; (b) num banco
+  com a forma antiga, o `ON CONFLICT` ficava sem alvo e **todo** insert da trilha estourava
+  (auditoria 100% morta + erro por giro) — a chave virou **índice único ADITIVO**
+  (`ux_phase_events_lifecycle`), que um banco antigo ganha no boot seguinte sem DROP, com teste
+  partindo da tabela na forma antiga; (c) a auto-cura da marca `received_persisted` era cobertura
+  ilusória (nenhum teste injetava falha no INGRESSO) — teste adicionado.
+  **Mutação da 3ª rodada:** guarda só por `event_id` (mata 1), índice do ciclo removido (mata 41),
+  auto-cura removida (mata 1). Suíte final: **984 verde**.

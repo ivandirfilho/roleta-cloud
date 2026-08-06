@@ -37,7 +37,8 @@ def _row(kind="agree", event_id="e1", session_id="s1", target=1, **over):
         "session_id": session_id, "round_id": None, "target_spin_seq": target,
         "kind": kind, "source": "vision", "observed_direction": ANTI,
         "reference_direction": HORARIO, "confidence": 0.9,
-        "decision_ref": None, "meta_json": {"reason": "teste"},
+        "decision_ref": None, "spin_session_id": None, "spin_seq": None,
+        "meta_json": {"reason": "teste"},
     }
     row.update(over)
     return row
@@ -78,17 +79,62 @@ def test_schema_tem_colunas_e_unique_do_contrato(repo):
         assert cols == {
             "id", "event_id", "ts_srv_ms", "session_id", "round_id",
             "target_spin_seq", "kind", "source", "observed_direction",
-            "reference_direction", "confidence", "decision_ref", "meta_json",
+            "reference_direction", "confidence", "decision_ref",
+            # Coordenadas do GIRO como colunas CONSULTÁVEIS (não escondidas em
+            # meta_json): é por elas que se pergunta "quais giros foram elegíveis".
+            "spin_session_id", "spin_seq",
+            "meta_json",
         }
         ddl = conn.execute(
             "SELECT sql FROM sqlite_master WHERE name='phase_events'").fetchone()[0]
-        assert "UNIQUE(event_id, kind, target_spin_seq)" in ddl
-        idx = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index' "
-            "AND tbl_name='phase_events'").fetchall()
-        assert any("ix_phase_events_session_spin" in n[0] for n in idx)
+        # A identidade do ciclo vive num ÍNDICE ÚNICO explícito, não num `UNIQUE` de
+        # tabela: índice é ADITIVO (um banco antigo ganha a chave certa no boot
+        # seguinte, sem DROP) e é o alvo exigido pelo `ON CONFLICT` do insert.
+        assert "UNIQUE(" not in ddl, (
+            "UNIQUE de tabela nao pode ser corrigido sem DROP — use indice unico")
+        idx = {n[0]: (n[1] or "") for n in conn.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='index' "
+            "AND tbl_name='phase_events'")}
+        assert "ix_phase_events_session_spin" in idx
+        # `session_id` na chave é obrigatório: `spin_seq` REINICIA a cada sessão,
+        # então sem ele o giro 1 da sessão B colide com o giro 1 da sessão A sempre
+        # que o `event_id` se repetir — e a linha da sessão nova é suprimida.
+        assert "UNIQUE" in idx["ux_phase_events_lifecycle"]
+        for _c in ("session_id", "event_id", "kind", "target_spin_seq"):
+            assert _c in idx["ux_phase_events_lifecycle"]
     finally:
         conn.close()
+
+
+def test_banco_legado_ganha_a_chave_do_ciclo_sem_drop(tmp_path):
+    """Um banco criado pelo commit intermediário do PR tem a tabela SEM o índice do
+    ciclo. Sem ele, o alvo do `ON CONFLICT` não casa com nenhum índice único e
+    **TODO** insert da trilha estoura — a auditoria morre inteira em silêncio.
+
+    A migração precisa ser ADITIVA (índice, não rebuild) e deixar o insert funcional.
+    """
+    db = str(tmp_path / "legado.db")
+    conn = sqlite3.connect(db)
+    try:
+        conn.executescript("""
+            CREATE TABLE phase_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL, ts_srv_ms INTEGER NOT NULL,
+                session_id TEXT NOT NULL, round_id TEXT,
+                target_spin_seq INTEGER NOT NULL, kind TEXT NOT NULL,
+                source TEXT NOT NULL, observed_direction TEXT,
+                reference_direction TEXT, confidence REAL, decision_ref TEXT,
+                meta_json TEXT NOT NULL DEFAULT '{}'
+            );
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+    repo = SQLiteDecisionRepository(db)   # roda a migração in-code
+    assert repo.insert_phase_events([_row(kind="received", event_id="pos-migracao")]) == 1
+    assert repo.insert_phase_events([_row(kind="received", event_id="pos-migracao")]) == 0
+    assert repo.get_pending_phase_event()["event_id"] == "pos-migracao"
 
 
 def test_frames_nunca_entram_no_banco(repo):
@@ -253,7 +299,7 @@ def test_paridade_de_colunas_entre_os_dois_caminhos(repo):
     assert a == b
 
 
-# ------------------------------------------------------ pendente/reconstrução
+# ------------------------------------------------------ ciclo de vida aberto
 
 def test_pendente_e_reconstruido_do_received_sem_terminal(repo):
     repo.insert_phase_events([_row(kind="received", event_id="orfao")])
@@ -275,6 +321,73 @@ def test_todo_kind_terminal_encerra_o_pendente(repo, kind):
     repo.insert_phase_events([
         _row(kind="received", event_id=f"t-{kind}"), _row(kind=kind, event_id=f"t-{kind}")])
     assert repo.get_pending_phase_event("s1") is None
+
+
+def test_terminal_do_giro_N_nao_fecha_o_received_do_giro_N1(repo):
+    """BUG-2: o `NOT EXISTS` fechava por `event_id` GLOBAL, mas a identidade do DDL
+    é `(session_id, event_id, kind, target_spin_seq)`.
+
+    Com um produtor reutilizando um `event_id` estável, o terminal do giro N
+    mascarava o `received` do giro N+1: o ciclo do N+1 aparecia como já encerrado e
+    a trilha perdia a capacidade de dizer o que ficou em aberto.
+    """
+    repo.insert_phase_events([
+        _row(kind="received", event_id="cam-fixa", target=1),
+        _row(kind="agree", event_id="cam-fixa", target=1),
+        _row(kind="received", event_id="cam-fixa", target=2),
+    ])
+    pend = repo.get_pending_phase_event("s1")
+    assert pend is not None, "o received do giro 2 foi mascarado pelo terminal do giro 1"
+    assert (pend["event_id"], pend["target_spin_seq"]) == ("cam-fixa", 2)
+    # E ele só encerra com o SEU próprio terminal.
+    repo.insert_phase_events([_row(kind="stale", event_id="cam-fixa", target=2)])
+    assert repo.get_pending_phase_event("s1") is None
+
+
+def test_terminal_de_uma_sessao_nao_fecha_nem_suprime_a_outra(repo):
+    """`spin_seq` REINICIA a cada sessão: `(cam-fixa, 1)` existe em toda sessão.
+
+    O terminal de `s1` não pode fechar o `received` de `s2`, e a linha de `s2` não
+    pode ser suprimida pela chave única — senão a sessão nova perde a evidência
+    inteira sempre que o produtor tiver um id estável.
+    """
+    from database.models import Session
+    repo.create_session(Session(id="s2"))
+    repo.insert_phase_events([
+        _row(kind="received", event_id="cam-fixa", session_id="s1", target=1),
+        _row(kind="agree", event_id="cam-fixa", session_id="s1", target=1),
+    ])
+    gravadas = repo.insert_phase_events(
+        [_row(kind="received", event_id="cam-fixa", session_id="s2", target=1)])
+    assert gravadas == 1, "a linha da sessao nova foi suprimida pela chave unica"
+    pend = repo.get_pending_phase_event()
+    assert pend is not None and pend["session_id"] == "s2"
+    # O filtro por sessão continua funcionando nos dois sentidos.
+    assert repo.get_pending_phase_event("s1") is None
+    assert repo.get_pending_phase_event("s2")["event_id"] == "cam-fixa"
+
+
+def test_lookup_sem_sessao_varre_todas_as_sessoes(repo):
+    """A faxina precisa achar órfãos de uma sessão que já morreu — e cujo id o
+    processo novo desconhece."""
+    repo.insert_phase_events([_row(kind="received", event_id="orfao-antigo")])
+    assert repo.get_pending_phase_event() is not None
+    assert [r["event_id"] for r in repo.get_pending_phase_events()] == ["orfao-antigo"]
+
+
+def test_contagem_por_sessao_usa_a_sessao_do_GIRO(repo):
+    """Uma disposição pertence à sessão do GIRO que a decidiu (é ela que particiona
+    os giros elegíveis); `received`, que não tem giro, pertence à do EVENTO."""
+    from database.models import Session
+    repo.create_session(Session(id="s2"))
+    repo.insert_phase_events([
+        _row(kind="received", event_id="e1", session_id="s1", target=9),
+        _row(kind="stale", event_id="e1", session_id="s1", target=9,
+             spin_session_id="s2", spin_seq=1),
+    ])
+    assert repo.count_phase_events_by_kind("s2") == {"stale": 1}
+    assert repo.count_phase_events_by_kind("s1") == {"received": 1}
+
 
 
 # ============================================================================
@@ -332,6 +445,174 @@ def _event(h, ws, **payload):
 def _kinds(h):
     from database import get_repository
     return get_repository().count_phase_events_by_kind()
+
+
+def _novo_handler(tmp_path, sessao: str, game_state=None):
+    """Cria um MessageHandler NOVO compartilhando o mesmo SQLite — a fronteira de
+    processo que um restart de verdade produz (`current_session_id` é um UUID novo,
+    gerado no `__init__`)."""
+    import asyncio as _aio
+    from strategies.sda17 import SDA17Strategy
+    from server.message_handler import MessageHandler
+
+    h = MessageHandler(
+        game_state=(game_state if game_state is not None else GameState()),
+        strategy=SDA17Strategy(), state_lock=_aio.Lock(),
+        configs_path=str(tmp_path / "cfg"))
+    assert h.current_session_id != sessao, (
+        "o handler novo precisa nascer com sessao DIFERENTE — e o que torna este "
+        "teste uma fronteira de processo de verdade")
+    h.current_session_id = h.current_session_id  # explícito: NÃO herda a anterior
+    return h
+
+
+def test_restart_com_state_json_o_evento_antigo_vira_stale_e_nao_missing(
+        handler, tmp_path, monkeypatch):
+    """BUG-1 — o cenário REAL de restart (o `state.json` é bind-mount e sobrevive).
+
+    O handler novo nasce com `current_session_id` DIFERENTE. O pendente volta do
+    `state.json` com o `session_id` da sessão anterior e sem o relógio monotônico
+    (`mono_lost`), então a disposição do giro tem de ser `stale` — nunca `missing`,
+    e jamais direção.
+    """
+    from app_config.settings import settings
+    from state import phase_metrics
+    ws = _FakeWS()
+    _event(handler, ws, event_id="cam-restart", direction=HORARIO)
+    sessao_antiga = handler.current_session_id
+
+    # --- fronteira de processo: novo GameState carregado do disco, handler novo ---
+    gs2 = GameState.load(settings.state_file)
+    h2 = _novo_handler(tmp_path, sessao_antiga, gs2)
+    assert gs2.pending_direction_event["session_id"] == sessao_antiga
+    phase_metrics.reset()
+    _spin(h2, _FakeWS(), 17, HORARIO, 0)
+
+    snap = phase_metrics.snapshot()
+    assert snap["vision_stale_total"] == 1, "o evento sobrevivente virou outra coisa"
+    assert snap["vision_missing_total"] == 0
+    assert snap["phase_events_write_error_total"] == 0, (
+        "o `received` foi re-emitido e suprimido — a marca de persistência não "
+        "sobreviveu ao round-trip")
+    # Não virou direção nem mexeu na fase.
+    assert h2.game_state.last_direction == HORARIO
+    assert h2.game_state.direction_source != "vision"
+    # O ciclo do evento antigo está FECHADO, pelas coordenadas do EVENTO.
+    from database import get_repository
+    repo = get_repository()
+    assert repo.get_pending_phase_event() is None
+    conn = sqlite3.connect(str(repo.db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        term = dict(conn.execute(
+            "SELECT * FROM phase_events WHERE event_id='cam-restart' AND kind='stale'"
+        ).fetchone())
+    finally:
+        conn.close()
+    assert term["session_id"] == sessao_antiga, "terminal atribuído à sessão errada"
+    assert term["spin_session_id"] == h2.current_session_id
+    assert term["spin_seq"] == 1
+
+
+def test_restart_sem_state_json_o_giro_e_missing_e_o_orfao_e_faxinado(
+        handler, tmp_path):
+    """BUG-1, o outro lado: sem `state.json` NÃO há como provar continuidade.
+
+    `target_spin_seq` reinicia a cada sessão, então adotar um órfão por coincidência
+    de contador rotularia este giro como `stale` quando ele foi honestamente
+    `missing` — falsificaria a evidência. As duas verdades ficam separadas: o giro é
+    `missing`; o órfão é encerrado como `stale` de MANUTENÇÃO.
+    """
+    from state import phase_metrics
+    ws = _FakeWS()
+    _event(handler, ws, event_id="cam-crash", direction=HORARIO)
+    sessao_antiga = handler.current_session_id
+
+    # `state.json` perdido ⇒ GameState do zero (spin_seq=0 ⇒ o giro será o 1, que é
+    # exatamente o alvo do órfão: a coincidência que NÃO pode virar adoção).
+    h2 = _novo_handler(tmp_path, sessao_antiga)
+    assert h2.game_state.pending_direction_event is None
+    phase_metrics.reset()
+    _spin(h2, _FakeWS(), 17, HORARIO, 0)
+
+    snap = phase_metrics.snapshot()
+    assert snap["vision_missing_total"] == 1, "o giro sem evento nao foi honesto"
+    assert snap["vision_stale_total"] == 0, (
+        "orfao de outra sessao foi ADOTADO como evento deste giro")
+
+    from database import get_repository
+    repo = get_repository()
+    conn = sqlite3.connect(str(repo.db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        faxina = dict(conn.execute(
+            "SELECT * FROM phase_events WHERE event_id='cam-crash' AND kind='stale'"
+        ).fetchone())
+    finally:
+        conn.close()
+    # Manutenção: fecha o ciclo, mas NÃO é disposição de giro.
+    assert faxina["session_id"] == sessao_antiga
+    assert faxina["spin_seq"] is None and faxina["spin_session_id"] is None
+    assert faxina["decision_ref"] is None, (
+        "a faxina entrou na transacao da decisao — manutencao nao pode arrastar "
+        "a decisao do giro num rollback")
+    assert json.loads(faxina["meta_json"])["reason"] == "orfao_sem_continuidade"
+    assert repo.get_pending_phase_event() is None
+
+
+def test_faxina_roda_uma_vez_por_processo(handler, tmp_path):
+    """A janela de recuperação fecha no primeiro giro elegível: depois disso um
+    órfão de outra sessão nunca mais é tocado por este processo."""
+    from database import get_repository
+    ws = _FakeWS()
+    _event(handler, ws, event_id="cam-a", direction=HORARIO)
+    sessao_antiga = handler.current_session_id
+
+    h2 = _novo_handler(tmp_path, sessao_antiga)
+    _spin(h2, _FakeWS(), 17, HORARIO, 0)
+    assert get_repository().get_pending_phase_event() is None
+
+    # Órfão novo aparece DEPOIS que a janela já fechou: fica em aberto (será tratado
+    # pelo próximo boot / pelo job de retenção), sem adoção tardia.
+    get_repository().insert_phase_events([{
+        "event_id": "cam-tardio", "ts_srv_ms": 1, "session_id": "sess-morta",
+        "round_id": None, "target_spin_seq": 2, "kind": "received",
+        "source": "vision", "observed_direction": HORARIO,
+        "reference_direction": None, "confidence": 0.9, "decision_ref": None,
+        "spin_session_id": None, "spin_seq": None, "meta_json": {},
+    }])
+    _spin(h2, _FakeWS(), 21, ANTI, 1)
+    pend = get_repository().get_pending_phase_event()
+    assert pend is not None and pend["event_id"] == "cam-tardio"
+
+
+def test_terminal_de_evento_com_gap_fecha_o_received_pelo_alvo_do_EVENTO(handler):
+    """Evento com alvo 5 classificado no giro 7 (gap de fase recuperado).
+
+    O terminal precisa carregar as coordenadas do EVENTO (senão gravaria alvo 7 e
+    deixaria o `received` de alvo 5 órfão para sempre), e as do GIRO ficam em
+    colunas próprias.
+    """
+    from database import get_repository
+    ws = _FakeWS()
+    handler.game_state.spin_seq = 4
+    _event(handler, ws, event_id="cam-gap", direction=HORARIO)   # alvo = 5
+    assert handler.game_state.pending_direction_event["target_spin_seq"] == 5
+    handler.game_state.spin_seq = 6            # gap: dois giros perdidos
+    _spin(handler, ws, 17, HORARIO, 0)         # giro 7
+
+    repo = get_repository()
+    conn = sqlite3.connect(str(repo.db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        term = dict(conn.execute(
+            "SELECT * FROM phase_events WHERE event_id='cam-gap' "
+            "AND kind IN ('stale','unbound')").fetchone())
+    finally:
+        conn.close()
+    assert term["target_spin_seq"] == 5, "terminal gravado no alvo do GIRO"
+    assert term["spin_seq"] == 7, "coordenada do giro perdida"
+    assert repo.get_pending_phase_event() is None, "o received de alvo 5 ficou orfao"
 
 
 def test_fluxo_completo_grava_received_bound_e_disposicao(handler, monkeypatch):
@@ -532,21 +813,82 @@ def test_supressao_de_linha_conta_erro_de_escrita(handler):
     assert phase_metrics.snapshot()["phase_events_write_error_total"] == 1
 
 
-def test_pendente_e_reconstruido_da_trilha_quando_o_state_json_some(handler):
-    """Rede de segurança do restart: o `received` gravado antes do crash não pode
-    virar órfão eterno. Reconstruído SEM o monotônico ⇒ `stale` por definição."""
+def test_faxina_nao_pula_orfao_com_o_mesmo_event_id_do_pendente_vivo(handler, tmp_path):
+    """A guarda da faxina precisa comparar a identidade COMPLETA do ciclo.
+
+    Comparar só o `event_id` reintroduziria o BUG-2 por outro caminho: com um
+    produtor de id estável (o perfil que justifica a chave), TODO órfão de sessão
+    morta carrega o mesmo id do pendente vivo — e seria pulado para sempre, já que
+    a faxina roda uma vez por processo.
+    """
+    from database import get_repository
+    repo = get_repository()
+    repo.insert_phase_events([{
+        "event_id": "cam-fixa", "ts_srv_ms": 1, "session_id": "sess-morta",
+        "round_id": None, "target_spin_seq": 1, "kind": "received",
+        "source": "vision", "observed_direction": HORARIO,
+        "reference_direction": None, "confidence": 0.9, "decision_ref": None,
+        "spin_session_id": None, "spin_seq": None, "meta_json": {},
+    }])
+    ws = _FakeWS()
+    _event(handler, ws, event_id="cam-fixa", direction=HORARIO)   # MESMO id, vivo
+    _spin(handler, ws, 17, HORARIO, 0)
+
+    abertos = [(r["session_id"], r["event_id"])
+               for r in repo.get_pending_phase_events()]
+    assert abertos == [], f"orfao de sessao morta sobreviveu a faxina: {abertos}"
+    # E o evento VIVO foi classificado normalmente (não foi confundido com o órfão).
+    from state import phase_metrics
+    snap = phase_metrics.snapshot()
+    assert snap["vision_agree_total"] + snap["vision_disagree_total"] == 1
+
+
+def test_falha_de_escrita_no_INGRESSO_faz_a_classificacao_reemitir_o_received(
+        handler, monkeypatch):
+    """Auto-cura da trilha: se o `received` não entrou no ingresso, a marca otimista
+    é desfeita e a classificação do giro re-emite a linha — senão ficaria uma
+    disposição terminal sem o `received` correspondente."""
+    from database import service as _svc
+    ws = _FakeWS()
+    real_insert = _svc.db_service.insert_phase_events
+    falhar = {"on": True}
+    monkeypatch.setattr(
+        _svc.db_service, "insert_phase_events",
+        lambda rows: 0 if falhar["on"] else real_insert(rows))
+    _event(handler, ws, event_id="cam-ingresso", direction=HORARIO)
+    assert handler.game_state.pending_direction_event["received_persisted"] is False
+    falhar["on"] = False
+    _spin(handler, ws, 17, HORARIO, 0)
+
+    from database import get_repository
+    conn = sqlite3.connect(str(get_repository().db_path))
+    try:
+        kinds = {r[0] for r in conn.execute(
+            "SELECT kind FROM phase_events WHERE event_id='cam-ingresso'")}
+    finally:
+        conn.close()
+    assert "received" in kinds, "terminal gravado sem o `received` correspondente"
+    assert kinds & set(SQLiteDecisionRepository.TERMINAL_PHASE_EVENT_KINDS)
+
+
+def test_perda_do_pendente_em_memoria_nao_ressuscita_o_evento(handler):
+    """O pendente sumiu da memória mas a sessão é a MESMA (nenhum restart).
+
+    A trilha NÃO devolve o evento para o giro: sem o pendente não há evento, e o
+    giro é honestamente `missing`. Quem prova continuidade é o `state.json`, não a
+    trilha — que serve para FECHAR o ciclo, não para ressuscitá-lo.
+    """
     from state import phase_metrics
     ws = _FakeWS()
     _event(handler, ws, event_id="cam-crash", direction=HORARIO)
-    # Simula perda do state.json (o pendente vive só na trilha).
     handler.game_state.pending_direction_event = None
     _spin(handler, ws, 17, HORARIO, 0)
-    k = _kinds(handler)
-    assert k.get("stale") == 1, k
-    assert phase_metrics.snapshot()["vision_stale_total"] == 1
-    # A busca roda UMA vez por sessão: o giro seguinte volta a ser `missing`.
-    _spin(handler, ws, 21, ANTI, 1)
-    assert _kinds(handler).get("missing") == 1
+    snap = phase_metrics.snapshot()
+    assert snap["vision_missing_total"] == 1
+    assert snap["vision_agree_total"] == 0 and snap["vision_disagree_total"] == 0
+    # O órfão foi encerrado pela faxina (manutenção), sem virar disposição de giro.
+    from database import get_repository
+    assert get_repository().get_pending_phase_event() is None
 
 
 def test_ingresso_persiste_o_pendente_no_state_json(handler):

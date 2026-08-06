@@ -162,9 +162,18 @@ class DatabaseService:
             logger.error(f"insert_phase_events falhou: {e}")
             return 0
 
-    def get_pending_phase_event(self, session_id: str):
-        """SPR-V4: reconstrói o evento pendente (último `received` sem disposição
-        terminal). Retorna None em falha — nunca quebra o boot."""
+    def get_pending_phase_events(self, session_id=None, limit: int = 20):
+        """SPR-V4: eventos com o ciclo em ABERTO (`received` sem terminal), para a
+        faxina de órfãos. Retorna [] em falha — nunca quebra o boot/giro."""
+        try:
+            return self.repository.get_pending_phase_events(
+                session_id=session_id, limit=limit)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"get_pending_phase_events falhou: {e}")
+            return []
+
+    def get_pending_phase_event(self, session_id=None):
+        """SPR-V4: último `received` sem disposição terminal. None em falha."""
         try:
             return self.repository.get_pending_phase_event(session_id)
         except Exception as e:  # noqa: BLE001

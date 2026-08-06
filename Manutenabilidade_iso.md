@@ -3328,11 +3328,28 @@ Em todos os casos: `phase_events_write_error_total++`, log de erro, e a **janela
 
 ### E. Desvio deliberado do DDL literal do brief
 
-O brief pedia `UNIQUE(event_id, kind)`. **Entregue: `UNIQUE(event_id, kind, target_spin_seq)`.**
+O brief pedia `UNIQUE(event_id, kind)`. **Entregue: indice unico `ux_phase_events_lifecycle(session_id, event_id, kind, target_spin_seq)`.**
 
-`event_id` e o valor **do cliente** quando presente, e nada o prende a um giro. Com a chave global, um produtor que reutilize um id estavel (id de camera/sensor) grava **UMA linha por kind para a vida inteira** enquanto os counters continuam subindo. Reproduzido no code-review: **6 giros com `event_id` constante => counters 6, trilha 1**. As consequencias sao exatamente o que o sprint existe para impedir: (1) a decisao comita com **zero** linhas de disposicao — a "decisao sem disposicao" alcancada por outro caminho, sem rollback; (2) `missing` some do denominador e a taxa de acordo **sobe artificialmente** — a metrica de 200 amostras disfarcada de prova. `target_spin_seq` na chave preserva integralmente a idempotencia que o brief queria (retry do MESMO evento no MESMO giro nao duplica) e devolve a separacao entre giros. Coberto por `test_mesmo_event_id_em_giros_DIFERENTES_nao_e_descartado`.
+`event_id` e o valor **do cliente** quando presente, e nada o prende a um giro nem a uma sessao. Com a chave global, um produtor que reutilize um id estavel (id de camera/sensor) grava **UMA linha por kind para a vida inteira** enquanto os counters continuam subindo. Reproduzido: **6 giros com `event_id` constante => counters 6, trilha 1**. As consequencias sao exatamente o que o sprint existe para impedir: (1) a decisao comita com **zero** linhas de disposicao — a "decisao sem disposicao" alcancada por outro caminho, sem rollback; (2) `missing` some do denominador e a taxa de acordo **sobe artificialmente** — a metrica de 200 amostras disfarcada de prova.
 
-Complemento: **toda supressao por conflito e contada** (`phase_events_write_error_total`) e logada com `(event_id, kind, target_spin_seq)`. Evidencia que nao foi gravada precisa aparecer numa metrica — sub-registro silencioso e pior que erro barulhento.
+`session_id` entra na chave porque **`spin_seq` REINICIA a cada sessao**: sem ele, `(cam-fixa, received, 1)` da sessao B colide com a mesma tupla da sessao A e a linha da sessao **nova** e suprimida — a sessao inteira perde a evidencia sempre que o produtor tiver um id estavel. Coberto por `test_terminal_de_uma_sessao_nao_fecha_nem_suprime_a_outra` (mutacao cirurgica removendo `session_id` da chave mata o teste com a mensagem exata "a linha da sessao nova foi suprimida pela chave unica").
+
+A chave e um **INDICE UNICO EXPLICITO**, e nao um `UNIQUE` de tabela, por uma razao operacional: indice e **aditivo** (`CREATE UNIQUE INDEX IF NOT EXISTS`), entao um banco criado por um commit intermediario deste PR ganha a chave certa no boot seguinte — sem `DROP`/rebuild, que os invioaveis do repo proibem. E ele e obrigatorio: `ON CONFLICT(...)` exige um indice unico que **case exatamente** com as colunas; sem ele **todo** insert da trilha estoura com `OperationalError` e a auditoria morre inteira. Coberto por `test_banco_legado_ganha_a_chave_do_ciclo_sem_drop`.
+
+Complemento: **toda supressao por conflito e contada** (`phase_events_write_error_total`) e logada com a tupla completa. Evidencia que nao foi gravada precisa aparecer numa metrica — sub-registro silencioso e pior que erro barulhento.
+
+### E.1. Duas coordenadas, ambas em COLUNAS (nao em `meta_json`)
+
+Uma linha da trilha responde a duas perguntas diferentes, e confundi-las quebrava tanto o fechamento do ciclo quanto a contagem por sessao:
+
+| Colunas | Significado |
+|---|---|
+| `session_id` + `target_spin_seq` | coordenadas do **EVENTO** — o *slot* do ciclo de vida. E por elas que um terminal fecha o seu `received` (idem a chave unica). |
+| `spin_session_id` + `spin_seq` | coordenadas do **GIRO** que decidiu a disposicao. **NULL** em tudo que nao e disposicao de giro (`received`, supersede, invalidacao por `nova_sessao`, faxina). |
+
+Invariante consultavel: **`spin_seq IS NOT NULL` <=> a linha participa da particao dos GIROS ELEGIVEIS** (o denominador da cobertura). `count_phase_events_by_kind(sessao)` filtra por `COALESCE(spin_session_id, session_id)`: uma disposicao pertence a sessao do GIRO que a decidiu; `received`/manutencao, que nao tem giro, pertencem a sessao do EVENTO.
+
+Sem isso, um evento com alvo 5 classificado no giro 7 (gap de fase recuperado) gravava o terminal com alvo 7 — que **nao fecha** o `received` de alvo 5, deixando o ciclo aberto para sempre.
 
 ### F. Append-only x retencao (o que este sprint NAO entrega)
 
@@ -3379,21 +3396,24 @@ Correcao vinda do code-review: as invalidacoes de **ingresso** (evento supersede
 
 ### K. Decisoes conscientes (desvios e seus porques)
 
-1. **`UNIQUE(event_id, kind, target_spin_seq)`** em vez do literal do brief — secao E, com reproducao.
-2. **`received_at_mono` fora do round-trip** — e o que torna verdadeira a regra "evento pos-restart e `stale`". Persisti-lo daria prazo de graca ao evento zumbi.
-3. **Ingestao sempre-on, persistencia e classificacao atras de flag.** Atribuir identidade/alvo/prazo e bookkeeping inerte (espelha o que o `last_direction_event` ja fazia); o que custa disco (AUDIT) e o que produz metrica (SHADOW) sao opt-in. Isso mantem o caminho legado byte-identico com as flags OFF.
-4. **Fallback que grava a decisao sozinha** — degradacao **declarada**, nao atomicidade fingida (secao D). Restrito a `PhaseTrailRolledBack`, o unico caso em que se **sabe** que nada foi gravado.
-5. **Duas linhas (`bound` + `agree`/`disagree`) para um evento vinculado.** `bound` e transicao, nao disposicao; a reconstrucao do pendente so considera os seis `kind` terminais.
-6. **`selfcontradict` definido como "mesmo `event_id` reapresentado com direcao diferente"** — a unica contradicao verificavel **do produtor** que nao depende de campo controlado pelo cliente. Fazer o `target_spin_seq` divergente do cliente virar `selfcontradict` deixaria o cliente influenciar a classificacao pela porta dos fundos.
-7. **I/O de SQLite e `send()` do ack fora do `state_lock`** — `busy_timeout=5000` e `drain()` de produtor lento parariam o caminho do giro (o lock e o ponto de serializacao de `handle_new_result`).
-8. **Gauge em vez de Counter**, mantendo o padrao DIR12/SPR-V1 (`increase()` continua valido; restart do processo produz degrau tratado como reset).
+1. **`UNIQUE(session_id, event_id, kind, target_spin_seq)`** em vez do literal do brief — secao E, com reproducao.
+2. **Coordenadas do EVENTO e do GIRO em colunas separadas** (`session_id`/`target_spin_seq` x `spin_session_id`/`spin_seq`) — secao E.1. Colocar as do giro em `meta_json` deixaria "quais giros foram elegiveis" fora do alcance de uma query.
+3. **A trilha FECHA ciclos; ela nao RESSUSCITA eventos** — secao N.7. A continuidade de um restart e provada pelo `state.json`, nunca por coincidencia de contador.
+4. **`received_at_mono` fora do round-trip** — e o que torna verdadeira a regra "evento pos-restart e `stale`". Persisti-lo daria prazo de graca ao evento zumbi.
+5. **Ingestao sempre-on, persistencia e classificacao atras de flag.** Atribuir identidade/alvo/prazo e bookkeeping inerte (espelha o que o `last_direction_event` ja fazia); o que custa disco (AUDIT) e o que produz metrica (SHADOW) sao opt-in. Isso mantem o caminho legado byte-identico com as flags OFF.
+6. **Fallback que grava a decisao sozinha** — degradacao **declarada**, nao atomicidade fingida (secao D). Restrito a `PhaseTrailRolledBack`, o unico caso em que se **sabe** que nada foi gravado.
+7. **Duas linhas (`bound` + `agree`/`disagree`) para um evento vinculado.** `bound` e transicao, nao disposicao; o fechamento do ciclo so considera os seis `kind` terminais.
+8. **`selfcontradict` definido como "mesmo `event_id` reapresentado com direcao diferente"** — a unica contradicao verificavel **do produtor** que nao depende de campo controlado pelo cliente. Fazer o `target_spin_seq` divergente do cliente virar `selfcontradict` deixaria o cliente influenciar a classificacao pela porta dos fundos.
+9. **I/O de SQLite e `send()` do ack fora do `state_lock`** — `busy_timeout=5000` e `drain()` de produtor lento parariam o caminho do giro (o lock e o ponto de serializacao de `handle_new_result`).
+10. **Gauge em vez de Counter**, mantendo o padrao DIR12/SPR-V1 (`increase()` continua valido; restart do processo produz degrau tratado como reset).
 
 ### L. Dividas registradas
 
-1. **`SPR-V4R` (retencao de 30 dias) precisa existir antes de ~60 dias de auditoria ligada** — hoje a purga e manual (secao F).
-2. **`event_id` de cliente ainda e um espaco de nomes compartilhado entre sessoes.** A chave por giro fecha o vetor pratico, mas dois produtores com o mesmo id no mesmo giro colidiriam (a supressao seria **contada**, nao silenciosa). Identidade propria do produtor depende do SPR-V7/`AUTH_ENABLED`.
+1. **`SPR-V4R` (retencao de 30 dias) precisa existir antes de ~60 dias de auditoria ligada** — hoje a purga e manual (secao F). O mesmo job e o lugar natural para varrer ciclos abertos alem dos 20 que a faxina de boot cobre.
+2. **`event_id` de cliente ainda e um espaco de nomes compartilhado dentro de uma sessao.** A chave `(session_id, event_id, kind, target_spin_seq)` fecha os vetores praticos (reuso entre giros e entre sessoes), mas dois produtores com o mesmo id no MESMO giro da MESMA sessao ainda colidiriam — e a supressao seria **contada**, nao silenciosa. Identidade propria do produtor depende do SPR-V7/`AUTH_ENABLED`.
 3. **`direction_event` exigindo MASTER continua sendo gate de concorrencia, nao de autenticacao** (divida herdada do SPR-V1).
 4. **`missing` usa id deterministico `missing:{session_id}:{spin_seq}`** conforme o brief; se `spin_seq` regredir dentro da mesma sessao (re-ancoragem de historico), a segunda linha colide — e a colisao **conta** `phase_events_write_error_total` em vez de sumir.
+5. **A faxina de boot cobre no maximo 20 ciclos abertos** (varredura limitada aos 200 `received` mais recentes, para nao virar trabalho ilimitado no caminho do giro). Orfaos alem disso ficam para o proximo boot ou para o `SPR-V4R`.
 
 ### M. Obrigacoes / Rollback
 
@@ -3411,3 +3431,42 @@ Confirmados **limpos**: a formula do alvo vs. comparacao pos-incremento (sem off
 Corrigidos: **(N.1)** a chave unica global descartando linhas legitimas (secao E) + supressao agora **contada**; **(N.2)** denominador da cobertura poluido por invalidacoes de ingresso (secao H); **(N.3)** o fallback re-tentava a decisao em excecoes que **nao** garantem rollback (podia **duplicar** a decisao no ledger) — restrito a `PhaseTrailRolledBack`; **(N.4)** `await websocket.send()` **dentro** do `state_lock` no ramo de retry (produtor lento parava o caminho do giro); **(N.5)** capacidade de reconstrucao do pendente existia sem **nenhum** call site de producao (cobertura ilusoria) — agora e a rede de seguranca do `state.json` perdido, e `handle_direction_event` passou a chamar `game_state.save()` (sem ele o round-trip era teatro: o `save()` do giro roda **depois** do consumo e gravaria sempre `None`); **(N.6)** testes de idempotencia que passariam tanto com o dedup correto quanto com ele destruindo linhas legitimas — a mutacao `UNIQUE(event_id, kind)` -> `(..., target_spin_seq)` deixava a suite inteira verde. Novos guarda-corpos: `test_mesmo_event_id_em_giros_DIFERENTES_nao_e_descartado`, `test_trilha_e_counters_contam_a_mesma_historia` (trilha e counters tem de contar a MESMA historia) e `test_supressao_de_linha_conta_erro_de_escrita`.
 
 > **Veredito:** o `direction_event` deixou de poder descrever o giro errado (alvo, prazo e consumo unico sao **do servidor**), e passou a existir **prova duravel** — atomica com a decisao — sem a qual o gate T4 seria uma afirmacao sem lastro. Tudo default-OFF, sem tocar um unico byte da aposta. Pendencia explicita: `SPR-V4R` (retencao) antes de ~60 dias com a auditoria ligada.
+
+### N.7. Segunda rodada de review (PR #55) — 2 bugs de INTEGRIDADE DA TRILHA, corrigidos
+
+Um review independente do PR encontrou dois defeitos que nao afetam aposta, decisao nem INV-3 (a trilha e shadow-only), mas **falsificam a evidencia** — que e a unica razao de a trilha existir.
+
+**N.7.1 [MEDIO] — a recuperacao pos-restart nunca podia funcionar.**
+`_reconstruir_pendente_da_trilha(self.current_session_id)` consultava a trilha filtrando pela sessao corrente. So que `current_session_id` nasce `uuid.uuid4()[:8]` **no `__init__` do handler**: depois de um restart ele e um id NOVO, enquanto a linha `received` orfa carrega o id ANTERIOR. O lookup nunca achava nada — a capacidade documentada era inalcancavel. O teste que a "cobria" apenas zerava o pendente **em memoria mantendo a mesma sessao**, ou seja, jamais atravessava a fronteira de processo que o cenario exige.
+
+*Correcao — as duas verdades foram SEPARADAS, em vez de a segunda ser adivinhada:*
+
+| Cenario | Como e provada a continuidade | Disposicao do GIRO | Destino do ciclo do evento |
+|---|---|---|---|
+| Restart com `state.json` (bind-mount, o caso REAL) | o `pending_direction_event` volta do disco com o seu `session_id` e `mono_lost` | **`stale`** (nunca vincula, nunca vira direcao) | fechado pelo proprio terminal do giro |
+| `state.json` perdido/corrompido | **nao ha como provar** | **`missing`** (honesto: este giro nao teve evento) | fechado por **FAXINA** de manutencao |
+
+A tentacao era adotar o orfao pelo `target_spin_seq`. **Nao da:** `spin_seq` REINICIA a cada sessao, entao o alvo `1` de uma mesa morta ha dias coincide com o giro 1 de qualquer sessao nova. Adotar por coincidencia de contador rotularia como `stale` um giro que foi honestamente `missing` — exatamente o tipo de mentira que a trilha existe para impedir, e ainda por cima com atribuicao cruzada entre mesas.
+
+A **faxina** (`_faxina_orfaos_da_trilha`) roda UMA vez por processo, em **transacao propria** (manutencao nunca pode arrastar a decisao do giro num rollback), grava `kind='stale'` com `decision_ref` NULL, `spin_seq` NULL e `meta.reason="orfao_sem_continuidade"`, e **nao incrementa contador** — nao e um giro, entao nao entra no denominador da cobertura.
+
+**N.7.2 [MEDIO] — o `NOT EXISTS` fechava o ciclo por `event_id` global.**
+A identidade do DDL e por giro, mas a consulta de pendencia correlacionava so por `event_id`. Com um produtor reutilizando um id estavel, o terminal do giro N **mascarava** o `received` do giro N+1 (ou de outra sessao): o ciclo aberto aparecia como encerrado, e a trilha perdia a capacidade de responder "o que ficou em aberto?".
+
+*Correcao:* a correlacao passou a ser `(session_id, event_id, target_spin_seq)` — **exatamente** a chave unica. Isso exigiu o par que faltava: o **terminal precisa carregar as coordenadas do EVENTO** (secao E.1), senao um evento com alvo 5 classificado no giro 7 gravava o terminal com alvo 7 e deixava o `received` de alvo 5 aberto para sempre.
+
+*Achado adicional, encontrado ao corrigir os dois:* a marca `received_persisted` era gravada **depois** do `gs.save()`, logo **nunca ia para o `state.json`**. Apos um restart, o evento restaurado nao sabia que o `received` ja existia, re-emitia a linha, e o conflito suprimido era contado como um erro de escrita que **nunca houve** — poluindo justamente a metrica de saude da trilha. Agora a marca nasce **antes** do `save()` (otimista) e e desfeita se a gravacao falhar de fato, o que de quebra da auto-cura: a linha e re-emitida no giro.
+
+*Evidencia de mutacao (nao ha cobertura ilusoria aqui):* com o codigo de producao revertido para `c970b65` e os testes novos mantidos, **10 testes falham**. Cada fix foi ainda mutado isoladamente e **todos os mutantes morreram**: correlacao de volta a `event_id` global (mata 2), chave sem `session_id` — mutacao cirurgica, com o `ON CONFLICT` ajustado junto (mata 2, com a mensagem "a linha da sessao nova foi suprimida pela chave unica"), terminal de volta as coordenadas do giro (mata 2), faxina removida (mata 3), marca de persistencia de volta ao lugar antigo (mata 3).
+
+### N.8. Terceira rodada — code-review dos PROPRIOS fixes (3 achados, 3 corrigidos)
+
+Revisar a correcao encontrou tres defeitos nela, dois deles piores que os originais:
+
+**N.8.1 [MEDIO] — a faxina reintroduzia o BUG-2 por outro caminho.** A guarda que evita fechar o pendente VIVO comparava so o `event_id`. Com o produtor de id estavel — exatamente o perfil que justifica a chave — **todo** orfao de sessao morta carrega o mesmo id do pendente vivo e era pulado; como a faxina roda uma vez por processo e o evento vivo costuma chegar antes do primeiro giro, o orfao **nunca** seria fechado. Reproduzido pelo review. *Correcao:* a guarda compara a identidade COMPLETA `(session_id, event_id, target_spin_seq)` — a mesma do indice.
+
+**N.8.2 [MEDIO] — um banco com a forma antiga faria TODO insert da trilha estourar.** O aviso que eu havia escrito dizia "pode suprimir linhas legitimas"; o comportamento real era pior: sem um indice unico que case com o alvo do `ON CONFLICT`, **toda** insercao levanta `OperationalError`, e cada giro passa a percorrer transacao -> rollback -> `PhaseTrailRolledBack` -> `save_decision()` sozinho, com o contador de erro subindo indefinidamente. *Correcao:* a chave virou **indice unico aditivo**, que um banco antigo ganha no proximo boot (secao E), com teste que parte de uma tabela na forma antiga e prova o insert funcionando depois da migracao. O aviso continua, agora em `logger.error` e descrevendo o sintoma certo.
+
+**N.8.3 [BAIXO] — a auto-cura da marca `received_persisted` era cobertura ilusoria.** Nenhum teste injetava falha **no ingresso** (todos mexiam no caminho da classificacao), entao apagar o bloco inteiro deixaria a suite verde enquanto a trilha passaria a gravar disposicao terminal sem o `received` correspondente. *Correcao:* teste que faz `insert_phase_events` falhar no ingresso e prova que a classificacao re-emite a linha.
+
+*Mutacao da rodada 3 — os tres mutantes morreram:* guarda da faxina so por `event_id` (mata 1), indice do ciclo removido (mata 41 — o `ON CONFLICT` fica sem alvo), auto-cura removida (mata 1). Suite completa: **984 verde**.

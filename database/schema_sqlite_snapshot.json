@@ -281,6 +281,14 @@
       "type": "TEXT"
     },
     {
+      "name": "spin_seq",
+      "type": "INTEGER"
+    },
+    {
+      "name": "spin_session_id",
+      "type": "TEXT"
+    },
+    {
       "name": "target_spin_seq",
       "type": "INTEGER"
     },
