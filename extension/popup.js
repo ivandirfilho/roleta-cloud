@@ -36,6 +36,9 @@ let painelStatus, statusLight, statusText;
 let saldoValue, apostaValue, fichaValue;
 let mesaDropdown, btnCapturar;
 
+// 🆕 SPR-V2 (DIR20): elementos da telemetria de PERDA.
+let dir20Skipped, dir20Streak, dir20Rebaselines, dir20Flips, dir20Reason, dir20Frame, infoVersion;
+
 // 🆕 v2.7: Direção do giro
 let currentDirection = 'horario';
 let btnDirHorario, btnDirAntiHorario;
@@ -68,6 +71,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   mesaDropdown = document.getElementById('mesaDropdown');
   btnCapturar = document.getElementById('btnCapturar');
 
+  // 🆕 SPR-V2 (DIR20): painel da perda
+  dir20Skipped = document.getElementById('dir20Skipped');
+  dir20Streak = document.getElementById('dir20Streak');
+  dir20Rebaselines = document.getElementById('dir20Rebaselines');
+  dir20Flips = document.getElementById('dir20Flips');
+  dir20Reason = document.getElementById('dir20Reason');
+  dir20Frame = document.getElementById('dir20Frame');
+  infoVersion = document.getElementById('infoVersion');
+  if (infoVersion) {
+    try { infoVersion.textContent = `v${chrome.runtime.getManifest().version}`; } catch (e) { /* noop */ }
+  }
+
   // Event listeners
   if (btnCapturar) btnCapturar.addEventListener('click', captureMesa);
   if (mesaDropdown) mesaDropdown.addEventListener('change', onMesaSelected);
@@ -97,10 +112,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnDirAntiHorario.addEventListener('click', () => setDirection('anti-horario'));
   }
 
-  // Carregar direção salva
+  // Carregar direção salva (só espelha — abrir o popup não é âncora do operador)
   const savedDir = await chrome.storage.local.get(['currentDirection']);
   if (savedDir.currentDirection) {
-    setDirection(savedDir.currentDirection, false);
+    reflectDirection(savedDir.currentDirection);
   }
 
   // Conectar à aba
@@ -121,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (area === 'local' && changes.currentDirection) {
       const newDir = changes.currentDirection.newValue;
       if (newDir && newDir !== currentDirection) {
-        setDirection(newDir, false);  // Atualizar UI sem logar
+        reflectDirection(newDir);  // eco do background: só pinta, não comanda
       }
     }
   });
@@ -245,23 +260,21 @@ async function loadExtractorFile() {
         throw new Error('Arquivo JSON inválido (use Extrator Beat v15+)');
       }
 
-      // Preparar novo estado COM LIMPEZA DA MESA SERVIDOR (PRIORIDADE MANUAL)
-      const currentData = await chrome.storage.local.get(['escutaState']);
-      const state = currentData.escutaState || {};
-
-      state.currentMesa = null; // Remove seleção de mesa do servidor
+      // 🆕 SPR-V2: o popup NÃO grava mais `escutaState` — ele MANDA um comando.
+      // Escrita direta aqui competia com o read-modify-write do tick e podia
+      // ressuscitar um baseline velho (ou apagar a telemetria) por "último a escrever".
+      const resp = await chrome.runtime.sendMessage({
+        action: 'setExtractorData',
+        data: data,
+        clearMesa: true
+      });
+      if (!resp || resp.success !== true) {
+        throw new Error(resp?.error || 'Background não confirmou o carregamento');
+      }
       if (mesaDropdown) mesaDropdown.value = "";
 
-      state.extractorData = data;
-      state.error = null;
-
-      // Importar histórico se disponível
-      if (data.data?.results?.lastNumbers) {
-        state.results = data.data.results.lastNumbers.slice(0, 12);
-        state.lastHash = state.results.slice(0, 5).join(',');
-      }
-
-      await chrome.storage.local.set({ escutaState: state });
+      const applied = await chrome.storage.local.get(['escutaState']);
+      const state = applied.escutaState || {};
 
       // Atualizar UI
       infoFile.textContent = file.name;
@@ -310,8 +323,12 @@ function log(message, type = 'info') {
   }
 }
 
-// 🆕 v2.7: Função para alternar direção
-async function setDirection(dir, notify = true) {
+// 🆕 SPR-V2: pintar ≠ comandar. `reflectDirection` só espelha a fase que o background
+// já decidiu (eco do storage / abertura da janela). `setDirection` é o comando do
+// OPERADOR. Antes eram a mesma função: o eco automático voltava ao background como
+// `setDirection` e desarmava a expectativa de eco do giro em voo (PA-ACK), deixando o
+// Bloco 4.4 inerte — e ainda podia regravar uma fase velha por cima da reconciliação.
+function reflectDirection(dir) {
   currentDirection = dir;
 
   // Atualizar visual dos botões
@@ -330,22 +347,23 @@ async function setDirection(dir, notify = true) {
     btnDirHorario.style.color = '#888';
     btnDirHorario.style.borderColor = '#444';
   }
+}
 
-  // Salvar no storage
-  await chrome.storage.local.set({ currentDirection: dir });
+// Comando do OPERADOR: pinta e manda a âncora manual ao background (único escritor).
+async function setDirection(dir) {
+  reflectDirection(dir);
 
-  // Notificar background
-  // 🔧 Adicionar manual: notify para distinguir clique manual de sync automático
+  // 🆕 SPR-V2: o background é o único escritor de `currentDirection`. O popup só
+  // manda o comando; gravar aqui podia sobrescrever uma reconciliação de fase
+  // vinda do servidor entre o clique e o handler.
   try {
-    await chrome.runtime.sendMessage({ action: 'setDirection', direction: dir, manual: notify });
+    await chrome.runtime.sendMessage({ action: 'setDirection', direction: dir, manual: true });
   } catch (e) {
-    // Background pode estar dormindo
+    // Background pode estar dormindo — ele re-hidrata a fase do storage ao acordar.
   }
 
-  if (notify) {
-    const dirLabel = dir === 'horario' ? '⬅️ Horário' : '➡️ Anti-Horário';
-    log(`Direção alterada: ${dirLabel}`, 'info');
-  }
+  const dirLabel = dir === 'horario' ? '⬅️ Horário' : '➡️ Anti-Horário';
+  log(`Direção alterada: ${dirLabel}`, 'info');
 }
 
 // ===== CONECTAR À ABA =====
@@ -459,6 +477,23 @@ function updateUIFromState(state) {
 
   // Atualizar contador
   infoTotal.textContent = state.totalRead || 0;
+
+  // 🆕 SPR-V2 (DIR20): a perda fica na cara do operador. Streak > 0 pinta de aviso —
+  // "parou de chegar giro" tem de ser visível em 1 olhada, não descoberto no log.
+  const d20 = state.dir20 || {};
+  if (dir20Skipped) dir20Skipped.textContent = d20.skippedUnaligned || 0;
+  if (dir20Streak) {
+    const streak = d20.unalignedStreak || 0;
+    dir20Streak.textContent = streak;
+    dir20Streak.style.color = streak > 0 ? '#ff6600' : '';
+  }
+  if (dir20Rebaselines) dir20Rebaselines.textContent = d20.rebaselines || 0;
+  if (dir20Flips) dir20Flips.textContent = d20.flipsReverted || 0;
+  if (dir20Reason) dir20Reason.textContent = d20.lastReason || '—';
+  if (dir20Frame) {
+    const frame = (d20.lastFrameId === null || d20.lastFrameId === undefined) ? '—' : d20.lastFrameId;
+    dir20Frame.textContent = `${frame} / ${d20.lastRoundId || '—'}`;
+  }
 
   // Mostrar debug se disponível
   if (state.debug) {
@@ -609,17 +644,10 @@ async function startListening() {
     return;
   }
 
-  // Atualizar estado no storage
-  state.isListening = true;
-  state.tabId = currentTab.id;
-  state.error = null;
-  state.lastUpdate = Date.now();
-
-  await chrome.storage.local.set({ escutaState: state });
-
-  log('✅ Estado salvo no storage', 'success');
-
-  // Tentar notificar background para iniciar loop
+  // 🆕 SPR-V2: o popup NÃO grava mais o estado — o background é o único escritor.
+  // (Antes, gravar aqui + o handler gravar de novo era o clássico "último a
+  //  escrever ganha", capaz de ressuscitar baseline/telemetria obsoletos.)
+  let started = false;
   try {
     const response = await chrome.runtime.sendMessage({
       action: 'startListening',
@@ -627,40 +655,36 @@ async function startListening() {
     });
 
     if (response && response.success) {
+      started = true;
       log('✅ Escuta iniciada! Pode fechar o popup.', 'success');
     } else {
-      log('⚠️ Background não confirmou, mas estado foi salvo', 'info');
+      log('⚠️ Background não confirmou o início', 'error');
     }
   } catch (e) {
     // Background pode estar dormindo
     log('⚠️ Background dormindo, alarm vai acordar em até 30s', 'info');
   }
 
-  // Atualizar UI
-  updateUIFromState(state);
+  if (!started) btnStart.disabled = false;
+
+  // Atualizar UI a partir do estado REAL (escrito pelo background)
+  const applied = await chrome.storage.local.get(['escutaState']);
+  updateUIFromState(applied.escutaState || state);
 }
 
 // ===== PARAR ESCUTA =====
 async function stopListening() {
-  // Atualizar storage direto
-  const data = await chrome.storage.local.get(['escutaState']);
-  const state = data.escutaState || {};
-  state.isListening = false;
-  state.error = null;
-
-  await chrome.storage.local.set({ escutaState: state });
-
-  log('Escuta parada', 'info');
-
-  // Tentar notificar background
+  // 🆕 SPR-V2: comando, não escrita direta de estado.
   try {
     await chrome.runtime.sendMessage({ action: 'stopListening' });
+    log('Escuta parada', 'info');
   } catch (e) {
-    // Não é problema
+    log('⚠️ Background não confirmou a parada', 'error');
   }
 
-  // Atualizar UI
-  updateUIFromState(state);
+  // Atualizar UI a partir do estado REAL (escrito pelo background)
+  const applied = await chrome.storage.local.get(['escutaState']);
+  updateUIFromState(applied.escutaState || {});
 }
 
 // ===== ATUALIZAR DISPLAY DE RESULTADOS =====

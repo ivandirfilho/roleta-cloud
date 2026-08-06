@@ -261,3 +261,91 @@ variação maior bloqueia o avanço (é sinal de perda silenciosa).
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+
+### 2026-08-05 · ENTREGUE (PR aberto, sem merge) · Executor
+
+**Resumo.** Os 4 blocos entregues na extensão (**3.9.1 → 3.10.0**). Backend Python, `state/`,
+`app_config/` e schema **intactos** — zero migração, zero mudança de contrato no servidor.
+
+- **Bloco 1 — evidência.** `extension/phase_align.js` (UMD puro, sem dependência nova):
+  `fingerprint` dos **12** itens (era `slice(0,5)`), `countNewSpins(novos, antigos, strict)` →
+  `{k, matched, overlap, reason}` com **`k === 0`** aceito e `overlap >= 2` exigido para qualquer
+  `k >= 1`. O "**1 conservador**" morreu: sem alinhamento ⇒ `matched:false`.
+- **Bloco 2 — single-writer.** `mutateState(fn)` serializa **todo** read-modify-write; efeitos (WS,
+  captura de frame) ficam fora do lock. `_readGuard` faz o tick atrasado **desistir**; `onAlarm` dá
+  `await readResults()`. `_hydrationGate` garante que nenhuma decisão de fase ocorra antes de o
+  storage responder. O popup deixou de escrever estado — virou **comando** (`sendMessage`).
+- **Bloco 3 — não fabricar giro.** Sem alinhamento: **zero** envio, **zero** flip, baseline
+  **intacto**; após 5 descartes re-ancora sem inventar giro. Frame **sticky-first** (o frame que já
+  funcionou vence a lista mais longa do lobby) e a sessão é lida do **mesmo** frame. Kill-switch
+  `DIR20_ENABLED=false` passa `strict:false` ⇒ semântica v3.9.1 bit-a-bit, num **único caminho de
+  código** (o rollback é testado). Se `phase_align.js` não carregar, a leitura é **suspensa**
+  (fail-closed) — não há degradação para o algoritmo antigo.
+- **Bloco 4 — perda observável.** `state.dir20` persistido (round-trip em save/load/reset) com
+  `unalignedStreak`, `skippedUnaligned`, `rebaselines`, `flipsReverted`, `lastReason`, `lastFrameId`,
+  `lastRoundId`, `baselineTable`; enviado no bloco **aditivo** `client_health` (+ `ext_version`).
+  Painel "SPR-V2" no popup. Consumidor de `phase_authority` do SPR-V1 **desarmado sem a capability**
+  (servidor antigo ⇒ nada muda), que reconcilia a fase e **desfaz o flip local de giro rejeitado**.
+
+**Validação.**
+- `node --test "tests/js/*.test.js"` → **53 passed / 0 failed** (28 do módulo puro + 25 de fluxo).
+  Os testes de fluxo carregam o **`background.js` real** em `node:vm` com fakes de `chrome.*`
+  (`tests/js/chrome_harness.js`) — cobrem fail-closed, giro real, leitura não alinhada, re-baseline
+  com e sem troca de mesa, reentrância, boot com storage lento, single-writer, sticky frame,
+  voláteis não persistidos, migração 5→12, `phase_authority` (ausente/false/true/rejeitado/aceito),
+  backoff e DOM vazio.
+- `pytest tests/` → **796 passed, 9 skipped, 1 xfailed**. `tools/lint_silent_except.py` → OK.
+- Reprodução do bug antes do fix (`decideTick` com `strict:false`) está fixada como teste: é o
+  próprio kill-switch que **volta a fabricar** o giro.
+
+**Desvios do brief (decisões do Executor, com justificativa).**
+1. **`overlap >= 2` para todo `k >= 1`**, não só `k > 6` — o brief sugeria o corte só em k alto, mas
+   um `k=1` com overlap 1 é exatamente o giro fabricado que o sprint existe para matar.
+2. **`round_id` NÃO é evidência de troca de mesa** (o brief o listava): na Evolution ele muda a cada
+   giro. A evidência para reenviar `historico_inicial` é só `sessionData.table` ≠ `baselineTable`.
+3. **PA-ACK é heurística declarada, não ACK.** O `state_sync` não correlaciona o `trace_id` do giro
+   enviado; a rejeição é inferida por `spin_seq` inalterado após 2,5 s. Falso positivo se corrige no
+   ciclo seguinte pela reconciliação contínua. **Dívida:** correlação por `trace_id` no SPR-V1.
+4. **Kill-switch como parâmetro, não como segunda trilha** — `DIR20_ENABLED=false` vira
+   `strict:false` no módulo puro, em vez de manter duas implementações no worker.
+
+**Não entregue (bloqueio real, para o Diretor decidir).** O `client_health` **contínuo** do Bloco 4.2.
+A extensão **não tem keepalive/ping WS** — o alarme `keepAlive` só recria o `readLoop`, e reemitir
+`register` periodicamente reavaliaria a **eleição de MASTER** (`connection_manager.update_device_id`,
+incidente de 13/06). A telemetria viaja no `register` do `onopen` e em **cada `novo_resultado`**. Um
+heartbeat dedicado exige mensagem nova no contrato ⇒ próximo sprint.
+
+**Code-review pós-implantação — 4 achados, todos corrigidos ANTES do PR.** Os três primeiros
+tornavam o Bloco 4.4 inerte ou enganoso em produção; passavam nos testes originais porque nada no
+harness emitia o eco do popup.
+1. **Eco automático do popup desarmava o PA-ACK** — o `storage.onChanged` do próprio flip voltava
+   como `setDirection(manual:false)`. Corrigido nas duas pontas: o handler só limpa em
+   `isManualCorrection`, e o popup agora separa `reflectDirection` (pinta) de `setDirection`
+   (comanda). Abrir o popup deixou de ser âncora do operador.
+2. **Guard armado DEPOIS do envio** — o heartbeat de 1 s cabia na janela entre o flip e o
+   `sendToWebSocket` e desfazia a fase recém-avançada; e a foto do `spin_seq` era pós-envio, o que
+   classificaria giro **aceito** como rejeitado. Flip e guard agora são gravados na **mesma**
+   `mutateState`; envio que falha desarma o guard.
+3. **`flipsReverted` subia sem reversão** (incremento fora do `if`), inflando a métrica de perda.
+4. **`tests/js/` não rodava em CI** — novo job `extension-tests` em `.github/workflows/ci.yml`,
+   dentro do gate `ci-ok`. (`node --test tests/js/` falha ao resolver o diretório: o glob
+   `tests/js/*.test.js` é obrigatório.)
+
+Cada correção ganhou teste de regressão (`REVIEW#1..#3` + envio-que-falha), e cada teste foi
+**verificado falhando** contra o código pré-correção — nenhum passa por acidente.
+
+**Rollback (3 camadas).** (1) `DIR20_ENABLED = false` + ↻ na extensão; (2) reinstalar a 3.9.1 —
+`git archive e23abb1 extension/ -o ext-3.9.1.zip`; (3) `git revert` do PR. Nenhuma exige ação no
+servidor.
+
+**Arquivos.** Novos: `extension/phase_align.js`, `tests/js/chrome_harness.js`,
+`tests/js/phase_align.test.js`, `tests/js/background_flow.test.js`. Alterados:
+`extension/background.js`, `extension/popup.js`, `extension/popup.html`, `extension/manifest.json`
+(**3.10.0**), `.github/workflows/ci.yml` (job `extension-tests` + gate), `tests/test_dir13_lock_total.py`
+(lock de versão passou de igualdade literal para piso
+por tupla `>= (3,9,1)`), `Manutenabilidade_iso.md` (ADENDO 05/08 noite), este brief.
+
+**Reload no Chrome (operador).** `chrome://extensions` → Modo desenvolvedor ON → se já estiver
+carregada, clicar **↻** no card "👂 Escuta Beat"; se não, **"Carregar sem compactação"** apontando
+para a pasta `extension/`. Confirmar **v3.10.0** no popup e o painel "SPR-V2". Manter **unpacked**:
+empacotada, o Chrome faz clamp do alarme de 2 s para 30 s.

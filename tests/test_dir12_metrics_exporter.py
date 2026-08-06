@@ -20,6 +20,11 @@ def test_phase_metrics_module_disponivel():
         "gap_recuperado_total",
         "phase_uncertain_total",
         "direction_divergence_total",
+        # SPR-V1 (05/08): dict FECHADO — chave nova sem registro aqui = incr() no-op.
+        "phase_buffer_missing_total",
+        "phase_ambiguo_total",
+        "spin_implausivel_total",
+        "alternancia_violada_total",
     }
 
 
@@ -34,6 +39,11 @@ def test_health_server_define_metricas_phase():
     assert "phase_gap_recuperado" in pm
     assert "phase_uncertain" in pm
     assert "phase_divergence" in pm
+    # SPR-V1 (05/08): gauges das blindagens do V1.
+    assert "phase_buffer_missing" in pm
+    assert "phase_ambiguo" in pm
+    assert "spin_implausivel" in pm
+    assert "alternancia_violada" in pm
 
 
 def test_refresh_custom_metrics_atualiza_phase(monkeypatch):
@@ -56,6 +66,16 @@ def test_refresh_custom_metrics_atualiza_phase(monkeypatch):
     assert pm["phase_gap_recuperado"]._value.get() == 3.0
     assert pm["phase_uncertain"]._value.get() == 1.0
     assert pm["phase_divergence"]._value.get() == 2.0
+    # SPR-V1 (05/08): as 4 gauges novas tambem espelham o snapshot.
+    phase_metrics.incr("phase_buffer_missing_total", 4)
+    phase_metrics.incr("phase_ambiguo_total", 5)
+    phase_metrics.incr("spin_implausivel_total", 6)
+    phase_metrics.incr("alternancia_violada_total", 7)
+    health_server._refresh_custom_metrics()
+    assert pm["phase_buffer_missing"]._value.get() == 4.0
+    assert pm["phase_ambiguo"]._value.get() == 5.0
+    assert pm["spin_implausivel"]._value.get() == 6.0
+    assert pm["alternancia_violada"]._value.get() == 7.0
     # Limpar
     phase_metrics.reset()
 

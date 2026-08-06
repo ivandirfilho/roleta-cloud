@@ -198,6 +198,15 @@ if _METRICS_AVAILABLE:
             "phase_gap_recuperado": Gauge("roleta_phase_gap_recuperado_total", "Giros recuperados pelo shift DIR4 (k>=2 com alinhamento)"),
             "phase_uncertain": Gauge("roleta_phase_uncertain_total", "Eventos de fase ambigua (DIR4 sem alinhamento, possivel troca de mesa)"),
             "phase_divergence": Gauge("roleta_phase_direction_divergence_total", "Vezes que a autoridade DIR5 corrigiu o hint do cliente"),
+            # SPR-V1 (05/08): 4 contadores das blindagens do V1. Mantidos como Gauge
+            # (e nao Counter) para seguir o padrao DIR12 acima — o valor ja e monotonico
+            # na origem (phase_metrics so incrementa), entao `increase()` no Prometheus
+            # continua valido; ressalva: um restart do processo zera o gauge e produz um
+            # degrau para baixo, que o `increase()` trata como reset de counter.
+            "phase_buffer_missing": Gauge("roleta_phase_buffer_missing_total", "Gaps em que o buffer de fase nao pode ser sincronizado (estado legado/corrompido)"),
+            "phase_ambiguo": Gauge("roleta_phase_ambiguo_total", "Shifts com evidencia insuficiente/ambigua (min_overlap) tratados como phase_uncertain"),
+            "spin_implausivel": Gauge("roleta_spin_implausivel_total", "Giros descartados por intervalo minimo (DIR21: fisicamente impossivel)"),
+            "alternancia_violada": Gauge("roleta_alternancia_violada_total", "Giros consecutivos com o mesmo sentido fora de gap/reset (DIR22: fase corrompida)"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -216,6 +225,11 @@ def _refresh_custom_metrics() -> None:
             _PROM_METRICS["phase_gap_recuperado"].set(float(_pm_snap.get("gap_recuperado_total", 0)))
             _PROM_METRICS["phase_uncertain"].set(float(_pm_snap.get("phase_uncertain_total", 0)))
             _PROM_METRICS["phase_divergence"].set(float(_pm_snap.get("direction_divergence_total", 0)))
+            # SPR-V1 (05/08): blindagens do V1 (buffer/ambiguidade/plausibilidade/alternancia).
+            _PROM_METRICS["phase_buffer_missing"].set(float(_pm_snap.get("phase_buffer_missing_total", 0)))
+            _PROM_METRICS["phase_ambiguo"].set(float(_pm_snap.get("phase_ambiguo_total", 0)))
+            _PROM_METRICS["spin_implausivel"].set(float(_pm_snap.get("spin_implausivel_total", 0)))
+            _PROM_METRICS["alternancia_violada"].set(float(_pm_snap.get("alternancia_violada_total", 0)))
         except Exception:  # noqa: BLE001
             pass
         # force17 (18/06): modo de cobertura no ar (auto-contido; sem provider).
