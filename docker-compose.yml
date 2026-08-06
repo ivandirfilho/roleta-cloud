@@ -232,8 +232,8 @@ services:
       # Rollback: SDA_PHASE_EVENT_AUDIT=0 + SDA_DIRECTION_VISION_SHADOW=0 + redeploy
       # (minutos). A TABELA PERMANECE (aditiva, inofensiva) — o rollback de deploy
       # nao faz downgrade de schema.
-      - SDA_PHASE_EVENT_AUDIT=${SDA_PHASE_EVENT_AUDIT:-0}
-      - SDA_DIRECTION_VISION_SHADOW=${SDA_DIRECTION_VISION_SHADOW:-0}
+      - SDA_PHASE_EVENT_AUDIT=${SDA_PHASE_EVENT_AUDIT:-1}
+      - SDA_DIRECTION_VISION_SHADOW=${SDA_DIRECTION_VISION_SHADOW:-1}
       # Prazo (ms) contado do RECEBIMENTO no relogio monotonico do SERVIDOR — o
       # `captured_at_ms` do cliente e so diagnostico. 30000 < ciclo real (~44s),
       # entao um evento nunca sobrevive ate o giro seguinte (que ja e o sentido
