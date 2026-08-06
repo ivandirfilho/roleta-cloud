@@ -168,3 +168,66 @@ groups:
         labels: { severity: critical, component: app }
         annotations:
           summary: "Target roleta-cloud DOWN há 1min"
+
+  # ===== SPR-V1 (05/08): saude da FASE autoritativa =====
+  # Os contadores sao expostos como Gauge monotonico (padrao DIR12); increase()
+  # continua valido, com a ressalva de que restart do processo zera o gauge.
+  - name: roleta_fase_v1
+    interval: 30s
+    rules:
+      # DIR22: a fase e um toggle — dois giros consecutivos no mesmo sentido, fora de
+      # gap/reset, significam fase corrompida (aposta no lado errado).
+      - alert: RoletaAlternanciaViolada
+        expr: increase(roleta_alternancia_violada_total[15m]) > 0
+        for: 1m
+        labels: { severity: critical, component: fase }
+        annotations:
+          summary: "Alternancia de sentido violada ({{ $value }}x em 15min)"
+          description: "Fase possivelmente corrompida. Conferir seed_parity/seed_n e considerar set_seed do operador."
+
+      # Rajada de phase_uncertain: buffer de fase defasado (furo A) ou troca de mesa.
+      - alert: RoletaPhaseUncertainBurst
+        expr: increase(roleta_phase_uncertain_total[15m]) > 5
+        for: 5m
+        labels: { severity: warning, component: fase }
+        annotations:
+          summary: "phase_uncertain {{ $value }}x em 15min"
+          description: "Verificar SDA_PHASE_BUFFER_SYNC e roleta_phase_buffer_missing_total/roleta_phase_ambiguo_total."
+
+      # DIR21: giro fisicamente impossivel — replay/injecao ou cliente em loop.
+      - alert: RoletaSpinImplausivel
+        expr: increase(roleta_spin_implausivel_total[15m]) > 0
+        for: 1m
+        labels: { severity: warning, component: fase }
+        annotations:
+          summary: "Giro implausivel descartado ({{ $value }}x em 15min)"
+          description: "Giro abaixo de SDA_MIN_SPIN_INTERVAL_MS. Possivel replay/injecao ou extensao reenviando."
+
+  # ===== SPR-V4 (05/08): contrato `direction_event` + trilha `phase_events` =====
+  # Shadow-only: nenhuma destas regras indica risco de aposta (a visao NAO tem
+  # autoridade sobre o giro — fail-close do SPR-V1). Elas guardam a INTEGRIDADE DA
+  # EVIDENCIA: sem trilha honesta, nenhum gate de shadow pode ser avaliado.
+  - name: roleta_visao_v4
+    interval: 30s
+    rules:
+      # Producao de visao dessincronizada: eventos chegando fora do TTL do servidor
+      # (30s) — relogio do produtor, fila ou lote atrasado. Nunca vira direcao, mas
+      # zera a cobertura util da janela.
+      - alert: RoletaVisionStaleAlto
+        expr: increase(roleta_vision_stale_total[15m]) > 3
+        for: 5m
+        labels: { severity: warning, component: visao }
+        annotations:
+          summary: "direction_event stale {{ $value }}x em 15min"
+          description: "Eventos fora do TTL (SDA_DIRECTION_VISION_TTL_MS). Conferir latencia do produtor e roleta_vision_coverage_ratio antes de ler qualquer taxa de acordo."
+
+      # Trilha falhando = decisao sem disposicao. O giro e a aposta seguem intactos
+      # (degradacao explicita: decisao obrigatoria, auditoria best-effort), mas a
+      # janela DEIXA de valer como evidencia do gate T4.
+      - alert: RoletaPhaseEventsWriteError
+        expr: increase(roleta_phase_events_write_error_total[15m]) > 0
+        for: 1m
+        labels: { severity: warning, component: visao }
+        annotations:
+          summary: "Falha de escrita em phase_events ({{ $value }}x em 15min)"
+          description: "Trilha de auditoria degradada — janela invalidada como evidencia T4. Conferir disco/WAL do SQLite e o circuit breaker; a aposta NAO foi afetada."

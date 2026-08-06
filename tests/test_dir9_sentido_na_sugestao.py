@@ -27,8 +27,17 @@ def test_engine_overlay_fields_inclui_sentido():
     assert sentido["source"] == "operator_seed"
     assert sentido["locked"] is False
     assert "stats" in sentido
+    # SPR-V1 (05/08): 4 chaves novas (buffer/ambiguidade/plausibilidade/alternancia).
+    # SPR-V4 (05/08): + 8 do contrato `direction_event`/trilha. O bloco `stats` é a
+    # projeção INTEGRAL de `phase_metrics.snapshot()` — aditivo, cliente antigo ignora
+    # chave desconhecida.
     assert set(sentido["stats"].keys()) == {
-        "gap_recuperado_total", "phase_uncertain_total", "direction_divergence_total"
+        "gap_recuperado_total", "phase_uncertain_total", "direction_divergence_total",
+        "phase_buffer_missing_total", "phase_ambiguo_total",
+        "spin_implausivel_total", "alternancia_violada_total",
+        "vision_event_total", "vision_agree_total", "vision_disagree_total",
+        "vision_stale_total", "vision_unbound_total", "vision_selfcontradict_total",
+        "vision_missing_total", "phase_events_write_error_total",
     }
 
 

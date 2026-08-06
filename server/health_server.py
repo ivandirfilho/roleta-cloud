@@ -198,6 +198,29 @@ if _METRICS_AVAILABLE:
             "phase_gap_recuperado": Gauge("roleta_phase_gap_recuperado_total", "Giros recuperados pelo shift DIR4 (k>=2 com alinhamento)"),
             "phase_uncertain": Gauge("roleta_phase_uncertain_total", "Eventos de fase ambigua (DIR4 sem alinhamento, possivel troca de mesa)"),
             "phase_divergence": Gauge("roleta_phase_direction_divergence_total", "Vezes que a autoridade DIR5 corrigiu o hint do cliente"),
+            # SPR-V1 (05/08): 4 contadores das blindagens do V1. Mantidos como Gauge
+            # (e nao Counter) para seguir o padrao DIR12 acima — o valor ja e monotonico
+            # na origem (phase_metrics so incrementa), entao `increase()` no Prometheus
+            # continua valido; ressalva: um restart do processo zera o gauge e produz um
+            # degrau para baixo, que o `increase()` trata como reset de counter.
+            "phase_buffer_missing": Gauge("roleta_phase_buffer_missing_total", "Gaps em que o buffer de fase nao pode ser sincronizado (estado legado/corrompido)"),
+            "phase_ambiguo": Gauge("roleta_phase_ambiguo_total", "Shifts com evidencia insuficiente/ambigua (min_overlap) tratados como phase_uncertain"),
+            "spin_implausivel": Gauge("roleta_spin_implausivel_total", "Giros descartados por intervalo minimo (DIR21: fisicamente impossivel)"),
+            "alternancia_violada": Gauge("roleta_alternancia_violada_total", "Giros consecutivos com o mesmo sentido fora de gap/reset (DIR22: fase corrompida)"),
+            # SPR-V4 (05/08): contrato `direction_event` + trilha `phase_events`.
+            # Mesmo padrao Gauge-monotonico do DIR12 (ver ressalva de restart acima).
+            # COBERTURA ANTES DE CONCORDANCIA: sem saber em quantos giros elegiveis
+            # houve evento, "99% de acordo" e metrica de 200 amostras disfarcada de
+            # prova — por isso o ratio abaixo e exposto junto dos brutos.
+            "vision_event": Gauge("roleta_vision_event_total", "Eventos direction_event RECEBIDOS (ingressos, inclui retries)"),
+            "vision_agree": Gauge("roleta_vision_agree_total", "Giros em que o evento bound concordou com a direcao final pos-autoridade"),
+            "vision_disagree": Gauge("roleta_vision_disagree_total", "Giros em que o evento bound divergiu da direcao final pos-autoridade"),
+            "vision_stale": Gauge("roleta_vision_stale_total", "Eventos fora do TTL do servidor (inclui sobreviventes de restart)"),
+            "vision_unbound": Gauge("roleta_vision_unbound_total", "Eventos sem vinculo valido (alvo/round/sessao divergente, ja consumido ou superseded)"),
+            "vision_selfcontradict": Gauge("roleta_vision_selfcontradict_total", "Mesmo event_id reapresentado com direcao diferente"),
+            "vision_missing": Gauge("roleta_vision_missing_total", "Giros elegiveis SEM nenhum evento de visao"),
+            "vision_coverage_ratio": Gauge("roleta_vision_coverage_ratio", "Giros elegiveis com evento bound / total de giros elegiveis (0..1)"),
+            "phase_events_write_error": Gauge("roleta_phase_events_write_error_total", "Falhas de escrita da trilha phase_events (janela invalidada como evidencia T4)"),
         }
     except Exception:  # noqa: BLE001
         _PROM_METRICS = None
@@ -216,6 +239,33 @@ def _refresh_custom_metrics() -> None:
             _PROM_METRICS["phase_gap_recuperado"].set(float(_pm_snap.get("gap_recuperado_total", 0)))
             _PROM_METRICS["phase_uncertain"].set(float(_pm_snap.get("phase_uncertain_total", 0)))
             _PROM_METRICS["phase_divergence"].set(float(_pm_snap.get("direction_divergence_total", 0)))
+            # SPR-V1 (05/08): blindagens do V1 (buffer/ambiguidade/plausibilidade/alternancia).
+            _PROM_METRICS["phase_buffer_missing"].set(float(_pm_snap.get("phase_buffer_missing_total", 0)))
+            _PROM_METRICS["phase_ambiguo"].set(float(_pm_snap.get("phase_ambiguo_total", 0)))
+            _PROM_METRICS["spin_implausivel"].set(float(_pm_snap.get("spin_implausivel_total", 0)))
+            _PROM_METRICS["alternancia_violada"].set(float(_pm_snap.get("alternancia_violada_total", 0)))
+            # SPR-V4 (05/08): visao em shadow + saude da trilha.
+            _v4_agree = float(_pm_snap.get("vision_agree_total", 0))
+            _v4_disagree = float(_pm_snap.get("vision_disagree_total", 0))
+            _v4_stale = float(_pm_snap.get("vision_stale_total", 0))
+            _v4_unbound = float(_pm_snap.get("vision_unbound_total", 0))
+            _v4_contra = float(_pm_snap.get("vision_selfcontradict_total", 0))
+            _v4_missing = float(_pm_snap.get("vision_missing_total", 0))
+            _PROM_METRICS["vision_event"].set(float(_pm_snap.get("vision_event_total", 0)))
+            _PROM_METRICS["vision_agree"].set(_v4_agree)
+            _PROM_METRICS["vision_disagree"].set(_v4_disagree)
+            _PROM_METRICS["vision_stale"].set(_v4_stale)
+            _PROM_METRICS["vision_unbound"].set(_v4_unbound)
+            _PROM_METRICS["vision_selfcontradict"].set(_v4_contra)
+            _PROM_METRICS["vision_missing"].set(_v4_missing)
+            _PROM_METRICS["phase_events_write_error"].set(
+                float(_pm_snap.get("phase_events_write_error_total", 0)))
+            # Denominador = giros ELEGIVEIS (exatamente uma disposicao terminal por
+            # giro quando o shadow esta ON). Sem giro elegivel a cobertura e 0.0 —
+            # nunca 1.0, que faria "sem dado" parecer "cobertura perfeita".
+            _v4_elig = _v4_agree + _v4_disagree + _v4_stale + _v4_unbound + _v4_contra + _v4_missing
+            _PROM_METRICS["vision_coverage_ratio"].set(
+                ((_v4_agree + _v4_disagree) / _v4_elig) if _v4_elig > 0 else 0.0)
         except Exception:  # noqa: BLE001
             pass
         # force17 (18/06): modo de cobertura no ar (auto-contido; sem provider).

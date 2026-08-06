@@ -531,3 +531,95 @@ def uncertain_reancora_enabled() -> bool:
     auto-seed limpo. Default OFF (byte-identico). SDA_UNCERTAIN_REANCORA=1."""
     import os
     return os.environ.get("SDA_UNCERTAIN_REANCORA", "0").strip().lower() in ("1", "true", "on")
+
+
+# ===================== SPR-V1 (05/08): blindagem da fase =====================
+# Todas as flags abaixo nascem DEFAULT OFF (ISO obrig. #4) e sao lidas POR CHAMADA
+# (nunca cacheadas em global/atributo) para permitir toggle sem restart em teste.
+
+
+def phase_buffer_sync_enabled() -> bool:
+    """SPR-V1 B1 (furo A): sincroniza o buffer de fase (_phase_results) com os giros
+    recuperados no gap do DIR4. Hoje o handler sincroniza apenas recent_results (zona
+    fria C3) e o buffer de fase fica PERMANENTEMENTE defasado apos qualquer gap — todo
+    giro seguinte devolve phase_uncertain e a fase reancora na direcao do cliente.
+    Com ON, o buffer volta a espelhar o allNumbers do cliente e o proximo shift alinha
+    em k=1. Tambem passa a limpar _phase_results no correcao_historico (coerencia com
+    recent_results, que ja e limpo). Default OFF (byte-identico).
+    Ligar: SDA_PHASE_BUFFER_SYNC=1."""
+    import os
+    return os.environ.get("SDA_PHASE_BUFFER_SYNC", "0").strip().lower() in ("1", "true", "on")
+
+
+def phase_min_overlap() -> int:
+    """SPR-V1 B2: evidencia MINIMA (numeros coincidentes) para aceitar um alinhamento
+    de shift. Hoje reconcile_shift aceita o primeiro k que casa, mesmo com overlap m=1
+    — 1/37 de chance de coincidencia, o que inventa k giros e corrompe a paridade.
+    Com valor > 0, um match com evidencia abaixo do minimo (ou com mais de um k
+    plausivel) vira phase_uncertain explicito — o caminho SEGURO. 0 = OFF
+    (comportamento atual byte-identico). Producao sugerida: 3 (com allNumbers=12
+    recupera ate k=9). Ler via SDA_PHASE_MIN_OVERLAP."""
+    import os
+    try:
+        return max(0, int(os.environ.get("SDA_PHASE_MIN_OVERLAP", "0").strip()))
+    except (TypeError, ValueError):
+        return 0
+
+
+def min_spin_interval_ms() -> int:
+    """SPR-V1 B3 (furo B / DIR21): intervalo MINIMO (ms) entre dois giros ACEITOS,
+    medido no relogio MONOTONICO DO SERVIDOR (imune a NTP e ao relogio do cliente).
+    Um giro que chega antes disso e fisicamente impossivel (o ciclo real e ~42-48s) —
+    e o vetor do 'giro fantasma' que flipa a fase. 0 = OFF (byte-identico).
+    Producao sugerida: 15000. Ler via SDA_MIN_SPIN_INTERVAL_MS."""
+    import os
+    try:
+        return max(0, int(os.environ.get("SDA_MIN_SPIN_INTERVAL_MS", "0").strip()))
+    except (TypeError, ValueError):
+        return 0
+
+
+def phase_alt_metric_enabled() -> bool:
+    """SPR-V1 B5 (DIR22): telemetria de violacao de alternancia — a mesa alterna um
+    sentido por giro, entao dois giros consecutivos com o MESMO sentido final (fora de
+    gap recuperado e de reset) sao um sintoma de fase corrompida. So conta metrica +
+    warning; NUNCA altera aceitacao do giro nem a aposta. Default OFF.
+    Ligar: SDA_PHASE_ALT_METRIC=1."""
+    import os
+    return os.environ.get("SDA_PHASE_ALT_METRIC", "0").strip().lower() in ("1", "true", "on")
+
+
+def phase_event_audit_enabled() -> bool:
+    """SPR-V4 (Bloco 2): persiste a trilha `phase_events` (SQLite, append-only). Sem
+    esta flag NADA e gravado — o contrato do evento continua sendo aplicado em memoria
+    (identidade/alvo/TTL/one-shot), mas nao ha prova duravel. E requisito de EVIDENCIA
+    do gate T4: counters Prometheus zeram a cada restart do container e logs tem
+    retencao limitada. Default OFF. Ligar: SDA_PHASE_EVENT_AUDIT=1."""
+    import os
+    return os.environ.get("SDA_PHASE_EVENT_AUDIT", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_shadow_enabled() -> bool:
+    """SPR-V4 (Bloco 3): SHADOW da visao. A cada `novo_resultado`, compara o evento
+    fresco e BOUND com a direcao final POS-autoridade e classifica agree/disagree
+    (ou stale/unbound/selfcontradict/missing). ZERO efeito em direcao, seed, timeline,
+    decisao ou stake — e so leitura + contador + (se SDA_PHASE_EVENT_AUDIT) trilha.
+    NAO confundir com SDA_DIRECTION_VISION (congelada em 0 pelo fail-close do SPR-V1:
+    visao NAO tem autoridade sobre o giro). Default OFF.
+    Ligar: SDA_DIRECTION_VISION_SHADOW=1."""
+    import os
+    return os.environ.get("SDA_DIRECTION_VISION_SHADOW", "0").strip().lower() in ("1", "true", "on")
+
+
+def direction_vision_ttl_ms() -> int:
+    """SPR-V4 (Bloco 1): prazo de validade (ms) de um `direction_event`, contado do
+    RECEBIMENTO no relogio MONOTONICO DO SERVIDOR (`time.monotonic()`), nunca do
+    `captured_at_ms` do cliente — senao um cliente com relogio adulterado renova o
+    proprio prazo. Default 30000 (menor que o ciclo real de ~44s, entao um evento
+    nunca sobrevive ate o giro seguinte). Idade >= TTL ⇒ `stale`.
+    Ler via SDA_DIRECTION_VISION_TTL_MS."""
+    import os
+    try:
+        return max(0, int(os.environ.get("SDA_DIRECTION_VISION_TTL_MS", "30000").strip()))
+    except (TypeError, ValueError):
+        return 30000

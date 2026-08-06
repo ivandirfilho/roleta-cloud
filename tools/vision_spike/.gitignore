@@ -1,0 +1,24 @@
+# SPR-V3 · vision_spike — o que NUNCA entra no repositório
+#
+# Frames e vídeos da mesa nunca saem da máquina do operador — e muito menos vão para o
+# git. Este arquivo é a trava mecânica dessa regra. Os documentos versionados
+# (RESULTADO.md, PROTOCOLO_CAMPO.md, ORCAMENTO.md, FORMATO_CAPTURA.md) continuam entrando
+# normalmente: eles são o produto do sprint.
+
+# Capturas de frames (formato do replay)
+captures/
+*.rgba
+frames.bin
+capture.json
+
+# Mídia bruta
+*.webm
+*.mp4
+*.png
+*.jpg
+*.jpeg
+
+# Evidência exportada pelo popup (pode conter dados da sessão do operador)
+vs_e0_evidence_*.json
+vs_verdicts_*.json
+evidence/

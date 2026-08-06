@@ -7,6 +7,11 @@ After=docker.service network-online.target
 Type=oneshot
 Environment=REPO_DIR=/root/roleta-cloud
 Environment=HEALTH_URL=http://127.0.0.1:8766/health
+# OBS-INODE: sonda de drift do entrypoint. Roda AQUI (e nao so dentro do script de
+# deploy) porque uma copia congelada em /usr/local nunca executaria a sonda
+# versionada — e o congelamento e justamente o que se quer detectar. O prefixo `-`
+# torna a falha NAO-FATAL: drift avisa, nunca bloqueia o deploy.
+ExecStartPre=-/root/roleta-cloud/scripts/roleta-deploy-install.sh --check
 ExecStart=/usr/local/bin/roleta-deploy-pull.sh
 TimeoutStartSec=600
 Nice=10

@@ -2953,3 +2953,946 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 | v4.4.0 | 24/05→12/06/2026 | **Ciclo PG+obs+lucro** (ver ADENDO 12/06): PG espelho outbox→CDC, Prometheus/Grafana/alertas, CI matrix verde, alembic no deploy, Quick Wins QW-1..7, S-STRAT-7..14 (batch tune, shadow grid, bandit), DNA logger, DEAL capture, PROFIT-LEDGER, CUT-POLICY v1 + stop-loss sob INV-3 global, reset total no botão de dealer (P10), medição por região (`result_region`, `dist_c1/c2/c3`, `region_err_ema`), feedback adaptativo pela aposta real, backups SQLite+wal-g ressuscitado. Suite 374 |
 | v4.4.1 | 13/06/2026 | **Fix incidente MASTER:** deadlock de reeleição em `connection_manager.update_device_id` (grace expirado sem conexão → SLAVE permanente → ~16h sem spins, dashboard ONLINE porém vazio); reeleição corrigida + 5 testes (`tests/test_connection_manager_master.py`). **Observabilidade:** alerta `RoletaNoMaster` + métricas `roleta_master_present`/`roleta_ws_connections`. **Runbook** `docs/runbooks/sem-apostas-master-slave.md`. Suite 429 |
 | ext v3.3.0 | 14/06/2026 | **Auto-Start & Zero-Upload (Escuta Beat, client-side)** — ver ADENDO 14/06: auto-detecção de provider (`provider_router.js`, fingerprint por host dos frames), manifests empacotados (`extension/providers/` via web_accessible_resources), auto-start via `chrome.webNavigation` + `getAllFrames`, supressão pós-STOP (TTL 24h + revalidação de host + prune), badge + toggle. Auditoria em **3 rodadas de code-review** corrigiu 5 bugs (WS duplicado/race, STOP não segurava o auto-start, badge não limpo, 2ª aba sequestrava o `tabId`, política `'ask'` beco sem saída). Backend Python v4.4.1 **intacto**. Deploy `23c3490` (servidor Debian alinhado, 6 containers healthy). Suite **480**. Detalhes: `passos_escuta_junho.md` §4.9/§12 |
+
+---
+
+## ADENDO 05/08/2026 — SPR-V1: blindagem do servidor (fase e autoridade), tudo default-OFF
+
+> Sprint executor da família SPR-V (`sprints/SPR-V1.md`), branch `ivandirfilho-didactic-broccoli`, base `main` `f165f91`. Fecha **5 blocos** de furos no caminho da fase autoritativa. **Todo comportamento novo nasce atrás de flag default-OFF**, com prova de não-interferência por **replay congelado**. Suíte **883 verde** (796 antes → +87 testes).
+
+### A. Furos auditados (HEAD `f165f91`)
+
+| # | Sev | Furo | Evidência |
+|---|---|---|---|
+| **A** | 🔴 | **Buffer de fase nunca sincronizado no gap.** O bloco DIR4 sincronizava só `recent_results`, mas desde a DIR19 o alinhamento lê `_phase_results`. Depois de QUALQUER gap o buffer ficava permanentemente defasado → todo giro seguinte virava `phase_uncertain` → a DIR17 re-ancorava na direção do **cliente**, que é justamente a fonte que a fase autoritativa existe para não obedecer. | Reproduzido no replay: 3 giros escondidos geraram **12 `phase_uncertain`** em cadeia. Teste `test_gap_sem_sync_deixa_fase_permanentemente_incerta`. |
+| **B** | 🟠 | **Giro fantasma flipa a fase.** Não havia gate de plausibilidade física: um `novo_resultado` chegando ms depois do anterior avançava `spin_seq` e, como a fase é um toggle, **invertia o sentido de todos os giros seguintes**. O dedup existente compara `Date.now()` do **cliente** — adulterável e sujeito a regressão de NTP. | `is_duplicate_spin` só compara `numero+direcao+ts_cliente`. |
+| **C1** | 🟠 | **`set_seed` sem `locked` destravava em silêncio** (`bool(data.get("locked", False))`): um re-seed de rotina desfazia o lock do operador sem nada visível mudar. | `handle_set_seed`. |
+| **C2** | 🟠 | **Re-ancoragem de histórico invertia a âncora do operador.** `spin_seq` saltava para `count` e `seed_n` ficava velho → a paridade `(spin_seq - seed_n)` mudava → fase autoritativa invertida silenciosamente. | `handle_history_correction` / `handle_initial_history` (DIR16). |
+| **C3** | 🟠 | **`set_seed`/`direction_event`/`nova_sessao` sem role-gate:** qualquer conexão (inclusive slave/aba de leitura) reancorava a fase global. | `process_message`: `data_messages` cobria só os 3 de dados. |
+| **D** | 🔴 | **Fusão de vídeo sem autenticação.** Um `direction_event` forjado com `confidence` alta **sobrepunha** a projeção determinística (`fuse_direction` com `SOURCE_PRIORITY`), invertendo a fase por mensagem não autenticada — com `AUTH_ENABLED=false` em produção, qualquer cliente. | `handle_new_result`, bloco DIR7. |
+| **E** | 🟡 | **Sem sinal de fase corrompida.** `_COUNTERS` é um dict FECHADO (incr de chave desconhecida é no-op silencioso) e não havia contador para buffer ausente, ambiguidade, giro implausível nem quebra de alternância. | `state/phase_metrics.py`. |
+
+### B. Capacidades entregues (flags novas, todas default-OFF)
+
+| Flag | Bloco | O que faz | Ligar quando |
+|---|---|---|---|
+| `SDA_PHASE_BUFFER_SYNC` | B1 | `GameState.sync_phase_buffer()` espelha no `_phase_results` os números recuperados no gap; limpa o buffer na correção de histórico. | **Passo 1** — maior ganho, menor risco. Junto com o B5. |
+| `SDA_PHASE_MIN_OVERLAP` | B2 | Evidência mínima para aceitar um shift (`reconcile_shift`/`phase_advance_ex`); recusa também `k` ambíguo em sequências periódicas. Sugestão: `3`. | **Passo 2**, depois do B1 estabilizar. |
+| `SDA_MIN_SPIN_INTERVAL_MS` | B3 | Gate de plausibilidade física no relógio **monotônico do servidor**. Sugestão: `15000`. | **4º, somente após instalar/validar a extensão 3.10.0** (ver I.4). |
+| `SDA_PHASE_ALT_METRIC` | B5 | Métrica de alternância (`alternancia_violada_total`). Puramente observável. | **Passo 1**, junto com o B1. |
+
+Sem flag (aditivos ou fail-close): role-gate MASTER, `_apply_seed` como caminho único, preservação de lock em `set_seed`, reprojeção da âncora do operador na re-ancoragem, fail-close da visão, bloco `phase_authority` no overlay, 4 contadores + 4 gauges + 3 alertas.
+
+### C. Mudanças por arquivo
+
+- **`state/phase.py`** — `_reconcile_shift_ex(prev, new, max_window, min_overlap) → (k, matched, ambiguous)` e `phase_advance_ex(...) → (gap, inter, uncertain, ambiguous)`. `reconcile_shift`/`phase_advance` mantêm assinatura e retorno (2 e 3-tupla) delegando ao núcleo; com `min_overlap=0` o caminho é o legado, sem desvio.
+- **`state/game.py`** — `sync_phase_buffer(nums) → bool` (conversão **antes** da mutação, log de erro + `False` se `_phase_results` ausente); `_apply_seed(direction, source, locked=None, n=None)` como **único** caminho de escrita da âncora; bloco `phase_authority` em `engine_overlay_fields()`.
+- **`server/message_handler.py`** — `_last_accept_srv_mono`; `_is_implausible_spin()`; `_reancora_fase(count)` (reprojeção da âncora do operador); sync do buffer no gap; `min_overlap` por chamada; métrica de alternância com expectativa `(gap+1)`; fail-close da visão; role-gate ampliado; `set_seed` preservando lock.
+- **`state/phase_metrics.py`** — 4 chaves novas no dict fechado.
+- **`server/health_server.py`** — 4 gauges `roleta_phase_*`/`roleta_spin_*`/`roleta_alternancia_*` + refresh.
+- **`obs/alerts.yml`** — grupo `roleta_fase_v1`: `RoletaAlternanciaViolada` (critical), `RoletaPhaseUncertainBurst`, `RoletaSpinImplausivel`.
+- **`docker-compose.yml`** — 4 flags novas + congelamento documentado de `SDA_DIRECTION_VISION=0`.
+- **`app_config/settings.py`** — 4 helpers lidos **por chamada** (nada cacheado).
+
+### D. Evidência de não-interferência (o coração da DoD)
+
+`tests/replay_harness_v1.py` roda 24 giros determinísticos (3 escondidos, exercitando o gap) pelo caminho REAL `process_message`, com SQLite temporário e broadcast mockado. A fixture `tests/fixtures/spr_v1_replay_baseline.json` foi congelada rodando o harness contra o código **pristino** (`git stash` das edições do sprint). `tests/test_v1_nao_interferencia_replay.py` **re-executa e compara** — nunca regenera.
+
+Com as 4 flags OFF: `final_action`, cobertura (`sda_numbers`/`sda_centers`), stake (`gale_bet_value`), timelines, `spin_seq`, `seed_parity`/`seed_n`, `recent_results` e `_phase_results` **idênticos campo a campo** nas 21 decisões.
+
+### E. Fronteira de recuperação de gap (medida, não estimada)
+
+`m = min(len(prev), len(allNumbers) - k)`. Com janela 12 do cliente e `min_overlap=3`: **gaps até `k=9` são recuperáveis**; de `k=10` em diante sobram menos de 3 números coincidentes e `phase_uncertain` é a resposta **correta** — pedir resync é melhor que inventar giros. Matriz `k=0..11` verificada em `test_dir22_alternancia_metrica.py`.
+
+### F. Conformidade ISO (impacto)
+
+| Subcaracterística | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequação funcional** (correção da fase) | ⚠️ 1 gap contaminava todos os giros seguintes | ✅ buffer realinha em 1 giro (`k≤9`) | B1 + B2 |
+| **Maturidade / Tolerância a falhas** | ⚠️ giro fantasma invertia a fase sem sinal | ✅ gate físico + 4 contadores + 3 alertas | B3 + B5 |
+| **Recuperabilidade** | ⚠️ re-ancoragem invertia a âncora do operador | ✅ âncora reprojetada (`project_phase(p,c,c)==p`) | B4/C2 |
+| **Integridade / Controle de acesso** (Segurança) | 🔴 slave reancorava fase; `direction_event` não autenticado sobrepunha a projeção | ✅ role-gate MASTER + fail-close da visão | B4/C3 + D |
+| **Analisabilidade** | ⚠️ falha de fase invisível no Grafana | ✅ 4 gauges + 3 regras de alerta | B5 |
+| **Modificabilidade** | ⚠️ 4 pontos escreviam a âncora direto | ✅ `_apply_seed` como caminho único auditável | B4 |
+| **Testabilidade** | ⚠️ testes de fase simulavam o branch | ✅ testes E2E pelo `process_message` real + replay congelado | B1..B5 |
+| **Compatibilidade** | — | ✅ `phase_authority` aditivo (cliente antigo ignora) | pré-requisito do SPR-V2 |
+
+**Scorecard:** Segurança 6.5 → **7.2** (dois vetores de inversão de fase fechados; `AUTH_ENABLED=false` permanece o teto). Confiabilidade 8.5 → **8.8**. Manutenibilidade 8.5 → **8.7**. Global **8.5 → 8.7**.
+
+### G. Decisões conscientes (desvios e seus porquês)
+
+1. **`_last_accept_srv_mono` FORA do round-trip `save()`/`load()`.** `time.monotonic()` só é comparável dentro do **mesmo processo**; persistir produziria comparação sem sentido após restart (pior: bloquear giros legítimos). Custo aceito: o primeiro giro após um restart não é checado. Coberto por `test_nao_persistido_no_round_trip`.
+2. **Gate de plausibilidade em `_is_implausible_spin()` (em `process_message`), não dentro de `is_duplicate_spin`.** `_is_duplicate_trace` **grava** o `trace_id` ao checá-lo; rejeitar depois dele queimaria o id e mataria para sempre um reenvio legítimo do mesmo giro. Coberto por `test_gate_nao_queima_trace_id`.
+3. **`phase_authority` publicado por `GameState.engine_overlay_fields()`,** não pelo `_engine_overlay_fields()` do handler: o `state_sync` (broadcast 1 s) só funde a fonte do `GameState`.
+4. **Fail-close da visão sem flag de reabertura.** Removidos da fusão do giro **os dois** sinais `vision` (evento armazenado e `direction_source` do spin). O evento continua sendo armazenado e `fuse_direction` continua pura e testada, prontos para o SPR-V7. Rollback = `git revert` (deliberadamente não há flag que reabra o vetor).
+5. **Gauge em vez de Counter** para os `_total` novos, mantendo o padrão DIR12. `increase()` continua válido; ressalva: restart do processo zera o gauge e produz um degrau que o Prometheus trata como reset.
+6. **`min_overlap` lido no handler, não em `phase.py`** — as funções puras continuam puras e testáveis sem ambiente.
+7. **`reset_session` não migrado para `_apply_seed`** — já era um ponto único e auditável, e migrá-lo mudaria ordem de efeitos colaterais sem ganho.
+
+### H. Dívidas registradas
+
+1. **`AUTH_ENABLED=false` em produção** é o que torna o fail-close da visão necessário. **Bloqueia o SPR-V7** (produtor de visão autenticado): sem autenticação não há como reabrir a fusão com segurança.
+2. **`handle_history_correction` não roda sob `state_lock`** (pré-existente). Não foi corrigido aqui: risco de deadlock com `handle_set_seed`, que já toma o lock. Merece sprint próprio.
+3. **`direction_event` exigindo MASTER** é um gate de concorrência, não de autenticação. Quando o serviço de visão existir, ele precisará de identidade própria — não do papel de MASTER.
+
+### I. Obrigações / Rollback
+
+1. **INV-3 intacto:** nada aqui toca decisão, cobertura ou stake. A estratégia continua sempre indicando `APOSTAR`; nenhum caminho novo suprime indicação. Provado campo a campo pelo replay.
+2. **Round-trip preservado:** os campos da âncora (`seed_parity`/`seed_n`/`direction_source`/`direction_locked`) continuam em `save()`/`load()`/`reset_session()`; a única exceção é a do item G.1, documentada e testada.
+3. **Sem migração de schema** — nenhuma mudança em banco.
+4. **Ordem de ativação em produção (corrigida pelo Diretor, 05/08 — o gate temporal é o ÚLTIMO passo):**
+   *Pré-requisito não numerado:* merge/deploy com as flags novas **OFF**.
+   (1) `SDA_PHASE_BUFFER_SYNC=1` + `SDA_PHASE_ALT_METRIC=1` → observar `roleta_phase_uncertain_total`
+   cair e `roleta_alternancia_violada_total` em 0; (2) `SDA_PHASE_MIN_OVERLAP=3` → observar
+   `roleta_phase_ambiguo_total` → (3) **instalar/recarregar a extensão 3.10.0 do SPR-V2 e confirmar
+   `phase_authority`** (+ telemetria DIR20 no cliente) → (4) **SOMENTE ENTÃO
+   `SDA_MIN_SPIN_INTERVAL_MS=15000`**.
+   **Por que o gate temporal vem por último:** ele faz o servidor *rejeitar* o giro fantasma, mas um
+   cliente antigo **não desfaz o flip local** — servidor correto e popup/local phase espelhado. Reverter
+   o flip rejeitado é a razão de existir do SPR-V2, então ligar o gate antes da extensão abre
+   exatamente a janela de divergência que o V1 foi escrito para fechar. A versão anterior deste item
+   listava o gate antes da extensão; estava invertida em relação ao risco operacional. Regra curta:
+   **flags de buffer/telemetria/overlap antes; gate temporal somente depois do V2.**
+5. **Rollback:** cada flag volta a `0` no host + redeploy (efeito imediato, leitura por chamada). O fail-close da visão e o role-gate revertem só por `git revert`.
+6. **`promtool` indisponível na máquina do executor:** `obs/alerts.yml` foi validado por parse YAML + checagem estrutural (todo `rule` com `alert`/`expr`/`labels`/`annotations`) — 4 grupos, 21 regras. **Validar com `promtool check rules` no CI/host antes de aplicar.**
+
+> **Veredito:** os dois vetores de **inversão silenciosa da fase** (giro fantasma e visão não autenticada) e a **contaminação permanente por gap** estão fechados, com métrica e alerta para cada um. Tudo default-OFF e com não-interferência provada por replay congelado. Próximo: SPR-V2 (cliente consome `phase_authority`).
+
+### J. Code-review pós-implantação (subagente `code-review`) — 3 achados, 3 corrigidos antes do PR
+
+O code-review confirmou como **limpos** o caminho legado (`min_overlap=0` byte-idêntico em 200k pares
+aleatórios), a atomicidade/ordem de `sync_phase_buffer`, a equivalência de `_apply_seed` em todos os
+call sites migrados, a matemática de `_reancora_fase`, o posicionamento do gate B3 antes do dedup de
+trace, a expectativa `(gap+1)` da DIR22, o fail-close da visão (remove os DOIS sinais), o role-gate, a
+preservação de lock em `handle_set_seed`, a consistência de nomes de métrica em toda a cadeia
+(`_COUNTERS` → `_PROM_METRICS` → refresh → `alerts.yml`) e o default-OFF das 4 flags. Três achados
+reais foram corrigidos:
+
+**J.1 [ALTA] — `min_overlap` era insatisfazível com histórico curto (`state/phase.py`).**
+A evidência disponível é `m = min(len(prev), len(new) - k)`, portanto **nunca** passa de
+`min(len(prev), len(new))`. Exigir `min_overlap=3` quando só existem 1-2 números tornava a condição
+IMPOSSÍVEL: um alinhamento perfeito e ÚNICO era reportado `matched=False, ambiguous=True` →
+`phase_uncertain` → **DIR17 re-ancorava a fase na direção do CLIENTE**, que é exatamente o vetor de
+ataque/erro que a capacidade B2 existe para fechar. O gatilho não era exótico: `reset_session()` zera
+`_phase_results`, então **os giros #2 e #3 depois de TODO `nova_sessao`** caíam nele, além de qualquer
+janela curta do cliente. A trava de segurança destruía a âncora do operador.
+
+*Correção:* teto `min_overlap = min(min_overlap, len(prev), len(new))` — a exigência de evidência
+nunca ultrapassa a evidência que **pode** existir. É a generalização da isenção que a função já dava
+a `prev` vazio ("não há histórico contra o que comparar"). O parâmetro continua valendo integralmente
+quando a evidência existia e não bastou.
+
+*Não-regressão:* (a) `min_overlap=0` não passa pelo teto — caminho legado intocado, replay congelado
+segue byte-idêntico; (b) a fronteira **k=9** é preservada, pois com `prev`=16 e janela 12 o teto é
+inerte (`min(3,16,12) = 3`) — a matriz `k=0..11` continua verde; (c) 6 testes novos, todos validados
+por **mutação**: substituir o teto por `pass` mata os 6.
+
+**J.2 [MÉDIA] — a branch de `phase_ambiguo_total` tinha cobertura ilusória.**
+`test_metrica_ambigua_incrementa_no_handler` usava uma janela sem NENHUM alinhamento posicional
+(`ambiguous=False`) e afirmava apenas `phase_uncertain_total >= 1`, que o caminho pré-existente já
+satisfazia — apagar a branch nova deixaria a suíte verde. Reescrito para um caso que **alinha**
+(k=9 com m=1 de 3 possíveis) e afirma `phase_ambiguo_total == 1`.
+
+**J.3 [BAIXA] — `handle_initial_history` não limpava `_last_accept_srv_mono`.**
+`handle_history_correction` e `handle_new_session` já o faziam; o histórico inicial é a mesma
+descontinuidade e ficara com tratamento assimétrico — um giro aceito ANTES do histórico podia barrar,
+por até `SDA_MIN_SPIN_INTERVAL_MS`, o primeiro giro ao vivo depois dele. Corrigido.
+
+**Validação pós-correção.** Suíte completa **890 passed, 9 skipped, 1 xfailed** (+7 testes de
+regressão sobre os 883 do corpo deste ADENDO; baseline do sprint era 796/9/1).
+`tools/lint_silent_except.py` OK (129 `except Exception` em 12 arquivos, nenhum novo). Replay
+congelado verde: a correção **não** alterou o comportamento com as flags OFF.
+
+**Lição para o `Manutenabilidade_iso.md` (Confiabilidade).** Um parâmetro de segurança que pede mais
+evidência do que o sistema pode produzir não endurece nada — ele **inverte** a defesa, empurrando o
+sistema para o caminho degradado justamente na janela mais frágil (logo após um reset). Todo limiar de
+evidência deve ser explicitamente limitado pela evidência disponível, e todo teste de métrica deve ser
+validado por mutação: se apagar a branch mantém a suíte verde, a cobertura é ilusória.
+
+### K. Contrato `phase_authority` — validação integrada com o SPR-V2 (produtor x consumidor)
+
+O SPR-V2 foi mergeado na `main` (PR #52, merge `1bc45b7`) **antes** deste PR, e a extensão passou a
+consumir o bloco `phase_authority` que este sprint publica. Os dois lados vivem em linguagens e
+repositórios de teste distintos (Python e JS) e, até aqui, **nenhum teste os amarrava**: os testes do
+V1 conferiam o schema do produtor isoladamente e os do V2 usavam fixtures escritas à mão. Um contrato
+verificado só por convenção humana dos dois lados é um contrato não verificado.
+
+**Rebase.** Branch rebaseada sobre `origin/main` já contendo o V2 — **sem conflitos**. O único arquivo
+tocado pelos dois sprints é este `Manutenabilidade_iso.md`, e os adendos são apêndices em pontos
+distintos. Diff final não remove nem regride nada do V2 (`extension/`, `tests/js/`,
+`.github/workflows/ci.yml`, `sprints/SPR-V2.md` e `tests/test_dir13_lock_total.py` idênticos à `main`).
+
+**Veredito: compatível, sem correção de escopo necessária.** O consumidor
+(`extension/background.js::handleStateSyncPhase`) lê exatamente três campos — `enabled`, `direction` e
+`spin_seq` — e todos casam com o produtor (`GameState.engine_overlay_fields`). `seed_parity`/`seed_n`
+são publicados e hoje ignorados: campos extras são inertes para o V2.
+
+**Riscos reais que a auditoria encontrou e que agora estão travados por teste**
+(`tests/test_v1_v2_phase_authority_contract.py`, 14 testes):
+
+| Risco | Por que é silencioso | Guarda |
+|---|---|---|
+| Perder o `update(engine_overlay_fields())` em `server/websocket.py` | `pa` chega `undefined`, `paEnabled` vira `false` e a reconciliação do V2 apenas **para** — sem erro em lugar nenhum | heartbeat real executado; asserção sobre `state_sync.data` |
+| `enabled` deixar de ser booleano estrito | o V2 compara `pa.enabled === true`; um `1` inteiro desarma tudo | asserção sobre o JSON serializado (`"enabled": true`) |
+| Vocabulário de `direction` mudar | `normalizePhaseDir` devolve `null` e o desfazer-flip vira no-op | matriz paridade x `spin_seq` -> `cw`/`ccw` |
+| `phase_authority.direction` divergir de `sentido.next_direction` | o V2 usa as **duas** fontes no mesmo payload: desfaz o flip para uma direção e reconcilia para a outra, **oscilando a cada heartbeat** | 6 giros E2E comparando os dois blocos do mesmo overlay |
+| `spin_seq` virar `null` quando não há âncora | `Number(null) === 0`: o contador congela em 0, `paSeq === paSeqBeforeSend` sempre, e o V2 marca **todo** giro como rejeitado | asserção explícita no estado sem âncora |
+| a chave `spin_seq` **sumir** do bloco | sintoma DIFERENTE do `null`: `Number(undefined)` é `NaN`, o passo de ACK é pulado inteiro e `paAwaitingAck` fica preso em `true` — a reconciliação contínua **congela** | `test_campos_consumidos_pelo_v2_existem_sempre` (com e sem âncora) |
+
+**A divergência que NÃO existe (e por que é frágil).** `sentido.next_direction` é `target_direction`,
+o *toggle* sobre `last_direction`; `phase_authority.direction` é a *projeção determinística* da âncora.
+São dois códigos independentes que coincidem por um motivo específico: com `SDA_SENTIDO_AUTORITATIVO=1`
+o servidor grava em `last_direction` a projeção do giro `n`, e `opposite(proj(n)) == proj(n+1)`
+reencontra a projeção em `spin_seq`. Essa igualdade é um **acidente feliz do estado atual**, não uma
+invariante estrutural — qualquer mudança futura em `target_direction` a quebraria em silêncio. Por isso
+virou asserção E2E.
+
+**Semântica de `enabled` = `SDA_SENTIDO_AUTORITATIVO AND SDA_PHASE_BUFFER_SYNC`** — as quatro
+combinações estão cobertas, inclusive as parciais. Duas consequências operacionais, e a primeira
+**corrige uma imprecisão da redação anterior deste parágrafo**:
+
+- **Quem acende a capability, na prática, é o passo 1 do runbook.** `SDA_SENTIDO_AUTORITATIVO` já é
+  **default-ON** na compose (`SDA_SENTIDO_AUTORITATIVO:-1`), então ligar `SDA_PHASE_BUFFER_SYNC=1`
+  basta para `enabled` virar `true` em produção. A redação anterior — "ligar só `SDA_PHASE_BUFFER_SYNC`
+  não acende o V2" — só valeria num host com a autoridade desligada, que não é o estado de produção.
+  Isso importa porque é o que garante que a capability já esteja publicada quando a extensão for
+  instalada no passo 3: o operador consegue **confirmar** o `phase_authority` no `state_sync`, em vez
+  de instalar às cegas.
+- **O rollback continua sendo de um comando.** Desligar **qualquer uma** das duas desarma o consumidor
+  sozinho, sem tocar na extensão instalada — é o que o runbook assume como saída de emergência,
+  inclusive depois do passo 3.
+
+**Validação por mutação** (a cobertura foi provada, não presumida): remover o merge do overlay no
+`websocket.py` mata 1 teste; trocar `enabled` por `int(...)` mata 6; inverter a projeção de `direction`
+mata 6. Fontes restauradas e `git diff` limpo após cada mutação.
+
+**Suítes.** Python **904 passed, 9 skipped, 1 xfailed** (+14 sobre os 890 do §J).
+JS do V2 **53 passed** (`node --test "tests/js/*.test.js"`). `lint_silent_except` OK.
+
+**Lição (Manutenabilidade / Confiabilidade).** Contrato entre componentes que não compartilham suíte é
+contrato não verificado — cada lado testa a própria fixture e os dois passam enquanto o sistema
+integrado está quebrado. Todo bloco publicado para um consumidor externo precisa de um teste que
+execute o **canal real** de ponta a ponta e afirme **tipo, vocabulário e coerência com os blocos
+vizinhos do mesmo payload**, não apenas a presença da chave.
+
+---
+
+## ADENDO 05/08/2026 (noite-2) — OBS-INODE: regras Prometheus presas no inode antigo (deploy × bind de arquivo)
+
+> Incidente operacional observado em produção no mesmo dia do SPR-V1: `/root/roleta-cloud/obs/alerts.yml`
+> tinha **21** regras e o container `roleta-prometheus` continuava servindo **18** — `promtool` *dentro*
+> do container e a API `/api/v1/rules` concordavam com o número **errado**, ou seja, o container estava
+> internamente coerente com um arquivo que já não existia mais no host. `POST /-/reload` **não** resolveu;
+> recriar só o Prometheus resolveu (promtool passou a ver 21 e as 3 regras do V1 carregaram).
+
+### A. Causa-raiz (duas condições necessárias, nenhuma suficiente sozinha)
+
+1. **O deploy troca o inode.** `roleta-deploy-pull.sh` faz `git reset --hard origin/main`; o git
+   materializa cada arquivo modificado com temp+rename, então `obs/alerts.yml` **muda de inode** a cada
+   deploy que o toca.
+2. **A compose montava arquivos, não o diretório.** `docker-compose.obs.yml` usava
+   `./obs/alerts.yml:/etc/prometheus/alerts.yml:ro`. Um bind de **arquivo** é resolvido uma única vez, na
+   criação do container, e fica preso àquele inode — o novo arquivo, com o mesmo caminho, não é visto.
+   `/-/reload` relê o **mesmo inode antigo**, por isso "recarregou com sucesso" e nada mudou.
+
+Um terceiro fator explica a **duração**: nenhum passo do deploy tocava a stack de observabilidade, então
+a divergência era imune ao número de deploys — sobreviveria indefinidamente, e em silêncio, porque tanto
+o container quanto o host estavam "certos" cada um com a sua versão.
+
+### B. Correção (duas camadas — a estrutural e a operacional)
+
+| Camada | Mudança | Por que é necessária |
+|---|---|---|
+| Estrutural | `docker-compose.obs.yml` monta o **diretório** `./obs:/etc/prometheus:ro` | O git não recria o diretório `obs/`; só substitui arquivos **dentro** dele. Um bind de diretório resolve o caminho a cada acesso, então acompanha a troca de inode. Caminhos internos idênticos ⇒ `--config.file` e `rule_files` intactos. |
+| Operacional | `scripts/obs-apply.sh`, chamado pelo deploy | Só o mount não basta: sem alguém mandar recarregar, o Prometheus segue com as regras **em memória** até o próximo restart. |
+
+`obs-apply.sh` = **detectar → validar → aplicar → verificar**:
+
+- **Detectar** — `git diff --name-only OLD NEW -- obs/prometheus.yml obs/alerts.yml obs/*.rules.yml docker-compose.obs.yml`.
+  Deploy sem mudança de observabilidade é *noop* explícito: **o Prometheus não é reiniciado**.
+- **Validar antes de aplicar** — `promtool check config` em container efêmero
+  (`run --rm --no-deps --entrypoint /bin/promtool`), rodando **logo após o `git reset`** e **antes** do
+  build/alembic: com mount de diretório os arquivos novos já estão visíveis ao container, então uma
+  config inválida só se manifestaria no próximo restart. O resultado é **tri-estado**, não booleano:
+  `FAILED:` do promtool = config inválida comprovada ⇒ `git reset --hard $LOCAL` e abort;
+  qualquer outra falha (daemon fora, imagem ausente, ENOSPC) = **indisponibilidade operacional**,
+  que é logada e adiada para o `apply` — porque a reprovação deste passo derruba o deploy do **app**
+  com um `git reset --hard`, e "o docker não respondeu" não é prova de config quebrada.
+- **Aplicar** — mudou só config/regras ⇒ `POST /-/reload`; mudou a `docker-compose.obs.yml` (o próprio
+  mount) ⇒ `up -d --no-deps prometheus`. Usar `up -d` **puro** (e não `--force-recreate`) é deliberado:
+  ele recria quando a definição do serviço mudou e vira **no-op** nas retentativas — recriação **única**,
+  sem loop de restart a cada tick de 2 min. Volume `prometheus-data` (TSDB) preservado; **sem**
+  `--remove-orphans`; `--no-deps` garante que Grafana/AlertManager/app não são tocados.
+- **Verificar (o coração do fix)** — quatro provas, todas obrigatórias:
+  1. `/-/ready`, com **orçamento próprio** (`READY_TIMEOUT`, default 120s): um Prometheus reiniciado
+     pode passar minutos em WAL replay, e confundir "ainda subindo" com "não aplicou" faria o script
+     recriar o container no meio do replay, repetidamente;
+  2. `prometheus_config_last_reload_successful` = 1 **e** o timestamp
+     (`prometheus_config_last_reload_success_timestamp_seconds`) **avançou** em relação ao instante
+     anterior à execução — **o booleano sozinho é *sticky***: continua 1 do carregamento anterior
+     mesmo que nada tenha sido recarregado agora, e foi exatamente assim que a primeira versão
+     deste script conseguiu declarar sucesso sem recarregar nada;
+  3. **SHA-256 do arquivo no repo == SHA-256 do que o container lê**, lido por `docker exec`
+     (`sha256sum`, com fallback `cat`) — **nunca** por `docker cp`, que faz o daemon re-resolver o
+     caminho no host e devolveria os bytes novos que o processo talvez nunca tenha visto. O `<cid>` vem
+     de `ps -q` — **sem `-a`**, porque `-a` traria os containers efêmeros que o próprio `promtool` cria,
+     e verificar contra um deles (que carrega o bind novo) devolveria "sucesso" com o Prometheus real
+     ainda nas regras velhas;
+  4. **número de regras carregadas na API == declarado nos `rule_files`** (resolvidos com glob/subpath,
+     fail-closed quando um padrão não casa) — `arquivo=21 carregadas=18` é o sintoma literal do
+     incidente, e nenhuma das outras três provas o pega quando o arquivo já está montado corretamente
+     mas o processo não releu.
+
+  **Depois de qualquer `up`/recriação vem sempre um `POST /-/reload`.** Um `up -d` puro é no-op
+  quando a definição do serviço não mudou (a compose mudou num comentário ou em outro serviço),
+  e sem o reload a regra nova simplesmente nunca carregaria.
+
+### C. As armadilhas de "sucesso falso" fechadas explicitamente
+
+Cada linha desta tabela é um caminho pelo qual o script **declararia sucesso sem ter aplicado nada** —
+a maioria descoberta em duas rodadas de revisão independente, e todas travadas por teste (§D):
+
+| Armadilha | O que aconteceria | Guarda |
+|---|---|---|
+| Reload responde 200 e nada muda | exatamente o incidente | comparação de bytes container × repo; divergência ⇒ **escala para uma recriação única**, e a marca `escalated` só é gravada **depois** que a recriação deu certo (senão uma falha transitória do `up` trancaria a pendência num estado que só faz reload — e reload, por definição, não conserta inode preso) |
+| `up -d` que virou no-op | a compose mudou num comentário/outro serviço ⇒ o serviço não é recriado, e **sem reload nada é relido**; `ready` + booleano sticky + bytes iguais fariam tudo parecer certo | **todo `up`/recriação é seguido de `POST /-/reload`**, sempre |
+| Booleano de reload *sticky* | `prometheus_config_last_reload_successful` continua 1 do carregamento anterior | exigir que o **timestamp do último reload avance** em relação ao instante anterior à execução |
+| Regras não carregadas | arquivo com N regras, API com N-3 (o incidente) — bytes já batendo | contagem carregada × declarada nos `rule_files` como **critério**, não diagnóstico |
+| Falha esquecida no tick seguinte | `LOCAL == REMOTE` ⇒ `exit 0` e o systemd volta a `success` sem nada aplicado | pendência em `$STATE_DIR/obs_pending`, retomada com `obs_run resume` **antes** do gate NOOP |
+| Pendência rebaixando ação nova | um `escalated` de reload antigo sobrescrevia um `recreate` novo ⇒ **troca real de mount pulada** | pendência combinada por **severidade** (`recreate` > `reload`) e escalada zerada quando o SHA muda |
+| POST recusado engolido | `do_reload \|\| true` transformava 405/403/conexão recusada em sucesso e ainda **limpava** a pendência | nenhum caminho ignora o POST; **nenhuma falha limpa a pendência** |
+| Kill-switch amnésico | `OBS_ENABLED=0` apagava a pendência ⇒ religar não retomava nada | pausa preserva a pendência |
+| Ação detectada descartada no gate | com o kill-switch ligado **ou** o Prometheus fora do ar, o script saía **antes** de gravar a pendência: no tick seguinte `LOCAL == REMOTE`, não havia o que retomar, e os diffs dos deploys seguintes já não continham aquela mudança ⇒ **perda silenciosa da regra nova**, o próprio incidente | a ação resolvida é persistida **antes** do gate (exceto em host que nunca teve a stack, onde não há o que preservar) |
+| Marcador antigo `escalated` | era gravado só depois de uma recriação (ou seja, ação = `recreate`), mas era lido como `reload` — e, sem SHA, o reset de episódio era pulado: a recriação ficava bloqueada por episódios inteiros, falhando a cada 2 min sem nunca poder consertar o inode | marcador legado mapeado para `recreate`; pendência **sem** SHA conta como episódio novo |
+| promtool inexecutável tratado como config inválida | imagem ausente/daemon fora/ENOSPC derrubariam um deploy de app válido com `git reset --hard` | validação **tri-estado**: só `FAILED:` comprovado aborta |
+| Readiness curta demais | 12s não cobre WAL replay ⇒ o script recriaria o Prometheus no meio do replay, a cada tick | readiness com orçamento próprio de 120s, separada da verificação |
+| Detecção que falha em silêncio | `git diff` com erro virava "nada mudou" — justamente no deploy que precisava do reload | erro logado + **ação conservadora** (`recreate`) |
+| Prometheus que sumiu vira "skip" | host sem stack e host com stack derrubada são indistinguíveis | marcador `$STATE_DIR/obs_seen`: se a stack já existiu neste host e agora não existe, é **falha**, não skip. O passo `check` é a exceção deliberada: como a falha dele derruba o deploy do **app**, stack indisponível ali só adia a decisão para o `apply` |
+| Verificar contra o container errado | `ps -a` lista os containers efêmeros do `compose run` (o nome deles ordena antes do `roleta-prometheus`) e eles carregam o bind **novo** ⇒ os bytes batem e o script declara sucesso com o Prometheus real ainda velho | seleção por `ps -q` (só em execução) + aviso se vier mais de um ID |
+| Ler os bytes com `docker cp` | **descoberto reproduzindo o incidente em Docker real**: `docker cp` **não** lê pelo mount namespace do processo — para um bind mount o daemon **re-resolve o caminho de origem no host**. Num bind de *arquivo* com inode trocado ele devolve os bytes **novos** enquanto o processo continua lendo os **antigos**: a comparação vira host×host, uma **tautologia** que passa exatamente no cenário do incidente | leitura por `docker exec` (`sha256sum`, com fallback `cat`), que executa no namespace do container; sem leitor disponível ⇒ **fail-closed** (nunca cair num leitor que mente) |
+| Escalar qualquer falha para recriação | POST recusado, `reload_successful=0` ou "nunca ficou ready" não são consertados por recriar — e recriar um Prometheus que ainda servia a **última config boa** pode transformar um problema de recarga em **crash loop** e reiniciar o WAL replay | a verificação classifica a falha: **processo/transporte** (1) ⇒ falha e preserva a pendência, **sem** recriar; **conteúdo** (2, ready + reload fresco e bem-sucedido, leitura válida, mas bytes/regras divergentes — a assinatura do inode preso) ⇒ aí sim escala uma única vez |
+| `rule_files` por basename, sem glob | `/etc/prometheus/*.rules.yml` ou um subdiretório davam **0 regras declaradas**; como `0 != carregadas`, todo deploy virava falha (e recriação) eterna | resolução relativa ao mount, expansão de glob e subpaths, e o byte-check derivado da **mesma** lista; zero correspondência (glob vazio **ou** literal ausente) é **fail-closed** — guardrail deliberadamente mais estrito que o Prometheus, que ignora glob vazio em silêncio |
+| Erro de leitura tratado como divergência | `/api/v1/rules` fora do ar, `docker exec` falhando ou imagem sem leitor caíam na classe "conteúdo" e **forçavam recriação** — recriar não conserta um transporte quebrado, e ainda reinicia o WAL replay à toa | `same_bytes`/`rules_ok` devolvem **1 = transporte** e **2 = divergência real**; só a classe 2 escala |
+| `rule_files` sobrepostos contados duas vezes | `alerts.yml` + `*alerts.yml` resolvem o mesmo arquivo ⇒ `declared` dobrado ⇒ `declared != loaded` **para sempre**: falha e recriação eternas numa config legal | alvos **deduplicados** antes da contagem e do byte-check (a mesma lista alimenta os dois) |
+| `grep -q` no fim de uma pipeline sob `pipefail` | o `/metrics` tem centenas de KB e a métrica aparece cedo: o `grep -q` sai no primeiro match, o produtor morre de **SIGPIPE (141)** e a pipeline inteira vira "falha" — a verificação **nunca** passaria, todo deploy de obs escalaria para recriação e a pendência ficaria presa em `escalated` para sempre | comparação por here-string (`grep -q … <<< "$body"`), sem pipeline |
+
+Falha de observabilidade **não** faz rollback do app: ele já passou no healthcheck no SHA novo, e derrubar
+o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
+e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
+
+### D. Regressão (`tests/test_obs_reload.py`, 84 testes)
+
+Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
+`prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
+`rule_files` tem de apontar para dentro do mount; volume TSDB nomeado presente; nenhum `--remove-orphans`;
+`resume` antes do gate NOOP; e o **entrypoint** tem de continuar sendo um ponteiro (sem lógica de deploy).
+
+Funcionais: o script roda de verdade contra stubs **com estado** de `docker`/`curl` (injetados por
+`DOCKER_BIN`/`CURL_BIN`, sem mexer no `PATH`) num repositório git temporário — os stubs mantêm o
+timestamp do último reload, o que o container "enxerga" e quantas regras a API "carregou", de modo que
+um reload que não acontece de fato **não** faz o timestamp avançar e um container defasado devolve
+menos regras. Cobrem: deploy sem obs (zero chamadas ao docker), reload sem recriação, recriação única
+com `--no-deps` **seguida de reload**, frescor (reload sticky), regras não carregadas (2 no arquivo × 1
+na API), promtool reprovado × promtool inexecutável, `check` com a stack fora do ar, host sem stack,
+stack que sumiu, kill-switch preservando **e gravando** pendência, pendência escalada que não pode
+rebaixar um `recreate` novo, pendência no formato antigo (com e sem SHA), POST recusado que não vira
+sucesso, recriação que falha sem trancar a pendência, startup lento (WAL replay) sem recriar, readiness
+estourada, `git diff` quebrado, `/metrics` grande (SIGPIPE), `ps` sem `-a` e o **incidente literal**
+(container servindo o arquivo velho ⇒ detecta, escala **uma** recriação, grava a pendência, não recria
+de novo no tick seguinte e só devolve `0` depois que os bytes batem). O entrypoint tem testes próprios:
+**drift** do launcher (trocar o script versionado muda o comportamento sem reinstalar nada) e do
+instalador (idempotência, backup, `--check` read-only, `--rollback`).
+
+**Matriz de mutação** (a cobertura foi provada, não presumida — cada bug reintroduzido no script e o
+teste correspondente tem de reprovar; fontes restauradas ao fim):
+
+| Bug reintroduzido | Teste que reprova |
+|---|---|
+| `recreate` sem reload depois do `up` | `test_recreate_sempre_recarrega` |
+| verificação sem frescor (booleano sticky) | `test_frescor_reload_que_nao_avanca_timestamp_reprova` |
+| contagem de regras só como diagnóstico | `test_regras_nao_carregadas_nao_e_sucesso` |
+| pendência rebaixando a ação nova | `test_pendencia_escalada_nao_engole_recreate_novo` |
+| `do_reload \|\| true` (POST engolido) | `test_escalated_com_reload_falho_nao_vira_sucesso` |
+| kill-switch apagando a pendência | `test_kill_switch_preserva_pendencia` |
+| promtool inexecutável = config inválida | `test_promtool_inexecutavel_nao_derruba_o_deploy_do_app` |
+| readiness sem orçamento próprio | `test_startup_lento_nao_forca_recriacao` |
+| `git diff` quebrado virando noop | `test_git_diff_quebrado_nao_vira_noop` |
+| entrypoint congelado (sem launcher) | `TestLauncherRuntime` |
+| pendência não gravada antes do gate | `test_kill_switch_grava_a_mudanca_detectada` + `test_stack_fora_do_ar_grava_a_pendencia` |
+| marcador antigo rebaixado para `reload` | `test_resume_de_pendencia_antiga_recria_quando_preciso` |
+| SHA vazio pulando o reset de episódio | `test_pendencia_antiga_sem_sha_nao_bloqueia_a_recriacao` |
+| instalador do entrypoint não idempotente | `test_instala_com_backup_e_e_idempotente` |
+| instalador sem backup (rollback impossível) | `test_rollback_restaura_o_entrypoint_anterior` |
+| sonda de drift fatal (derrubaria o deploy) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
+| sonda de drift desligada (drift silencioso) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
+| ler os bytes com `docker cp` (tautologia) | `test_bytes_lidos_pela_visao_do_container` |
+| leitor ausente presumindo sucesso | `test_sem_leitor_no_container_falha_fechado` |
+| escalar qualquer falha para recriação | `test_post_recusado_nao_recria` + `test_reload_rejeitado_nao_recria` + `test_never_ready_nao_recria` |
+| `rule_files` por basename, sem glob | `test_glob_e_subdiretorio_sao_resolvidos` |
+| zero match tratado como zero regras | `test_glob_sem_correspondencia_falha_fechado` |
+| gate sem stack descartando a mudança | `test_host_sem_marcador_ainda_guarda_a_mudanca` |
+| `--check` sem distinguir launcher antigo de cópia | `test_check_distingue_launcher_desatualizado_de_copia_congelada` |
+| launcher sem marcador estável | `test_check_distingue_launcher_desatualizado_de_copia_congelada` |
+| `--check` ruidoso a cada tick | `test_check_e_silencioso_quando_esta_em_dia` |
+| unit sem sonda / com sonda fatal | `test_unit_systemd_roda_a_sonda_de_forma_nao_fatal` |
+| sonda sem `REPO_DIR` explícito | `test_deploy_passa_repo_dir_para_a_sonda` |
+| erro de leitura classificado como conteúdo | `test_sem_reader_na_imagem_e_processo` + `test_docker_exec_falho_e_processo` |
+| API fora do ar classificada como conteúdo | `test_api_de_regras_fora_do_ar_e_processo` |
+| `verify` colapsando as duas classes | `test_sem_reader_na_imagem_e_processo` |
+| sem deduplicação dos `rule_files` | `test_literal_e_glob_sobrepostos_contam_uma_vez` + `test_dois_globs_sobrepostos_contam_uma_vez` |
+
+**Probes independentes** (`OBS_APPLY=<script>`, stubs próprios, fora do harness de teste): 15 cenários —
+namespace × host no bind de arquivo, mount de diretório, POST recusado / `reload_successful=0` /
+never-ready sem recriação, glob no topo, em subdiretório e sem correspondência, gate sem stack, API fora
+do ar, `docker exec` falho, imagem sem leitor, controle de hash divergente, sobreposição literal+glob e
+paths com espaço. Contra o `scripts/obs-apply.sh` de `554e66b`: **1/9** (o probe do namespace devolvia
+`rc=0` usando `docker cp` — o sucesso falso — e `forced=1` nos três casos de falha de processo). Contra
+`edcb9fd`: **11/15** (as quatro reprovações são exatamente os achados de classificação e deduplicação).
+Contra o código atual: **15/15**.
+
+### E. Entrypoint durável (o que fazia o conserto não chegar em produção)
+
+O systemd executa `/usr/local/bin/roleta-deploy-pull.sh`, que era uma **cópia congelada** do deploy —
+hoje byte-idêntica ao `scripts/roleta-deploy-pull.sh` (mesmo hash, ambas já com o passo `alembic`), ou
+seja: **não** havia migração `tools/` → `scripts/` pendente, como uma versão anterior desta documentação
+sugeria; o problema era só o congelamento. Qualquer melhoria versionada dependia de alguém lembrar de
+reinstalar a cópia — e nada tornava esse congelamento visível.
+
+Três peças fecham isso:
+
+| Peça | Papel |
+|---|---|
+| `scripts/roleta-deploy-launcher.sh` | ~10 linhas, zero lógica de deploy: resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. Instalado **uma vez** no mesmo caminho (a unit systemd não muda), a partir daí todo o deploy — inclusive o passo de observabilidade — viaja pelo git. Carrega um **marcador estável** (`ROLETA-DEPLOY-LAUNCHER`) |
+| `scripts/roleta-deploy-install.sh` | bootstrap/atualização **operacionalizada**: idempotente (não reescreve se já for o launcher), guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/`, `--check` read-only e `--rollback` para desfazer |
+| sonda de drift | roda no fim de cada deploy **e** em `ExecStartPre=-…` da unit (o `-` a torna não-fatal). **Limite honesto e documentado:** a sonda vive no script versionado, então **não detecta o congelamento atual** — a cópia congelada nunca a executa. Ela protege contra **re-congelamento futuro**; o caso de hoje só o bootstrap manual resolve |
+
+`--check` é **tri-estado**, porque hash diferente não prova que o deploy versionado parou de chegar:
+`ok` (idêntico, silencioso para não poluir o journal a cada 2 min) · `DESATUALIZADO` (hash diferente
+**com** o marcador — ainda é um launcher, as mudanças continuam chegando) · `DRIFT` (sem o marcador =
+cópia congelada, exit 1 com o comando de correção). O deploy passa `REPO_DIR` explicitamente à sonda,
+para funcionar em checkouts fora do path default.
+
+O duplicado `tools/deploy_pull.sh` virou delegador do canônico, eliminando a classe "duas cópias que
+precisam ser mantidas em sincronia".
+
+**Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
+de bug, não alterado aqui para não recriar um container fora do incidente.
+
+**Suítes.** Python **988 passed, 9 skipped, 1 xfailed** (+84 sobre os 904 do adendo anterior).
+`lint_silent_except` OK · `schema_symmetry` OK.
+
+**Evidência contra a rodada anterior.** A suíte funcional aceita `OBS_APPLY_UNDER_TEST=<script>` para
+rodar contra outra versão do aplicador. Apontada para o `scripts/obs-apply.sh` do commit `0db70f6`
+(rodada 1), **19 dos 31 testes de runtime reprovam** — incluindo os três de sucesso falso do incidente
+(`recreate_sempre_recarrega`, `frescor_reload_que_nao_avanca_timestamp_reprova`,
+`regras_nao_carregadas_nao_e_sucesso`). Os testes de entrypoint reprovam por construção: nem o launcher
+nem o instalador existiam naquele commit.
+
+**Lição (Manutenabilidade / Operação).** Um componente pode estar **internamente coerente e
+externamente errado**: o Prometheus concordava consigo mesmo sobre 18 regras enquanto o disco tinha 21, e
+todo diagnóstico feito *de dentro dele* (promtool no container, `/api/v1/rules`) confirmava a versão
+errada. Sempre que um artefato versionado é entregue por cópia/mount, a verificação tem de comparar
+**as duas pontas** — bytes do repo contra bytes que o consumidor realmente lê — e nunca aceitar o "200 OK"
+do comando de recarga como prova de que a mudança chegou. Dois corolários que este ciclo custou três
+rodadas de revisão para aprender:
+
+1. **Sinal que sobrevive ao próprio evento não prova nada.** Um booleano "último reload deu certo"
+   continua verdadeiro para sempre depois do primeiro sucesso; só o *frescor* (um relógio que precisa ter
+   avançado) distingue "recarregou agora" de "recarregou algum dia".
+2. **Verificar exige saber de qual ponto de vista se está lendo.** `docker cp` e `docker exec` parecem
+   equivalentes para "ler um arquivo do container", mas só o segundo passa pelo mount namespace do
+   processo: o primeiro faz o *daemon* re-resolver o caminho no host e, num bind de arquivo com inode
+   trocado, devolve alegremente os bytes novos que o processo nunca viu. Uma verificação que lê pelo lado
+   errado não é fraca — é **tautológica**, e passa com mais confiança justamente no caso que deveria pegar.
+
+---
+
+## ADENDO 05/08/2026 (noite-2) — SPR-V4: contrato `direction_event` + trilha `phase_events` (auditoria durável, shadow-only)
+
+> Sprint executor da familia SPR-V (`sprints/SPR-V4.md`), branch `ivandirfilho-turbo-waffle`, base `main` `0e7543e` (ja com SPR-V1 e SPR-V2). Transforma o `direction_event` de "ultima coisa que chegou" em **evento identificavel, vinculado a um giro-alvo, com prazo e consumo unico**, e cria a **prova duravel** sem a qual nenhum gate de shadow pode ser honestamente avaliado. **Tudo default-OFF**, com nao-interferencia provada pelo replay congelado do SPR-V1. Suite **973 verde** (965 antes -> +64 testes novos do sprint; 3 baselines atualizados).
+
+### A. O bug latente que este sprint fecha
+
+`handle_direction_event` gravava `last_direction_event` **sem TTL, sem consumo unico e sem vinculo a giro**. Como a mesa **alterna a cada giro**, um veredito CORRETO do giro N e a direcao **ERRADA** do giro N+1: um produtor que emitisse uma vez e falhasse na seguinte **travaria a direcao autoritativa em ~50% de erro ate um reset**. Hoje o vetor e inerte (nao ha produtor) e o SPR-V1 tirou a visao da fusao (fail-close). Este sprint reconstroi o contrato **do lado seguro**: o evento vira **trilha de auditoria, nunca direcao**.
+
+Segundo furo, de natureza diferente: **Prometheus nao satisfaz o gate T4**. Counters zeram a cada restart do container e log tem retencao limitada — sem `phase_events`, "99% de acordo" e uma afirmacao sem lastro. A trilha e **requisito de evidencia**, nao luxo analitico.
+
+### B. Capacidades entregues (flags novas, todas default-OFF)
+
+| Flag | O que faz | Ligar quando |
+|---|---|---|
+| `SDA_PHASE_EVENT_AUDIT` | Persiste a trilha `phase_events`. Sem ela **nada e gravado** (o contrato continua valendo em memoria). | **Passo 1** — so grava, custo medido abaixo. |
+| `SDA_DIRECTION_VISION_SHADOW` | Classifica cada giro (`agree`/`disagree`/`stale`/`unbound`/`selfcontradict`/`missing`) contra a direcao final **pos-autoridade**. Zero efeito em direcao, seed, timeline, decisao ou stake. | **Passo 2**, depois do AUDIT. Ligar SHADOW sem AUDIT produz metrica sem prova. |
+| `SDA_DIRECTION_VISION_TTL_MS` | Prazo (default `30000`) contado do **recebimento**, no relogio monotonico do servidor. | Ajuste fino; 30s < ciclo real (~44s). |
+
+`SDA_DIRECTION_VISION` **permanece congelada em `0`** ("nao ligar; visao corrige ancora, nao spin — ver SPR-V7"). Este sprint **nao** reabre autoridade per-spin.
+
+### C. As quatro condicoes de binding (e por que cada uma existe)
+
+Um evento so vincula quando **os quatro** requisitos valem: (a) `round_id` coincide **se os dois lados o tiverem**; (b) `target_spin_seq` bate com a formula do servidor; (c) idade **dentro** do TTL; (d) evento **ainda nao consumido**. Faltou um -> `stale`/`unbound`, e **nunca** vira direcao.
+
+1. **`target_spin_seq = spin_seq_corrente + 1`, atribuido pelo SERVIDOR sob `state_lock`.** O evento descreve o giro que **ainda vai ser processado** (o `spin_seq` so incrementa quando o `novo_resultado` e aceito). A formula esta no codigo, no teste e aqui de proposito: deixa-la a criterio do implementador gera off-by-one silencioso, que e exatamente a classe de bug que o sprint existe para tornar visivel. Um `target_spin_seq` enviado pelo cliente e **so diagnostico** (`meta_json.client_target_spin_seq`) — senao um cliente defeituoso escolhe o alvo dele.
+2. **TTL no relogio do servidor.** Idade = `time.monotonic() - received_at_mono`, com o monotonico lido **antes de disputar o lock** (captura-lo depois renovaria de graca o prazo de um evento que ficou na fila). `captured_at_ms` do cliente e **so diagnostico**: se entrasse na conta, um relogio adulterado renovaria o proprio prazo. Intervalo **semiaberto** (`idade >= TTL` ja expira).
+3. **Restart invalida por construcao.** `time.monotonic()` nao sobrevive ao processo, entao ele **nao e persistido**: o evento volta com `mono_lost=True` e e `stale` **por definicao**. Essa e a unica excecao ao round-trip, e e o que impede um evento zumbi de voltar acionavel com prazo zerado.
+4. **One-shot estrutural.** A disposicao terminal **remove** o pendente; nao ha caminho que o reaproveite no giro seguinte (que ja e o sentido oposto).
+
+**Gap de fase (`spin_seq += _gap`) => `unbound`, e isso esta certo:** o evento descrevia o giro imediatamente seguinte, e um gap significa que aquele giro **nunca foi visto**. Classificar como `agree` seria concordancia inventada.
+
+### D. Atomicidade: decisao + disposicao na MESMA transacao
+
+`save_decision()` abre e comita a propria conexao, entao a unica forma de amarrar os dois writes era uma operacao explicita: `SQLiteDecisionRepository.save_decision_with_phase_events()`. **Nao ha alternativa "justificada"** — sem atomicidade existe decisao sem disposicao, e a trilha deixa de ser prova para o gate T4.
+
+* **Rollback total testado com falha injetada** entre os dois writes (monkeypatch do ponto de costura `_insert_phase_event_row` **e** violacao real de `NOT NULL`): nem decisao nem disposicao ficam gravadas. O retry reprocessa de forma idempotente.
+* **`ON CONFLICT ... DO NOTHING`, e nao `INSERT OR IGNORE`.** O `OR IGNORE` engoliria tambem violacao de `NOT NULL`/`CHECK`: uma linha invalida sairia em silencio da transacao, a decisao comitaria sem disposicao e o teste de rollback passaria **por engano**.
+* **O hook do outbox so roda apos o commit** — um rollback jamais publica no PG uma decisao que nao existe.
+
+**Politica de degradacao declarada: decisao obrigatoria, auditoria best-effort.** Quando a transacao falha, a decisao do giro nao pode ser sacrificada pela trilha (a aposta ja foi emitida; o ledger e o que vira dinheiro). Por isso o erro e **tipado**:
+
+| Excecao | Significado | Acao do handler |
+|---|---|---|
+| `PhaseTrailRolledBack` | Falhou **antes** do commit; **nada** foi gravado. | Unico caso que autoriza re-tentar a decisao **sozinha**. |
+| `PhaseTrailCommitAmbiguous` | O proprio `commit()` levantou; nao se pode afirmar se gravou. | **Sem retry** (duplicaria a decisao no ledger). |
+| Qualquer outra | So pode vir **depois** do commit (hook do outbox, `close()`). | **Sem retry**, pelo mesmo motivo. |
+
+Em todos os casos: `phase_events_write_error_total++`, log de erro, e a **janela deixa de valer como evidencia T4** — o giro e a aposta seguem intactos.
+
+### E. Desvio deliberado do DDL literal do brief
+
+O brief pedia `UNIQUE(event_id, kind)`. **Entregue: indice unico `ux_phase_events_lifecycle(session_id, event_id, kind, target_spin_seq)`.**
+
+`event_id` e o valor **do cliente** quando presente, e nada o prende a um giro nem a uma sessao. Com a chave global, um produtor que reutilize um id estavel (id de camera/sensor) grava **UMA linha por kind para a vida inteira** enquanto os counters continuam subindo. Reproduzido: **6 giros com `event_id` constante => counters 6, trilha 1**. As consequencias sao exatamente o que o sprint existe para impedir: (1) a decisao comita com **zero** linhas de disposicao — a "decisao sem disposicao" alcancada por outro caminho, sem rollback; (2) `missing` some do denominador e a taxa de acordo **sobe artificialmente** — a metrica de 200 amostras disfarcada de prova.
+
+`session_id` entra na chave porque **`spin_seq` REINICIA a cada sessao**: sem ele, `(cam-fixa, received, 1)` da sessao B colide com a mesma tupla da sessao A e a linha da sessao **nova** e suprimida — a sessao inteira perde a evidencia sempre que o produtor tiver um id estavel. Coberto por `test_terminal_de_uma_sessao_nao_fecha_nem_suprime_a_outra` (mutacao cirurgica removendo `session_id` da chave mata o teste com a mensagem exata "a linha da sessao nova foi suprimida pela chave unica").
+
+A chave e um **INDICE UNICO EXPLICITO**, e nao um `UNIQUE` de tabela, por uma razao operacional: indice e **aditivo** (`CREATE UNIQUE INDEX IF NOT EXISTS`), entao um banco criado por um commit intermediario deste PR ganha a chave certa no boot seguinte — sem `DROP`/rebuild, que os invioaveis do repo proibem. E ele e obrigatorio: `ON CONFLICT(...)` exige um indice unico que **case exatamente** com as colunas; sem ele **todo** insert da trilha estoura com `OperationalError` e a auditoria morre inteira. Coberto por `test_banco_legado_ganha_a_chave_do_ciclo_sem_drop`.
+
+Complemento: **toda supressao por conflito e contada** (`phase_events_write_error_total`) e logada com a tupla completa. Evidencia que nao foi gravada precisa aparecer numa metrica — sub-registro silencioso e pior que erro barulhento.
+
+### E.1. Duas coordenadas, ambas em COLUNAS (nao em `meta_json`)
+
+Uma linha da trilha responde a duas perguntas diferentes, e confundi-las quebrava tanto o fechamento do ciclo quanto a contagem por sessao:
+
+| Colunas | Significado |
+|---|---|
+| `session_id` + `target_spin_seq` | coordenadas do **EVENTO** — o *slot* do ciclo de vida. E por elas que um terminal fecha o seu `received` (idem a chave unica). |
+| `spin_session_id` + `spin_seq` | coordenadas do **GIRO** que decidiu a disposicao. **NULL** em tudo que nao e disposicao de giro (`received`, supersede, invalidacao por `nova_sessao`, faxina). |
+
+Invariante consultavel: **`spin_seq IS NOT NULL` <=> a linha participa da particao dos GIROS ELEGIVEIS** (o denominador da cobertura). `count_phase_events_by_kind(sessao)` filtra por `COALESCE(spin_session_id, session_id)`: uma disposicao pertence a sessao do GIRO que a decidiu; `received`/manutencao, que nao tem giro, pertencem a sessao do EVENTO.
+
+Sem isso, um evento com alvo 5 classificado no giro 7 (gap de fase recuperado) gravava o terminal com alvo 7 — que **nao fecha** o `received` de alvo 5, deixando o ciclo aberto para sempre.
+
+### F. Append-only x retencao (o que este sprint NAO entrega)
+
+1. **Taxa de crescimento MEDIDA** (2.000 giros reais gravados, `wal_checkpoint(TRUNCATE)`, tabela + indice + overhead de pagina):
+   * **sem produtor de visao** (1 linha `missing`/giro): **223 B/giro** -> ~218 KB/dia, **6,4 MB/30d**, ~78 MB/ano (a 1.000 giros/dia);
+   * **com produtor ativo** (`received`+`bound`+`agree`, `meta_json` cheio): **1.313 B/giro** -> ~1,3 MB/dia, **37,6 MB/30d**, ~457 MB/ano.
+   Ambos acima da estimativa de ~100-300 B/giro do brief, que contava **uma** linha e ignorava indice/pagina.
+2. **"Append-only" e "retencao" nao se contradizem** porque o **hot path so INSERE**; quem apaga e um job **externo**, fora do caminho do giro.
+3. **Enquanto o job nao existir, a purga e MANUAL e do operador.** O job de 30 dias e **sprint futuro (`SPR-V4R`, a abrir pelo Diretor)** e precisa existir **antes** de a auditoria ficar ligada por mais de ~60 dias. Nao ha promessa no PR que nao esteja no diff.
+4. **Frames NUNCA entram no banco** — so metadados (testado: nenhuma coluna `frame`/`image`/`blob`).
+
+### G. Por que SQLite e nao pgvector
+
+O evento e **categorico, temporal e auditavel**: a pergunta e "houve evento neste giro e ele concordou?", nao "qual evento e semanticamente parecido". Busca vetorial nao agrega nada a isso e **dificultaria integridade** (sem `UNIQUE` natural, sem transacao com a decisao). pgvector segue para embeddings. Se um dashboard central for necessario **depois**, a outbox espelha no PG com migracao Alembic aditiva — **sem hardcode do numero da migracao** (a head atual e 0013 e pode mudar) e so depois de liberar o lock `schema/alembic`. **Sem Alembic neste sprint**, por decisao do brief (evita colisao com o SPR-G2).
+
+### H. Cobertura ANTES de concordancia
+
+`vision_event_total` conta **ingressos**; os seis `kind` terminais **particionam os giros elegiveis** (exatamente UMA disposicao por giro com o shadow ON). `roleta_vision_coverage_ratio = (agree+disagree)/elegiveis`, com **0.0** quando nao ha giro elegivel — nunca 1.0, que faria "sem dado" parecer "cobertura perfeita".
+
+Correcao vinda do code-review: as invalidacoes de **ingresso** (evento superseded por outro frame, e pendente morto por `nova_sessao`) **nao incrementam** `vision_unbound_total`. Elas nao sao giros; conta-las inflava o denominador — medido: 5 frames antes de 1 giro que concordou davam cobertura **0,2** em vez de **1,0**. As linhas continuam na trilha (com `meta_json.reason = superseded|session_reset`), so nao poluem a metrica que o runbook manda ler antes de confiar em qualquer taxa de acordo.
+
+### I. Mudancas por arquivo
+
+- **`server/message_handler.py`** — `classify_direction_event()` **pura** (recebe relogio e TTL ja resolvidos); `handle_direction_event` reescrito (identidade, snapshot atomico sob lock, formula do alvo, retry sem renovar TTL, contradicao **sticky**, supersede terminalizado, `save()` do pendente, I/O e ack **fora** do lock); `_classify_pending_direction_event()` sob o lock logo apos `spin_seq += 1`; `_save_decision_with_trail()` com a politica de degradacao tipada; `_write_phase_events()`; `_reconstruir_pendente_da_trilha()`.
+- **`database/sqlite_repo.py`** — DDL aditivo de `phase_events` + indice; `save_decision_with_phase_events()`; `insert_phase_events()` (retorna linhas **efetivamente** gravadas); `get_pending_phase_event()`; `count_phase_events_by_kind()`; `PhaseTrailRolledBack`/`PhaseTrailCommitAmbiguous`; `save_decision` refatorado para **fonte unica** de SQL/params (43 colunas em dois caminhos duplicados divergiriam no primeiro campo novo).
+- **`state/game.py`** — `pending_direction_event` com round-trip `save`/`load`/`reset_session` e `_pending_event_for_save()` (remove o monotonico); `last_direction_event` promovido a campo declarado.
+- **`state/phase_metrics.py`** — 8 chaves novas no dict fechado. **`server/health_server.py`** — 8 gauges + `vision_coverage_ratio`. **`obs/alerts.yml`** — grupo `roleta_visao_v4`. **`docker-compose.yml`** — 3 flags default-OFF + congelamento re-documentado de `SDA_DIRECTION_VISION`. **`app_config/settings.py`** — 3 helpers lidos **por chamada**.
+- **`tests/replay_harness_v1.py`** — passa a capturar tambem o call site atomico (sem isso, um replay com auditoria ON devolveria **zero** decisoes e a comparacao passaria vazia, provando nada).
+
+### J. Conformidade ISO (impacto)
+
+| Subcaracteristica | Antes | Depois | Justificativa |
+|---|:--:|:--:|---|
+| **Adequacao funcional** (correcao) | ⚠️ evento sem alvo/prazo podia descrever o giro errado | ✅ 4 condicoes de binding + formula fixa do servidor | Bloco 1 |
+| **Analisabilidade** | 🔴 sem prova duravel: counters zeram no restart, log expira | ✅ trilha append-only + 9 gauges + 2 alertas | Blocos 2-3 |
+| **Maturidade / Tolerancia a falhas** | ⚠️ falha de persistencia da evidencia era invisivel | ✅ erro tipado, contado, alertado; giro e aposta intactos | D |
+| **Integridade (Seguranca)** | ⚠️ cliente influenciava alvo/prazo do proprio evento | ✅ alvo e TTL sao **do servidor**; valor do cliente e diagnostico | C.1-C.2 |
+| **Recuperabilidade** | — | ✅ pendente reconstruido da trilha; `stale` por definicao pos-restart | C.3 + I |
+| **Modificabilidade** | ⚠️ SQL da decisao seria duplicado em 2 caminhos | ✅ fonte unica `_DECISION_INSERT_SQL`/`_decision_params` | I |
+| **Testabilidade** | — | ✅ `classify_direction_event` pura; falha injetada com rollback provado | D |
+| **Compatibilidade** | — | ✅ tabela aditiva; `sentido.stats` aditivo (cliente antigo ignora) | I |
+
+**Scorecard:** Analisabilidade 8.7 -> **9.0** (a evidencia do gate T4 passa a existir). Confiabilidade 8.8 -> **8.9**. Seguranca permanece **7.2** (`AUTH_ENABLED=false` segue sendo o teto — este sprint nao reabre a fusao). Global **8.7 -> 8.8**.
+
+### K. Decisoes conscientes (desvios e seus porques)
+
+1. **`UNIQUE(session_id, event_id, kind, target_spin_seq)`** em vez do literal do brief — secao E, com reproducao.
+2. **Coordenadas do EVENTO e do GIRO em colunas separadas** (`session_id`/`target_spin_seq` x `spin_session_id`/`spin_seq`) — secao E.1. Colocar as do giro em `meta_json` deixaria "quais giros foram elegiveis" fora do alcance de uma query.
+3. **A trilha FECHA ciclos; ela nao RESSUSCITA eventos** — secao N.7. A continuidade de um restart e provada pelo `state.json`, nunca por coincidencia de contador.
+4. **`received_at_mono` fora do round-trip** — e o que torna verdadeira a regra "evento pos-restart e `stale`". Persisti-lo daria prazo de graca ao evento zumbi.
+5. **Ingestao sempre-on, persistencia e classificacao atras de flag.** Atribuir identidade/alvo/prazo e bookkeeping inerte (espelha o que o `last_direction_event` ja fazia); o que custa disco (AUDIT) e o que produz metrica (SHADOW) sao opt-in. Isso mantem o caminho legado byte-identico com as flags OFF.
+6. **Fallback que grava a decisao sozinha** — degradacao **declarada**, nao atomicidade fingida (secao D). Restrito a `PhaseTrailRolledBack`, o unico caso em que se **sabe** que nada foi gravado.
+7. **Duas linhas (`bound` + `agree`/`disagree`) para um evento vinculado.** `bound` e transicao, nao disposicao; o fechamento do ciclo so considera os seis `kind` terminais.
+8. **`selfcontradict` definido como "mesmo `event_id` reapresentado com direcao diferente"** — a unica contradicao verificavel **do produtor** que nao depende de campo controlado pelo cliente. Fazer o `target_spin_seq` divergente do cliente virar `selfcontradict` deixaria o cliente influenciar a classificacao pela porta dos fundos.
+9. **I/O de SQLite e `send()` do ack fora do `state_lock`** — `busy_timeout=5000` e `drain()` de produtor lento parariam o caminho do giro (o lock e o ponto de serializacao de `handle_new_result`).
+10. **Gauge em vez de Counter**, mantendo o padrao DIR12/SPR-V1 (`increase()` continua valido; restart do processo produz degrau tratado como reset).
+
+### L. Dividas registradas
+
+1. **`SPR-V4R` (retencao de 30 dias) precisa existir antes de ~60 dias de auditoria ligada** — hoje a purga e manual (secao F). O mesmo job e o lugar natural para varrer ciclos abertos alem dos 20 que a faxina de boot cobre.
+2. **`event_id` de cliente ainda e um espaco de nomes compartilhado dentro de uma sessao.** A chave `(session_id, event_id, kind, target_spin_seq)` fecha os vetores praticos (reuso entre giros e entre sessoes), mas dois produtores com o mesmo id no MESMO giro da MESMA sessao ainda colidiriam — e a supressao seria **contada**, nao silenciosa. Identidade propria do produtor depende do SPR-V7/`AUTH_ENABLED`.
+3. **`direction_event` exigindo MASTER continua sendo gate de concorrencia, nao de autenticacao** (divida herdada do SPR-V1).
+4. **`missing` usa id deterministico `missing:{session_id}:{spin_seq}`** conforme o brief; se `spin_seq` regredir dentro da mesma sessao (re-ancoragem de historico), a segunda linha colide — e a colisao **conta** `phase_events_write_error_total` em vez de sumir.
+5. **A faxina de boot cobre no maximo 20 ciclos abertos** (varredura limitada aos 200 `received` mais recentes, para nao virar trabalho ilimitado no caminho do giro). Orfaos alem disso ficam para o proximo boot ou para o `SPR-V4R`.
+
+### M. Obrigacoes / Rollback
+
+1. **INV-3 intacto:** nada aqui toca indicacao, cobertura ou stake. O caminho de shadow escreve **apenas em variaveis locais** e e provado incapaz de agir por teste que **falha** se ele chamar `_apply_seed`/`process_spin` ou alterar `direcao`/`seed_parity`/`spin_seq`.
+2. **Nao-interferencia provada por replay congelado:** `tests/test_v4_nao_interferencia_replay.py` re-executa `tests/replay_harness_v1.py` contra a fixture congelada **antes do SPR-V1** e compara campo a campo — decisoes, cobertura, stake, timelines, seed e `spin_seq` **identicos** com as 3 flags novas OFF, e **identicos tambem** com `SDA_DIRECTION_VISION=1` (regressao do fail-close) e com o shadow ON.
+3. **Round-trip:** `pending_direction_event` em `save()`+`load()`+`reset_session()`, com a excecao documentada e testada do item K.2.
+4. **Sem Alembic / aditivo:** `CREATE TABLE/INDEX IF NOT EXISTS`, nenhum `DROP`/rename. Rodar o DDL 2x e testado.
+5. **Rollback:** `SDA_PHASE_EVENT_AUDIT=0` + `SDA_DIRECTION_VISION_SHADOW=0` + `docker compose up -d` (minutos), ou `git revert` do PR. **A tabela PERMANECE** (aditiva, inofensiva) — o rollback de deploy nao faz downgrade de schema.
+6. **`promtool` indisponivel na maquina do executor:** `obs/alerts.yml` validado por parse YAML + checagem estrutural (todo `rule` com `alert`/`expr`/`labels`/`annotations`/`summary`) — **5 grupos, 23 regras**. **Validar com `promtool check rules` no CI/host antes de aplicar.**
+
+### N. Code-review pos-implantacao (subagente `code-review`) — 6 achados, 6 corrigidos antes do PR
+
+Confirmados **limpos**: a formula do alvo vs. comparacao pos-incremento (sem off-by-one, inclusive no caminho de gap); a transacao cobrindo de fato os dois writes com rollback garantido e sem vazamento de conexao; o hook do outbox so apos o commit; a exclusao **completa** do monotonico nos tres pontos do round-trip; a equivalencia byte-a-byte da refatoracao de `save_decision` (43/43 colunas e params, mesma ordem); a cadeia de nomes de metrica `_COUNTERS` -> `_PROM_METRICS` -> refresh -> `alerts.yml`; e o INV-3.
+
+Corrigidos: **(N.1)** a chave unica global descartando linhas legitimas (secao E) + supressao agora **contada**; **(N.2)** denominador da cobertura poluido por invalidacoes de ingresso (secao H); **(N.3)** o fallback re-tentava a decisao em excecoes que **nao** garantem rollback (podia **duplicar** a decisao no ledger) — restrito a `PhaseTrailRolledBack`; **(N.4)** `await websocket.send()` **dentro** do `state_lock` no ramo de retry (produtor lento parava o caminho do giro); **(N.5)** capacidade de reconstrucao do pendente existia sem **nenhum** call site de producao (cobertura ilusoria) — agora e a rede de seguranca do `state.json` perdido, e `handle_direction_event` passou a chamar `game_state.save()` (sem ele o round-trip era teatro: o `save()` do giro roda **depois** do consumo e gravaria sempre `None`); **(N.6)** testes de idempotencia que passariam tanto com o dedup correto quanto com ele destruindo linhas legitimas — a mutacao `UNIQUE(event_id, kind)` -> `(..., target_spin_seq)` deixava a suite inteira verde. Novos guarda-corpos: `test_mesmo_event_id_em_giros_DIFERENTES_nao_e_descartado`, `test_trilha_e_counters_contam_a_mesma_historia` (trilha e counters tem de contar a MESMA historia) e `test_supressao_de_linha_conta_erro_de_escrita`.
+
+> **Veredito:** o `direction_event` deixou de poder descrever o giro errado (alvo, prazo e consumo unico sao **do servidor**), e passou a existir **prova duravel** — atomica com a decisao — sem a qual o gate T4 seria uma afirmacao sem lastro. Tudo default-OFF, sem tocar um unico byte da aposta. Pendencia explicita: `SPR-V4R` (retencao) antes de ~60 dias com a auditoria ligada.
+
+### N.7. Segunda rodada de review (PR #55) — 2 bugs de INTEGRIDADE DA TRILHA, corrigidos
+
+Um review independente do PR encontrou dois defeitos que nao afetam aposta, decisao nem INV-3 (a trilha e shadow-only), mas **falsificam a evidencia** — que e a unica razao de a trilha existir.
+
+**N.7.1 [MEDIO] — a recuperacao pos-restart nunca podia funcionar.**
+`_reconstruir_pendente_da_trilha(self.current_session_id)` consultava a trilha filtrando pela sessao corrente. So que `current_session_id` nasce `uuid.uuid4()[:8]` **no `__init__` do handler**: depois de um restart ele e um id NOVO, enquanto a linha `received` orfa carrega o id ANTERIOR. O lookup nunca achava nada — a capacidade documentada era inalcancavel. O teste que a "cobria" apenas zerava o pendente **em memoria mantendo a mesma sessao**, ou seja, jamais atravessava a fronteira de processo que o cenario exige.
+
+*Correcao — as duas verdades foram SEPARADAS, em vez de a segunda ser adivinhada:*
+
+| Cenario | Como e provada a continuidade | Disposicao do GIRO | Destino do ciclo do evento |
+|---|---|---|---|
+| Restart com `state.json` (bind-mount, o caso REAL) | o `pending_direction_event` volta do disco com o seu `session_id` e `mono_lost` | **`stale`** (nunca vincula, nunca vira direcao) | fechado pelo proprio terminal do giro |
+| `state.json` perdido/corrompido | **nao ha como provar** | **`missing`** (honesto: este giro nao teve evento) | fechado por **FAXINA** de manutencao |
+
+A tentacao era adotar o orfao pelo `target_spin_seq`. **Nao da:** `spin_seq` REINICIA a cada sessao, entao o alvo `1` de uma mesa morta ha dias coincide com o giro 1 de qualquer sessao nova. Adotar por coincidencia de contador rotularia como `stale` um giro que foi honestamente `missing` — exatamente o tipo de mentira que a trilha existe para impedir, e ainda por cima com atribuicao cruzada entre mesas.
+
+A **faxina** (`_faxina_orfaos_da_trilha`) roda UMA vez por processo, em **transacao propria** (manutencao nunca pode arrastar a decisao do giro num rollback), grava `kind='stale'` com `decision_ref` NULL, `spin_seq` NULL e `meta.reason="orfao_sem_continuidade"`, e **nao incrementa contador** — nao e um giro, entao nao entra no denominador da cobertura.
+
+**N.7.2 [MEDIO] — o `NOT EXISTS` fechava o ciclo por `event_id` global.**
+A identidade do DDL e por giro, mas a consulta de pendencia correlacionava so por `event_id`. Com um produtor reutilizando um id estavel, o terminal do giro N **mascarava** o `received` do giro N+1 (ou de outra sessao): o ciclo aberto aparecia como encerrado, e a trilha perdia a capacidade de responder "o que ficou em aberto?".
+
+*Correcao:* a correlacao passou a ser `(session_id, event_id, target_spin_seq)` — **exatamente** a chave unica. Isso exigiu o par que faltava: o **terminal precisa carregar as coordenadas do EVENTO** (secao E.1), senao um evento com alvo 5 classificado no giro 7 gravava o terminal com alvo 7 e deixava o `received` de alvo 5 aberto para sempre.
+
+*Achado adicional, encontrado ao corrigir os dois:* a marca `received_persisted` era gravada **depois** do `gs.save()`, logo **nunca ia para o `state.json`**. Apos um restart, o evento restaurado nao sabia que o `received` ja existia, re-emitia a linha, e o conflito suprimido era contado como um erro de escrita que **nunca houve** — poluindo justamente a metrica de saude da trilha. Agora a marca nasce **antes** do `save()` (otimista) e e desfeita se a gravacao falhar de fato, o que de quebra da auto-cura: a linha e re-emitida no giro.
+
+*Evidencia de mutacao (nao ha cobertura ilusoria aqui):* com o codigo de producao revertido para `c970b65` e os testes novos mantidos, **10 testes falham**. Cada fix foi ainda mutado isoladamente e **todos os mutantes morreram**: correlacao de volta a `event_id` global (mata 2), chave sem `session_id` — mutacao cirurgica, com o `ON CONFLICT` ajustado junto (mata 2, com a mensagem "a linha da sessao nova foi suprimida pela chave unica"), terminal de volta as coordenadas do giro (mata 2), faxina removida (mata 3), marca de persistencia de volta ao lugar antigo (mata 3).
+
+### N.8. Terceira rodada — code-review dos PROPRIOS fixes (3 achados, 3 corrigidos)
+
+Revisar a correcao encontrou tres defeitos nela, dois deles piores que os originais:
+
+**N.8.1 [MEDIO] — a faxina reintroduzia o BUG-2 por outro caminho.** A guarda que evita fechar o pendente VIVO comparava so o `event_id`. Com o produtor de id estavel — exatamente o perfil que justifica a chave — **todo** orfao de sessao morta carrega o mesmo id do pendente vivo e era pulado; como a faxina roda uma vez por processo e o evento vivo costuma chegar antes do primeiro giro, o orfao **nunca** seria fechado. Reproduzido pelo review. *Correcao:* a guarda compara a identidade COMPLETA `(session_id, event_id, target_spin_seq)` — a mesma do indice.
+
+**N.8.2 [MEDIO] — um banco com a forma antiga faria TODO insert da trilha estourar.** O aviso que eu havia escrito dizia "pode suprimir linhas legitimas"; o comportamento real era pior: sem um indice unico que case com o alvo do `ON CONFLICT`, **toda** insercao levanta `OperationalError`, e cada giro passa a percorrer transacao -> rollback -> `PhaseTrailRolledBack` -> `save_decision()` sozinho, com o contador de erro subindo indefinidamente. *Correcao:* a chave virou **indice unico aditivo**, que um banco antigo ganha no proximo boot (secao E), com teste que parte de uma tabela na forma antiga e prova o insert funcionando depois da migracao. O aviso continua, agora em `logger.error` e descrevendo o sintoma certo.
+
+**N.8.3 [BAIXO] — a auto-cura da marca `received_persisted` era cobertura ilusoria.** Nenhum teste injetava falha **no ingresso** (todos mexiam no caminho da classificacao), entao apagar o bloco inteiro deixaria a suite verde enquanto a trilha passaria a gravar disposicao terminal sem o `received` correspondente. *Correcao:* teste que faz `insert_phase_events` falhar no ingresso e prova que a classificacao re-emite a linha.
+
+*Mutacao da rodada 3 — os tres mutantes morreram:* guarda da faxina so por `event_id` (mata 1), indice do ciclo removido (mata 41 — o `ON CONFLICT` fica sem alvo), auto-cura removida (mata 1). Suite completa: **984 verde**.
+
+---
+
+## ADENDO 05/08/2026 (madrugada) — SPR-V3-A: preflight do vídeo/iframe, sem autoridade e sem veredito
+
+> Sexta rodada do ciclo (`sprints/SPR-V3.md`), base `main` `0e7543e` (já com SPR-V1 e SPR-V2/ext 3.10.0).
+> Este ADENDO registra um sprint **que termina sem conclusão de propósito**: ele entrega o instrumento e
+> **para** em `WAITING_HUMAN_EVIDENCE`. O produto é a **honestidade do estimador**, não um veredito.
+
+### A. O que estava em jogo
+
+Hoje o sentido de giro é **inferido** por alternância, nunca observado. A única fonte capaz de observar
+sem clique humano é a sequência de frames do `<video>` da mesa. Antes do SPR-V5 (sensor, esforço L, com
+manutenção perpétua sobre o layout de um terceiro) era preciso responder, barato, se **existe caminho
+técnico** — e o desenho original já havia sido derrubado pela auditoria em cinco pontos (§10.2.1):
+quota de `captureVisibleTab`, aliasing da bolinha, correlação 2D medindo translação, pente de 37 bolsos
+e "confidence por consistência entre pares", que é desonesta porque aliasing é erro **sistemático** —
+os pares erram juntos e concordam entre si.
+
+### B. Fronteira declarada: V3-A entregue, V3-B intocado
+
+| | V3-A (este PR) | V3-B (falta) |
+|---|---|---|
+| Probes E0/E0b | **rodáveis e testadas contra `<video>` local** | **executá-las em mesa real** |
+| Calibração + replay offline | entregues | captura de campo |
+| Protocolo de campo | escrito, executável por não-autor | 40-60 giros anotados + soak 2 h |
+| Gates de GO | tabela pronta, **campos vazios** | preencher os 4 números |
+| GO/NO-GO | **não declarado** | decisão do operador (§10.6-1) |
+
+Nenhuma linha deste PR pode fechar a coluna da direita. Executar as probes exige mesa ao vivo,
+sessão autenticada e operador; isso é escopo de campo e foi deixado explicitamente por fazer.
+
+### C. Capacidades entregues (`tools/vision_spike/`, 31 arquivos, fora do caminho de produção)
+
+| Módulo | O que faz |
+|---|---|
+| `lib/ellipse.js` | ajuste de elipse com centro fixo, ≥4 pontos, QR de Householder, Q positiva-definida, resíduo/condição/lacuna angular · NCC |
+| `lib/unwrap.js` | unwrap elíptico 720×16 com amostragem bilinear; perfil **cromático** do rotor; assinatura do anel **estático**; grade do trigger |
+| `lib/direction_core.js` | high-pass temporal, correlação circular ±120°, 12 guards, abstenção obrigatória |
+| `lib/rvfc_meter.js` | medidor de cobertura (callbacks/s, gaps, `presentedFrames`, visível×oculto) |
+| `lib/motion_trigger.js` | trigger de movimento a ~1 FPS **na própria ROI** |
+| `lib/pipeline.js` | janelas deslizantes + sumário com **numerador e denominador** de cada taxa |
+| `lib/synthetic.js` | cena determinística + 8 casos adversariais (marcada `evidence_class: synthetic`) |
+| `lib/evidence.js` | envelope `synthetic` / `fixture` / `field` com `eligible_for_go_gates` |
+| `replay.js` | CLI do replay offline sobre captura gravada ou cenário sintético |
+| `manifest.json` + `probe/` | extensão de **diagnóstico separada**: E0, E0b, calibração por snapshot 1:1, coletor, bancada com `<video>` local |
+
+### D. Três defesas independentes contra o aliasing (a parte que a auditoria mandou consertar)
+
+1. **Margem de alias** — enumeram-se **todos** os máximos locais em ±120° e compara-se o pico com o
+   melhor concorrente. Pico empatado ⇒ `alias_margin_low` ⇒ abstenção.
+2. **Landmark do zero verde** — evidência **independente** da correlação. A métrica não é prominência
+   por MAD e sim **margem de unicidade** (pico menos o melhor outro máximo a mais de um bolso de
+   distância, sobre o p90−p10 do perfil). A bancada mostrou por que: com fundo bimodal vermelho/preto
+   o MAD é enorme e o verde legítimo marca z≈3,9 — indistinguível de ruído. A margem de unicidade dá
+   ≈1,43 com verde e ≈0,00 sem. Sem esse achado, o spike teria embarcado um detector que não detecta.
+   A tolerância de concordância (8°) é **menor** que o período do bolso (9,73°) de propósito.
+3. **Passo temporal seguro** — a 10 fps com stride 1 (Δt=0,1 s) o rotor lento anda 7,2° e o alias
+   vizinho cai em −2,5°: **sinal trocado**. É aritmética, não opinião. `stride_too_small` obriga
+   aumentar o stride antes de qualquer veredito.
+
+Consistência entre os 3 pares entra como **guard**, jamais como prova.
+
+### E. Invariantes preservados
+
+- **Zero autoridade.** Nenhum `direction_event`, nenhum WebSocket, nenhum `fetch`, nenhum upload. Nada
+  toca `direcao`, `seed_parity`, `spin_seq`, timeline, decisão ou stake. **INV-3 intocado.**
+- **`direction: null` em qualquer abstenção** — testado como invariante sobre 5 cenários adversariais.
+- **Frames nunca saem da máquina**: a exportação de captura é um `download` local; `.gitignore` do
+  spike bloqueia `*.rgba`, `frames.bin`, `capture.json`, mídia e evidência exportada.
+- **`captureVisibleTab` não é usado em lugar nenhum** do spike (bucket de quota global, 2/s,
+  compartilhado com o OCR da produção, e cego com a janela minimizada).
+- **Default-OFF**: `vsProbePolicy` nasce `'off'`; as probes ficam inertes até o operador armar.
+- **`extension/manifest.json` de produção intocado** — a extensão de diagnóstico tem manifest próprio.
+- **Isolamento**: zero `require`/`import` de `server/`, `state/` ou `extension/`.
+
+### F. Impacto ISO/IEC 25010
+
+| Característica | Antes | Depois | Por quê |
+|---|---|---|---|
+| **Adequação funcional** | 8.5 | 8.5 | Nenhuma regra de negócio mudou. O sistema em produção é bit-a-bit o mesmo. |
+| **Confiabilidade** | 9.0 | 9.0 | Nada novo no caminho crítico. O que muda é que uma decisão de investimento deixa de depender de opinião. |
+| **Manutenibilidade** | 9.0 | **9.2** | A pergunta "dá para ver o sentido no vídeo?" saiu de conversa para 66 testes executáveis e um replay reproduzível por `algorithm_sha`. Qualquer pessoa consegue refutar o resultado sem a mesa. |
+| **Testabilidade (sub-característica)** | — | **nova** | Um caminho que depende de mesa ao vivo ganhou bancada offline: cena sintética determinística, 8 casos adversariais e `<video>` local por `captureStream()`. |
+| **Segurança** | — | — | Extensão de diagnóstico com **uma** permissão (`storage`), sem `downloads`, sem `tabs`, sem `captureVisibleTab`, e sem canal de saída. |
+| Usabilidade / Desempenho / Compatibilidade / Portabilidade | — | — | Sem alteração no produto. |
+
+**Scorecard: 8.7 → 8.75/10** (o ganho é de manutenibilidade/testabilidade; nada de produção mudou).
+
+### G. Obrigações assumidas
+
+1. **Nenhum gate de GO pode ser preenchido com `eligible_for_go_gates: false`.** Só
+   `evidence_class: field` conta. O service worker de diagnóstico **rebaixa** automaticamente
+   evidência marcada `field` numa sessão declarada `fixture`; rebaixar é seguro, promover nunca.
+2. **`confidence` é escore heurístico de qualidade, não probabilidade calibrada** — o campo
+   `confidenceKind: 'heuristic_quality_score'` viaja junto para impedir a leitura errada.
+3. **`blob:` não prova MSE.** Do mundo isolado do content script não dá para inspecionar o
+   `MediaSource`; a probe reporta `mse_confirmed: null`. "Não sei" é resposta válida; inventar não é.
+4. **Congelar `config` e `algorithm_sha` antes da coleta.** Ajustar limiar depois de ver os dados
+   transforma a coleta em conjunto de desenvolvimento e **exige coleta nova e independente**.
+5. **A definição dos gates está no código** (`lib/pipeline.js::summarize`), não só na prosa. O
+   denominador de `sinal` inclui os frames de aquecimento de propósito: assim uma captura curta
+   (< 250 frames) é aritmeticamente incapaz de atingir 98% — não dá para exibir "98%" de 30 frames.
+6. **Cobertura é medida antes de acurácia**, e `< 30 vereditos emitidos` é **NO-GO por escassez**,
+   nunca "acurácia alta".
+7. **Premissa do canal cromático a verificar em campo:** o estimador depende do setor verde do zero
+   ser único e legível. O caso `noGreen` prova que, sem ele, o estimador **se cala** — e essa é
+   exatamente a hipótese que a mesa real pode derrubar.
+
+### H. Decisões que exigem humano (§10.6, registradas aqui como manda o brief)
+
+1. **GO/NO-GO do V3 é decisão de investimento** (§10.6-1): o spike entrega os números; o **operador**
+   decide se a latência de correção (1-3 giros, contra 30-60 min do V6) paga o esforço L do SPR-V5
+   mais a manutenção perpétua de visão sobre o layout de um terceiro.
+2. **Aceite formal da cobertura medida** (§10.6-2): o comportamento do `<video>` com a aba oculta e a
+   janela minimizada **não deve ser presumido**. O V3-A entrega o instrumento que mede; o aceite do
+   número é do operador. V6A/V6B não dependem de pixels.
+
+### H2. Dívida declarada (não entregue, de propósito)
+
+1. **CI não cobre o spike.** ~~O job `extension-tests`…~~ **QUITADA na 2ª rodada** (§I2): com
+   autorização formal do Diretor, `ci.yml` entrou no escopo e o job roda os dois globs.
+2. **`node --test tools/vision_spike/` não funciona** (o Node tenta carregar o diretório como
+   módulo): use o glob `node --test "tools/vision_spike/tests/*.test.js"`. É a mesma pegadinha
+   já documentada no `ci.yml` para `tests/js/`.
+3. **Custo no renderer não medido por este PR**: os números de `ORCAMENTO.md` são de bancada
+   em Node sobre buffers em memória. O botão *Medir 120 frames* da bancada entrega p50/p95/máx
+   no navegador — e ainda assim é `fixture`, não mesa.
+4. **Caminhos exclusivos do navegador sem teste de unidade**: `probe/collector.js`,
+   `probe/probe_e0*.js`, `probe/export.js` e `probe/calibrate.js` dependem de `chrome.*` e do
+   `<video>`. A lógica que dava para extrair FOI extraída e testada (`export_stream`,
+   `rvfc_meter`, `direction_core`, `pipeline`, `algo_sha`); o que sobrou é encanamento, e é
+   verificado por leitura e pela bancada `probe/fixture_video.html`. Declarado, não escondido.
+
+### I. Achados do code-review incorporados (rodada de revisão antes do PR)
+
+O review encontrou **1 defeito crítico e 8 relevantes**, todos corrigidos neste mesmo PR:
+
+| # | Defeito | Por que importava |
+|---|---|---|
+| 1 🔴 | **O coletor abstinha 100% em qualquer feed acima de ~11 fps.** `captureBurst` gravava 6 frames *consecutivos* na taxa nativa do stream; a 25-30 fps a rajada inteira dura 167-200 ms e o guard `stride_too_small` (Δt de par ≥ 270 ms) disparava sempre. Corrigido com **decimação por `mediaTime`** (`createDecimator` + `recommendedFrameIntervalS`, que sai da própria aritmética do guard). | O V3-B produziria **cobertura 0/N** e um NO-GO que seria defeito de ferramental lido como propriedade do mundo — mais caro que um falso GO. |
+| 2 | Export de captura abortado pelo frame errado: `chrome.tabs.connect` sem `frameId` alcança todos os frames, e o "não tenho captura" do top frame desconectava o port do iframe que gravou. | O caminho de exportação só funcionaria se o vídeo estivesse no top frame — o oposto da premissa do spike. |
+| 3 | Com `all_frames: true`, **todo** frame respondia às mensagens do popup; `chrome.tabs.sendMessage` entrega só a primeira resposta. Agora frames sem `<video>` não respondem. | O operador via `no_video_in_frame` do top frame e concluía que o coletor não subiu, enquanto o iframe media. |
+| 4 | `captureBurst` sem timeout deixava `state.busy = true` para sempre se o rVFC parasse — exatamente o cenário (aba oculta) que o sprint declara desconhecido, e o do soak de 2 h. `stop()`/`start()` também não recuperavam. | O coletor morria em silêncio no meio da coleta. |
+| 5 | O `meta` da captura tinha `evidence_class: 'field'` **hardcoded** e não passava pelo service worker ⇒ captura de bancada entrava no `RESULTADO.md` parecendo campo. Agora a classe vem do que o operador declarou. | Driblava exatamente a trava que este ADENDO chama de obrigação nº 1. |
+| 6 | A captura exportada tinha sempre 6 frames, mas o gate de sinal exige ≥250 (teto de 6 frames = 16,7%): **gate inalcançável com a própria instrumentação**. Novo modo *Gravar p/ replay*. Faltavam também `algorithm_sha` e `config` no `meta`. | O item 5 do `PROTOCOLO_CAMPO.md` não tinha como ser executado. |
+| 7 | `intervals` do medidor crescia sem teto e era ordenado a cada 2 s: num soak de 2 h a 30 fps são 216 mil entradas — **o medidor perturbava a medição**. Virou ring. | |
+| 8 | `calibrate.js` pedia o snapshot à **própria aba de calibração** (que vira a ativa ao ser criada), e o erro exibido mandava o operador procurar no lugar errado. | A calibração é pré-requisito de toda a Etapa 4. |
+| 9 | Escritas concorrentes de evidência no SW se sobrescreviam (cada frame envia a sua E0). Virou fila serial. | O registro perdido era justamente o do iframe com o `<video>`. |
+
+Dois achados menores também corrigidos: `sceneChangeAt` usava a oclusão que **não** encosta
+no anel estático (falso negativo do guard de NCC) e o `background_diag` podia *promover*
+`synthetic` para `fixture` — agora a normalização usa uma hierarquia explícita e só rebaixa.
+Além disso, `--bench` foi acrescentado ao replay para que os p95/máx citados em
+`ORCAMENTO.md` sejam de fato reproduzíveis pelo comando documentado.
+
+**Lição do próprio review:** todos os cenários de teste rodavam a `fps: 10` — exatamente a
+única taxa em que os defaults funcionavam. Uma suíte verde pode estar medindo só a região
+onde o código já está certo. O teste de regressão novo exercita 25 e 30 fps.
+
+### I2. Segunda rodada de revisão — 6 achados bloqueantes + 1 menor
+
+A revisão independente barrou o PR. Todos foram corrigidos **com teste que falha no código
+anterior** (prova executada revertendo cada correção e rodando o teste-alvo):
+
+| # | Sev | Defeito | Por que importava |
+|---|---|---|---|
+| 1 | HIGH | **`algorithm_sha` não era cross-platform.** Com `core.autocrlf=true` o blob é LF e a cópia de trabalho é CRLF: o mesmo commit dava `fc918…` no Windows e outro hash no Linux/CI. Agora a receita compartilhada normaliza **CRLF→LF** antes de hashear (CR solto é preservado — é byte de conteúdo). | Um identificador de algoritmo que muda com o sistema operacional não identifica algoritmo nenhum; e o aviso de divergência do `replay.js` viraria ruído permanente, que é como uma trava morre. |
+| 2 | HIGH | **Decimador e guard usavam limiares diferentes.** O decimador aceitava a 90% do alvo; o guard `stride_too_small` exige 100%. Feeds de **12, 24 e 60 fps** caíam na fresta: passavam no decimador e reprovavam no guard. Os dois agora usam **o mesmo número**, com margem de 2% sobre o mínimo aritmético. | Cobertura 0/N em campo de novo — o mesmo defeito que a rodada anterior tinha "consertado", agora em outras cadências. |
+| 3 | MED | **E0b não separava as 4 fases** e uma fase silenciosa virava `null`/fase ausente. Agora há marca **explícita** de fase (o operador clica antes de esconder/minimizar), duração em wall-clock e taxa `0/N` quando não chega callback. A série completa (12 min = 720 buckets) viaja no registro **final**; os periódicos levam só a cauda. | "0 callbacks em 180 s com a janela minimizada" é o achado mais importante que este instrumento pode produzir. Ausência de dado não pode ser indistinguível de ausência de entrega — e truncar a série descartaria justamente a fase A, que é a referência das outras três. |
+| 4 | MED | **Teto de memória cortava depois de alocar tudo.** Virou orçamento **cumulativo** consultado antes de guardar cada frame (`createByteBudget`), com `record.stopped_by: "memory_budget"` no relatório. | Cortar depois já pagou o custo inteiro dentro do renderer de um terceiro — exatamente o que o teto existia para evitar. |
+| 5 | MED | **Export sem backpressure, sem ack e sem retomada**, num popup que fecha ao primeiro clique fora dele; `Array.from` por frame; o timeout não rearmava depois do `meta`. Agora: `lib/export_stream.js` (ack + janela de backpressure + retomada pelo primeiro índice faltante), destinatário durável em `probe/export.html` (aba), stall **rearmado a cada mensagem**, e captura incompleta **falha alto**. | Perder a transferência de ~100 MB é perder a coleta de campo inteira — e o operador só descobriria depois de a mesa já ter mudado. |
+| 6 | MED | **NCC desligado em silêncio** quando faltava `calibration.sceneSignature`: o coletor caía no primeiro frame e comparava a cena com ela mesma. Agora é **fail-closed** (`ncc: NaN` ⇒ `scene_ncc_low` ⇒ abstenção) e **todo veredito declara `sceneReference`**. | Um veredito com o anti-cena desligado *parecia* totalmente guardado. |
+| — | minor | `srcobject_other` afirmava `mse_confirmed: false` sem testar `MediaSource`. Virou `null`. | Mesma disciplina do `blob:`: "não sei" é resposta; inventar não é. |
+
+**Prova das regressões** (cada correção revertida isoladamente, teste-alvo executado):
+`algorithm_sha` CRLF↔LF ✗ · decimador 12/24/60 fps ✗ · fail-closed do NCC ✗ · orçamento de
+memória ✗ · stall rearmado ✗ · backpressure ✗ · fase silenciosa do E0b ✗ — todas falham sem
+o respectivo conserto, e passam com ele.
+
+**Lock ampliado.** Com autorização formal do Diretor, `.github/workflows/ci.yml` entrou no
+escopo: o job `extension-tests` passou a rodar
+`node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"`. A dívida declarada
+no §H2 item 1 está **quitada**; `.gitattributes` não foi necessário, porque a normalização
+vive na receita do hash e não depende de configuração de checkout.
+
+### I3. Terceira rodada — a regressão que a própria correção anterior introduziu
+
+A rodada 2 confirmou os 6 consertos, e encontrou **1 HIGH novo, criado pelo conserto nº 5**.
+
+**O defeito.** `chrome.runtime.Port.postMessage` **serializa em JSON** (structured clone não
+é garantido no Chrome suportado e não foi declarado no manifest). O `export_stream` mandava
+`Uint8ClampedArray` cru; do outro lado chegava `{"0":12,"1":34,…}` — objeto **sem `.length`**.
+A cadeia inteira falhava **em silêncio**:
+
+```
+frames[0].length → undefined
+stride           → undefined
+new Uint8Array(undefined * 3) → Uint8Array(NaN) → comprimento 0
+frames[i].length !== stride   → undefined !== undefined → false  (não lança)
+out.set(objeto, NaN)          → no-op
+resultado: frames.bin de 0 BYTE, sem exceção, com a interface dizendo "3 frames, completo"
+```
+
+Reproduzido literalmente, sem mutar arquivo nenhum. **Um arquivo vazio que se declara
+completo é pior que um erro**: a coleta de campo só seria descoberta perdida na hora de
+rodar o replay, com a mesa já fechada — e o operador teria de refazer 45 minutos de anotação.
+
+**Por que os testes da rodada 2 não pegaram.** Eles entregavam o objeto **em memória** entre
+remetente e destinatário. O transporte real era a única parte não exercida — e era onde
+estava o defeito. Testar os dois lados sem atravessar o fio é testar duas metades que nunca
+se encontram.
+
+**O conserto.**
+
+| Item | Decisão |
+|---|---|
+| Wire | **base64** com `length` declarado por frame, codec próprio no módulo (sem `btoa`/`atob`/`Buffer`), para que o MESMO código rode no navegador e no `node --test`. Custo medido: **1,333×** no fio (contra ~3,57× de um array de números em JSON), 13,4 ms para codificar e 3,3 ms para decodificar um frame de 330 KB ⇒ +34 MB e ~5 s numa captura de 300 frames, offline. |
+| Versionamento | Campo `wire` nas mensagens; receptor **recusa** formato desconhecido em vez de adivinhar. |
+| Receptor | Frame que não decodifica, ou cujo `length` não bate, **não é armazenado e não é confirmado** — continua faltando, `complete` nunca vira `true`, e o `assemble()` recusa. |
+| `assemble()` | Valida tipo (`isBytes`), `stride` inteiro positivo, igualdade de tamanho entre frames, ausência de recusados e **resultado ≠ 0 byte**. Qualquer anomalia lança. |
+| `export.js` | Erro de protocolo e de montagem aparecem **na tela** (vermelho, botão de salvar desabilitado). Nada é salvo quando a montagem falha. |
+
+**Prova por mutação** (cada reversão isolada, teste-alvo executado): wire cru atravessando
+JSON ✗ · receptor aceitando objeto sem `length` ✗ · `assemble()` sem validar stride/tipo/0-byte ✗.
+Todas falham sem o conserto. O novo teste **TRANSPORT BOUNDARY** passa cada mensagem por
+`JSON.parse(JSON.stringify(...))` — o mesmo que o port faz — e compara **byte a byte** os
+256 valores possíveis, mais os restos 1 e 2 do base64.
+
+**Lição (Confiabilidade).** Fronteira de serialização é fronteira de teste. Um módulo puro
+testado dos dois lados do fio, mas nunca **através** dele, dá cobertura alta e garantia
+nenhuma. E o modo de falha a temer não é a exceção: é o caminho que devolve um resultado
+plausível — `0` — sem reclamar.
+
+### I4. Quarta rodada — 2 LOWs no receptor do export (rodada final)
+
+A revisão do `74d667e` confirmou o HIGH do transporte totalmente corrigido e apontou dois
+defeitos pequenos, ambos do tipo "o código faz o que parece, não o que precisa".
+
+**LOW 1 — `rejected` era append-only, e isso criava um beco sem saída.** Um frame recusado
+que chegasse **válido na retomada** era armazenado, mas a recusa antiga permanecia na lista.
+Resultado: `complete` nunca virava `true`, o `assemble()` recusava **para sempre** — e a
+interface continuava oferecendo *Retomar*. O operador clicaria num botão que nunca resolve,
+sobre uma captura que já estava íntegra na memória.
+Conserto: as recusas passaram a ser indexadas (`rejectedByIndex`) e **somem** quando o mesmo
+índice chega válido. Recusas **sem índice atribuível** (lote malformado, frame sem `index`)
+viraram `protocolFaults`: são honestamente **não recuperáveis** por retomada, e a interface
+passa a mandar *Iniciar* em vez de oferecer um botão inútil. `progress().recoverable` diz
+qual dos dois casos é.
+
+**LOW 2 — `fromBase64` aceitava `charCode > 255` e decodificava lixo em silêncio.**
+`B64_LOOKUP` é um `Int16Array(256)`; um caractere não-Latin-1 devolve índice fora do
+TypedArray, que é **`undefined`** — e `undefined < 0` é `false`. A checagem `if (d < 0)`
+deixava `'\u0100'` passar como válido; ele virava `0` na conta de bits (`x | undefined === x | 0`)
+e o frame decodificava lixo sem uma linha de aviso. Conserto: comparação **total**
+(`if (!(d >= 0))`, que rejeita negativo, `undefined` e `NaN` de uma vez) e faixa explícita
+(`c < 256 ? tabela[c] : -1`).
+
+**Prova por mutação** (cada reversão isolada, teste-alvo executado):
+recusa não limpa pela retransmissão ✗ · `recoverable` sempre `true` ✗ · `charCode > 255`
+decodificado como lixo ✗. Todas falham sem o conserto.
+
+Testes novos: recuperação **na fronteira JSON** (lote corrompido → retransmissão válida do
+mesmo índice → `rejected: 0`, `complete: true`, bytes exatos), recusa repetida que não infla
+o contador, recusa sem índice marcada como não recuperável, e Unicode fora da tabela
+(`\u0100`, `\u00FF`, `\u20AC`, `\uFFFD`, emoji) recusado tanto no codec quanto no receptor.
+
+**Lição (Confiabilidade).** Os dois defeitos são a mesma família: uma comparação que
+*parece* total (`d < 0`) e um estado que *parece* monotônico (`rejected` só cresce). Em
+JavaScript, comparar com `undefined` devolve `false` em ambos os lados — `undefined < 0` e
+`undefined >= 0` são os dois `false` — então a única checagem honesta é a que exige a
+condição desejada, não a que nega a indesejada. E estado de erro que nunca é limpo
+transforma qualquer recuperação em teatro.
+
+`algorithm_sha` **inalterado** (`4f7566da2f44e9b4`): o transporte não faz parte do algoritmo.
+
+### J. Rollback
+
+| # | Camada | Ação | Efeito |
+|---|---|---|---|
+| 1 | **Nenhuma ação** | não usar | O spike não é importado por `server/`, `state/`, `extension/` nem por nenhum caminho de produção. Já está inerte por construção. |
+| 2 | **Extensão de diagnóstico** | remover em `chrome://extensions` (ou deixar `vsProbePolicy: 'off'`) | Ela é separada da Escuta Beat; removê-la não afeta a operação. |
+| 3 | **Código** | `git revert` do PR | Remove `tools/vision_spike/` inteiro. Zero migração, zero flag de compose, zero estado persistido em produção. |
+
+`extension/manifest.json` de produção **não foi tocado** ⇒ não há zip de versão anterior a anexar,
+nem nota de reload para o operador.
+
+**Suítes.** Python **904 passed, 9 skipped, 1 xfailed** (idêntico ao baseline: o spike não toca o
+caminho de produção). JS do spike **66 passed** (`node --test "tools/vision_spike/tests/*.test.js"`).
+JS do V2 **53 passed**, intacto. `lint_silent_except` OK · `lint_dna_coverage` OK · `schema_symmetry` OK.
+
+**Lição (Manutenibilidade / Adequação funcional).** Um spike cujo sucesso é medido pela própria cena
+que ele gera não é evidência: é "inverse crime". A separação `synthetic` / `fixture` / `field`, com
+`eligible_for_go_gates` viajando dentro de cada artefato, foi o que impediu este sprint de fechar a
+própria DoD com números de bancada. **Toda taxa nasce com denominador, e todo denominador nasce com a
+classe da evidência que o produziu** — sem isso, um gate falseável vira um gate decorativo.

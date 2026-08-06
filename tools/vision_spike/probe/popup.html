@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!-- SPR-V3 · vision_spike — popup da extensão de DIAGNÓSTICO.
+     Zero autoridade: nada aqui fala com o servidor do Roleta Cloud. -->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>SPR-V3 vision_spike</title>
+  <style>
+    body { font: 12px/1.45 system-ui, sans-serif; width: 380px; margin: 0; padding: 10px; background: #14171c; color: #e6e6e6; }
+    h1 { font-size: 13px; margin: 0 0 6px; }
+    .warn { background: #3a2a12; border: 1px solid #6b4d1c; padding: 6px 8px; margin: 6px 0; border-radius: 3px; }
+    fieldset { border: 1px solid #2c3340; margin: 8px 0; padding: 8px; }
+    legend { color: #8fb7ff; padding: 0 4px; }
+    button { background: #26303d; color: #e6e6e6; border: 1px solid #3a4756; padding: 5px 9px; margin: 2px 2px 2px 0; cursor: pointer; border-radius: 3px; }
+    button:hover { background: #33404f; }
+    button.on { background: #1d4a2a; border-color: #2f7a45; }
+    pre { background: #0d1014; padding: 6px; max-height: 150px; overflow: auto; font-size: 11px; }
+    label { display: inline-block; margin-right: 10px; }
+    .k { color: #8fb7ff; }
+  </style>
+</head>
+<body>
+  <h1>👁️ SPR-V3 · vision_spike (DIAGNÓSTICO)</h1>
+  <div class="warn">
+    Esta extensão <b>não é a Escuta Beat</b> e <b>não tem autoridade</b>: nunca emite
+    <code>direction_event</code>, nunca fala com o servidor, e <b>frames nunca saem da máquina</b>.
+  </div>
+
+  <fieldset>
+    <legend>Sessão</legend>
+    <div>
+      <label><input type="radio" name="cls" value="fixture" checked> bancada (<code>fixture</code>)</label>
+      <label><input type="radio" name="cls" value="field"> mesa real (<code>field</code>)</label>
+    </div>
+    <div style="margin-top:4px;color:#9aa4b2">
+      Só <code>field</code> é elegível aos gates de GO. Evidência de bancada é rebaixada automaticamente.
+    </div>
+    <div style="margin-top:6px">
+      <button id="policyOn">Armar probes</button>
+      <button id="policyOff">Desarmar</button>
+      <span id="policy" class="k"></span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>E0b · cobertura (as 4 fases do protocolo)</legend>
+    <div>
+      <button id="e0bStart">Iniciar (fase A)</button>
+      <button id="e0bStop">Parar</button>
+      <button id="e0bStatus">Status</button>
+    </div>
+    <div style="margin-top:6px">
+      marcar fase:
+      <button id="phaseB">B · outra aba</button>
+      <button id="phaseC">C · minimizada</button>
+      <button id="phaseD">D · retorno</button>
+    </div>
+    <div style="color:#9aa4b2;margin-top:4px">
+      Marque a fase <b>antes</b> de esconder/minimizar. Fase silenciosa (0 callbacks) é
+      resultado, não ausência de medição.
+    </div>
+    <pre id="e0bOut">—</pre>
+  </fieldset>
+
+  <fieldset>
+    <legend>Coletor de campo (V3-B)</legend>
+    <button id="calib">Abrir calibração</button>
+    <button id="colStart">Iniciar</button>
+    <button id="colStop">Parar</button>
+    <button id="colMeasure">Medir agora</button>
+    <button id="colStatus">Status</button>
+    <label style="margin-left:4px"><input type="checkbox" id="keepCapture"> guardar captura</label>
+    <div style="margin-top:6px">
+      <button id="colRecord">Gravar p/ replay</button>
+      <label><input id="recordFrames" type="number" value="300" min="6" step="10" style="width:64px"> frames</label>
+      <span style="color:#9aa4b2">(gate de sinal exige ≥ 250)</span>
+    </div>
+    <pre id="colOut">—</pre>
+  </fieldset>
+
+  <fieldset>
+    <legend>Evidência (local)</legend>
+    <button id="dlEvidence">Baixar evidência (JSON)</button>
+    <button id="dlVerdicts">Baixar vereditos (JSON)</button>
+    <button id="dlCapture">Exportar captura (abre aba)</button>
+    <button id="clear">Limpar</button>
+    <pre id="evOut">—</pre>
+  </fieldset>
+
+  <script src="popup.js"></script>
+</body>
+</html>
