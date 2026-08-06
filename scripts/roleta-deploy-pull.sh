@@ -13,6 +13,11 @@
 #   7) docker compose up -d roleta-cloud
 #   8) healthcheck 3x com 5s entre tentativas
 #   9) se falhar, rollback para last_good + alerta no log
+#  10) OBS-INODE (05/08): scripts/obs-apply.sh — se obs/prometheus.yml,
+#      obs/alerts.yml ou docker-compose.obs.yml mudaram, valida (promtool),
+#      aplica (reload OU recriacao unica do Prometheus) e VERIFICA que o
+#      container passou a ler os mesmos bytes do repo. Sem mudanca de obs,
+#      nao encosta no Prometheus.
 #
 # Idempotente. Logs vao para /var/log/roleta-deploy.log + journald.
 set -euo pipefail
@@ -40,11 +45,28 @@ rollback() {
 
 cd "$REPO_DIR"
 
+# OBS-INODE (05/08/2026): uma pendencia de observabilidade de um deploy anterior
+# tem de ser retomada ANTES do gate NOOP — senao, no tick seguinte, LOCAL==REMOTE
+# encerra com exit 0 e a falha some (systemd volta a "success" sem nada aplicado).
+obs_run() {
+    if [ -f "$REPO_DIR/scripts/obs-apply.sh" ]; then
+        REPO_DIR="$REPO_DIR" STATE_DIR="$STATE_DIR" bash "$REPO_DIR/scripts/obs-apply.sh" "$@"
+    else
+        log "OBS scripts/obs-apply.sh ausente neste checkout — passo pulado"
+    fi
+}
+
 git fetch --quiet origin main || { log "FETCH FAIL"; exit 1; }
 LOCAL=$(git rev-parse HEAD)
 REMOTE=$(git rev-parse origin/main)
 
 if [ "$LOCAL" = "$REMOTE" ]; then
+    if [ -f "$STATE_DIR/obs_pending" ]; then
+        if ! obs_run resume; then
+            log "OBS RESUME FAIL — regras Prometheus seguem pendentes"
+            exit 1
+        fi
+    fi
     exit 0
 fi
 
@@ -52,6 +74,15 @@ log "DEPLOY START local=$LOCAL remote=$REMOTE"
 echo "$LOCAL" > "$STATE_DIR/last_good"
 
 git reset --hard origin/main >/dev/null
+
+# OBS-INODE: valida a config de observabilidade JA no disco (o mount de diretorio
+# a expoe ao container no mesmo instante). Config invalida aqui = Prometheus que
+# nao sobe no proximo restart -> aborta antes de tocar em qualquer container.
+if ! obs_run check "$LOCAL" "$REMOTE"; then
+    log "OBS CONFIG INVALIDA — rollback para $LOCAL, nada aplicado"
+    git reset --hard "$LOCAL" >/dev/null
+    exit 1
+fi
 
 if ! docker compose build --quiet "$SERVICE"; then
     log "BUILD FAIL — rollback"
@@ -104,6 +135,37 @@ if [ -d "$REPO_DIR/frontend" ]; then
     else
         log "FRONTEND sync FALHOU (nao-fatal)"
     fi
+fi
+
+log "DEPLOY OK (app) sha=$REMOTE"
+
+# --- Drift do entrypoint (OBS-INODE, 05/08/2026) ---------------------------
+# O systemd roda /usr/local/bin/roleta-deploy-pull.sh, que fica FORA do repo. Se
+# ainda for a copia congelada, este proprio arquivo (versionado) nao e o que roda
+# em producao — foi assim que o passo de observabilidade poderia nunca chegar la.
+#
+# LIMITE: esta sonda vive no script VERSIONADO, entao ela nao detecta o
+# congelamento ATUAL (a copia congelada nunca a executa) — so protege contra um
+# re-congelamento FUTURO. Quem cobre o caso atual e o bootstrap manual, e a unit
+# systemd chama a mesma sonda em ExecStartPre (nao-fatal), independente de qual
+# script esteja instalado.
+#
+# READ-ONLY e NAO-FATAL. Deliberadamente NAO se auto-instala: um deploy que
+# reescreve o proprio entrypoint pode se tornar irrecuperavel se o arquivo novo
+# estiver quebrado; a correcao e um comando unico, documentado em docs/DEPLOY.md.
+if [ -f "$REPO_DIR/scripts/roleta-deploy-install.sh" ]; then
+    REPO_DIR="$REPO_DIR" bash "$REPO_DIR/scripts/roleta-deploy-install.sh" --check || true
+fi
+
+# --- Observabilidade (OBS-INODE, 05/08/2026) -------------------------------
+# So aqui, com o app ja saudavel: aplica/recarrega Prometheus se e somente se
+# obs/prometheus.yml, obs/alerts.yml ou docker-compose.obs.yml mudaram neste
+# deploy. Falha NAO faz rollback do app (desproporcional), mas o script sai !=0
+# para o systemd marcar a unit como failed — sem sucesso falso.
+if ! obs_run apply "$LOCAL" "$REMOTE"; then
+    log "OBS FAIL — Prometheus NAO refletiu a config nova (app segue saudavel em $REMOTE)"
+    log "DEPLOY PARCIAL sha=$REMOTE"
+    exit 1
 fi
 
 log "DEPLOY OK sha=$REMOTE"
