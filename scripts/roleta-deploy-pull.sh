@@ -139,6 +139,18 @@ fi
 
 log "DEPLOY OK (app) sha=$REMOTE"
 
+# --- Drift do entrypoint (OBS-INODE, 05/08/2026) ---------------------------
+# O systemd roda /usr/local/bin/roleta-deploy-pull.sh, que fica FORA do repo. Se
+# ainda for a copia congelada, este proprio arquivo (versionado) nao e o que roda
+# em producao — foi assim que o passo de observabilidade poderia nunca chegar la.
+# Sonda READ-ONLY e NAO-FATAL: torna o congelamento visivel no log em vez de
+# silencioso. Deliberadamente NAO se auto-instala: um deploy que reescreve o
+# proprio entrypoint pode se tornar irrecuperavel se o arquivo novo estiver
+# quebrado; a correcao e um comando unico, documentado em docs/DEPLOY.md.
+if [ -f "$REPO_DIR/scripts/roleta-deploy-install.sh" ]; then
+    bash "$REPO_DIR/scripts/roleta-deploy-install.sh" --check || true
+fi
+
 # --- Observabilidade (OBS-INODE, 05/08/2026) -------------------------------
 # So aqui, com o app ja saudavel: aplica/recarrega Prometheus se e somente se
 # obs/prometheus.yml, obs/alerts.yml ou docker-compose.obs.yml mudaram neste

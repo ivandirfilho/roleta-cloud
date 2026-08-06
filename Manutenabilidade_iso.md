@@ -3143,7 +3143,7 @@ Falha de observabilidade **não** faz rollback do app: ele já passou no healthc
 o backend por causa de regra de alerta seria desproporcional. O deploy loga `OBS FAIL` + `DEPLOY PARCIAL`
 e sai `!= 0` — a unit do systemd fica `failed`, que é o sinal honesto.
 
-### D. Regressão (`tests/test_obs_reload.py`, 48 testes)
+### D. Regressão (`tests/test_obs_reload.py`, 56 testes)
 
 Estáticos: a compose **precisa** montar o diretório e **não pode** ter bind de arquivo para
 `prometheus.yml`/`alerts.yml` (se alguém reverter, o bug volta silencioso e nenhum outro teste percebe);
@@ -3162,8 +3162,9 @@ rebaixar um `recreate` novo, pendência no formato antigo (com e sem SHA), POST 
 sucesso, recriação que falha sem trancar a pendência, startup lento (WAL replay) sem recriar, readiness
 estourada, `git diff` quebrado, `/metrics` grande (SIGPIPE), `ps` sem `-a` e o **incidente literal**
 (container servindo o arquivo velho ⇒ detecta, escala **uma** recriação, grava a pendência, não recria
-de novo no tick seguinte e só devolve `0` depois que os bytes batem). O launcher tem teste de **drift**:
-trocar o script versionado muda o comportamento sem reinstalar nada.
+de novo no tick seguinte e só devolve `0` depois que os bytes batem). O entrypoint tem testes próprios:
+**drift** do launcher (trocar o script versionado muda o comportamento sem reinstalar nada) e do
+instalador (idempotência, backup, `--check` read-only, `--rollback`).
 
 **Matriz de mutação** (a cobertura foi provada, não presumida — cada bug reintroduzido no script e o
 teste correspondente tem de reprovar; fontes restauradas ao fim):
@@ -3183,6 +3184,10 @@ teste correspondente tem de reprovar; fontes restauradas ao fim):
 | pendência não gravada antes do gate | `test_kill_switch_grava_a_mudanca_detectada` + `test_stack_fora_do_ar_grava_a_pendencia` |
 | marcador antigo rebaixado para `reload` | `test_resume_de_pendencia_antiga_recria_quando_preciso` |
 | SHA vazio pulando o reset de episódio | `test_pendencia_antiga_sem_sha_nao_bloqueia_a_recriacao` |
+| instalador do entrypoint não idempotente | `test_instala_com_backup_e_e_idempotente` |
+| instalador sem backup (rollback impossível) | `test_rollback_restaura_o_entrypoint_anterior` |
+| sonda de drift fatal (derrubaria o deploy) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
+| sonda de drift desligada (drift silencioso) | `test_deploy_avisa_quando_o_entrypoint_esta_congelado` |
 
 ### E. Entrypoint durável (o que fazia o conserto não chegar em produção)
 
@@ -3190,19 +3195,31 @@ O systemd executa `/usr/local/bin/roleta-deploy-pull.sh`, que era uma **cópia c
 hoje byte-idêntica ao `scripts/roleta-deploy-pull.sh` (mesmo hash, ambas já com o passo `alembic`), ou
 seja: **não** havia migração `tools/` → `scripts/` pendente, como uma versão anterior desta documentação
 sugeria; o problema era só o congelamento. Qualquer melhoria versionada dependia de alguém lembrar de
-reinstalar a cópia.
+reinstalar a cópia — e nada tornava esse congelamento visível.
 
-`scripts/roleta-deploy-launcher.sh` troca "cópia" por "ponteiro": ~10 linhas, zero lógica de deploy,
-resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. Instalado **uma vez** no mesmo caminho
-(a unit systemd não muda), a partir daí todo o deploy — inclusive o passo de observabilidade — viaja
-pelo git. O duplicado `tools/deploy_pull.sh` virou delegador do canônico, eliminando a classe "duas
-cópias que precisam ser mantidas em sincronia". Rollback do próprio entrypoint = reinstalar a cópia.
+Três peças fecham isso:
+
+| Peça | Papel |
+|---|---|
+| `scripts/roleta-deploy-launcher.sh` | ~10 linhas, zero lógica de deploy: resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. Instalado **uma vez** no mesmo caminho (a unit systemd não muda), a partir daí todo o deploy — inclusive o passo de observabilidade — viaja pelo git |
+| `scripts/roleta-deploy-install.sh` | bootstrap/atualização **operacionalizada**: idempotente (não reescreve se já for o launcher), guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/`, `--check` read-only para diagnóstico e `--rollback` para desfazer |
+| sonda no deploy | ao fim de cada deploy bem-sucedido, `roleta-deploy-install.sh --check` (**não-fatal**) loga `INSTALL DRIFT …` se o entrypoint voltar a ser uma cópia. O deploy **não** se auto-instala de propósito: reescrever o próprio entrypoint em execução pode deixar o host sem deploy funcional se o arquivo novo estiver quebrado — a correção é um comando único e reversível |
+
+O duplicado `tools/deploy_pull.sh` virou delegador do canônico, eliminando a classe "duas cópias que
+precisam ser mantidas em sincronia".
 
 **Fora de escopo, registrado:** `obs/alertmanager.yml` continua sendo bind de **arquivo** — mesma classe
 de bug, não alterado aqui para não recriar um container fora do incidente.
 
-**Suítes.** Python **952 passed, 9 skipped, 1 xfailed** (+48 sobre os 904 do adendo anterior).
-`lint_silent_except` OK.
+**Suítes.** Python **960 passed, 9 skipped, 1 xfailed** (+56 sobre os 904 do adendo anterior).
+`lint_silent_except` OK · `schema_symmetry` OK.
+
+**Evidência contra a rodada anterior.** A suíte funcional aceita `OBS_APPLY_UNDER_TEST=<script>` para
+rodar contra outra versão do aplicador. Apontada para o `scripts/obs-apply.sh` do commit `0db70f6`
+(rodada 1), **19 dos 31 testes de runtime reprovam** — incluindo os três de sucesso falso do incidente
+(`recreate_sempre_recarrega`, `frescor_reload_que_nao_avanca_timestamp_reprova`,
+`regras_nao_carregadas_nao_e_sucesso`). Os testes de entrypoint reprovam por construção: nem o launcher
+nem o instalador existiam naquele commit.
 
 **Lição (Manutenabilidade / Operação).** Um componente pode estar **internamente coerente e
 externamente errado**: o Prometheus concordava consigo mesmo sobre 18 regras enquanto o disco tinha 21, e

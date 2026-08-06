@@ -16,6 +16,7 @@ roleta-deploy.timer (systemd, 2min)
     ↓ healthcheck 3× @ http://127.0.0.1:8766/health
     ↓ sync frontend/ → /var/www/roleta + reload nginx   (NOVO 17/06)
     ↓ obs-apply.sh: valida/aplica/verifica Prometheus   (NOVO 05/08, só se obs mudou)
+    ↓ install --check: avisa se o entrypoint congelou   (NOVO 05/08, não-fatal)
     ↓ falha → rollback automatico para HEAD anterior
 PROD running
 ```
@@ -28,6 +29,8 @@ PROD running
 |---|---|---|
 | `scripts/roleta-deploy-pull.sh` | repo | **script canonico** de deploy (idempotente, com alembic, rollback e passo de observabilidade) |
 | `scripts/roleta-deploy-launcher.sh` | repo | **entrypoint durável**: stub estavel instalado no host que so faz `exec` do script versionado |
+| `scripts/roleta-deploy-install.sh` | repo | instala/atualiza o launcher (idempotente, `--check` para drift, `--rollback`) |
+| `/usr/local/lib/roleta-deploy/` | servidor | backup do entrypoint anterior (rollback) |
 | `scripts/obs-apply.sh` | repo | passo de observabilidade (detecta/valida/aplica/verifica Prometheus) |
 | `tools/deploy_pull.sh` | repo | duplicado legado — hoje so delega para o canonico |
 | `/var/lib/roleta-deploy/obs_pending` | servidor | pendência de observabilidade (`action`/`escalated`/`sha`, retomada no tick seguinte) |
@@ -44,10 +47,12 @@ PROD running
 > lógica nenhuma: resolve `$REPO_DIR/scripts/roleta-deploy-pull.sh` e faz `exec`. A partir daí
 > toda mudança no deploy chega por `git`, como qualquer outro código — sem reinstalar nada.
 
+Use o instalador (idempotente, com backup e rollback) em vez de copiar arquivos à mão:
+
 ```bash
 ssh root@187.45.181.75 << 'EOF'
 cd /root/roleta-cloud
-install -m755 scripts/roleta-deploy-launcher.sh /usr/local/bin/roleta-deploy-pull.sh
+bash scripts/roleta-deploy-install.sh          # instala/atualiza o launcher
 install -m644 tools/systemd/roleta-deploy.service /etc/systemd/system/
 install -m644 tools/systemd/roleta-deploy.timer /etc/systemd/system/
 systemctl daemon-reload
@@ -56,14 +61,20 @@ systemctl list-timers roleta-deploy.timer
 EOF
 ```
 
+| Comando | O que faz |
+|---|---|
+| `roleta-deploy-install.sh` | instala o launcher em `/usr/local/bin/roleta-deploy-pull.sh`; **idempotente** (se já for o launcher, não escreve nada) e guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/` |
+| `roleta-deploy-install.sh --check` | **read-only**: `0` = em dia, `1` = drift (o entrypoint é uma cópia congelada) |
+| `roleta-deploy-install.sh --rollback` | restaura o entrypoint anterior a partir do backup |
+
 O caminho e o nome do arquivo instalado **não mudam**, então a unit systemd
 (`ExecStart=/usr/local/bin/roleta-deploy-pull.sh`) continua igual.
 
-**Sair do esquema de launcher** (rollback do próprio entrypoint):
-
-```bash
-install -m755 /root/roleta-cloud/scripts/roleta-deploy-pull.sh /usr/local/bin/roleta-deploy-pull.sh
-```
+**Drift é sinalizado sozinho.** Ao fim de cada deploy bem-sucedido, o script roda
+`roleta-deploy-install.sh --check` (read-only, **não-fatal**) e, se o entrypoint ainda for a cópia
+congelada, o log recebe `INSTALL DRIFT …` com o comando de correção. O deploy **não** se auto-instala
+de propósito: reescrever o próprio entrypoint em execução pode deixar o host sem deploy funcional se o
+arquivo novo estiver quebrado — a correção é um comando único e reversível.
 
 ## Operacao
 
@@ -192,13 +203,14 @@ continua com o mount antigo:
 ```bash
 cd /root/roleta-cloud
 git log --oneline -1                       # confirmar que o fix ja chegou via timer
-install -m755 scripts/roleta-deploy-launcher.sh /usr/local/bin/roleta-deploy-pull.sh
+bash scripts/roleta-deploy-install.sh      # troca a copia congelada pelo launcher (idempotente)
 bash scripts/obs-apply.sh force            # valida + recria o Prometheus + verifica
-# esperado: "OBS verificado ..." e "regras ok: arquivo=21 carregadas=21"
+# esperado: "INSTALL launcher instalado ..." e "regras ok: arquivo=21 carregadas=21"
 ```
 
 Este é o **único** passo manual: a partir dele, qualquer mudança futura no deploy ou no passo de
-observabilidade chega sozinha pelo timer.
+observabilidade chega sozinha pelo timer. Se alguém reinstalar uma cópia por engano no futuro, o
+próximo deploy loga `INSTALL DRIFT …` — e `bash scripts/roleta-deploy-install.sh` volta a corrigir.
 
 Verificação independente:
 

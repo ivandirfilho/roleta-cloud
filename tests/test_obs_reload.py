@@ -29,8 +29,15 @@ REPO = Path(__file__).resolve().parents[1]
 COMPOSE_OBS = REPO / "docker-compose.obs.yml"
 OBS_APPLY = REPO / "scripts" / "obs-apply.sh"
 LAUNCHER = REPO / "scripts" / "roleta-deploy-launcher.sh"
+INSTALLER = REPO / "scripts" / "roleta-deploy-install.sh"
 DEPLOY = REPO / "scripts" / "roleta-deploy-pull.sh"
 LEGACY_DEPLOY = REPO / "tools" / "deploy_pull.sh"
+
+# Seam de evidencia: aponta a suite funcional para OUTRA versao do script
+# (ex.: `git show 0db70f6:scripts/obs-apply.sh > /tmp/r1.sh`) para demonstrar
+# quais regressoes reprovam contra a rodada anterior:
+#   OBS_APPLY_UNDER_TEST=/tmp/r1.sh python -m pytest tests/test_obs_reload.py
+OBS_APPLY_UNDER_TEST = Path(os.environ.get("OBS_APPLY_UNDER_TEST", str(OBS_APPLY)))
 
 BASH = shutil.which("bash")
 
@@ -136,11 +143,36 @@ class TestDeployEntrypoint(unittest.TestCase):
     def test_docs_instalam_o_launcher(self):
         docs = (REPO / "docs" / "DEPLOY.md").read_text(encoding="utf-8")
         self.assertIn("roleta-deploy-launcher.sh", docs)
+        self.assertIn("roleta-deploy-install.sh", docs)
         self.assertNotIn(
             "install -m755 tools/deploy_pull.sh",
             docs,
             "docs nao podem mandar instalar o duplicado legado",
         )
+
+    def test_deploy_avisa_quando_o_entrypoint_esta_congelado(self):
+        """O congelamento tem de ser VISIVEL no log, nunca silencioso."""
+        body = DEPLOY.read_text(encoding="utf-8")
+        code = _code(body)
+        # a guarda e fixada junto com a chamada: so procurar pela chamada deixaria
+        # passar um `if false` que desliga a sonda sem remover a linha
+        self.assertIn(
+            'if [ -f "$REPO_DIR/scripts/roleta-deploy-install.sh" ]; then',
+            code,
+            "sonda de drift desligada ou sem guarda",
+        )
+        probe = body.find("roleta-deploy-install.sh")
+        self.assertGreater(probe, 0, "deploy nao sonda o entrypoint instalado")
+        trecho = body[probe : probe + 200]
+        self.assertIn("--check", trecho)
+        self.assertIn("|| true", trecho, "a sonda tem de ser nao-fatal")
+
+    def test_deploy_nao_se_auto_instala(self):
+        """Um deploy que reescreve o proprio entrypoint fica irrecuperavel se o
+        arquivo novo estiver quebrado — a correcao e um comando manual."""
+        body = _code(DEPLOY.read_text(encoding="utf-8"))
+        self.assertNotIn("roleta-deploy-install.sh install", body)
+        self.assertNotIn("install -m755", body)
 
     def test_unit_systemd_continua_apontando_para_usr_local(self):
         unit = (REPO / "tools" / "systemd" / "roleta-deploy.service").read_text(encoding="utf-8")
@@ -184,7 +216,7 @@ class BashHarness(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if _bash_path(OBS_APPLY) is None:
+        if _bash_path(OBS_APPLY_UNDER_TEST) is None:
             raise unittest.SkipTest("bash nao consegue ler o path do repo (WSL/path translation)")
 
     def setUp(self):
@@ -203,7 +235,7 @@ class BashHarness(unittest.TestCase):
         # /metrics nao responde, e container/host compartilham o mesmo clock
         self.ts_file.write_text(f"{int(time.time())}\n", encoding="utf-8", newline="\n")
 
-        shutil.copyfile(OBS_APPLY, self.repo / "scripts" / "obs-apply.sh")
+        shutil.copyfile(OBS_APPLY_UNDER_TEST, self.repo / "scripts" / "obs-apply.sh")
         self._write_stubs()
         self._git_repo()
 
@@ -402,7 +434,7 @@ exit 0
 
 class TestObsApplyBasics(BashHarness):
     def test_sintaxe_bash(self):
-        for path in (OBS_APPLY, DEPLOY, LEGACY_DEPLOY, LAUNCHER):
+        for path in (OBS_APPLY, DEPLOY, LEGACY_DEPLOY, LAUNCHER, INSTALLER):
             res = subprocess.run([BASH, "-n", _bash_path(path)], capture_output=True, text=True)
             self.assertEqual(res.returncode, 0, f"{path.name}: {res.stderr}")
 
@@ -837,6 +869,103 @@ class TestLauncherRuntime(unittest.TestCase):
         res = self._run()
         self.assertEqual(res.returncode, 1)
         self.assertIn("LAUNCHER FAIL", res.stderr)
+
+
+@unittest.skipUnless(BASH, "bash nao disponivel")
+class TestInstaladorDoEntrypoint(unittest.TestCase):
+    """Bootstrap/atualizacao do entrypoint: idempotente, auditavel e reversivel."""
+
+    @classmethod
+    def setUpClass(cls):
+        if _bash_path(INSTALLER) is None:
+            raise unittest.SkipTest("bash nao consegue ler o path do repo")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="installer-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = self.tmp / "repo"
+        (self.repo / "scripts").mkdir(parents=True)
+        shutil.copyfile(LAUNCHER, self.repo / "scripts" / "roleta-deploy-launcher.sh")
+        shutil.copyfile(INSTALLER, self.repo / "scripts" / "roleta-deploy-install.sh")
+        self.entrypoint = self.tmp / "usr-local" / "roleta-deploy-pull.sh"
+        self.entrypoint.parent.mkdir(parents=True)
+        self.backup_dir = self.tmp / "backup"
+
+    def _run(self, *args: str):
+        wrapper = self.tmp / "run.sh"
+        wrapper.write_text(
+            "#!/bin/bash\n"
+            f'export REPO_DIR="{_bash_path(self.repo)}"\n'
+            f'export ENTRYPOINT="{_bash_path(self.entrypoint.parent)}/roleta-deploy-pull.sh"\n'
+            f'export BACKUP_DIR="{_bash_path(self.backup_dir.parent)}/backup"\n'
+            f'exec bash "{_bash_path(self.repo / "scripts" / "roleta-deploy-install.sh")}" "$@"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(wrapper, 0o755)
+        return subprocess.run(
+            [BASH, _bash_path(wrapper), *args], capture_output=True, text=True, timeout=120
+        )
+
+    def _freeze_copy(self):
+        """Estado real de producao hoje: uma copia congelada do deploy."""
+        self.entrypoint.write_text(
+            "#!/bin/bash\n# copia congelada do deploy\necho antigo\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+
+    def test_check_detecta_copia_congelada(self):
+        self._freeze_copy()
+        res = self._run("--check")
+        self.assertEqual(res.returncode, 1, "copia congelada precisa ser sinalizada")
+        self.assertIn("DRIFT", res.stdout)
+        self.assertIn("roleta-deploy-install.sh", res.stdout, "log tem de dizer como corrigir")
+
+    def test_check_nao_escreve_nada(self):
+        self._freeze_copy()
+        antes = self.entrypoint.read_bytes()
+        self._run("--check")
+        self.assertEqual(self.entrypoint.read_bytes(), antes, "--check tem de ser read-only")
+
+    def test_instala_com_backup_e_e_idempotente(self):
+        self._freeze_copy()
+        congelado = self.entrypoint.read_bytes()
+
+        res = self._run()
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(
+            self.entrypoint.read_bytes(),
+            LAUNCHER.read_bytes(),
+            "entrypoint tem de virar o launcher versionado",
+        )
+        backup = self.backup_dir.parent / "backup" / "roleta-deploy-pull.sh.bak"
+        self.assertTrue(backup.exists(), "sem backup nao ha rollback")
+        self.assertEqual(backup.read_bytes(), congelado)
+        self.assertEqual(self._run("--check").returncode, 0)
+
+        # idempotencia: segunda passada nao reescreve nada
+        mtime = self.entrypoint.stat().st_mtime_ns
+        res2 = self._run()
+        self.assertEqual(res2.returncode, 0)
+        self.assertIn("nada a fazer", res2.stdout)
+        self.assertEqual(self.entrypoint.stat().st_mtime_ns, mtime)
+
+    def test_rollback_restaura_o_entrypoint_anterior(self):
+        self._freeze_copy()
+        congelado = self.entrypoint.read_bytes()
+        self._run()
+        res = self._run("--rollback")
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(self.entrypoint.read_bytes(), congelado)
+
+    def test_instala_quando_nao_existe_entrypoint(self):
+        res = self._run()
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertEqual(self.entrypoint.read_bytes(), LAUNCHER.read_bytes())
+
+    def test_modo_desconhecido_falha(self):
+        self.assertEqual(self._run("--zzz").returncode, 2)
 
 
 if __name__ == "__main__":
