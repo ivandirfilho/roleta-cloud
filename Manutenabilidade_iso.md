@@ -3656,6 +3656,54 @@ escopo: o job `extension-tests` passou a rodar
 no §H2 item 1 está **quitada**; `.gitattributes` não foi necessário, porque a normalização
 vive na receita do hash e não depende de configuração de checkout.
 
+### I3. Terceira rodada — a regressão que a própria correção anterior introduziu
+
+A rodada 2 confirmou os 6 consertos, e encontrou **1 HIGH novo, criado pelo conserto nº 5**.
+
+**O defeito.** `chrome.runtime.Port.postMessage` **serializa em JSON** (structured clone não
+é garantido no Chrome suportado e não foi declarado no manifest). O `export_stream` mandava
+`Uint8ClampedArray` cru; do outro lado chegava `{"0":12,"1":34,…}` — objeto **sem `.length`**.
+A cadeia inteira falhava **em silêncio**:
+
+```
+frames[0].length → undefined
+stride           → undefined
+new Uint8Array(undefined * 3) → Uint8Array(NaN) → comprimento 0
+frames[i].length !== stride   → undefined !== undefined → false  (não lança)
+out.set(objeto, NaN)          → no-op
+resultado: frames.bin de 0 BYTE, sem exceção, com a interface dizendo "3 frames, completo"
+```
+
+Reproduzido literalmente, sem mutar arquivo nenhum. **Um arquivo vazio que se declara
+completo é pior que um erro**: a coleta de campo só seria descoberta perdida na hora de
+rodar o replay, com a mesa já fechada — e o operador teria de refazer 45 minutos de anotação.
+
+**Por que os testes da rodada 2 não pegaram.** Eles entregavam o objeto **em memória** entre
+remetente e destinatário. O transporte real era a única parte não exercida — e era onde
+estava o defeito. Testar os dois lados sem atravessar o fio é testar duas metades que nunca
+se encontram.
+
+**O conserto.**
+
+| Item | Decisão |
+|---|---|
+| Wire | **base64** com `length` declarado por frame, codec próprio no módulo (sem `btoa`/`atob`/`Buffer`), para que o MESMO código rode no navegador e no `node --test`. Custo medido: **1,333×** no fio (contra ~3,57× de um array de números em JSON), 13,4 ms para codificar e 3,3 ms para decodificar um frame de 330 KB ⇒ +34 MB e ~5 s numa captura de 300 frames, offline. |
+| Versionamento | Campo `wire` nas mensagens; receptor **recusa** formato desconhecido em vez de adivinhar. |
+| Receptor | Frame que não decodifica, ou cujo `length` não bate, **não é armazenado e não é confirmado** — continua faltando, `complete` nunca vira `true`, e o `assemble()` recusa. |
+| `assemble()` | Valida tipo (`isBytes`), `stride` inteiro positivo, igualdade de tamanho entre frames, ausência de recusados e **resultado ≠ 0 byte**. Qualquer anomalia lança. |
+| `export.js` | Erro de protocolo e de montagem aparecem **na tela** (vermelho, botão de salvar desabilitado). Nada é salvo quando a montagem falha. |
+
+**Prova por mutação** (cada reversão isolada, teste-alvo executado): wire cru atravessando
+JSON ✗ · receptor aceitando objeto sem `length` ✗ · `assemble()` sem validar stride/tipo/0-byte ✗.
+Todas falham sem o conserto. O novo teste **TRANSPORT BOUNDARY** passa cada mensagem por
+`JSON.parse(JSON.stringify(...))` — o mesmo que o port faz — e compara **byte a byte** os
+256 valores possíveis, mais os restos 1 e 2 do base64.
+
+**Lição (Confiabilidade).** Fronteira de serialização é fronteira de teste. Um módulo puro
+testado dos dois lados do fio, mas nunca **através** dele, dá cobertura alta e garantia
+nenhuma. E o modo de falha a temer não é a exceção: é o caminho que devolve um resultado
+plausível — `0` — sem reclamar.
+
 ### J. Rollback
 
 | # | Camada | Ação | Efeito |

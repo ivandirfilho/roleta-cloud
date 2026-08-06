@@ -34,7 +34,7 @@ estão **vazios** e só um humano com mesa ao vivo pode preenchê-los.
 | `lib/synthetic.js` | gerador determinístico de cena (⚠️ `evidence_class: synthetic`) |
 | `lib/evidence.js` | envelope de evidência: `synthetic` / `fixture` / `field` |
 | `lib/algo_sha.js` | receita ÚNICA do `algorithm_sha` (EOL normalizado), compartilhada por Node e service worker |
-| `lib/export_stream.js` | transferência da captura com ACK, backpressure, retomada e orçamento de bytes |
+| `lib/export_stream.js` | transferência da captura: wire **base64** (JSON-safe), ACK, backpressure, retomada e orçamento de bytes |
 | `replay.js` | CLI do replay offline (E1) |
 | `manifest.json` + `probe/` | extensão de **diagnóstico separada** (probes E0/E0b, calibração, coletor) |
 | `PROTOCOLO_CAMPO.md` | roteiro executável por humano não-autor (V3-B) |
@@ -45,7 +45,7 @@ estão **vazios** e só um humano com mesa ao vivo pode preenchê-los.
 ## Rodar
 
 ```bash
-# testes da lógica pura (95 testes, sem Chrome). É o MESMO comando do job
+# testes da lógica pura (104 testes, sem Chrome). É o MESMO comando do job
 # `extension-tests` do ci.yml, que roda os dois globs:
 node --test "tests/js/*.test.js" "tools/vision_spike/tests/*.test.js"
 # só o spike:
@@ -86,6 +86,10 @@ Casos sintéticos disponíveis: `clean`, `noise`, `blur`, `overlay`, `noGreen`, 
    A transferência tem ack, backpressure e **retomada** — se a conexão cair, o botão
    *Retomar* continua do primeiro frame que falta. (O popup não serve para isso: ele fecha
    ao primeiro clique fora dele e levaria a transferência junto.)
+   O fio é **base64**: `chrome.runtime.Port` serializa em JSON, e uma typed array crua
+   chegaria do outro lado como `{"0":12,…}` — objeto sem `.length`. Qualquer frame que não
+   decodifique é **recusado** (não é confirmado, não conta como recebido), então a
+   transferência nunca se declara completa com dado corrompido.
 
 ## Fronteira de evidência (a regra que o resto do sprint depende)
 

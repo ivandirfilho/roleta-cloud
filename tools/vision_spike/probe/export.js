@@ -13,7 +13,15 @@ let assembler = null;
 let port = null;
 let stallTimer = null;
 
-function log(s) { $('out').textContent = s; }
+function log(s) { $('out').textContent = s; $('out').style.color = '#e6e6e6'; }
+
+/** Erro SEMPRE na tela. Um export quebrado que só reclama no console vira arquivo ruim. */
+function fail(s) {
+  $('out').textContent = '❌ ' + s;
+  $('out').style.color = '#ff8b8b';
+  $('save').disabled = true;
+  console.error('[SPR-V3 export]', s);
+}
 
 function progressUi() {
   const p = assembler ? assembler.progress() : null;
@@ -21,6 +29,11 @@ function progressUi() {
   const pct = Math.round((p.received / p.expected) * 100);
   $('fill').style.width = pct + '%';
   $('pct').textContent = pct + '%';
+  if (p.rejected) {
+    fail(`${p.rejected} frame(s) recusado(s) — ${p.rejectedDetail.map((r) => `#${r.index}: ${r.reason}`).join(' · ')}`);
+    $('resume').disabled = false;
+    return;
+  }
   log(`recebidos ${p.received}/${p.expected} frames` +
     (p.missingFrom === null ? ' · completo' : ` · próximo em falta: ${p.missingFrom}`));
   $('save').disabled = !p.complete;
@@ -65,7 +78,16 @@ async function connect(from) {
   });
 
   port.onMessage.addListener((m) => {
-    const replies = assembler.handle(m);
+    let replies = [];
+    try {
+      replies = assembler.handle(m);
+    } catch (e) {
+      // Erro de protocolo (wire desconhecido, lote malformado) tem de aparecer NA TELA.
+      // Só no console, o operador salvaria um arquivo quebrado achando que deu certo.
+      fail('erro no protocolo de transferência: ' + e.message);
+      try { port.disconnect(); } catch (_) { }
+      return;
+    }
     for (const r of replies) {
       try { port.postMessage(r); } catch (_) { /* caiu: o botão Retomar resolve */ }
     }
@@ -84,14 +106,24 @@ $('resume').onclick = () => {
 };
 
 $('save').onclick = () => {
-  const out = assembler.assemble();
-  const meta = { ...out.meta, data_file: 'frames.bin' };
-  meta.frames = meta.frames.map((f, i) => ({ ...f, file: null, offset: i }));
-  saveBlob('capture.json', new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' }));
-  saveBlob('frames.bin', new Blob([out.bytes], { type: 'application/octet-stream' }));
-  log(`exportado: ${out.frameCount} frames · ${(out.bytes.length / 1e6).toFixed(1)} MB · ` +
-    `evidence_class=${out.meta.evidence_class}` +
-    (out.frameCount < 250 ? '\n⚠️ < 250 frames: insuficiente para o gate de sinal (98%).' : ''));
+  let out;
+  try {
+    out = assembler.assemble();
+  } catch (e) {
+    return fail('montagem recusada: ' + e.message + ' — NADA foi salvo.');
+  }
+  if (!out.bytes.length) return fail('montagem resultou em 0 bytes — NADA foi salvo.');
+  try {
+    const meta = { ...out.meta, data_file: 'frames.bin' };
+    meta.frames = meta.frames.map((f, i) => ({ ...f, file: null, offset: i }));
+    saveBlob('capture.json', new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' }));
+    saveBlob('frames.bin', new Blob([out.bytes], { type: 'application/octet-stream' }));
+    log(`exportado: ${out.frameCount} frames · ${(out.bytes.length / 1e6).toFixed(1)} MB · ` +
+      `${out.stride} bytes/frame · evidence_class=${out.meta.evidence_class}` +
+      (out.frameCount < 250 ? '\n⚠️ < 250 frames: insuficiente para o gate de sinal (98%).' : ''));
+  } catch (e) {
+    fail('falha ao salvar: ' + e.message);
+  }
 };
 
 function saveBlob(name, blob) {

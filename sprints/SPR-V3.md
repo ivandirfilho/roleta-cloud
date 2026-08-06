@@ -254,6 +254,29 @@ descobriu-se que o conserto tinha sido calibrado só para 25/30 e abria uma fres
 12/24/60. Um limiar duplicado é um limiar que vai divergir — o decimador e o guard agora
 leem **o mesmo número**.
 
+#### Rodada 3: 1 HIGH — a regressão que o conserto nº 5 da rodada 2 introduziu
+`chrome.runtime.Port` **serializa em JSON**: a `Uint8ClampedArray` mandada crua chegava do
+outro lado como `{"0":12,…}`, sem `.length`. `stride` virava `undefined`,
+`new Uint8Array(NaN)` dava comprimento 0, **nada lançava**, e o operador salvava um
+`frames.bin` de **0 byte** com a interface dizendo "300 frames, completo" — a perda só
+apareceria ao rodar o replay, com a mesa já fechada.
+
+Conserto: wire **base64** com `length` declarado (codec próprio, sem `btoa`/`Buffer`, mesmo
+código no navegador e no Node), campo `wire` versionado, frame inválido **recusado** (não
+confirmado, continua faltando ⇒ nunca "completo"), `assemble()` validando tipo/stride/
+tamanho/0-byte, e erro **na tela** do `export.js`, nunca só no console.
+
+Custo medido do fio: **1,333×** (contra ~3,57× de um `Array` em JSON), 13,4 ms encode e
+3,3 ms decode por frame de 330 KB ⇒ +34 MB e ~5 s numa captura de 300 frames, offline.
+
+Prova por mutação: wire cru ✗ · receptor aceitando objeto sem `length` ✗ · `assemble()` sem
+validação ✗ — todas falham. Novo teste **TRANSPORT BOUNDARY** passa cada mensagem por
+`JSON.parse(JSON.stringify(...))` e compara byte a byte.
+
+**Lição:** fronteira de serialização é fronteira de teste. Os testes da rodada 2 entregavam
+o objeto **em memória** — testavam os dois lados do fio, nunca **através** dele. E o modo de
+falha a temer não é a exceção: é o caminho que devolve um resultado plausível (`0`) calado.
+
 #### Arquivos tocados
 `tools/vision_spike/**` (35 arquivos) · `Manutenabilidade_iso.md` (ADENDO) · `sprints/SPR-V3.md`
 (este Log) · `.github/workflows/ci.yml` (**lock ampliado com autorização formal do Diretor**).

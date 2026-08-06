@@ -91,6 +91,29 @@ Modo alternativo (um arquivo por frame): omita `data_file` e preencha `file` com
    aritmético (`(n−5)/n`) fica sob 98% e o gate é inalcançável por construção. O replay
    avisa quando a captura é curta demais.
 
+## Transferência da captura (navegador → disco)
+
+`chrome.runtime.Port` **serializa em JSON**. Uma typed array mandada crua chega do outro
+lado como `{"0":12,"1":34,…}`, um objeto **sem `.length`** — e um montador ingênuo produz um
+`frames.bin` de **0 byte** se dizendo completo. Por isso o fio é:
+
+```jsonc
+{ "type": "frames", "wire": "base64", "from": 0, "to": 0,
+  "frames": [ { "index": 0, "b64": "AAEC…", "length": 333312 } ] }
+```
+
+| Formato | Custo no fio (frame de 330 KB) | Por quê |
+|---|---|---|
+| **base64** (escolhido) | **1,333×** → 440 KB | JSON-safe, codec próprio (sem `btoa`/`Buffer`), 13,4 ms para codificar e 3,3 ms para decodificar |
+| `Array` de números em JSON | ~3,57× → 1,18 MB | mesmo resultado, quase 3× o tráfego |
+| typed array crua | **corrompe** | vira objeto sem `length` |
+| structured clone | — | não assumido: exigiria versão mínima de Chrome sem requisito formal |
+
+Numa captura de 300 frames isso é **+34 MB** no fio e **~5 s** de CPU no total — uma vez, e
+offline. O receptor valida `length` declarado contra o decodificado; frame que não bate é
+**recusado**, não confirmado e continua contando como faltante, então a transferência jamais
+se declara completa com dado corrompido.
+
 ## Como gerar
 
 - **Navegador (gravação para o gate de sinal)**: popup → **Gravar p/ replay** com ≥ 250

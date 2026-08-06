@@ -13,7 +13,8 @@ const X = require('../lib/export_stream.js');
 function fakeFrames(n, stride) {
   const out = [];
   for (let i = 0; i < n; i++) {
-    const b = new Uint8Array(stride);
+    // Uint8ClampedArray é o tipo REAL que vem de `getImageData().data`.
+    const b = new Uint8ClampedArray(stride);
     b.fill(i % 251);
     out.push(b);
   }
@@ -21,17 +22,20 @@ function fakeFrames(n, stride) {
 }
 
 /**
- * Liga remetente e destinatário por uma FILA (como um port do Chrome, que é assíncrono).
- * Entregar sincronamente criaria recursão mútua post→ack→post e esconderia o
- * comportamento real do backpressure.
+ * Liga remetente e destinatário por uma FILA **atravessando JSON**, que é o que o
+ * `chrome.runtime.Port` faz de verdade. Entregar o objeto em memória (como os testes da
+ * rodada anterior faziam) esconde a regressão mais cara possível: uma typed array crua
+ * chega do outro lado do port como `{"0":12,…}`, sem `.length`.
  * `dropAtBatch` corta a conexão ao enviar aquele lote.
  */
 function pump(frames, meta, opts) {
   opts = opts || {};
   const assembler = opts.assembler ||
     X.createAssembler({ now: () => (opts.clock ? opts.clock.t : Date.now()) });
+  const wire = opts.wire || ((m) => JSON.parse(JSON.stringify(m)));
   let dead = false;
   let batches = 0;
+  let protocolError = null;
   const toAssembler = [];
   const toSender = [];
 
@@ -44,8 +48,9 @@ function pump(frames, meta, opts) {
       if (m.type === 'frames') {
         batches++;
         if (opts.dropAtBatch && batches === opts.dropAtBatch) { dead = true; return; }
+        if (opts.corruptBatch === batches && opts.corrupt) m = opts.corrupt(m);
       }
-      toAssembler.push(m);
+      toAssembler.push(wire(m));     // ← a travessia do JSON
     }
   });
 
@@ -53,7 +58,15 @@ function pump(frames, meta, opts) {
   let guard = 0;
   while ((toAssembler.length || toSender.length) && guard++ < 100000) {
     while (toAssembler.length) {
-      const replies = assembler.handle(toAssembler.shift());
+      let replies = [];
+      try {
+        replies = assembler.handle(toAssembler.shift());
+      } catch (e) {
+        protocolError = e;
+        dead = true;
+        toAssembler.length = 0;
+        break;
+      }
       for (const r of replies) if (!dead) toSender.push(r);
     }
     while (toSender.length) {
@@ -61,8 +74,118 @@ function pump(frames, meta, opts) {
       if (!dead) sender.onAck(r.to);
     }
   }
-  return { assembler, sender, dead: () => dead, batches: () => batches };
+  return { assembler, sender, dead: () => dead, batches: () => batches, protocolError: () => protocolError };
 }
+
+test('TRANSPORT BOUNDARY: bytes sobrevivem intactos à serialização JSON do port', () => {
+  // Cada byte de 0 a 255, mais padrões que quebram base64 mal implementado.
+  const frames = [];
+  const a = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) a[i] = i;
+  frames.push(a);
+  frames.push(new Uint8ClampedArray([0, 0, 0]));
+  frames.push(new Uint8ClampedArray([255, 255, 255]));
+  frames.push(new Uint8ClampedArray(256).fill(7));
+  // todos com o mesmo stride, senão a montagem recusa (e é o que ela deve fazer)
+  const stride = 256;
+  const norm = frames.map((f) => { const b = new Uint8ClampedArray(stride); b.set(f.subarray(0, stride)); return b; });
+
+  const r = pump(norm, { format: 'vision_spike_capture' });
+  assert.equal(r.protocolError(), null);
+  assert.equal(r.assembler.progress().complete, true);
+  const out = r.assembler.assemble();
+  assert.equal(out.stride, stride);
+  assert.equal(out.bytes.length, stride * norm.length);
+  for (let f = 0; f < norm.length; f++) {
+    for (let i = 0; i < stride; i++) {
+      assert.equal(out.bytes[f * stride + i], norm[f][i], `frame ${f} byte ${i}`);
+    }
+  }
+});
+
+test('TRANSPORT BOUNDARY: base64 ida e volta é exato para 0..255 e para restos 1 e 2', () => {
+  for (const n of [0, 1, 2, 3, 4, 5, 255, 256, 1000]) {
+    const src = new Uint8Array(n);
+    for (let i = 0; i < n; i++) src[i] = (i * 37 + 11) & 0xFF;
+    const back = X.fromBase64(X.toBase64(src));
+    assert.equal(back.length, n, `n=${n}`);
+    for (let i = 0; i < n; i++) assert.equal(back[i], src[i], `n=${n} i=${i}`);
+  }
+});
+
+test('base64 recusa entrada inválida em vez de devolver lixo', () => {
+  assert.throws(() => X.fromBase64('abc$'), /base64 invalido/);
+  assert.throws(() => X.fromBase64(null), /nao e string/);
+});
+
+test('REGRESSÃO: typed array crua (wire antigo) vira objeto sem length no JSON e FALHA ALTO', () => {
+  // Esta é a regressão exata: `{type:'frames', frames:[{index, data: <Uint8ClampedArray>}]}`
+  // atravessando JSON vira `data: {"0":12,…}` — objeto SEM `.length`. Antes disso passar
+  // batido, `assemble()` calculava stride `undefined`, criava `Uint8Array(NaN)` (= 0) e
+  // devolvia 0 byte SEM lançar: o operador salvava um `frames.bin` vazio com a interface
+  // dizendo "300 frames, completo".
+  const bruto = new Uint8ClampedArray([1, 2, 3, 4]);
+  const msgAntiga = JSON.parse(JSON.stringify({
+    type: 'frames', from: 0, to: 0, frames: [{ index: 0, data: bruto }]
+  }));
+  assert.equal(typeof msgAntiga.frames[0].data, 'object');
+  assert.equal(msgAntiga.frames[0].data.length, undefined, 'o JSON realmente come o .length');
+
+  const a = X.createAssembler({});
+  a.handle({ type: 'meta', meta: {}, frameCount: 1 });
+  const acks = a.handle(msgAntiga);
+  assert.deepEqual(acks, [], 'frame invalido NAO pode ser confirmado');
+  const p = a.progress();
+  assert.equal(p.received, 0);
+  assert.equal(p.rejected, 1);
+  assert.match(p.rejectedDetail[0].reason, /b64/);
+
+  a.handle({ type: 'end', frameCount: 1 });
+  assert.equal(a.progress().complete, false, 'nunca pode se declarar completo');
+  assert.throws(() => a.assemble(), /recusado/);
+});
+
+test('REGRESSÃO: montagem NUNCA produz arquivo de 0 byte se dizendo completo', () => {
+  // 1) sem frame nenhum
+  const vazio = X.createAssembler({});
+  vazio.handle({ type: 'meta', meta: {}, frameCount: 0 });
+  vazio.handle({ type: 'end', frameCount: 0 });
+  assert.equal(vazio.progress().complete, false);
+  assert.throws(() => vazio.assemble(), /0 frames/);
+
+  // 2) frame declarado com length 0
+  const zero = X.createAssembler({});
+  zero.handle({ type: 'meta', meta: {}, frameCount: 1 });
+  const acks = zero.handle({
+    type: 'frames', wire: X.WIRE, from: 0, to: 0,
+    frames: [{ index: 0, b64: '', length: 0 }]
+  });
+  assert.deepEqual(acks, []);
+  zero.handle({ type: 'end', frameCount: 1 });
+  assert.equal(zero.progress().complete, false);
+  assert.throws(() => zero.assemble(), /recusado|incompleto/);
+});
+
+test('length declarado que não bate com o decodificado é RECUSADO', () => {
+  const a = X.createAssembler({});
+  a.handle({ type: 'meta', meta: {}, frameCount: 1 });
+  const b64 = X.toBase64(new Uint8Array([1, 2, 3, 4]));
+  const acks = a.handle({ type: 'frames', wire: X.WIRE, from: 0, to: 0, frames: [{ index: 0, b64, length: 99 }] });
+  assert.deepEqual(acks, []);
+  assert.match(a.progress().rejectedDetail[0].reason, /declarado 99/);
+});
+
+test('wire desconhecido falha alto (não tenta adivinhar o formato)', () => {
+  const a = X.createAssembler({});
+  assert.throws(() => a.handle({ type: 'meta', wire: 'protobuf', meta: {}, frameCount: 1 }),
+    /wire desconhecido/);
+});
+
+test('o remetente recusa frame que não é typed array', () => {
+  assert.throws(() => X.createSender({
+    frames: [[1, 2, 3]], meta: {}, post: () => { }
+  }).start(0), /nao e Uint8Array/);
+});
 
 test('transferência completa monta os bytes na ordem certa', () => {
   const frames = fakeFrames(12, 8);
@@ -140,11 +263,14 @@ test('STALL: o relógio é REARMADO a cada mensagem, inclusive depois do meta', 
   const a = X.createAssembler({ stallMs: 5000, now: () => clock.t });
   assert.equal(a.isStalled(), false, 'sem mensagem nenhuma ainda não é stall');
 
-  a.handle({ type: 'meta', meta: {}, frameCount: 3 });
+  a.handle({ type: 'meta', wire: X.WIRE, meta: {}, frameCount: 3 });
   clock.t += 6000;
   assert.equal(a.isStalled(), true, 'parou logo após o meta ⇒ stall');
 
-  a.handle({ type: 'frames', from: 0, to: 0, frames: [{ index: 0, data: new Uint8Array(4) }] });
+  a.handle({
+    type: 'frames', wire: X.WIRE, from: 0, to: 0,
+    frames: [{ index: 0, b64: X.toBase64(new Uint8Array(4)), length: 4 }]
+  });
   assert.equal(a.isStalled(), false, 'mensagem nova rearma o relógio');
   clock.t += 6000;
   assert.equal(a.isStalled(), true);
@@ -184,11 +310,40 @@ test('orçamento zero/ausente significa SEM teto (não "nada cabe")', () => {
 
 test('frame com tamanho divergente é recusado na montagem', () => {
   const a = X.createAssembler({});
-  a.handle({ type: 'meta', meta: {}, frameCount: 2 });
-  a.handle({ type: 'frames', from: 0, to: 1, frames: [
-    { index: 0, data: new Uint8Array(8) },
-    { index: 1, data: new Uint8Array(9) }
-  ] });
+  a.handle({ type: 'meta', wire: X.WIRE, meta: {}, frameCount: 2 });
+  a.handle({
+    type: 'frames', wire: X.WIRE, from: 0, to: 1,
+    frames: [
+      { index: 0, b64: X.toBase64(new Uint8Array(8)), length: 8 },
+      { index: 1, b64: X.toBase64(new Uint8Array(9)), length: 9 }
+    ]
+  });
   a.handle({ type: 'end', frameCount: 2 });
   assert.throws(() => a.assemble(), /tamanho divergente/);
+});
+
+test('custo do wire base64: medido, não presumido', () => {
+  // 330 KB é a ordem de grandeza de um frame de ROI real (320×260×4 = 333 KB).
+  const bytes = new Uint8Array(330 * 1024);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 31) & 0xFF;
+  const t0 = process.hrtime.bigint();
+  const b64 = X.toBase64(bytes);
+  const t1 = process.hrtime.bigint();
+  const back = X.fromBase64(b64);
+  const t2 = process.hrtime.bigint();
+
+  assert.equal(back.length, bytes.length);
+  // Overhead de 4/3 — contra ~3,5× de um array de números serializado em JSON.
+  const overhead = b64.length / bytes.length;
+  assert.ok(overhead > 1.33 && overhead < 1.35, `overhead=${overhead}`);
+  const jsonArrayLen = JSON.stringify(Array.from(bytes.subarray(0, 4096))).length / 4096;
+  assert.ok(jsonArrayLen > overhead * 2,
+    `array em JSON custa ${jsonArrayLen}×, base64 custa ${overhead}× — base64 tem de ser bem menor`);
+
+  const encMs = Number(t1 - t0) / 1e6;
+  const decMs = Number(t2 - t1) / 1e6;
+  // Teto folgado: o ponto é travar uma regressão de ordem de grandeza, não cronometrar a
+  // máquina de CI. Uma captura de 300 frames paga isto 300 vezes, uma vez só, offline.
+  assert.ok(encMs < 250, `encode ${encMs} ms`);
+  assert.ok(decMs < 250, `decode ${decMs} ms`);
 });
