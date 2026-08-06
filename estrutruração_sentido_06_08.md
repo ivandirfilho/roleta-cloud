@@ -1,8 +1,8 @@
 # Estruturação do sentido — estado, lacunas e decisão de arquitetura em 06/08
 
-**Corte da auditoria:** 06/08/2026 17:47 UTC  
-**Código auditado:** `main@ebc89e8`  
-**Servidor auditado:** Debian `xmaiajpvm`, somente leitura  
+**Corte da auditoria:** 06/08/2026 17:47 UTC
+**Código auditado:** `main@ebc89e8`
+**Servidor auditado:** Debian `xmaiajpvm`, somente leitura
 **Fontes:** `Manutenabilidade_iso.md`, `evolução_03_08.md`,
 `arquitetura_dados_estrategia.md`, `sprints/BOARD.md`, briefs `SPR-V*`,
 composes, migrations, código do produtor/CDC, GitHub e evidência direta do host.
@@ -151,7 +151,7 @@ uma pausa de ingestão, portanto **não substitui baseline de carga de 7 dias**.
 - a ingestão retomou às 16:45 UTC sem mutação da auditoria;
 - às 17:47 UTC seguia ativa.
 
-**Fato:** servidor, WS e banco estavam saudáveis; o processo não recebeu giro.  
+**Fato:** servidor, WS e banco estavam saudáveis; o processo não recebeu giro.
 **Inferência, não prova:** aba/mesa/extractor do cliente estava inativo ou
 logicamente stale. V6A deve tornar esse estado observável.
 
@@ -652,4 +652,3 @@ Prioridade final:
 4. governança (BOARD, clocks, V6A);
 5. durabilidade real (outbox local);
 6. só então decisão de VM ou PostgreSQL gerenciado.
-
