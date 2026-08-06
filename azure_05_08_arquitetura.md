@@ -24,9 +24,10 @@ split-brain nem um segundo escritor.
 
 Na Azure, a aplicação roda em Docker sobre uma VM Debian. O Caddy nativo
 termina HTTP/TLS e encaminha `/ws` para o processo WebSocket em loopback. O
-SQLite ativo da VM permanece como canário; o PostgreSQL Flexible Server está
-provisionado, com schemas e tabelas da futura Onda 2, mas `dual_write_pg=false`,
-o `cdc-worker` não está rodando e as tabelas analíticas estão vazias.
+SQLite ativo da VM permanece como canário. O PostgreSQL Flexible Server tem a
+extensão pgvector instalada, mas `dual_write_pg=false`, o `cdc-worker` não está
+rodando e as tabelas analíticas ainda estão vazias. A HostDime, por outro lado,
+possui PostgreSQL 15 com pgvector instalado e populado como espelho analítico.
 
 ## 2. Fluxo de dados completo
 
@@ -160,7 +161,7 @@ Os dados vivos da HostDime, medidos às `00:24:52Z`, estavam assim:
 `sda_centers`, `sda_numbers`, `sda_regions` e `performance_snapshot` são
 representações JSON dentro de colunas SQLite; não são tabelas independentes.
 
-### 4.2 PostgreSQL Flexible Server — preparado para a Onda 2
+### 4.2 PostgreSQL Flexible Server Azure — preparado para a Onda 2
 
 **Servidor:** `pg-roleta-prod`  
 **Banco:** `roleta`  
@@ -209,6 +210,54 @@ O repositório contém migrações Alembic até `0013_hnsw_vectors`, mas a inspe
 viva não encontrou uma tabela `alembic_version`. Portanto, o head efetivamente
 aplicado no servidor PG não deve ser afirmado apenas por documentação histórica;
 deve ser reconciliado antes da Onda 2.
+
+### 4.2.1 PostgreSQL HostDime — espelho pgvector atualmente populado
+
+**Container observado:** `roleta-pg`
+**Imagem:** `pgvector/pgvector:pg15`
+**Banco/role observados:** `roleta` / `roleta`
+**Extensão:** `vector` (pgvector) `0.8.2`
+**Head Alembic observado:** `0013_hnsw_vectors`
+
+Na HostDime, a extensão não é apenas uma instalação disponível: as tabelas
+estão recebendo dados:
+
+| Tabela | Linhas observadas |
+|---|---:|
+| `cw.spin_features` | 3.299 |
+| `ccw.spin_features` | 3.062 |
+| `cw.spins_vectors` | 3.927 |
+| `ccw.spins_vectors` | 3.702 |
+| `shared.decision_dna` | 47.465 |
+| `shared.outbox` | 65.367, todas `processed` na leitura |
+
+As colunas vetoriais são `raw_features` e `ae_latent` em
+`cw.spins_vectors`/`ccw.spins_vectors`. Os registros mais recentes consultados
+estavam entre `2026-08-06T00:56:34Z` e `2026-08-06T00:57:16Z`.
+
+O registro vivo de `shared.feature_flags` mostrou
+`dual_write_pg=true` e `pct=0`. O código do hook consulta o campo `enabled`;
+portanto, a configuração da HostDime está preparada para publicar no espelho,
+enquanto o SQLite continua sendo a fonte autoritativa do histórico e do caminho
+crítico.
+
+### 4.2.2 Comparação direta
+
+| Item | HostDime | Azure |
+|---|---|---|
+| Engine | PostgreSQL 15 em Docker | PostgreSQL Flexible 16.14 |
+| pgvector | `vector 0.8.2`, instalado | `vector 0.8.2`, instalado |
+| Tabelas de vetores | Populadas | Vazias |
+| `decision_dna` | 47.465 | 0 |
+| `shared.outbox` | 65.367 processados | 0 |
+| `dual_write_pg` | `enabled=true`, `pct=0` | `enabled=false`, `pct=0` |
+| Papel atual | Espelho analítico em uso | Estrutura preparada para Onda 2 |
+
+O pipeline de réplica Azure descrito neste memorial copia SQLite e `state.json`
+via Blob. Ele **não** copia PostgreSQL, outbox, DNA ou vetores. Levar o conteúdo
+pgvector da HostDime para a Azure exige uma migração PostgreSQL separada
+(dump/restore ou backfill validado), seguida de reconciliação de contagens,
+timestamps, `decision_id` e índices HNSW.
 
 ### 4.3 Blob Storage — repositório de pacotes, não banco transacional
 
@@ -376,14 +425,16 @@ e, opcionalmente, `result_source_event_id`. Isso não faz parte do cutover atual
 
 ## 8. Estado de consistência e limites
 
-1. **Fonte atual:** HostDime SQLite; não Azure PostgreSQL.
+1. **Fonte atual:** HostDime SQLite; o PostgreSQL/pgvector HostDime é espelho,
+   não a fonte autoritativa.
 2. **Canário ativo Azure:** banco observado com 10.949 linhas e último timestamp
    `2026-08-04T17:47:34.156274`; ele é histórico de ensaio e não deve ser
    confundido com a réplica corrente.
 3. **Standby corrente Azure:** snapshot HostDime, isolado em
    `/opt/roleta/standby`, com `integrity_check=ok`.
-4. **PostgreSQL:** conectado e preparado, mas sem dados de `spin_features`,
-   vetores, DNA ou outbox; `dual_write_pg=false`.
+4. **PostgreSQL:** HostDime tem pgvector populado; Azure tem a extensão e os
+   schemas preparados, mas sem dados de `spin_features`, vetores, DNA ou outbox;
+   `dual_write_pg=false` na Azure.
 5. **INV-3:** o caminho de estratégia continua indicando `APOSTAR`; um veto
    reduz stake por `min()` e não suprime a indicação.
 6. **Cutover:** exige freeze do escritor HostDime, snapshot final, promoção de
