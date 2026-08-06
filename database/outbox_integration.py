@@ -15,6 +15,7 @@ Uso (em SQLiteDecisionRepository.save_decision):
 from __future__ import annotations
 
 import logging
+import math
 import os
 import threading
 import time
@@ -194,15 +195,47 @@ def _text_or_none(value: Any) -> str | None:
     return text or None
 
 
+# Limites de float verificados contra PostgreSQL 15 real (pgvector/pg15 +
+# psycopg2), porque as DUAS pontas do caminho recusam coisas DIFERENTES:
+#
+#   valor        | payload JSONB (shared.outbox) | coluna REAL (spin_features)
+#   -------------|-------------------------------|----------------------------
+#   NaN / ±Inf   | ERRO (JSON não tem esses)     | aceita
+#   1e300        | aceita                        | ERRO (overflow)
+#   1e-300       | aceita                        | ERRO (underflow)
+#   0.0 / 0.87   | aceita                        | aceita
+#
+# Um NaN/Inf no contexto derruba o INSERT do evento INTEIRO no outbox — ou seja,
+# um campo OPCIONAL faz o `spin_result` ESSENCIAL se perder antes de existir.
+# Um finito gigante passa pelo JSONB e só explode no worker, mandando a linha
+# essencial para a DLQ. Por isso a checagem é a UNIÃO das duas restrições e vive
+# nas duas pontas (o worker também protege eventos legados/escritos à mão).
+_PG_FLOAT4_MAX = 3.4028235e38   # maior magnitude aceita por REAL (3.5e38 falha)
+_PG_FLOAT4_MIN = 1.4e-45        # menor magnitude não-nula aceita (1e-46 falha)
+
+
+def _is_pg_float_safe(number: float) -> bool:
+    """True se o float sobrevive a JSONB **e** a uma coluna REAL do PG.
+
+    Sem clamp: valor fora da faixa é ausência, não um número aproximado. Zero é
+    sempre válido; magnitudes normais (confiança em 0..1) passam sem toque.
+    """
+    if not math.isfinite(number):
+        return False
+    magnitude = abs(number)
+    return magnitude == 0.0 or _PG_FLOAT4_MIN <= magnitude <= _PG_FLOAT4_MAX
+
+
 def _float_or_none(value: Any) -> float | None:
     if value is None or isinstance(value, bool):
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError, ArithmeticError):
         # ArithmeticError cobre OverflowError (int gigante -> float): a coerção
         # é TOTAL por contrato, então valor impossível vira ausência.
         return None
+    return number if _is_pg_float_safe(number) else None
 
 
 def _int_or_none(value: Any) -> int | None:

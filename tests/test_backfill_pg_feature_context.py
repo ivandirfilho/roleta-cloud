@@ -310,6 +310,50 @@ def test_scope_respects_frozen_ceiling(tmp_path):
     assert max(p.decision_id for p in plans) <= 3
 
 
+def test_report_counts_eligible_rows_above_the_frozen_ceiling(tmp_path):
+    """A promessa do teto congelado tem que ser verificável no relatório.
+
+    O escopo é congelado no início; o que nasce depois fica para a próxima
+    rodada. Sem esta contagem, o operador não teria como saber que sobrou algo.
+    """
+    path = _make_db(tmp_path, [_row(), _row(), _row(), _row()])
+    conn = sqlite3.connect(path)
+    try:
+        from tools.backfill_pg_feature_context import Stats
+
+        stats = Stats()
+        plans = plan_updates(conn, frozen_max_id=2, stats=stats)
+        assert stats.frozen_max_decision_id == 2
+        assert max(p.decision_id for p in plans) <= 2
+        assert stats.above_ceiling == 2, "ids 3 e 4 ficaram para a proxima rodada"
+
+        # Sem teto injetado, congela no topo real: nada fica de fora.
+        stats2 = Stats()
+        plan_updates(conn, stats=stats2)
+        assert stats2.frozen_max_decision_id == 4
+        assert stats2.above_ceiling == 0
+    finally:
+        conn.close()
+
+
+def test_above_ceiling_counts_only_eligible_rows(tmp_path):
+    """Linha sem resultado ou sem aposta não conta como pendência."""
+    path = _make_db(tmp_path, [
+        _row(),                       # id 1 — dentro do teto
+        _row(),                       # id 2 — elegível, acima do teto
+        _row(result_actual=None),     # id 3 — sem resultado
+        _row(final_action="PULAR"),   # id 4 — sem aposta
+    ])
+    conn = sqlite3.connect(path)
+    try:
+        from tools.backfill_pg_feature_context import Stats
+        stats = Stats()
+        plan_updates(conn, frozen_max_id=1, stats=stats)
+        assert stats.above_ceiling == 1
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------------------
 # Sentido → schema
 # ---------------------------------------------------------------------------

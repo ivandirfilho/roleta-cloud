@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import select
 import signal
@@ -238,6 +239,16 @@ def _m_context(status: str) -> None:
         M_CONTEXT.labels(status=status).inc()
 
 
+# Limites numéricos do PG, medidos contra PostgreSQL 15 real (pgvector/pg15).
+# INTEGER (int4) e REAL (float4): valor fora daqui faz o PRÓPRIO banco recusar o
+# INSERT — o mesmo desfecho (linha essencial perdida) que a coerção total existe
+# para evitar. REAL recusa 3.5e38 (overflow) e 1e-46 (underflow); 3.4028235e38 e
+# 1.4e-45 passam.
+_INT4_MIN, _INT4_MAX = -2147483648, 2147483647
+_PG_FLOAT4_MAX = 3.4028235e38
+_PG_FLOAT4_MIN = 1.4e-45
+
+
 def _coerce_text(value: Any) -> Optional[str]:
     if value is None or isinstance(value, (dict, list, tuple, bool)):
         return None
@@ -249,12 +260,22 @@ def _coerce_float(value: Any) -> Optional[float]:
     if value is None or isinstance(value, bool):
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError, ArithmeticError):
         # ArithmeticError cobre OverflowError (int gigante vindo do JSONB).
         # A coerção é TOTAL por contrato: nada aqui pode escapar e mandar o
         # resultado essencial para a DLQ.
         return None
+    # Verificado contra PG 15 real: a coluna REAL aceita ±Inf/NaN mas RECUSA
+    # 1e300 (overflow) e 1e-300 (underflow) — justamente os valores que o JSONB
+    # deixa passar. Esta guarda NÃO é redundante com a do produtor: eventos
+    # legados ou escritos à mão chegam aqui sem nunca terem passado por lá.
+    if not math.isfinite(number):
+        return None
+    magnitude = abs(number)
+    if magnitude != 0.0 and not (_PG_FLOAT4_MIN <= magnitude <= _PG_FLOAT4_MAX):
+        return None
+    return number
 
 
 def _coerce_int(value: Any) -> Optional[int]:
@@ -264,11 +285,6 @@ def _coerce_int(value: Any) -> Optional[int]:
         return int(value)
     except (TypeError, ValueError, ArithmeticError):
         return None
-
-
-# Faixa de INTEGER (int4) do PG: valor fora daqui faria o próprio banco recusar
-# o INSERT — o mesmo desfecho (linha perdida) que a coerção existe para evitar.
-_INT4_MIN, _INT4_MAX = -2147483648, 2147483647
 
 
 def _coerce_int4(value: Any) -> Optional[int]:

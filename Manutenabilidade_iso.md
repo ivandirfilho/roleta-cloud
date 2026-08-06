@@ -3915,14 +3915,85 @@ Ambos com regressão dedicada (`test_out_of_range_numbers_never_escape_the_coerc
 `test_predicates_are_disjunctive_so_one_filled_column_blocks_nothing`,
 `test_missing_target_row_is_reported_apart_from_already_filled`).
 
-### J. Prova por mutação (12 reversões isoladas, cada uma com o teste-alvo)
+### I.3 — O float que o JSONB recusa e o que a coluna REAL recusa não são o mesmo conjunto
+
+Achado independente, **reproduzido contra PostgreSQL 15 real** (pgvector/pg15 + psycopg2, banco
+descartável local). As duas pontas do caminho recusam coisas **diferentes**:
+
+| valor | payload JSONB (`shared.outbox`) | coluna `REAL` (`spin_features`) |
+|---|---|---|
+| `NaN` / `±Inf` | **ERRO** `invalid input syntax for type json` | aceita |
+| `1e300` | aceita | **ERRO** `out of range for type real` |
+| `1e-300` | aceita | **ERRO** (underflow) |
+| `0.0`, `0.87`, `3.4028235e38`, `1.4e-45` | aceita | aceita |
+
+A coerção "total" da rodada anterior devolvia `inf`/`NaN` e finitos gigantes intactos. Consequência
+medida no banco de verdade, **antes** do conserto:
+
+- `vision_confidence = ±Inf` ou `NaN` → `Json(payload)` derruba o INSERT do evento **inteiro** no
+  outbox. `maybe_publish_spin_result` não levanta (guard-rail), mas devolve `False`: **2 de 3
+  `spin_result` simplesmente deixaram de existir**. Um campo **opcional** matou o resultado
+  **essencial** antes mesmo de ele entrar na fila — a violação mais grave possível do contrato
+  fail-soft, porque não há DLQ para inspecionar depois: o evento nunca foi criado.
+- `vision_confidence = 1e300` → passa pelo JSONB, chega ao worker, e aí a coluna `REAL` recusa:
+  `status='pending' retries=1`, `cw.spin_features` vazio. O caminho para a DLQ, com o resultado
+  perdido no fim.
+
+**Conserto:** `_is_pg_float_safe()` no produtor e guarda equivalente no worker — rejeita
+não-finito **e** magnitude fora de `[1.4e-45, 3.4028235e38]` (limites medidos, não deduzidos:
+`3.5e38` e `1e-46` foram reprovados pelo banco; `3.4028235e38` e `1.4e-45` passaram). **Sem
+clamp** — valor fora da faixa é ausência, não um número aproximado; `0.0` e valores normais
+seguem intactos. O backfill herda tudo, porque usa o mesmo `build_pg_feature_context()`.
+
+**As duas guardas são necessárias e nenhuma é redundante:** a do produtor, porque um NaN nunca
+chegaria ao worker (o evento não existiria); a do worker, porque `1e300` atravessa o JSONB e só
+explode lá — e porque eventos legados ou escritos à mão chegam sem nunca terem passado pelo
+produtor. Prova em PG real: evento inserido à mão com `1e300`/`1e-300` no contexto é processado,
+os dois campos viram `NULL` e o resto (`dealer`, `"table"`, `spin_seq`, `phase_uncertain`) é
+projetado normalmente.
+
+**Sobre a redundância aparente entre `isfinite` e a faixa:** hoje a comparação de faixa já derruba
+`NaN`/`±Inf` sozinha (comparação com `NaN` é sempre falsa) — e a mutação que removia o `isfinite`
+inicialmente **sobreviveu**. Não removi a checagem: ela guarda uma invariante *diferente* (o JSONB
+recusa não-finito **qualquer que seja a largura da coluna**), que só se separa da faixa no dia em
+que alguém migrar as colunas para `float8`. Em vez de apagar a linha ou aceitar a mutação viva,
+o teste passou a fixar exatamente essa invariante: com os limites alargados para `inf` via
+monkeypatch, `±Inf`/`NaN` continuam caindo e `1e300` volta a passar. A mutação agora morre —
+e morre pelo motivo certo.
+
+Depender de "comparação com NaN é falsa" seria repetir a lição do ADENDO do spike de visão
+(`undefined < 0` também é `false` em JS, e foi assim que um frame decodificou lixo em silêncio):
+**a única checagem honesta é a que exige a condição desejada, não a que nega a indesejada.**
+
+### I.4 — Testes de integração que nunca limpavam o que sujavam
+
+`tests/test_cdc_worker.py` limpava `spins_vectors` e `outbox` por `meta.test_marker`, mas **nunca**
+`spin_features`. Linhas de teste ficavam no feature store e entravam na janela de lag
+(`recent_acc_10/50`, `streak_*`) das execuções seguintes — testes contaminando testes. Corrigido, e
+o arquivo ganhou a integração que faltava contra PG real: `spin_result` com contexto completo,
+parametrizado CW/CCW, provando a coluna citada `"table"`, `spin_number = actual_number` (mesmo com
+`meta` presente no payload), o fallback de float hostil e o cenário de skew worker-OFF. Tudo sob o
+`pytestmark` de PG opcional — **o CI comum continua determinístico e sem banco**.
+
+### I.5 — Uma promessa de relatório que o relatório não cumpria
+
+A docstring do backfill dizia que linhas nascidas acima do teto congelado ficariam para a próxima
+rodada "e o relatório diz quantas ficaram". O relatório só imprimia o teto. Agora conta de fato
+(`above_ceiling`, `SELECT count(*)` read-only das linhas **elegíveis** acima do teto) e o CLI diz
+`>0 = rode de novo`. `plan_updates` ganhou `frozen_max_id` opcional — reexecução reprodutível com o
+teto de uma rodada anterior, e é o que torna a contagem testável.
+
+### J. Prova por mutação (21 reversões isoladas, cada uma com o teste-alvo)
 
 `"table"` → `table` sem aspas ✗ (5 falhas) · flag do worker default ON ✗ (4) ·
 `spin_number` entra no mapa de contexto ✗ (19) · flag do produtor default ON ✗ (3) ·
 `dealer='unknown'` deixa de ser ausência ✗ (2) · identidade `decision_id` não checada ✗ (1) ·
 predicado do `dealer` vira sobrescrita ✗ (2) · allowlist deixa passar `hit` ✗ (1) ·
 `UPDATE` vira `INSERT` ✗ (3) · sentido desconhecido vira `cw` ✗ (1) ·
-handler lê o DB com a flag OFF ✗ (1) · `last_decision_direction` some do `__init__` ✗ (2).
+handler lê o DB com a flag OFF ✗ (1) · `last_decision_direction` some do `__init__` ✗ (2) ·
+produtor aceita não-finito ✗ (1) · produtor ignora a faixa do float4 ✗ (7) · guarda removida do
+`_float_or_none` ✗ (10) · worker aceita não-finito ✗ (1) · worker ignora a faixa do float4 ✗ (5) ·
+limites divergem entre as pontas ✗ (1) · `above_ceiling` fixo em 0 ✗ (2).
 **Nenhuma reversão passa despercebida.**
 
 ### K. Rollback
@@ -3938,13 +4009,22 @@ rollout: **worker primeiro, produtor depois** — invertido, o evento enriquecid
 legado, marcado `processed`, e o `ON CONFLICT DO NOTHING` fecha a porta do replay (só o backfill
 conserta). O worker loga `spin_result_context_ignored` quando detecta a inversão.
 
-**Suítes.** `pytest tests/` **1207 passed, 9 skipped, 1 xfailed** (baseline antes deste PR:
-**1068 passed** — os **139 testes novos** entram inteiros: 45 do produtor, 43 do worker, 30 do
-backfill, 10 do handler, 9 do contrato de projeção, +2 no `test_schema_parity`).
+**Suítes.** `pytest tests/` **1249 passed, 13 skipped, 1 xfailed** (baseline antes deste PR:
+**1068 passed, 9 skipped** — os **185 testes novos** entram inteiros: 66 do produtor, 62 do
+worker, 32 do backfill, 10 do handler, 9 do contrato de projeção, +2 no `test_schema_parity` e
++4 de integração PG-gated). Os 4 de integração rodam contra PostgreSQL 15 real quando
+`ROLETA_TEST_PG_ENABLED=1` + `ROLETA_PG_DSN` estão setados (validados aqui num
+`pgvector/pgvector:pg15` descartável com as migrations 0001→0013 aplicadas) e **skipam no CI
+comum** — os outros 181 são determinísticos e não pedem banco.
 `lint_silent_except` OK (baseline 37→38 em `message_handler.py`: o `except` do novo helper de
 contexto) · `lint_dna_coverage` OK · `schema_symmetry` OK · `schema_parity` OK ·
 `docker compose config` OK nos dois arquivos (a flag resolve `"0"` por default e `"1"` com
 override) · `git diff --check` limpo.
+
+**Débito adjacente registrado (fora de escopo, não tocado):** `_extract_raw_features()` monta o
+vetor 6d a partir de campos do `Decision` sem a mesma guarda de float. Um `tr_c4_rate` não-finito
+derrubaria o INSERT do evento `spin_features` pelo mesmo mecanismo do JSONB. É caminho legado,
+anterior a este PR e independente do contexto — fica anotado aqui em vez de ampliar o diff.
 
 **Lição (Adequação funcional / Analisabilidade).** Um schema correto é uma promessa, não uma
 entrega. As colunas certas existiam, com os tipos certos, nas migrations certas, e mesmo assim o

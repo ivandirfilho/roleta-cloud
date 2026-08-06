@@ -25,8 +25,9 @@ Invioláveis deste script
    allowlist e não podem ser alcançados.
 4. **`--dry-run` é o default.** Gravar exige `--apply` explícito.
 5. **Escopo congelado.** `max(decisions.id)` é lido UMA vez no início; linhas
-   criadas durante a execução ficam para a próxima rodada (e o relatório diz
-   quantas ficaram).
+   criadas durante a execução ficam para a próxima rodada, e o relatório diz
+   quantas ficaram (`above_ceiling`, contagem read-only feita ao fim da
+   varredura). `above_ceiling > 0` significa: rode de novo.
 6. **Mesma normalização do runtime.** Os valores saem de
    `database.outbox_integration.build_pg_feature_context` — o mesmo helper que
    alimenta o caminho ao vivo. Sem isso, backfill e produção divergiriam.
@@ -150,6 +151,7 @@ _SET_EXPR_BY_COLUMN: dict[str, str] = {
 class Stats:
     frozen_max_decision_id: Optional[int] = None
     scanned: int = 0
+    above_ceiling: int = 0
     skipped_unknown_direction: int = 0
     skipped_no_context: int = 0
     planned: int = 0
@@ -164,6 +166,7 @@ class Stats:
         return {
             "frozen_max_decision_id": self.frozen_max_decision_id,
             "scanned": self.scanned,
+            "above_ceiling": self.above_ceiling,
             "skipped_unknown_direction": self.skipped_unknown_direction,
             "skipped_no_context": self.skipped_no_context,
             "planned": self.planned,
@@ -187,12 +190,17 @@ def plan_updates(
     *,
     include_center_gale: bool = False,
     limit: Optional[int] = None,
+    frozen_max_id: Optional[int] = None,
     stats: Optional[Stats] = None,
 ) -> list[UpdatePlan]:
-    """Lê o SQLite e devolve os UPDATEs candidatos. NÃO grava em lugar nenhum."""
+    """Lê o SQLite e devolve os UPDATEs candidatos. NÃO grava em lugar nenhum.
+
+    `frozen_max_id` permite reexecutar com o MESMO teto de uma rodada anterior
+    (reprodutibilidade); omitido, congela `max(decisions.id)` agora.
+    """
     stats = stats if stats is not None else Stats()
     conn.row_factory = sqlite3.Row
-    max_id = freeze_max_decision_id(conn)
+    max_id = frozen_max_id if frozen_max_id is not None else freeze_max_decision_id(conn)
     stats.frozen_max_decision_id = max_id
     if max_id is None:
         return []
@@ -245,6 +253,14 @@ def plan_updates(
                 "schema": schema,
                 "sets": dict(zip(plan.columns, plan.values)),
             })
+    # Cumpre a promessa do teto congelado: quantas linhas ELEGÍVEIS nasceram
+    # acima dele durante a varredura. Leitura pura; `> 0` = rode de novo.
+    above = conn.execute(
+        "SELECT count(*) FROM decisions "
+        "WHERE id > ? AND final_action = 'APOSTAR' AND result_actual IS NOT NULL",
+        (max_id,),
+    ).fetchone()
+    stats.above_ceiling = int(above[0]) if above and above[0] is not None else 0
     return plans
 
 
@@ -375,6 +391,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     print(f"[bf-ctx] modo            : {payload['mode']}")
     print(f"[bf-ctx] max decision_id : {stats.frozen_max_decision_id} (congelado)")
+    print(f"[bf-ctx] acima do teto   : {stats.above_ceiling} (>0 = rode de novo)")
     print(f"[bf-ctx] scanned         : {stats.scanned}")
     print(f"[bf-ctx] planned         : {stats.planned}")
     print(f"[bf-ctx] sem sentido     : {stats.skipped_unknown_direction}")

@@ -235,6 +235,112 @@ def test_int_outside_postgres_integer_range_becomes_none():
     assert build_pg_feature_context({"spin_seq": 2 ** 31 - 1})["spin_seq"] == 2 ** 31 - 1
 
 
+# ---------------------------------------------------------------------------
+# Faixa de float aceita pelo PG (medida contra PG 15 real)
+# ---------------------------------------------------------------------------
+
+def _conf(value):
+    return build_pg_feature_context({
+        "vision_source": "vision", "vision_confidence": value,
+        "direction_source": "authority", "direction_confidence": value,
+    })
+
+
+@pytest.mark.parametrize("label,value", [
+    ("NaN", float("nan")),
+    ("+Inf", float("inf")),
+    ("-Inf", float("-inf")),
+    ("overflow float4", 1e300),
+    ("-overflow float4", -1e300),
+    ("acima do float4 max", 3.5e38),
+    ("underflow float4", 1e-300),
+    ("abaixo do denormal", 1e-46),
+])
+def test_non_representable_floats_become_none(label, value):
+    """Regressão medida contra PostgreSQL 15 real — duas recusas diferentes.
+
+    `Json({'x': inf})::jsonb` falha com InvalidTextRepresentation (JSON não tem
+    Infinity/NaN): um NaN no contexto derrubava o INSERT do evento INTEIRO no
+    `shared.outbox`, ou seja, um campo OPCIONAL fazia o `spin_result` ESSENCIAL
+    se perder antes mesmo de existir. Já `1e300` passa pelo JSONB e só explode
+    depois, na coluna REAL do worker. A guarda cobre a UNIÃO das duas.
+    """
+    ctx = _conf(value)
+    assert ctx["vision_confidence"] is None, label
+    assert ctx["direction_confidence"] is None, label
+
+
+@pytest.mark.parametrize("value", [
+    0.0, -0.0, 0.87, 1.0, -0.5, 1e-6, 3.4028235e38, -3.4028235e38, 1.4e-45,
+])
+def test_representable_floats_are_preserved_untouched(value):
+    """Sem clamp: valor válido não é aproximado nem substituído."""
+    assert _conf(value)["vision_confidence"] == value
+
+
+def test_json_serializable_after_normalization():
+    """O contexto normalizado tem que sobreviver ao `Json(payload)` do publisher.
+
+    `json.dumps(..., allow_nan=False)` reproduz a recusa do JSONB do PG sem
+    precisar de banco: se algum não-finito escapar, isto levanta.
+    """
+    import json
+
+    for hostile in (float("nan"), float("inf"), float("-inf")):
+        payload = {
+            "event_type": "spin_result", "decision_id": 1,
+            "context": _conf(hostile),
+        }
+        json.dumps(payload, allow_nan=False)  # não pode levantar
+
+
+def test_float_guard_helper_matches_measured_postgres_limits():
+    from database.outbox_integration import (
+        _PG_FLOAT4_MAX, _PG_FLOAT4_MIN, _is_pg_float_safe,
+    )
+    assert _is_pg_float_safe(0.0) is True
+    assert _is_pg_float_safe(_PG_FLOAT4_MAX) is True
+    assert _is_pg_float_safe(_PG_FLOAT4_MIN) is True
+    assert _is_pg_float_safe(_PG_FLOAT4_MAX * 1.001) is False
+    assert _is_pg_float_safe(_PG_FLOAT4_MIN / 2) is False
+    assert _is_pg_float_safe(float("nan")) is False
+    assert _is_pg_float_safe(float("inf")) is False
+
+
+def test_non_finite_is_rejected_independently_of_the_column_range(monkeypatch):
+    """Finitude e faixa guardam coisas DIFERENTES; hoje se sobrepõem, amanhã não.
+
+    A faixa existe por causa da coluna REAL; a finitude existe por causa do
+    JSONB do `shared.outbox`, que recusa NaN/Inf seja qual for a largura da
+    coluna. Se um dia as colunas virarem float8 e a faixa for alargada, ±Inf
+    ainda precisa cair — senão o evento inteiro se perde de novo.
+    """
+    from database import outbox_integration as oi
+
+    monkeypatch.setattr(oi, "_PG_FLOAT4_MAX", float("inf"))
+    monkeypatch.setattr(oi, "_PG_FLOAT4_MIN", 0.0)
+    assert oi._is_pg_float_safe(float("inf")) is False
+    assert oi._is_pg_float_safe(float("-inf")) is False
+    assert oi._is_pg_float_safe(float("nan")) is False
+    assert oi._float_or_none(float("inf")) is None
+    assert oi._float_or_none(float("nan")) is None
+    # ...e um finito qualquer volta a passar com a faixa alargada.
+    assert oi._float_or_none(1e300) == 1e300
+
+
+def test_producer_and_worker_agree_on_the_float_limits():
+    """As duas pontas guardam o MESMO contrato — divergir criaria buraco novo."""
+    from database import outbox_integration as oi
+    from workers import cdc_worker as w
+
+    assert oi._PG_FLOAT4_MAX == w._PG_FLOAT4_MAX
+    assert oi._PG_FLOAT4_MIN == w._PG_FLOAT4_MIN
+    for value in (float("nan"), float("inf"), 1e300, 1e-300, 0.0, 0.87):
+        assert oi._float_or_none(value) == w._coerce_float(value) or (
+            oi._float_or_none(value) is None and w._coerce_float(value) is None
+        )
+
+
 def test_booleans_are_not_coerced_into_numbers():
     ctx = build_pg_feature_context({"spin_seq": True, "vision_confidence": True,
                                     "vision_source": "vision"})

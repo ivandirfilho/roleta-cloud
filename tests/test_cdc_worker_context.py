@@ -283,13 +283,85 @@ def test_out_of_range_numbers_never_escape_the_coercion(monkeypatch, value):
     monkeypatch.setenv(FLAG, "1")
     cur = FakeCursor()
     ctx = _context(spin_seq=value, vision_confidence=value,
+                   direction_confidence=value,
                    centro_previsto=value, applied_gale_level=value)
     _apply_spin_result(cur, _payload(context=ctx))
     row = _insert_map(cur)
     assert row["spin_seq"] is None
+    assert row["vision_confidence"] is None
+    assert row["direction_confidence"] is None
     assert row["centro_previsto"] is None
     assert row["gale_level"] is None
     assert row["hit"] is True and row["spin_number"] == 32
+
+
+# ---------------------------------------------------------------------------
+# Faixa de float aceita pelo PG (medida contra PG 15 real)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("label,value", [
+    ("NaN", float("nan")),
+    ("+Inf", float("inf")),
+    ("-Inf", float("-inf")),
+    ("overflow", 1e300),
+    ("-overflow", -1e300),
+    ("acima do float4 max", 3.5e38),
+    ("underflow", 1e-300),
+    ("abaixo do denormal", 1e-46),
+])
+def test_float_outside_postgres_real_range_becomes_null(monkeypatch, label, value):
+    """A coluna é REAL (float4): fora da faixa o PRÓPRIO banco recusa o INSERT.
+
+    Medido contra PG 15: REAL aceita ±Inf/NaN mas recusa 1e300 (overflow) e
+    1e-300 (underflow) — justamente o que o JSONB deixa passar. Sem esta guarda
+    no worker, um evento legado (ou escrito à mão) com float gigante manda o
+    resultado essencial para a DLQ.
+    """
+    monkeypatch.setenv(FLAG, "1")
+    cur = FakeCursor()
+    _apply_spin_result(cur, _payload(context=_context(
+        vision_confidence=value, direction_confidence=value)))
+    row = _insert_map(cur)
+    assert row["vision_confidence"] is None, label
+    assert row["direction_confidence"] is None, label
+    # ...e a linha essencial continua inteira.
+    assert row["hit"] is True
+    assert row["spin_number"] == 32
+    assert row["dealer"] == "Ana"
+
+
+@pytest.mark.parametrize("value", [
+    0.0, -0.0, 0.87, 1.0, -0.5, 1e-6, 3.4028235e38, -3.4028235e38, 1.4e-45,
+])
+def test_floats_inside_postgres_real_range_are_preserved(monkeypatch, value):
+    """Sem clamp e sem estrago colateral: valor válido chega intacto."""
+    monkeypatch.setenv(FLAG, "1")
+    cur = FakeCursor()
+    _apply_spin_result(cur, _payload(context=_context(vision_confidence=value)))
+    assert _insert_map(cur)["vision_confidence"] == value
+
+
+def test_zero_is_a_value_not_an_absence(monkeypatch):
+    monkeypatch.setenv(FLAG, "1")
+    cur = FakeCursor()
+    _apply_spin_result(cur, _payload(context=_context(vision_confidence=0.0)))
+    assert _insert_map(cur)["vision_confidence"] == 0.0
+    assert _insert_map(cur)["vision_confidence"] is not None
+
+
+def test_non_finite_is_rejected_independently_of_the_column_range(monkeypatch):
+    """Finitude e faixa guardam coisas DIFERENTES; hoje se sobrepõem, amanhã não.
+
+    A faixa vem da coluna REAL; a finitude vem do JSONB do evento, que recusa
+    NaN/Inf seja qual for a largura da coluna. Alargar a faixa (ex.: migrar para
+    float8) não pode reabrir a porta para ±Inf.
+    """
+    monkeypatch.setattr(cdc_worker, "_PG_FLOAT4_MAX", float("inf"))
+    monkeypatch.setattr(cdc_worker, "_PG_FLOAT4_MIN", 0.0)
+    assert cdc_worker._coerce_float(float("inf")) is None
+    assert cdc_worker._coerce_float(float("-inf")) is None
+    assert cdc_worker._coerce_float(float("nan")) is None
+    assert cdc_worker._coerce_float(1e300) == 1e300
 
 
 def test_int_outside_postgres_integer_range_becomes_null(monkeypatch):
