@@ -370,6 +370,7 @@ case "$args" in
         while [ "$#" -gt 0 ]; do case "$1" in -*) shift ;; *) break ;; esac; done
         cid="${1:-}"; tool="${2:-}"; path="${3:-}"
         if [ "$cid" != "ctr123" ]; then exit 1; fi   # so o container EM EXECUCAO
+        if [ "${STUB_EXEC_RC:-0}" != "0" ]; then exit "$STUB_EXEC_RC"; fi   # exec/daemon falho
         src=$(ctr_path_to_src "$path" "$STUB_CTR_DIR")
         if [ ! -f "$src" ]; then exit 1; fi
         case "$tool" in
@@ -424,6 +425,7 @@ case "$url" in
         fi
         exit 0 ;;
     */api/v1/rules)
+        if [ "${STUB_API_RC:-0}" != "0" ]; then exit "$STUB_API_RC"; fi
         if [ "${STUB_RULES_STATUS:-success}" != "success" ]; then
             printf '{"status":"error"}'; exit 0
         fi
@@ -781,6 +783,45 @@ class TestEscaladaSoComEvidencia(BashHarness):
         self.assertEqual(res.returncode, 1)
         self.assertIn("--force-recreate", self.calls(), "assinatura do inode preso deve escalar")
 
+    # --- erro de LEITURA/TRANSPORTE nao e divergencia de conteudo -----------
+    def _sem_escalada(self, msg, **env):
+        res = self.run_obs("apply", self.sha0, self.sha1, **env)
+        self.assertEqual(res.returncode, 1, msg)
+        self.assertNotIn(
+            "--force-recreate", self.calls(), f"{msg}: transporte quebrado nao se conserta recriando"
+        )
+        self.assertIn("PROCESSO", res.stdout, f"{msg}: classificado como conteudo")
+        self.assertNotEqual(self.pending(), {}, f"{msg}: pendencia perdida")
+
+    def test_api_de_regras_fora_do_ar_e_processo(self):
+        self._sem_escalada("API /api/v1/rules indisponivel", STUB_API_RC="7")
+
+    def test_api_de_regras_invalida_e_processo(self):
+        self._sem_escalada("API sem status=success", STUB_RULES_STATUS="error")
+
+    def test_docker_exec_falho_e_processo(self):
+        self._sem_escalada("docker exec falhou (daemon/container)", STUB_EXEC_RC="125")
+
+    def test_sem_reader_na_imagem_e_processo(self):
+        self._sem_escalada("imagem sem sha256sum/cat", STUB_NO_READER="1")
+
+    def test_container_sumido_e_processo(self):
+        """Container que sumiu e barrado ainda no gate — antes da verificacao,
+        e portanto sem qualquer chance de escalar."""
+        res = self.run_obs("apply", self.sha0, self.sha1, STUB_NO_PROM="1", OBS_ENABLED="1")
+        self.assertEqual(res.returncode, 1)
+        self.assertNotIn("--force-recreate", self.calls())
+        self.assertIn("fora do ar", res.stdout)
+        self.assertNotEqual(self.pending(), {}, "pendencia perdida")
+
+    def test_controle_hash_realmente_diferente_escala(self):
+        """Controle: leitura VALIDA com hash divergente continua sendo conteudo."""
+        self.ctr.joinpath("alerts.yml").write_text(self.ALERTS_1, encoding="utf-8", newline="\n")
+        res = self.run_obs("apply", self.sha0, self.sha1)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("--force-recreate", self.calls())
+        self.assertNotIn("falha de PROCESSO", res.stdout)
+
 
 class TestRuleFilesResolucao(BashHarness):
     """`rule_files` com glob/subpath: basename + sem glob dava 0 declarado."""
@@ -838,6 +879,55 @@ class TestRuleFilesResolucao(BashHarness):
         res = self.run_obs("apply", self.sha0, sha1)
         self.assertEqual(res.returncode, 1)
         self.assertIn("fora do diretorio montado", res.stdout + res.stderr)
+
+    def _aplica_com_prom(self, prom: str, msg: str):
+        (self.repo / "obs" / "prometheus.yml").write_text(prom, encoding="utf-8", newline="\n")
+        sha1 = self._commit(msg)
+        self._sync_container()
+        res = self.run_obs("apply", self.sha0, sha1)
+        self.assertEqual(res.returncode, 0, f"{msg}: {res.stdout}{res.stderr}")
+        self.assertNotIn("--force-recreate", self.calls(), f"{msg}: nao deveria recriar")
+        return res
+
+    def test_literal_e_glob_sobrepostos_contam_uma_vez(self):
+        """`alerts.yml` + `*alerts.yml` resolvem o MESMO arquivo: contar duas vezes
+        deixaria declared != loaded para sempre (falha e recriação eternas)."""
+        (self.repo / "obs" / "alerts.yml").write_text(
+            self.ALERTS_2, encoding="utf-8", newline="\n"
+        )
+        res = self._aplica_com_prom(
+            "global:\n  scrape_interval: 15s\n"
+            "rule_files:\n  - /etc/prometheus/alerts.yml\n  - /etc/prometheus/*alerts.yml\n",
+            "literal + glob sobrepostos",
+        )
+        self.assertIn("arquivo=2 carregadas=2", res.stdout)
+
+    def test_dois_globs_sobrepostos_contam_uma_vez(self):
+        (self.repo / "obs" / "alerts.yml").write_text(
+            self.ALERTS_2, encoding="utf-8", newline="\n"
+        )
+        res = self._aplica_com_prom(
+            "global:\n  scrape_interval: 15s\n"
+            "rule_files:\n  - /etc/prometheus/*.yml\n  - /etc/prometheus/alert*.yml\n",
+            "dois globs sobrepostos",
+        )
+        # `*.yml` tambem casa prometheus.yml (0 regras) — o total continua 2
+        self.assertIn("arquivo=2 carregadas=2", res.stdout)
+
+    def test_paths_com_espaco(self):
+        pasta = self.repo / "obs" / "regras extras"
+        pasta.mkdir()
+        (pasta / "meu alerta.yml").write_text(self.ALERTS_1, encoding="utf-8", newline="\n")
+        (self.repo / "obs" / "alerts.yml").write_text(
+            self.ALERTS_1, encoding="utf-8", newline="\n"
+        )
+        res = self._aplica_com_prom(
+            "global:\n  scrape_interval: 15s\n"
+            "rule_files:\n  - /etc/prometheus/alerts.yml\n"
+            "  - /etc/prometheus/regras extras/*.yml\n",
+            "paths com espaco",
+        )
+        self.assertIn("arquivo=2 carregadas=2", res.stdout)
 
 
 class TestObsApplyPendencia(BashHarness):

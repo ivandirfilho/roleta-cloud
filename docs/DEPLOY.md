@@ -64,7 +64,7 @@ EOF
 | Comando | O que faz |
 |---|---|
 | `roleta-deploy-install.sh` | instala o launcher em `/usr/local/bin/roleta-deploy-pull.sh`; **idempotente** (se já for o launcher, não escreve nada) e guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/` |
-| `roleta-deploy-install.sh --check` | **read-only**: `0` = em dia, `1` = drift (o entrypoint é uma cópia congelada) |
+| `roleta-deploy-install.sh --check` | **read-only**, tri-estado: `0` em dia · `0` + `DESATUALIZADO` (launcher de outra versão — as mudanças versionadas **continuam** chegando) · `1` + `DRIFT` (sem o marcador = cópia congelada) |
 | `roleta-deploy-install.sh --rollback` | restaura o entrypoint anterior a partir do backup |
 
 O caminho e o nome do arquivo instalado **não mudam**, então a unit systemd
@@ -200,7 +200,19 @@ Regras do passo `apply`:
      então num bind de arquivo com inode trocado ele devolve os bytes *novos* enquanto o processo lê os
      *antigos* — a comparação viraria host×host. Sem leitor na imagem ⇒ **falha** (fail-closed);
   4. **número de regras carregadas na API == declarado nos `rule_files`** (resolvidos com glob e
-     subdiretórios; padrão sem correspondência ⇒ **falha**, não "zero regras").
+     subdiretórios, **deduplicados** — `alerts.yml` + `*alerts.yml` contam o arquivo uma vez —;
+     padrão sem correspondência ⇒ **falha**, não "zero regras").
+
+> **Guardrail deliberado (mais estrito que o Prometheus):** um `rule_files` que não casa com nada
+> (glob vazio **ou** literal ausente) é tratado como **erro fatal** deste passo. O Prometheus ignora
+> glob vazio em silêncio; aqui isso viraria "0 regras declaradas" e mascararia justamente a classe de
+> bug que este script existe para pegar. Se algum dia for preciso um padrão opcional, ele terá de ser
+> declarado explicitamente — não silenciosamente tolerado.
+
+- **Falha de leitura não é divergência de conteúdo.** `/api/v1/rules` fora do ar, `docker exec`
+  falhando, imagem sem leitor ou container que sumiu são classificados como **processo/transporte**:
+  o passo falha, preserva a pendência e **não recria** (recriar não conserta um transporte quebrado).
+  Só um hash realmente diferente ou `declared != loaded` **após leitura válida** contam como conteúdo.
 - Se a verificação reprovar, o script só **escala para uma única recriação** (`--force-recreate`)
   quando há evidência de que recriar resolve: processo saudável (ready + reload fresco e bem-sucedido)
   mas **conteúdo divergente** — a assinatura do inode preso. POST recusado, reload rejeitado ou

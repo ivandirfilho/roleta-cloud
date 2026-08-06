@@ -367,18 +367,19 @@ same_bytes() {
     h="$(sha256sum < "$host_file" | awk '{print $1}')"
     cid="$(prom_cid)" || cid=""
     if [ -z "$cid" ]; then
+        # nao conseguimos nem chegar no container: transporte, nao conteudo
         log "FAIL sem container em execucao para ler $ctr_path"
         return 1
     fi
     if ! c="$(container_sha "$cid" "$ctr_path")"; then
-        log "FAIL nao foi possivel ler $ctr_path pela visao do container (imagem sem sha256sum/cat?)"
+        log "FAIL nao foi possivel ler $ctr_path pela visao do container (imagem sem sha256sum/cat? container sumiu?)"
         return 1
     fi
     if [ "$h" = "$c" ]; then
         return 0
     fi
     log "FAIL divergencia: $host_file (repo=${h:0:12}) != $ctr_path (container=${c:0:12})"
-    return 1
+    return 2
 }
 
 # --- rule_files: resolucao com glob/subpath --------------------------------
@@ -395,9 +396,12 @@ rule_file_names() {
 # expandindo globs e preservando subdiretorios. Usar basename e ignorar globs fazia
 # `/etc/prometheus/*.rules.yml` valer 0 regras declaradas — e 0 != carregadas vira
 # falha (e recriacao) eterna. Zero correspondencia e FAIL-CLOSED: config que aponta
-# para arquivo inexistente nao pode ser tratada como "nenhuma regra".
+# para arquivo inexistente nao pode ser tratada como "nenhuma regra" — guardrail
+# deliberadamente MAIS ESTRITO que o Prometheus, que ignora glob vazio em silencio.
+# A saida e DEDUPLICADA: `alerts.yml` + `*alerts.yml` resolvem o mesmo arquivo, e
+# conta-lo duas vezes faria declared != loaded para sempre.
 rule_file_targets() {
-    local pattern host_pattern matches f rel
+    local pattern host_pattern matches f rel seen=""
     while IFS= read -r pattern; do
         if [ -z "$pattern" ]; then
             continue
@@ -420,10 +424,15 @@ rule_file_targets() {
             return 1
         fi
         while IFS= read -r f; do
-            if [ -f "$f" ]; then
-                rel="${f#"$REPO_DIR/$OBS_DIR/"}"
-                printf '%s|%s\n' "$MOUNT_TARGET/$rel" "$f"
+            if [ ! -f "$f" ]; then
+                continue
             fi
+            case "$seen" in
+                *"|$f|"*) continue ;;   # ja emitido por outro padrao
+            esac
+            seen="$seen|$f|"
+            rel="${f#"$REPO_DIR/$OBS_DIR/"}"
+            printf '%s|%s\n' "$MOUNT_TARGET/$rel" "$f"
         done <<< "$matches"
     done < <(rule_file_names)
 }
@@ -443,17 +452,21 @@ declared_rules() {
 
 # Config + TODOS os rule_files resolvidos: os alvos do byte-check saem da MESMA
 # lista usada para contar as regras declaradas.
+# 0 = tudo igual | 1 = nao foi possivel LER (transporte) | 2 = conteudo divergente
 content_matches() {
-    local targets="$1" line
-    if ! same_bytes "$REPO_DIR/$CONF_HOST" "$CONF_CTR"; then
-        return 1
+    local targets="$1" line rc=0
+    same_bytes "$REPO_DIR/$CONF_HOST" "$CONF_CTR" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        return "$rc"
     fi
     while IFS= read -r line; do
         if [ -z "$line" ]; then
             continue
         fi
-        if ! same_bytes "${line#*|}" "${line%%|*}"; then
-            return 1
+        rc=0
+        same_bytes "${line#*|}" "${line%%|*}" || rc=$?
+        if [ "$rc" -ne 0 ]; then
+            return "$rc"
         fi
     done <<< "$targets"
     return 0
@@ -462,11 +475,13 @@ content_matches() {
 # Contagem de regras REALMENTE carregadas: cada objeto de regra da API tem
 # exatamente um campo "query" (os objetos de grupo nao tem). E o numero que
 # denunciou o incidente (18 carregadas x 21 no arquivo).
+# 0 = bate | 1 = API indisponivel/invalida (transporte) | 2 = contagem divergente
 rules_ok() {
     local targets="$1" declared loaded json
     declared="$(declared_rules "$targets")"
     json="$("$CURL_BIN" -fsS --max-time "$CURL_MAX_TIME" "$PROM_URL/api/v1/rules" 2>/dev/null)" || json=""
     if [ -z "$json" ]; then
+        # nao conseguimos LER a API: recriar o container nao conserta isso
         log "FAIL /api/v1/rules indisponivel — impossivel provar que as regras carregaram"
         return 1
     fi
@@ -478,16 +493,16 @@ rules_ok() {
     loaded="${loaded:-0}"
     if [ "$declared" != "$loaded" ]; then
         log "FAIL regras: arquivo=$declared carregadas=$loaded (sintoma exato do incidente 21x18)"
-        return 1
+        return 2
     fi
     log "regras ok: arquivo=$declared carregadas=$loaded"
     return 0
 }
 
-# 0 = verificado | 1 = falha de PROCESSO (recriar nao conserta) | 2 = CONTEUDO
-# divergente com o processo saudavel (assinatura do inode preso: recriar conserta)
+# 0 = verificado | 1 = falha de PROCESSO/TRANSPORTE (recriar nao conserta) |
+# 2 = CONTEUDO divergente com leitura valida (assinatura do inode preso)
 verify_once() {
-    local before="${1:-0}" body="" ok="" ts="" targets=""
+    local before="${1:-0}" body="" ok="" ts="" targets="" rc=0
 
     body="$(metrics_body)" || body=""
     if [ -z "$body" ]; then
@@ -513,10 +528,15 @@ verify_once() {
         return 1
     fi
 
-    # Daqui para baixo o processo esta comprovadamente saudavel e recarregou agora:
-    # o que sobra so pode ser o conteudo que ele enxerga.
-    if ! content_matches "$targets"; then return 2; fi
-    if ! rules_ok "$targets"; then return 2; fi
+    # Daqui para baixo o processo esta comprovadamente saudavel e recarregou agora.
+    # Falha de LEITURA (docker exec, API fora) continua sendo classe 1: recriar o
+    # container nao conserta um transporte quebrado — e recriaria a toa.
+    rc=0
+    content_matches "$targets" || rc=$?
+    if [ "$rc" -ne 0 ]; then return "$rc"; fi
+    rc=0
+    rules_ok "$targets" || rc=$?
+    if [ "$rc" -ne 0 ]; then return "$rc"; fi
     return 0
 }
 
