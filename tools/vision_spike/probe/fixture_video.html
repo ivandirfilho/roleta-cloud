@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!-- SPR-V3 · vision_spike/probe/fixture_video.html — BANCADA: <video> local.
+
+     Para que existe
+     ---------------
+     A DoD do V3-A exige que o instrumento E0b seja "testado contra um <video> local/fixture".
+     Esta página gera uma roda sintética num <canvas>, converte em MediaStream com
+     `captureStream()` e alimenta um <video> REAL. Assim dá para exercitar
+     `requestVideoFrameCallback`, o medidor de cobertura, o teste de taint e o custo por
+     frame NO RENDERER — sem mesa ao vivo, sem autenticação, sem tocar produção.
+
+     ⚠️ FRONTEIRA: tudo aqui é `evidence_class: fixture`. Um `<video>` local NÃO prova nada
+     sobre a entrega da Evolution (WebRTC/MSE/HLS), nem sobre taint cross-origin, nem sobre
+     o comportamento com a janela minimizada NAQUELE player. Números desta página NÃO
+     preenchem gate de GO. O que ela prova é que o INSTRUMENTO funciona.
+
+     Como abrir
+     ----------
+     • direto no navegador (file:// ou duplo clique) → testa as libs + o <video> local;
+     • via servidor local (`python -m http.server` na raiz de tools/vision_spike) → também
+       exercita o caminho de CONTENT SCRIPT da extensão de diagnóstico (que não é injetada
+       em páginas chrome-extension://).
+-->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>SPR-V3 · fixture &lt;video&gt; local</title>
+  <style>
+    body { font: 13px/1.5 system-ui, sans-serif; background: #14171c; color: #e6e6e6; margin: 0; padding: 14px; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    h2 { font-size: 13px; color: #8fb7ff; margin: 14px 0 4px; }
+    .note { background: #22252c; padding: 8px 10px; border-radius: 3px; max-width: 860px; }
+    button { background: #26303d; color: #e6e6e6; border: 1px solid #3a4756; padding: 6px 10px; margin-right: 6px; border-radius: 3px; cursor: pointer; }
+    button:hover { background: #33404f; }
+    pre { background: #0d1014; padding: 8px; max-width: 860px; overflow: auto; }
+    video, canvas { border: 1px solid #2c3340; }
+    #src { display: none; }
+    label { margin-right: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Bancada · <code>&lt;video&gt;</code> local (evidence_class: <code>fixture</code>)</h1>
+  <div class="note">
+    Esta página <b>não</b> mede a mesa Evolution. Ela prova que o instrumento funciona.
+    Nenhum número daqui entra na tabela de gates do <code>RESULTADO.md</code>.
+  </div>
+
+  <h2>Fonte sintética</h2>
+  <label>rev/s <input id="rev" type="number" value="0.35" step="0.05" style="width:60px"></label>
+  <label>fps <input id="fps" type="number" value="10" step="1" style="width:50px"></label>
+  <label>sentido
+    <select id="dir"><option value="cw">cw (horário na tela)</option><option value="ccw">ccw</option><option value="static">parado</option></select>
+  </label>
+  <button id="startSrc">Iniciar fonte</button>
+  <div style="margin-top:8px">
+    <canvas id="src" width="320" height="260"></canvas>
+    <video id="vid" width="320" height="260" muted playsinline></video>
+  </div>
+
+  <h2>E0 · taint (mesmo caminho da probe: createImageBitmap + OffscreenCanvas + getImageData)</h2>
+  <button id="e0">Rodar E0</button>
+  <pre id="e0out">—</pre>
+
+  <h2>E0b · cobertura (esconda a aba / minimize a janela e volte)</h2>
+  <button id="e0bStart">Iniciar</button><button id="e0bStop">Parar</button>
+  <pre id="e0bout">—</pre>
+
+  <h2>Custo por frame NO RENDERER (p50 / p95 / máx)</h2>
+  <button id="bench">Medir 120 frames</button>
+  <pre id="benchout">—</pre>
+
+  <script src="../lib/evidence.js"></script>
+  <script src="../lib/ellipse.js"></script>
+  <script src="../lib/unwrap.js"></script>
+  <script src="../lib/direction_core.js"></script>
+  <script src="../lib/rvfc_meter.js"></script>
+  <script src="../lib/motion_trigger.js"></script>
+  <script src="../lib/synthetic.js"></script>
+  <script src="fixture_video.js"></script>
+</body>
+</html>
