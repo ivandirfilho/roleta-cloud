@@ -19,7 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        # Economia de cota (06/08: agosto já consumiu ~1015/2000 min grátis):
+        # PR roda só 3.12 (feedback rápido, 1/3 do custo); push em main/develop
+        # roda a matrix completa — regressão de 3.11/3.13 aparece pós-merge.
+        python-version: ${{ github.event_name == 'pull_request' && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12", "3.13"]') }}
 
     # Sx-CI: Postgres service para testes que precisam de PG real (S1+).
     # pgvector image inclui extensão vector pre-instalada; AGE não é necessário no CI
