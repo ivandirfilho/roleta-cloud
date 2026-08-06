@@ -293,7 +293,7 @@ class TestPersistenceV17:
         s._drift_freeze["ccw"] = 3
         s._mg_resets["cw"] = 5
         state = s.get_adaptive_state()
-        assert state["version"] == "1.9"  # V5 04/08: +v5_mode/v5_count21
+        assert state["version"] == "2.0"  # 05/08 noite-2: +dealer_sig
         assert state["recent_hits"]["cw"] == [1, 0, 1]
         assert state["cooldown"]["cw"]["c2"] == 2
         assert state["drift_freeze"]["ccw"] == 3

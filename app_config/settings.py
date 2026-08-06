@@ -298,6 +298,57 @@ def dealer_force_profile_enabled() -> bool:
     return os.environ.get("SDA_DEALER_FORCE_PROFILE", "0").strip().lower() in ("1", "true", "on")
 
 
+def error_engine_enabled() -> bool:
+    """Error Engine — classifica o PROCESSO do erro por resolução. **Default OFF**
+    (ADENDO 05/08 noite-2).
+
+    Com `SDA_ERROR_ENGINE=1`, cada resolução do v5_1721 classifica o resultado
+    (strategies/error_engine.py: DATA_SUSPECT > HIT > GEOMETRY_MISS >
+    SIGNATURE_SHIFT > FORCE_MISS > VARIANCE) e registra a classe no
+    decision_dna (`error_class`) — telemetria pura de "por que erramos".
+    NÃO altera aposta/stake/indicação (INV-3 intocado); é o insumo dos
+    freezes de aprendizado do R2 dealer-aware (DATA_SUSPECT congela o bandit).
+    OFF = resolução byte-idêntica. Rollback: SDA_ERROR_ENGINE=0 + restart.
+    Lido por chamada (não cacheado).
+    """
+    import os
+    return os.environ.get("SDA_ERROR_ENGINE", "0").strip().lower() in ("1", "true", "on")
+
+
+def r2_dealer_shadow_enabled() -> bool:
+    """R2 dealer-aware em SHADOW (mede, não aposta). **Default OFF**
+    (ADENDO 05/08 noite-2).
+
+    Com `SDA_R2_DEALER_SHADOW=1`, a decisão v5_1721 calcula os candidatos de
+    R2 do bandit Thompson por dealer×sentido (strategies/dealer_signature.py:
+    braços trend/residual/dealer/correct), escolhe um em paper e congela no
+    pending (`r2ds`). A resolução mede o would-be hit do R2 shadow, alimenta
+    o bandit/EWMA e registra `r2_source`/`r2_signed_err` no decision_dna.
+    A APOSTA REAL NÃO MUDA — cobertura publicada segue o compose de produção.
+    Pré-requisito de auditoria antes de ligar SDA_R2_DEALER (live).
+    OFF = zero efeito. Rollback: =0 + restart. Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_R2_DEALER_SHADOW", "0").strip().lower() in ("1", "true", "on")
+
+
+def r2_dealer_live_enabled() -> bool:
+    """R2 dealer-aware LIVE — o braço vencedor do bandit VIRA o R2 apostado.
+    **Default OFF** (ADENDO 05/08 noite-2).
+
+    Com `SDA_R2_DEALER=1` (e fora do warmup), o centro R2 do compose v5_1721 é
+    recomposto com a força do braço vencedor (compose_v5(r2_override_force=…)):
+    mesmo clamp ±8 de R1, mesma disjunção, R3 recalculado com a ocupação nova —
+    C17 ⊂ C21 e INV-3 preservados (indicação/stake intactos; SÓ o centro muda).
+    Implica o comportamento de shadow (aprendizado contínuo). Só ligar após
+    validar o funil `r2_source` em shadow (hit-rate por braço ≥ baseline).
+    OFF = compose de produção byte-idêntico. Rollback: SDA_R2_DEALER=0 +
+    restart (estado adaptativo v2.0 é retro-compatível). Lido por chamada.
+    """
+    import os
+    return os.environ.get("SDA_R2_DEALER", "0").strip().lower() in ("1", "true", "on")
+
+
 def vision_attach_max_age_s() -> float:
     """Vision (auditoria_pos_foto 21/06) — janela máxima (s) para a foto/OCR colar
     na decisão mais recente (update_last_vision).

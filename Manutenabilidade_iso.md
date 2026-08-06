@@ -1646,6 +1646,136 @@ Cada correção ganhou um teste de regressão (`REVIEW#1..#3` + envio-que-falha)
 
 ---
 
+## ADENDO 05/08/2026 (noite-2) — R2 dealer-aware + Error Engine: aprendizado com o erro E com o acerto (shadow-first, tudo default-OFF)
+
+### A. Motivação (por que o R2 precisava de cérebro próprio)
+
+A imersão desta sessão (memory MCP + graphify + análise do fluxo de dados completo)
+confirmou três fatos sobre a **segunda região** da V5.1 "assinatura-4":
+
+1. **R2 spec4 é quase 100% derivado de R1** (`r2 = r1 + round(slope)` clampado ±8):
+   carrega pouquíssima informação independente e **nenhum feedback corretivo** —
+   se o centro erra por +5 casas 10 vezes seguidas, a 11ª decisão repete o erro.
+2. **A resolução só registra hit/miss + wheel_dist agregado.** Não existe
+   taxonomia de *por que* errou (geometria? assinatura mudou? outlier?), então
+   nenhum motor a jusante consegue aprender com o processo do erro.
+3. **O dado de dealer existia mas não fluía**: a extensão envia `dealer` no
+   `roleta_vision_features` (fill-forward `_ff_dealer` no handler), o SQLite
+   grava em `decisions.dealer`, o Alembic 0007 criou `spin_features.dealer` +
+   `shared.dealers` no PG — mas o payload `spin_result` do outbox **não
+   carregava dealer**, a coluna do espelho ficava eternamente `'unknown'` e
+   `shared.dealers` não tinha writer. Longo prazo por dealer era impossível.
+
+### B. O que foi implantado (5 peças, todas aditivas)
+
+**1. `strategies/error_engine.py` (NOVO, puro)** — classificador do processo do
+erro por resolução. Precedência: `DATA_SUSPECT` (fase incerta → congela
+aprendizado) > `HIT` > `GEOMETRY_MISS` (gap ≤2 da borda da cobertura — força
+certa, geometria perdeu por pouco) > `SIGNATURE_SHIFT` (|mediana dos últimos 5
+erros assinados| ≥4 — o dealer mudou a assinatura) > `FORCE_MISS` (|erro| ≥8 —
+outlier de arremesso) > `VARIANCE` (ruído). `is_frozen()` expõe o contrato de
+freeze. Sem I/O, sem flags — decisão de uso fica no call-site.
+
+**2. Dealer no espelho PG (fluxo de dado completo)** —
+`maybe_publish_spin_result()` ganhou kwargs opcionais `dealer/table/provider`
+(payloads antigos seguem válidos); o `cdc_worker._apply_spin_result()` agora
+extrai payload-ou-meta com default `'unknown'`, insere as 4 colunas novas no
+`spin_features` (INSERT com `RETURNING id` p/ detectar replay) e faz **upsert
+em `shared.dealers`** (`n_spins`/`n_hits`/`last_seen_at`) gated por
+`inserted and dealer != 'unknown'` — replay do outbox não conta duas vezes;
+provider/table normalizados para `''` (UNIQUE do PG trata NULLs como distintos).
+
+**3. `strategies/dealer_signature.py` (NOVO)** — assinatura por dealer×sentido
+em 3 camadas + bandit:
+- **S0 (sessão)**: EWMA do erro assinado do R2 (meia-vida 8 spins) + histórico
+  curto (12) por chave `dealer|dk`, LRU 16 chaves.
+- **S1 (longo prazo)**: `long_term_modal_force()` reusa
+  `dealer_force_profile.force_profile` (SQLite `decisions`, n≥30, 24h) com
+  cache TTL 300 s — não bate no banco a cada spin, nunca levanta.
+- **Bandit Thompson Beta(α,β) com decay 0.98** sobre 4 braços candidatos de
+  força do R2: `trend` (= produção spec4, byte-idêntico), `residual` (2º
+  cluster de gravidade fora do poço de R1 — o caminho go-live 04/08), `dealer`
+  (força modal S1), `correct` (trend + micro-correção do EWMA, gate 3-de-4
+  sinais iguais e |ewma|≥2, clamp ±3). Braço sem insumo é omitido; escolha
+  determinística sob rng seedado; `update()` com winsor ±8 e freeze total em
+  DATA_SUSPECT. Serializável (`to_dict`/`from_dict` defensivo).
+
+**4. Wiring no `server/message_handler.py` (decisão→pending→resolução)** —
+- *Decisão (branch v5_1721)*: com shadow OU live ligado e fora de warmup,
+  `_r2_dealer_plan()` monta candidatos (S1 via `get_repository().db_path`),
+  escolhe braço e **recompõe** `compose_v5(..., r2_override_force=força)`;
+  em shadow o compose de produção segue mandando (paper), em live o recompose
+  VIRA a cobertura. O plano congela no pending (`r2ds` com arm/força/centro/
+  números do R2 pós-disjunção).
+- *Resolução*: `_r2_dealer_resolve()` (a) com `SDA_ERROR_ENGINE=1` classifica o
+  spin (erro assinado via `compute_wheel_dist_dir`, gap via
+  `compute_wheel_dist_min_to_set`, histórico `_region_err_hist`) e grava
+  `error_class` no decision_dna; (b) com plano no pending mede o would-hit do
+  R2 shadow/live, atualiza bandit+EWMA (freeze em DATA_SUSPECT/fase incerta) e
+  grava `r2_source` (bucket=braço, hit=would-hit) + `r2_signed_err`
+  (near/mid/far assinado) no DNA — o funil de auditoria pré-live.
+- *Publish*: `maybe_publish_spin_result(..., dealer=_ff_dealer,
+  table=_ff_wheel, provider=_ff_provider)`.
+
+**5. Estado adaptativo v1.9 → v2.0 (`strategies/sda17.py`)** — campo novo
+`dealer_sig` no `get_adaptive_state()`/`load_adaptive_state()`/`reset_adaptive()`
+(round-trip completo, restore defensivo de snapshots corrompidos, backward-compat
+total com v1.x — snapshot antigo carrega com assinatura zerada).
+
+### C. Flags (compose + settings, leitura POR-CHAMADA, default OFF)
+
+| Flag | Função | Efeito ON |
+|---|---|---|
+| `SDA_ERROR_ENGINE` | `error_engine_enabled()` | classifica erro por resolução → DNA `error_class`; insumo dos freezes. Telemetria pura. |
+| `SDA_R2_DEALER_SHADOW` | `r2_dealer_shadow_enabled()` | bandit escolhe R2 em PAPER; DNA `r2_source`/`r2_signed_err`; aposta real INTACTA. |
+| `SDA_R2_DEALER` | `r2_dealer_live_enabled()` | braço vencedor VIRA o R2 apostado (mesmo clamp ±8 + disjunção; INV-3 intacto — só o centro muda). |
+
+**Rollout obrigatório (shadow-first):** ligar `SDA_ERROR_ENGINE=1` +
+`SDA_R2_DEALER_SHADOW=1` no `.env` do host → auditar o funil `r2_source` por
+braço no `decision_dna` (would-hit-rate ≥ baseline do trend) → só então
+`SDA_R2_DEALER=1`. Rollback de qualquer estágio: flag=0 + restart (estado
+persiste mas fica inerte). Precedente arquitetural: `region_bandit` (03/08) e
+o shadow DIR18.
+
+### D. Invioláveis verificados
+
+- **INV-3**: nenhuma peça toca indicação/stake — o live muda SÓ o centro do R2,
+  re-clampado e re-disjuntado dentro do `compose_v5`; warmup ignora override.
+- **Migração**: **zero migração nova** — 0007 já tinha `spin_features.dealer` +
+  `shared.dealers`; este ADENDO só começou a populá-los (aditivo puro).
+- **Round-trip**: `dealer_sig` em save/load/reset; v2.0 backward-compat.
+- **Retro-compat de payload**: `spin_result` sem dealer → worker aplica
+  `'unknown'` e NÃO conta no placar (anti-poluição).
+
+### E. Regressão e arquivos
+
+- **`pytest tests/` → 843 passed, 9 skipped, 1 xfailed** (47 testes novos:
+  `test_error_engine.py` 14, `test_dealer_signature.py` 20,
+  `test_r2_dealer_wiring.py` 13 — precedência completa da taxonomia, braços/
+  Thompson/decay/freeze/round-trip/LRU/cache S1, compose OFF byte-idêntico,
+  override clampado, warmup, snapshot v2.0/v1.x/corrompido, payload outbox).
+- `tools/lint_silent_except.py --update` → baseline 13 arquivos (guard-rails
+  defensivos novos no handler/assinatura documentados no próprio lint).
+- Testes de versão de snapshot atualizados 1.9→2.0 (`test_quick_wins`,
+  `test_regions_v5`).
+- Tocados: **novos** `strategies/{error_engine,dealer_signature}.py`,
+  `tests/test_{error_engine,dealer_signature,r2_dealer_wiring}.py`;
+  **alterados** `server/message_handler.py`, `strategies/{sda17,regions_v5}.py`,
+  `workers/cdc_worker.py`, `database/outbox_integration.py`,
+  `app_config/settings.py`, `docker-compose.yml` (3 flags default 0).
+  Extensão/JS **intactos**.
+
+### F. Débito conhecido (para o próximo ciclo)
+
+- `shared.dealers.n_hits` conta hits da DECISÃO (não do R2 isolado) — proxy
+  aceitável para "dealer difícil"; refinar se o funil pedir.
+- S1 usa `decisions.dealer` do SQLite (não o espelho PG) — quando
+  `spin_features.dealer` acumular volume, migrar o loader para lag features.
+- O braço `dealer` só ativa com n≥30 spins do dealer em 24h — dealers novos
+  degradam graciosamente para trend/residual/correct.
+
+---
+
 ## PARTE I — ARQUITETURA COMPLETA DO SOFTWARE
 
 

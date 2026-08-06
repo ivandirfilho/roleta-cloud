@@ -256,6 +256,9 @@ def maybe_publish_spin_result(
     hit: bool,
     actual_number: int,
     session_id: str | None = None,
+    dealer: str | None = None,
+    table: str | None = None,
+    provider: str | None = None,
 ) -> bool:
     """OBS-25-01 — publica evento `spin_result` quando o resultado é conhecido.
 
@@ -263,6 +266,10 @@ def maybe_publish_spin_result(
     engenharia reversa offline e backtest (S-STRAT-9) sem depender de logs.
     H3 (03/08): carrega session_id para o worker isolar a janela de lag
     features por sessão (payloads sem session_id seguem no modo global).
+    R2 dealer-aware (05/08 noite-2): carrega dealer/table/provider (quando o
+    fill-forward os conhece) para o CDC popular as colunas dealer do espelho
+    PG e o placar shared.dealers — payloads antigos/sem dealer seguem valendo
+    (o worker aplica default 'unknown').
 
     NUNCA levanta — guard-rail consistente com maybe_publish_decision_features.
     """
@@ -288,6 +295,12 @@ def maybe_publish_spin_result(
         }
         if session_id:
             payload["session_id"] = str(session_id)
+        if dealer and str(dealer).strip():
+            payload["dealer"] = str(dealer).strip()
+        if table and str(table).strip():
+            payload["table"] = str(table).strip()
+        if provider and str(provider).strip():
+            payload["provider"] = str(provider).strip()
         pub.publish(
             aggregate="spin_result",
             aggregate_id=f"{dir_norm}:{decision_id}",

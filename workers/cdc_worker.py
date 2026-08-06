@@ -179,6 +179,21 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
     centro_previsto = (meta or {}).get("centro_previsto") if isinstance(meta, dict) else None
     gale_level = (meta or {}).get("applied_gale_level") if isinstance(meta, dict) else None
 
+    # R2 dealer-aware (05/08 noite-2): dealer/table/provider/round_id vêm do
+    # payload (fill-forward do handler) ou do meta; payloads antigos → 'unknown'
+    # (mesmo default da coluna, migração 0007). Fecha o furo do espelho PG.
+    def _pfield(name: str) -> str | None:
+        v = payload.get(name)
+        if v is None and isinstance(meta, dict):
+            v = meta.get(name)
+        v = str(v).strip() if v is not None else ""
+        return v or None
+
+    dealer = _pfield("dealer") or "unknown"
+    table = _pfield("table")
+    provider = _pfield("provider")
+    round_id = _pfield("round_id")
+
     schema = "cw" if direction == "cw" else "ccw"
     # H3 (03/08): sessão isola a janela de lag features — sem vazamento
     # estatístico entre sessões (dealer/mesa/regime mudam no corte).
@@ -241,9 +256,10 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
         INSERT INTO {schema}.spin_features
             (decision_id, spin_number, hit, centro_previsto, gale_level,
              recent_acc_10, recent_acc_50, streak_miss, streak_hit,
-             last_20_hits, meta, session_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING;
+             last_20_hits, meta, session_id, dealer, "table", provider, round_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (decision_id) WHERE decision_id IS NOT NULL DO NOTHING
+        RETURNING id;
         """,
         (
             decision_id,
@@ -258,8 +274,30 @@ def _apply_spin_result(cur: Any, payload: dict[str, Any]) -> None:
             last_20_with_now,
             Json(meta if isinstance(meta, dict) else {}),
             session_id,
+            dealer,
+            table,
+            provider,
+            round_id,
         ),
     )
+
+    inserted = cur.fetchone() is not None
+
+    # Placar shared.dealers (0007): 1º writer real. Só conta dealer conhecido
+    # e apenas quando o INSERT acima inseriu de fato (replay não conta 2x);
+    # provider/"table" normalizados p/ '' (UNIQUE trata NULLs como distintos).
+    if inserted and dealer != "unknown":
+        cur.execute(
+            """
+            INSERT INTO shared.dealers (name, provider, "table", n_spins, n_hits, last_seen)
+            VALUES (%s, %s, %s, 1, %s, NOW())
+            ON CONFLICT (name, provider, "table") DO UPDATE SET
+                n_spins   = shared.dealers.n_spins + 1,
+                n_hits    = shared.dealers.n_hits + EXCLUDED.n_hits,
+                last_seen = NOW();
+            """,
+            (dealer, provider or "", table or "", 1 if hit else 0),
+        )
 
 
 def _apply_dna_feature(cur: Any, payload: dict[str, Any]) -> None:
