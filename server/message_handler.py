@@ -177,6 +177,10 @@ class MessageHandler:
         self.state_lock = state_lock
         self.current_session_id: str = str(uuid.uuid4())[:8]
         self.last_decision_id: Optional[int] = None
+        # Sentido da decisão pendente. Nasce aqui (antes só existia via getattr)
+        # para que o ciclo de vida do par (id, direction) seja simétrico e
+        # verificável: nasce None, é setado junto e é limpo junto.
+        self.last_decision_direction: Optional[str] = None
         self.last_spin_hash: str = ""
         self.last_spin_ts: Optional[float] = None  # S-OBS-6: epoch float do último spin
         # Phantom dedup (auditoria resultados_bancos 22/06): ultimo spin ACEITO
@@ -258,6 +262,34 @@ class MessageHandler:
     def _remember_dealer(self, dealer: Optional[str]) -> None:
         """Compat: registra só o dealer (delega ao vision-context unificado)."""
         self._remember_vision(dealer, None, None)
+
+    def _pg_feature_context(self, decision_id: Optional[int]) -> Optional[dict]:
+        """Contexto da decisão p/ projeção em cw|ccw.spin_features (flag OFF por
+        padrão: `SDA_PG_FEATURE_CONTEXT`). Nunca levanta; nunca toca a aposta.
+
+        Relê a decisão do SQLite (fonte autoritativa) em vez de reaproveitar um
+        contexto capturado no momento da decisão DE PROPÓSITO: `update_last_vision`
+        (sqlite_repo.py) corrige `dealer`/`dealer_table`/`provider`/`vision_*` na
+        decisão mais recente DEPOIS do save, quando a foto/OCR chega. Um contexto
+        em cache nasceria defasado e divergiria do backfill — aqui o valor
+        projetado ao vivo é o MESMO que uma reconstrução posterior encontraria.
+
+        Com a flag OFF não há leitura alguma (caminho legado byte-idêntico).
+        """
+        if decision_id is None:
+            return None
+        try:
+            from database.outbox_integration import (
+                build_pg_feature_context, pg_feature_context_enabled,
+            )
+            if not pg_feature_context_enabled():
+                return None
+            decision = db_service.repository.get_decision(int(decision_id))
+            return build_pg_feature_context(decision)
+        except Exception as exc:  # noqa: BLE001 — telemetria nunca quebra o giro
+            logger.error("pg_feature_context_failed decision_id=%s exc=%s error=%s",
+                         decision_id, type(exc).__name__, exc)
+            return None
 
     def is_duplicate_spin(self, numero: int, timestamp: int, direcao: Optional[str] = None) -> bool:
         """Verifica se é um spin duplicado.
@@ -990,6 +1022,7 @@ class MessageHandler:
                         maybe_publish_spin_result(
                             self.last_decision_id, last_dir, hit_result, numero,
                             session_id=getattr(self, "current_session_id", None),
+                            context=self._pg_feature_context(self.last_decision_id),
                         )
                     except Exception as exc:  # noqa: BLE001
                         logger.error("spin_result_hook_raise exc=%s", exc)
