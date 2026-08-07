@@ -94,6 +94,10 @@ services:
       # PG-CTX (06/08, PR #60): projeta contexto da decisao em spin_features.
       # Espelho do default de producao (OFF; rollout: worker primeiro).
       - SDA_PG_FEATURE_CONTEXT=${SDA_PG_FEATURE_CONTEXT:-0}
+      # R2 dealer-aware + Error Engine (06/08, PR #58): espelho de producao (OFF).
+      - SDA_R2_DEALER=${SDA_R2_DEALER:-0}
+      - SDA_R2_DEALER_SHADOW=${SDA_R2_DEALER_SHADOW:-0}
+      - SDA_ERROR_ENGINE=${SDA_ERROR_ENGINE:-0}
       - SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}
       - SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}
       - SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}
