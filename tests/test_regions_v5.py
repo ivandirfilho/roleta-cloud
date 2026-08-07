@@ -223,7 +223,7 @@ class TestSeletor:
         s.v5_note_outcome("ccw", hit=False)
         s.v5_note_emitted("ccw", 21)
         st = s.get_adaptive_state()
-        assert st["version"] == "1.9"
+        assert st["version"] == "2.0"  # 05/08 noite-2: +dealer_sig
         assert st["v5_mode"] == {"cw": 17, "ccw": 21}
         assert st["v5_count21"] == {"cw": 0, "ccw": 1}
         s2 = SDA17Strategy()
