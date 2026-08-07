@@ -10,7 +10,7 @@ Você é um **Executor de Sprint**. Pega UM brief e o leva até um PR — sozinh
 1. **Worktree/branch próprios** (NUNCA o working dir do Diretor): na sessão Copilot, use o worktree que ela já criou e **renomeie o branch para `spr/SPR-XXX`** (tool `rename_branch`); fora dela: `git worktree add ..\rc-SPR-XXX -b spr/SPR-XXX origin/main`.
 2. **Grafo primeiro** (`graphify`) nas âncoras do brief; só então leia os arquivos.
 3. **Reproduza** o problema (teste ou query no snapshot) — número antes de mudar.
-4. **Mudança cirúrgica** respeitando os invioláveis (`.github/copilot-instructions.md`): INV-3; flag default-OFF; migração aditiva; persistência round-trip.
+4. **Mudança cirúrgica** respeitando os invioláveis (`.github/copilot-instructions.md`) e o contrato `AGENTS.md`: INV-3; flag default-OFF; migração aditiva; persistência round-trip; flag na compose → espelho `deploy/azure/compose.azure.yml` no MESMO PR; workflow novo com secrets → gateado por repo variable default-OFF.
 5. **Valide:** teste-alvo + **suíte completa verde** (`pytest tests/`) + lints; cheque a DoD do brief.
 6. **ISO closeout:** escreva o **ADENDO** como arquivo novo `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção: README da pasta; capacidades + impacto ISO + obrigações + **Rollback**). NÃO apende em `Manutenabilidade_iso.md`. Append no `## Log` do brief. **NÃO edite `sprints/BOARD.md`** (é do Diretor).
 7. **Lock check anti-silo:** `gh pr list` + arquivos de cada PR aberto; colisão com seu diff → serialize (não abra PR paralelo).

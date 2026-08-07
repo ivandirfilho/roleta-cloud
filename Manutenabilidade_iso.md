@@ -1,10 +1,20 @@
 # 📐 Roleta Cloud — Arquitetura & Conformidade ISO/IEC 25010
 
-> **Versão do Software:** 4.4.0  
-> **Data da Análise:** 02/04/2026 · **Atualizado:** 14/06/2026 (ver ADENDOS 12/06 e 14/06)  
+> **⚓ STATUS (07/08/2026): corpo histórico CONGELADO para appends.**
+> A evolução ISO continua em **um arquivo por mudança** em
+> [`docs/iso/adendos/`](docs/iso/adendos/README.md) — convenção e índice no README da pasta;
+> NUNCA apendar ADENDO novo aqui (motivo: com N executores em paralelo este singleton >300 KB
+> era o maior ímã de conflito de merge do repo — ver "MUDANÇA DE CONVENÇÃO" no fim).
+> O **contrato operacional dos agentes** (camadas local/git/servidor, ciclo zero-humano,
+> anti-conflito) vive em [`AGENTS.md`](AGENTS.md); os invioláveis compactos auto-carregados
+> em [`.github/copilot-instructions.md`](.github/copilot-instructions.md). O **git é a única
+> fonte de verdade** entre máquina local, GitHub e servidor Debian.
+
+> **Versão do Software:** 4.4.0 *(baseline histórica — estado vivo: adendos + `sprints/BOARD.md`)*  
+> **Data da Análise:** 02/04/2026 · **Atualizado:** 14/06/2026 (ver ADENDOS 12/06 e 14/06) · **Congelado:** 06/08/2026  
 > **Base:** Auditoria pós-implantação M15-ADA (M02-PctSigmoid) + ciclo 24/05→12/06  
 > **Norma de Referência:** ISO/IEC 25010:2011 — Modelo de Qualidade de Produto de Software  
-> **Total de Linhas de Código:** ~119 arquivos Python ativos · 48 arquivos de teste (374 testes)
+> **Total de Linhas de Código:** ~119 arquivos Python ativos · 48 arquivos de teste (374 testes na baseline; **1249** em 07/08/2026 — delta nos adendos)
 
 ---
 
