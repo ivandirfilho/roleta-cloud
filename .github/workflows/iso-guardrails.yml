@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   iso-guardrails:
     runs-on: ubuntu-latest
@@ -28,8 +32,8 @@ jobs:
           head="${{ github.event.pull_request.head.sha }}"
           changed="$(git diff --name-only "$base" "$head")"
           if echo "$changed" | grep -qE '^(app_config/|server/|strategies/|state/|core/|docker-compose\.yml)'; then
-            if ! echo "$changed" | grep -q 'Manutenabilidade_iso.md'; then
-              echo "::warning::Mudança de comportamento sem ADENDO em Manutenabilidade_iso.md — confirme se aplica (convenção ISO)."
+            if ! echo "$changed" | grep -qE '(Manutenabilidade_iso\.md|^docs/iso/adendos/)'; then
+              echo "::warning::Mudança de comportamento sem ADENDO (docs/iso/adendos/ ou Manutenabilidade_iso.md) — confirme se aplica (convenção ISO)."
             fi
           fi
           echo "advisory ok."

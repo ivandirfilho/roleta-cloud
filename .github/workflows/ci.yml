@@ -6,12 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+# Governança 06/08: sem controle de concorrência, cada push de cada sessão-agente
+# disparava 6 jobs; em 05/08 foram ~100 runs e a fila de runners hospedados estourou
+# ("The job was not acquired by Runner"), derrubando o gate `ci-ok` SEM erro de código.
+# Runs supersedidos no mesmo ref são cancelados; `main` nunca cancela (evidência de deploy).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        # Economia de cota (06/08: agosto já consumiu ~1015/2000 min grátis):
+        # PR roda só 3.12 (feedback rápido, 1/3 do custo); push em main/develop
+        # roda a matrix completa — regressão de 3.11/3.13 aparece pós-merge.
+        python-version: ${{ github.event_name == 'pull_request' && fromJSON('["3.12"]') || fromJSON('["3.11", "3.12", "3.13"]') }}
 
     # Sx-CI: Postgres service para testes que precisam de PG real (S1+).
     # pgvector image inclui extensão vector pre-instalada; AGE não é necessário no CI
@@ -121,3 +132,25 @@ jobs:
             echo "extension-tests=${{ needs.extension-tests.result }}"; exit 1
           fi
           echo "ci-ok"
+
+  # Zero-humano: matrix completa quebrou em main pós-merge (merge skew) →
+  # abre issue 'main-red' automaticamente, que vira sessão de agente
+  # (revert do último merge ou fix-forward). Dedup: 1 issue aberta por vez.
+  main-red-alert:
+    needs: [lint-and-test, extension-tests]
+    runs-on: ubuntu-latest
+    if: always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      issues: write
+    steps:
+      - name: Abrir issue urgente (dedup por label main-red)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label main-red --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "🔴 main vermelho pós-merge — run $GITHUB_RUN_ID" \
+              --label main-red \
+              --body "Matrix completa falhou em push na main: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — produção deploya main (~2min); flags default-OFF protegem o runtime, mas avalie revert do último merge ou fix-forward. Abra uma sessão de agente nesta issue."
+          fi

@@ -5,8 +5,13 @@
 
 **Estados:** `TODO → READY` (brief pronto) `→ DOING → REVIEW` (PR aberto) `→ MERGED/DONE` · ou `BLOCKED`
 · ou **`WAITING_HUMAN_EVIDENCE`** (código entregue; falta medição de campo com operador — ex.: SPR-V3-B).
-**Branch:** `spr/SPR-*` · **1 executor = 1 worktree** (`git worktree add ..\rc-SPR-XXX -b spr/SPR-XXX origin/main`).
-**Paralelo só com `Locks` disjuntos.** `schema/alembic` e `BLK-G` serializam entre si (numeração de migração / cérebro da estratégia colidem).
+**Branch:** o Copilot gera `ivandirfilho-*`; o Executor **renomeia para `spr/SPR-XXX` no kickoff**
+(tool `rename_branch`) ou o Diretor registra o branch real na linha do sprint — linha sem branch
+rastreável = sprint invisível. **Título do PR começa com `SPR-XXX:`** (é assim que `gh pr list`
+mapeia PR↔sprint sem editar o board a cada push).
+**Paralelo só com `Locks` disjuntos — inclui PRs ABERTOS, não só sprints DOING.** Antes de abrir PR:
+`gh pr list` + diff de arquivos; colisão de lock → serializa (não abre silo paralelo).
+`schema/alembic` e `BLK-G` serializam entre si (numeração de migração / cérebro da estratégia colidem).
 **Locks canônicos** (nomes iguais = mesmo lock; não invente sinônimos): `extensão-JS` (≡ "extensão (JS)",
 cobre `extension/*.js`, popup e manifest) · `message_handler-fase` · `game-state` · `phase` ·
 `sqlite_repo` · `schema/alembic` · `phase_metrics` · `health_server` · `alerts` · `settings` ·
@@ -24,17 +29,29 @@ desfaz o flip local do fantasma rejeitado. Por isso o V1 publica `state_sync.pha
 consome para reverter o flip.)*
 
 **Relógios que o Diretor precisa registrar aqui quando começarem** (senão os gates não são auditáveis):
-`ativado_V1V2 = <data>` (buffer-sync ON **e** ext 3.10.0 instalada → inicia a janela de 30d do V6B) ·
-`ativado_audit_shadow = <data>` (`SDA_PHASE_EVENT_AUDIT=1` **e** `SDA_DIRECTION_VISION_SHADOW=1` →
-inicia os 7 dias do gate T4).
+`ativado_V1V2 = PENDENTE` (⚠️ auditoria 06/08: em produção `SDA_PHASE_BUFFER_SYNC=0` e
+`SDA_MIN_SPIN_INTERVAL_MS=0` — o código dos merges V1/V2 está deployado porém **inerte**; ligar
+buffer-sync → confirmar ext 3.10.0 instalada → só então o gate temporal → registrar a data aqui) ·
+`ativado_audit_shadow = PENDENTE` (`SDA_PHASE_EVENT_AUDIT=0` **e** `SDA_DIRECTION_VISION_SHADOW=0` →
+os 7 dias do gate T4 ainda NÃO começaram a contar).
+
+**Fila de integração 06/08 — AUTOMÁTICA desde 06/08 à noite:** auto-merge armado em #60, #61, #58
+(mergeiam sozinhos com `ci-ok` verde; `strict` OFF por design). **#43** fica FORA do auto-merge:
+39 arquivos misturando MIG-0+Azure+ISO → fatiar em PRs pequenos antes.
+⚠️ #58/#60 colidem em `message_handler.py`+`outbox_integration.py`+baseline; o que mergear depois
+fica CONFLICTING → Diretor delega resolução a um executor. `main` vermelho pós-merge → issue
+`main-red` abre sozinha e vira sessão de agente.
+**Ativação:** PR `flag/ativar-audit-shadow` liga `SDA_PHASE_EVENT_AUDIT=1` +
+`SDA_DIRECTION_VISION_SHADOW=1` (shadow por design, zero efeito em aposta) → merge inicia o
+relógio de 7d do gate T4. Registrar `ativado_audit_shadow=<data do merge>` no próximo lote.
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|
-| SPR-V1 | P0 | **READY** | spr/SPR-V1 | — | message_handler-fase, game-state, phase, phase_metrics, health_server, alerts, settings, compose | brief `sprints/SPR-V1.md` · ⚠️ rebase se o PR #43 mergear (toca game.py/settings/compose) |
-| SPR-V2 | P0 | **READY** | spr/SPR-V2 | — | extensão-JS, popup, manifest | brief `sprints/SPR-V2.md` · locks disjuntos de V1 → paralelo seguro · base real = ext 3.9.1 → **3.10.0** |
-| SPR-V3 | P1 | TODO | — | **SPR-V2** | tools/vision_spike | brief `sprints/SPR-V3.md` · V3-A = DoD do PR (não toca `extension/`); V3-B = campo → `WAITING_HUMAN_EVIDENCE` |
-| SPR-V4 | P1 | TODO | — | **SPR-V1** | message_handler-fase, sqlite_repo, game-state, phase_metrics, health_server, alerts, settings, compose | brief `sprints/SPR-V4.md` · **serializa com SPR-G2** (sqlite_repo + message_handler) · SQLite, **sem Alembic** |
-| SPR-V6A | P1 | TODO | — | **V1, V2, V4** | popup, extensão-JS, alerts, health_server, message_handler-fase, phase_metrics, settings, compose | brief `sprints/SPR-V6A.md` · maior ganho por custo · **nenhuma ação automática** · ingere o `client_health` do V2 |
+| SPR-V1 | P0 | **MERGED** | ivandirfilho-didactic-broccoli | — | message_handler-fase, game-state, phase, phase_metrics, health_server, alerts, settings, compose | PRs #53+#54 (05-06/08) · flags default-OFF: ativação pendente (ver Relógios) |
+| SPR-V2 | P0 | **MERGED** | ivandirfilho-studious-disco | — | extensão-JS, popup, manifest | PR #52 (05/08) · ext **3.10.0** mergeada; instalação no operador NÃO confirmada |
+| SPR-V3 | P1 | **WAITING_HUMAN_EVIDENCE** | ivandirfilho-scaling-bassoon | **SPR-V2** | tools/vision_spike | V3-A MERGED PR #56 (06/08) · V3-B = medição de campo com operador |
+| SPR-V4 | P1 | **MERGED** | ivandirfilho-turbo-waffle | **SPR-V1** | message_handler-fase, sqlite_repo, game-state, phase_metrics, health_server, alerts, settings, compose | PR #55 (06/08) · trilha `phase_events` shadow-only, audit flag OFF |
+| SPR-V6A | P1 | **READY** | — | ~~V1, V2, V4~~ (todas MERGED) | popup, extensão-JS, alerts, health_server, message_handler-fase, phase_metrics, settings, compose | brief `sprints/SPR-V6A.md` · deps satisfeitas em 06/08 · ⚠️ locks colidem com PR #58 aberto — aguardar fila |
 | SPR-V5 | P2 | **BLOCKED** | — | V2, **V3=GO**, V4, **V6A** | extensão-JS, manifest, popup | brief `sprints/SPR-V5.md` · destrava só com os 4 números do GO em `tools/vision_spike/RESULTADO.md` · **dono do controle positivo do T4** |
 | SPR-V6B | P2 | **BLOCKED** | — | V1+V2 ativos + **≥30d limpos** + snapshot sanitizado | job-auditoria | brief `sprints/SPR-V6B.md` · saída = `mirror_suspect`, nunca `set_seed` · **sem acesso ao PG produtivo, zero DDL** |
 | SPR-V8 | P2 | TODO | — | — | auth, settings, compose, extensão-JS | **brief a escrever** quando V5 entrar em voo · hardening de autenticação/role: token no handshake + envio pela extensão + role derivada do token · **pré-requisito duro do SPR-V7** |
