@@ -16,6 +16,9 @@ env:
 
 jobs:
   publish:
+    # Pre-cutover: OFF por padrao (sem secrets OIDC o run ficava vermelho em
+    # toda push na main). Ligar = repo variable AZURE_PUBLISH_ENABLED=1 + secrets.
+    if: ${{ vars.AZURE_PUBLISH_ENABLED == '1' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
