@@ -1,6 +1,6 @@
 """Alembic environment para Roleta Cloud PG stack.
 
-DSN lida de env var ROLETA_PG_DSN. Default tenta localhost dev.
+DSN lida de env var ROLETA_PG_DSN (obrigatória — sem default hardcoded, C5/A-SEC).
 """
 from __future__ import annotations
 
@@ -15,10 +15,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-DSN = os.environ.get(
-    "ROLETA_PG_DSN",
-    "postgresql://roleta:roleta@127.0.0.1:5432/roleta",
-)
+DSN = os.environ.get("ROLETA_PG_DSN")
+if not DSN:
+    raise RuntimeError(
+        "ROLETA_PG_DSN nao definido: informe a DSN do Postgres antes de rodar as "
+        "migracoes Alembic (C5/A-SEC: sem credencial default hardcoded no repo)."
+    )
 config.set_main_option("sqlalchemy.url", DSN)
 
 target_metadata = None  # schemas geridos a mão; Alembic sem autogenerate por ora.

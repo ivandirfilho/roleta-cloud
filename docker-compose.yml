@@ -9,6 +9,8 @@ services:
     # Consumo atual estavel em ~31MB; 512m oferece 16x folga sem afetar peers.
     mem_limit: 512m
     mem_reservation: 64m
+    # MIG-0: give GameState.save() enough time to persist before SIGKILL.
+    stop_grace_period: 60s
     # VF-0: SYS_PTRACE para py-spy attach no PID 1 (debugging runtime)
     cap_add:
       - SYS_PTRACE
@@ -18,11 +20,13 @@ services:
       - "127.0.0.1:8766:8766"
     volumes:
       - roleta-data:/app/data
-      - ./state.json:/app/state.json
       - ./server/configs:/app/server/configs:ro
     environment:
       - WS_HOST=0.0.0.0
       - WS_PORT=8765
+      # MIG-0: keep state.json inside the persistent Docker volume so os.replace()
+      # remains atomic; migrate the legacy host file before the first rollout.
+      - STATE_FILE=/app/data/state.json
       - SSL_ENABLED=${SSL_ENABLED:-false}
       - SSL_CERT=${SSL_CERT:-}
       - SSL_KEY=${SSL_KEY:-}

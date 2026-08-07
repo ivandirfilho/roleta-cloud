@@ -1,0 +1,62 @@
+name: Publish Azure images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ACR_NAME: acrroletaprod
+  ACR_LOGIN: acrroletaprod.azurecr.io
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push app image
+        id: app
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN }}/roleta-cloud:azure-${{ github.sha }}
+            ${{ env.ACR_LOGIN }}/roleta-cloud:azure-latest
+
+      - name: Build and push CDC image
+        id: cdc
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/cdc-worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN }}/roleta-cdc-worker:azure-${{ github.sha }}
+            ${{ env.ACR_LOGIN }}/roleta-cdc-worker:azure-latest
+
+      - name: Record immutable digests
+        run: |
+          {
+            echo "### Azure image digests"
+            echo "- roleta-cloud: \`${{ steps.app.outputs.digest }}\`"
+            echo "- roleta-cdc-worker: \`${{ steps.cdc.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

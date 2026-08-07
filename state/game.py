@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -1449,6 +1450,22 @@ class GameState:
         result["mode"] = "mg_escalated"
         return result
 
+    @staticmethod
+    def _fsync_dir(dir_path: Path) -> None:
+        """C2/A23: fsync do diretório torna o rename durável (POSIX). No-op no Windows."""
+        if os.name != "posix":
+            return
+        try:
+            dir_fd = os.open(str(dir_path), os.O_RDONLY)
+        except OSError:
+            return
+        try:
+            os.fsync(dir_fd)
+        except OSError:
+            pass
+        finally:
+            os.close(dir_fd)
+
     def _pending_event_for_save(self) -> Optional[Dict[str, Any]]:
         """SPR-V4: forma persistível do `pending_direction_event`.
 
@@ -1526,21 +1543,30 @@ class GameState:
             "c_attr_ccw": list(self.c_attr_ccw),
         }
         
-        # Escrita atômica: escreve em temp, depois renomeia
+        # Escrita atômica + durável (C2/A23): flush+fsync do temp antes do replace e
+        # fsync do diretório depois, para o estado sobreviver a queda de energia entre
+        # o rename e o writeback do page-cache (senão o os.replace atômico pode deixar
+        # um state.json truncado/zerado após crash).
         dir_path = Path(path).parent
         with tempfile.NamedTemporaryFile(mode='w', suffix='.tmp', 
                                           dir=dir_path, delete=False, 
                                           encoding='utf-8') as f:
             json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
             temp_path = f.name
         
         try:
             os.replace(temp_path, path)
+            self._fsync_dir(dir_path)
         except OSError:
             try:
                 with open(path, 'w', encoding='utf-8') as target:
                     with open(temp_path, 'r', encoding='utf-8') as source:
                         target.write(source.read())
+                    target.flush()
+                    os.fsync(target.fileno())
+                self._fsync_dir(dir_path)
             finally:
                 try:
                     os.unlink(temp_path)
@@ -1560,6 +1586,10 @@ class GameState:
         """
         path = path or settings.state_file
         if not path.exists():
+            if os.environ.get("STATE_FILE") and path == settings.state_file:
+                raise FileNotFoundError(
+                    f"STATE_FILE configurado, mas o estado persistente nao existe: {path}"
+                )
             return cls()
         
         try:
@@ -1684,11 +1714,20 @@ class GameState:
             return gs
         except Exception as e:
             logger.error(f"Falha ao carregar state.json: {e}")
+            backup = Path(str(path) + '.corrupted')
             try:
                 import shutil
-                backup = Path(str(path) + '.corrupted')
                 shutil.copy2(path, backup)
                 logger.info(f"Backup do state corrompido salvo em: {backup}")
-            except Exception:
+            except Exception:  # noqa: BLE001 — backup é best-effort
                 pass
+            # C1/A19: em produção (STATE_FILE definido) NÃO reinicia silenciosamente
+            # com estado vazio — isso apagaria timeline/fase/martingale acumulados e
+            # o motor voltaria a apostar do zero sem ninguém perceber. Falha fechado
+            # para o preflight/deploy barrar; o operador restaura o backup .corrupted.
+            if os.environ.get("STATE_FILE") and path == settings.state_file:
+                raise RuntimeError(
+                    f"state.json corrompido em producao: {path}; "
+                    f"backup salvo em {backup}. Restaure/valide antes de subir."
+                ) from e
             return cls()

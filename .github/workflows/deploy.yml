@@ -1,19 +1,19 @@
 name: Deploy to Production
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Deploy environment'
+      confirm:
+        description: 'Digite DEPLOY_HOSTDIME para autorizar o deploy remoto'
         required: true
-        default: 'production'
+        default: 'NO'
         type: choice
         options:
-          - production
-          - staging
+          - NO
+          - DEPLOY_HOSTDIME
+
+permissions:
+  contents: read
 
 env:
   IMAGE_NAME: roleta-cloud
@@ -41,7 +41,9 @@ jobs:
   build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    # Fencing: tags nunca reativam a HostDime. O repositório precisa ter a
+    # variável HOSTDIME_DEPLOY_ENABLED=true e o operador precisa confirmar.
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'DEPLOY_HOSTDIME' && vars.HOSTDIME_DEPLOY_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -49,11 +51,7 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=latest" >> $GITHUB_OUTPUT
-          fi
+          echo "version=latest" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         run: |

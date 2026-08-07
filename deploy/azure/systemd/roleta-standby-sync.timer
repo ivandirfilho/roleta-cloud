@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Roleta Cloud standby every 2 minutes
+
+[Timer]
+OnCalendar=*:0/2 UTC
+Persistent=true
+AccuracySec=1s
+RandomizedDelaySec=0
+Unit=roleta-standby-sync.service
+
+[Install]
+WantedBy=timers.target

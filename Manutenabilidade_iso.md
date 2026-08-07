@@ -2956,6 +2956,48 @@ O software atende ao nível **"Bom"** (8.2/10) da norma ISO/IEC 25010, com 6 de 
 
 ---
 
+## ADENDO 03/08/2026 — MIG-0: `state.json` no volume persistente
+
+### A. Capacidade e correção
+
+- Removido o bind de arquivo único `./state.json:/app/state.json` do
+  `docker-compose.yml`.
+- Adicionado `STATE_FILE=/app/data/state.json`, apontando para o volume
+  nomeado `roleta-data`.
+- Adicionado `stop_grace_period: 60s` para que SIGTERM complete o salvamento
+  antes do Docker enviar SIGKILL.
+- Criado `scripts/migrate-state-to-volume.sh`, idempotente, com validação JSON,
+  checksum SHA-256, recusa de sobrescrita divergente e pré-condição de container
+  parado.
+- Os dois scripts de deploy recusam subir a aplicação se o volume não contiver
+  `state.json`, evitando que um deploy automático crie um estado default.
+- `GameState.load()` falha explicitamente quando `STATE_FILE` foi configurado e o
+  arquivo não existe; o caminho local sem override continua podendo iniciar vazio.
+- O preflight também cobre `scripts/resume_app.sh`, e o rollback do script
+  duplicado recompõe a imagem antiga antes de religar o serviço.
+- A resolução do volume tenta o JSON normalizado e cai para o label Docker,
+  permitindo Compose anterior ao suporte de `--format json`; ambiguidades exigem
+  `VOLUME_NAME`/`STATE_VOLUME_NAME` explícito.
+
+### B. Impacto ISO/IEC 25010
+
+| Característica | Impacto |
+|---|---|
+| Confiabilidade | Remove o fallback de escrita in-place causado pelo bind de arquivo único, recusa estado ausente em produção e mantém o estado no mesmo volume persistente do banco |
+| Portabilidade | O caminho é declarado por ambiente e o procedimento de migração é reproduzível em Debian/VM Azure |
+| Manutenibilidade | O script de migração, o teste de configuração e o rollback ficam versionados |
+
+### C. Obrigações e rollback
+
+1. Rodar o script somente após `docker compose stop -t 60 roleta-cloud`.
+2. Manter a origem `state.json` até o soak e o primeiro restore testado.
+3. Confirmar `test -f /data/state.json` no volume antes do `up`; Compose antigo
+   ou múltiplos candidatos exigem nome físico explícito.
+4. Em rollback, reverter o compose sem apagar a cópia de origem.
+
+Esta mudança é de persistência/infraestrutura, não altera estratégia, stake,
+geometria ou INV-3. A validação do comportamento atômico dentro do volume
+Linux continua sendo obrigatória no ensaio MIG-0 antes do cutover Azure.
 ## ADENDO 05/08/2026 — SPR-V1: blindagem do servidor (fase e autoridade), tudo default-OFF
 
 > Sprint executor da família SPR-V (`sprints/SPR-V1.md`), branch `ivandirfilho-didactic-broccoli`, base `main` `f165f91`. Fecha **5 blocos** de furos no caminho da fase autoritativa. **Todo comportamento novo nasce atrás de flag default-OFF**, com prova de não-interferência por **replay congelado**. Suíte **883 verde** (796 antes → +87 testes).

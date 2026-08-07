@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     base_dir: Path = BASE_DIR
-    state_file: Path = BASE_DIR / "state.json"
+    # MIG-0: compose points this at the persistent data volume. Keep the
+    # repository-relative default for local runs outside Docker.
+    state_file: Path = Field(
+        default=BASE_DIR / "state.json",
+        validation_alias="STATE_FILE",
+    )
     log_file: Path = BASE_DIR / "roleta.log"
 
     server: ServerSettings = Field(default_factory=ServerSettings)

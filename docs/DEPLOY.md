@@ -7,12 +7,12 @@ dev push main
     ↓
 GitHub Actions CI (lint+test+schema+silent-except)
     ↓ verde
-[ servidor Debian 187.45.181.75 ]
+[ servidor Debian HostDime ]
 roleta-deploy.timer (systemd, 2min)
     ↓
 /usr/local/bin/roleta-deploy-pull.sh   (launcher -> scripts/roleta-deploy-pull.sh do repo)
     ↓ git fetch + compara hashes
-    ↓ se diff: reset --hard + build + up -d roleta-cloud
+    ↓ se diff: reset --hard + build + estado preflight + migrations + up -d roleta-cloud
     ↓ healthcheck 3× @ http://127.0.0.1:8766/health
     ↓ sync frontend/ → /var/www/roleta + reload nginx   (NOVO 17/06)
     ↓ obs-apply.sh: valida/aplica/verifica Prometheus   (NOVO 05/08, só se obs mudou)
@@ -61,6 +61,48 @@ systemctl list-timers roleta-deploy.timer
 EOF
 ```
 
+## MIG-0 — migracao do `state.json` para o volume persistente
+
+O compose nao monta mais `./state.json` como arquivo isolado. O estado do motor
+passa a ser `/app/data/state.json`, dentro do volume nomeado `roleta-data`. Isso
+mantem `GameState.save()` atomico (`os.replace`) e evita perder o estado ao
+restaurar apenas o disco de dados.
+
+Execute uma vez, **antes** do primeiro deploy que contenha a mudanca:
+
+```bash
+cd /root/roleta-cloud
+docker compose stop -t 60 roleta-cloud
+bash scripts/migrate-state-to-volume.sh
+VOLUME_NAME="${VOLUME_NAME:-$(docker volume ls --quiet --filter 'label=com.docker.compose.volume=roleta-data')}"
+test "$(printf '%s\n' "$VOLUME_NAME" | sed '/^$/d' | wc -l)" -eq 1
+docker run --rm -v "$VOLUME_NAME:/data:ro" busybox test -f /data/state.json
+docker compose up -d roleta-cloud
+```
+
+O script tenta primeiro o nome normalizado pelo Compose e, se `--format json`
+não estiver disponível, usa o label `com.docker.compose.volume`. Em Compose
+antigo ou quando houver mais de um volume candidato, informe o nome físico:
+`VOLUME_NAME=projeto_roleta-data bash scripts/migrate-state-to-volume.sh`.
+Se o deploy automático também não resolver o volume, defina
+`STATE_VOLUME_NAME=projeto_roleta-data` no ambiente da unit systemd, execute
+`systemctl daemon-reload` e repita o deploy.
+
+O script falha se o container estiver rodando, se o JSON de origem for invalido
+ou se ja houver um destino diferente. Ele e idempotente quando os checksums
+coincidem. A origem `./state.json` nao deve ser apagada ate concluir o soak e
+um backup/restore do novo caminho.
+
+O deploy pull-based tambem falha fechado se `roleta-data/state.json` nao existir:
+isso impede que um merge automatico remova o bind legado e suba a aplicacao com
+estado default. O operador deve executar a migracao e repetir o deploy.
+
+Rollback do MIG-0: pare o container, reverta o commit do compose e suba a
+versao anterior. A copia de origem permanece intacta e o compose antigo volta a
+monta-la; nao remova `roleta-data/state.json` antes de validar o rollback.
+
+## Launcher e drift do deploy
+
 | Comando | O que faz |
 |---|---|
 | `roleta-deploy-install.sh` | instala o launcher em `/usr/local/bin/roleta-deploy-pull.sh`; **idempotente** (se já for o launcher, não escreve nada) e guarda o entrypoint anterior em `/usr/local/lib/roleta-deploy/` |
@@ -93,6 +135,7 @@ de chegar — um launcher de outra versão continua fazendo `exec` do script do 
 | launcher desatualizado | hash diferente **mas** com o marcador `ROLETA-DEPLOY-LAUNCHER` | `0` + `DESATUALIZADO` (mudanças versionadas continuam chegando) |
 | cópia congelada | sem o marcador | `1` + `DRIFT` com o comando de correção |
 
+
 ## Operacao
 
 ```bash
@@ -118,6 +161,17 @@ Se `curl http://127.0.0.1:8766/health` falhar 3× consecutivas apos
 `docker compose up -d`, o script reverte para o SHA salvo em
 `/var/lib/roleta-deploy/last_good` e religa o container. O log fica em
 `/var/log/roleta-deploy.log` com a tag `DEPLOY FAIL — rollback`.
+
+## Fencing da HostDime após o cutover Azure
+
+O workflow `.github/workflows/deploy.yml` **não** possui mais gatilho por tag.
+Mesmo manualmente, o job remoto só executa quando o operador confirma
+`DEPLOY_HOSTDIME` e a variável de repositório `HOSTDIME_DEPLOY_ENABLED` está
+explicitamente em `true`. Após o C-25, revogue `SERVER_HOST`, `SERVER_USER`,
+`SERVER_PORT` e `SSH_PRIVATE_KEY` e mantenha a variável ausente/`false`.
+
+O workflow `.github/workflows/acr-image.yml` é a esteira de imagens Azure: publica
+tags rastreáveis (`azure-<sha>`) e `azure-latest`, mas não faz deploy nem altera DNS.
 
 ## Frontend (nginx do host) — IMPORTANTE
 
@@ -303,10 +357,12 @@ pulado e a pendência é preservada para quando religar.
 
 ## Bypass (deploy SSH direto)
 
-Continua funcionando para hotfixes urgentes. O script detecta hash
-local divergente do remote e nao re-aplica:
+Continua disponível para hotfixes urgentes, mas **não contorna o MIG-0**:
+primeiro confirme que o volume `roleta-data` contém `state.json` ou execute a
+migração documentada acima. Depois, prefira o script canônico, que mantém o
+preflight de estado, migrations e rollback:
 
 ```powershell
-$bash = "cd /root/roleta-cloud && git pull && docker compose up -d --build roleta-cloud"
+$bash = "cd /root/roleta-cloud && git pull && bash scripts/roleta-deploy-pull.sh"
 ssh root@187.45.181.75 "$bash"
 ```
