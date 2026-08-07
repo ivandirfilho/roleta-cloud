@@ -280,7 +280,8 @@ def _coverage(centers: Sequence[int], radii: Sequence[int],
 def compose_v5(direction: str, forces_recent_first: Sequence[int],
                results_chrono: Sequence[int], last_number: Optional[int],
                wheel: Sequence[int], spec4: bool = False,
-               region6_counts: Optional[Sequence[int]] = None) -> Dict:
+               region6_counts: Optional[Sequence[int]] = None,
+               r2_override_force: Optional[int] = None) -> Dict:
     """Compõe as DUAS coberturas aninhadas do sentido (§2.2). Puro/determinístico.
 
     Args:
@@ -296,6 +297,12 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
         region6_counts: placar de visitas das 6 regiões fixas (AMBOS os
             sentidos; `GameState.region6_counts`). Só usado com spec4; se
             None, R3 degrada para a zona fria (defensivo).
+        r2_override_force: força de R2 imposta pelo call-site (R2 dealer-aware,
+            flag SDA_R2_DEALER — ADENDO 05/08 noite-2). None (default) =
+            byte-idêntico ao comportamento anterior. Quando presente (e fora
+            do warmup), substitui a força de R2 dos dois modos, re-clampada
+            ao arco ±V5_R2_CLAMP de R1 e re-disjuntada de R1 (INV-3 intacto:
+            só muda o centro; cobertura/stake seguem o fluxo normal).
 
     Returns:
         dict com centers=[r1,r2,r3] (idênticos nos 2 modos), numbers17 (17
@@ -351,8 +358,6 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             elif r2_delta < -V5_R2_CLAMP:
                 r2_delta = -V5_R2_CLAMP
             r2_force_clamped = (r1_force + r2_delta) % size
-            r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
-            r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
         else:
             # 3. R2 — 2º cluster condicionado à tendência; resíduo = fora do poço de R1.
             residual = [f for f in window
@@ -373,8 +378,15 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
             if abs(diff) > V5_R2_CLAMP:
                 diff = V5_R2_CLAMP if diff > 0 else -V5_R2_CLAMP
             r2_force_clamped = (r1_force + diff) % size
-            r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
-            r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
+        if r2_override_force is not None:
+            # R2 dealer-aware (SDA_R2_DEALER): o call-site impõe a força do
+            # braço vencedor do bandit; mesmo clamp ±8 e disjunção do fluxo.
+            diff = signed_force_diff(int(r2_override_force), r1_force, size)
+            if abs(diff) > V5_R2_CLAMP:
+                diff = V5_R2_CLAMP if diff > 0 else -V5_R2_CLAMP
+            r2_force_clamped = (r1_force + diff) % size
+        r2_ideal = apply_force(last_number, r2_force_clamped, direction, wheel)
+        r2 = nearest_non_overlapping(r2_ideal, [r1], wheel)
 
         if spec4 and region6_counts is not None:
             # 4a. R3 spec4 — região MENOS VISITADA das 6 fixas (ambos os sentidos).
@@ -413,4 +425,6 @@ def compose_v5(direction: str, forces_recent_first: Sequence[int],
         result["spec4"] = True
         result["r2_delta"] = r2_delta
         result["r3_region"] = r3_region
+    if r2_override_force is not None and not warmup:
+        result["r2_override"] = True
     return result

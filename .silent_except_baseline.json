@@ -3,12 +3,13 @@
   "server/connection_manager.py": 5,
   "server/extractor_service.py": 4,
   "server/health_server.py": 19,
-  "server/message_handler.py": 38,
+  "server/message_handler.py": 44,
   "server/vision_ocr.py": 2,
   "server/websocket.py": 22,
   "state/bet_advisor.py": 3,
   "state/game.py": 27,
   "strategies/dealer_force_profile.py": 1,
   "strategies/dealer_offset.py": 1,
+  "strategies/dealer_signature.py": 1,
   "strategies/sda17.py": 9
 }
