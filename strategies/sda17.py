@@ -121,6 +121,10 @@ class SDA17Strategy(StrategyBase):
         # sessão×sentido → LOCK17. Round-trip no adaptive_state (v1.9).
         self._v5_mode: Dict[str, int] = {"cw": 17, "ccw": 17}
         self._v5_count21: Dict[str, int] = {"cw": 0, "ccw": 0}
+        # R2 dealer-aware (05/08 noite-2): assinatura por dealer×sentido
+        # (bandit Thompson + EWMA de erro). Round-trip no adaptive_state v2.0.
+        from strategies.dealer_signature import DealerSignature
+        self._dealer_sig = DealerSignature()
 
         # ===== v4.4 Quick Wins =====
         # Buffer rolling de hits por direção (INV-1: estado dual isolado).
@@ -1413,6 +1417,12 @@ class SDA17Strategy(StrategyBase):
         dk = self._dk(direction)
         self._v5_mode[dk] = 17 if hit else 21
 
+    @property
+    def dealer_signature(self):
+        """R2 dealer-aware (05/08 noite-2): assinatura por dealer×sentido.
+        Acesso do handler para candidatos/choose/update; round-trip v2.0."""
+        return self._dealer_sig
+
     def get_adaptive_state(self) -> Dict[str, Any]:
         """Retorna estado adaptativo para persistência (v1.9 — V5 seletor 17/21)."""
         return {
@@ -1447,7 +1457,9 @@ class SDA17Strategy(StrategyBase):
             # V5 (04/08): seletor 17/21 por sentido (round-trip obrigatório).
             "v5_mode": dict(self._v5_mode),
             "v5_count21": dict(self._v5_count21),
-            "version": "1.9",
+            # R2 dealer-aware (05/08 noite-2): assinatura por dealer×sentido.
+            "dealer_sig": self._dealer_sig.to_dict(),
+            "version": "2.0",
         }
 
     def load_adaptive_state(self, state: Dict[str, Any]) -> None:
@@ -1622,6 +1634,12 @@ class SDA17Strategy(StrategyBase):
                     self._v5_count21[dk] = max(0, int(raw_vc.get(dk, 0)))
                 except (ValueError, TypeError):
                     pass
+        # v2.0 (05/08 noite-2): assinatura dealer (backward-compat: ausente/
+        # malformada → instância zerada; from_dict é defensivo por entrada).
+        raw_ds = state.get("dealer_sig")
+        if isinstance(raw_ds, dict):
+            from strategies.dealer_signature import DealerSignature
+            self._dealer_sig = DealerSignature.from_dict(raw_ds)
 
     def reset_adaptive(self) -> Dict[str, Any]:
         """B1 (12/06) — Reset TOTAL do estado adaptativo (troca de dealer).
@@ -1676,6 +1694,9 @@ class SDA17Strategy(StrategyBase):
         # V5 (04/08): dealer novo → seletor volta a 17/17 e zera o teto de 21s.
         self._v5_mode = {"cw": 17, "ccw": 17}
         self._v5_count21 = {"cw": 0, "ccw": 0}
+        # v2.0 (05/08 noite-2): dealer novo → assinatura/bandit zerados.
+        from strategies.dealer_signature import DealerSignature
+        self._dealer_sig = DealerSignature()
         logger.info(
             "strategy_reset adaptive_state_cleared cw_hist=%d ccw_hist=%d sigmoid_keys=%d",
             discarded["cw_history_len"], discarded["ccw_history_len"],

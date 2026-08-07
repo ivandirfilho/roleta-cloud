@@ -177,6 +177,10 @@ class MessageHandler:
         self.state_lock = state_lock
         self.current_session_id: str = str(uuid.uuid4())[:8]
         self.last_decision_id: Optional[int] = None
+        # Sentido da decisão pendente. Nasce aqui (antes só existia via getattr)
+        # para que o ciclo de vida do par (id, direction) seja simétrico e
+        # verificável: nasce None, é setado junto e é limpo junto.
+        self.last_decision_direction: Optional[str] = None
         self.last_spin_hash: str = ""
         self.last_spin_ts: Optional[float] = None  # S-OBS-6: epoch float do último spin
         # Phantom dedup (auditoria resultados_bancos 22/06): ultimo spin ACEITO
@@ -258,6 +262,34 @@ class MessageHandler:
     def _remember_dealer(self, dealer: Optional[str]) -> None:
         """Compat: registra só o dealer (delega ao vision-context unificado)."""
         self._remember_vision(dealer, None, None)
+
+    def _pg_feature_context(self, decision_id: Optional[int]) -> Optional[dict]:
+        """Contexto da decisão p/ projeção em cw|ccw.spin_features (flag OFF por
+        padrão: `SDA_PG_FEATURE_CONTEXT`). Nunca levanta; nunca toca a aposta.
+
+        Relê a decisão do SQLite (fonte autoritativa) em vez de reaproveitar um
+        contexto capturado no momento da decisão DE PROPÓSITO: `update_last_vision`
+        (sqlite_repo.py) corrige `dealer`/`dealer_table`/`provider`/`vision_*` na
+        decisão mais recente DEPOIS do save, quando a foto/OCR chega. Um contexto
+        em cache nasceria defasado e divergiria do backfill — aqui o valor
+        projetado ao vivo é o MESMO que uma reconstrução posterior encontraria.
+
+        Com a flag OFF não há leitura alguma (caminho legado byte-idêntico).
+        """
+        if decision_id is None:
+            return None
+        try:
+            from database.outbox_integration import (
+                build_pg_feature_context, pg_feature_context_enabled,
+            )
+            if not pg_feature_context_enabled():
+                return None
+            decision = db_service.repository.get_decision(int(decision_id))
+            return build_pg_feature_context(decision)
+        except Exception as exc:  # noqa: BLE001 — telemetria nunca quebra o giro
+            logger.error("pg_feature_context_failed decision_id=%s exc=%s error=%s",
+                         decision_id, type(exc).__name__, exc)
+            return None
 
     def is_duplicate_spin(self, numero: int, timestamp: int, direcao: Optional[str] = None) -> bool:
         """Verifica se é um spin duplicado.
@@ -406,11 +438,38 @@ class MessageHandler:
                 # projeção de tendência, R3 = região menos visitada das 6 fixas
                 # (placar de AMBOS os sentidos). OFF → byte-idêntico ao go-live.
                 spec4 = v5_sig4_enabled()
+                r6_counts = list(getattr(gs, "region6_counts", None) or []) or None
                 comp = rv5.compose_v5(dk, forces, results_chrono,
                                       gs.last_number, roulette.WHEEL_SEQUENCE,
                                       spec4=spec4,
-                                      region6_counts=list(getattr(
-                                          gs, "region6_counts", None) or []) or None)
+                                      region6_counts=r6_counts)
+                # R2 dealer-aware (05/08 noite-2, flags por-chamada): bandit
+                # Thompson por dealer×sentido escolhe a força do R2. SHADOW
+                # mede em paper (aposta real intacta); LIVE recompõe o R2 com
+                # o braço vencedor (mesmo clamp/disjunção — INV-3 intacto).
+                # OFF (default) → zero efeito, compose byte-idêntico.
+                r2ds_plan = None
+                try:
+                    from app_config.settings import (
+                        r2_dealer_live_enabled, r2_dealer_shadow_enabled,
+                    )
+                    if ((r2_dealer_shadow_enabled() or r2_dealer_live_enabled())
+                            and not comp["warmup"]
+                            and comp.get("r1_force") is not None):
+                        r2ds_plan = self._r2_dealer_plan(dk, comp, forces)
+                    if r2ds_plan:
+                        comp_ds = rv5.compose_v5(
+                            dk, forces, results_chrono, gs.last_number,
+                            roulette.WHEEL_SEQUENCE, spec4=spec4,
+                            region6_counts=r6_counts,
+                            r2_override_force=r2ds_plan["force"])
+                        r2ds_plan["r2_center"] = comp_ds["centers"][1]
+                        if r2_dealer_live_enabled():
+                            comp = comp_ds  # braço vencedor vira o R2 apostado
+                            r2ds_plan["live"] = True
+                except Exception as _r2e:  # noqa: BLE001
+                    logger.warning(f"[R2 dealer] plano falhou: {_r2e}")
+                    r2ds_plan = None
                 # Seletor por sentido; stop-loss de sessão força 17 (LOCK17 —
                 # veto nunca vira cobertura mais cara; INV-3: indicação mantém).
                 # FLIP PURO (05/08 tarde, flag por-chamada): a ÚLTIMA jogada
@@ -453,6 +512,14 @@ class MessageHandler:
                     },
                 }
                 self.game_state.last_force17_meta = self._cs_meta.get("force17")
+                if r2ds_plan and r2ds_plan.get("r2_center") is not None:
+                    # Cobertura would-be do R2 escolhido no modo emitido (17→
+                    # raio 2, 21→raio 3) — congelada p/ o hit_r2 da resolução.
+                    _r2_radius = 2 if sel_mode == 17 else 3
+                    r2ds_plan["r2_numbers"] = rv5.get_neighbors(
+                        r2ds_plan["r2_center"], _r2_radius,
+                        roulette.WHEEL_SEQUENCE)
+                    self._cs_meta["r2ds"] = r2ds_plan
                 return
             if mode == "var_c1c2_c3":
                 hist = list(gs.c_attr_cw if self._engine_dk() == "cw" else gs.c_attr_ccw)
@@ -570,10 +637,162 @@ class MessageHandler:
                     # snapshot imediato p/ o contador sobreviver a restart.
                     self.strategy.v5_note_emitted(v5["direction"], v5["mode"])
                     self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+                r2ds = self._cs_meta.get("r2ds")
+                if r2ds:
+                    # R2 dealer-aware: congela o plano ANTES do resultado
+                    # (braço, força, centro e cobertura would-be do R2) —
+                    # a resolução fecha o loop do bandit com o hit real.
+                    p["r2ds"] = {
+                        "arm": r2ds.get("arm"),
+                        "force": r2ds.get("force"),
+                        "dealer": r2ds.get("dealer"),
+                        "dk": r2ds.get("dk"),
+                        "live": bool(r2ds.get("live")),
+                        "r2_center": r2ds.get("r2_center"),
+                        "r2_numbers": list(r2ds.get("r2_numbers") or []),
+                    }
             if self._bg_meta is not None:
                 p["bg_placed"] = self._bg_meta["placed"]
         except Exception:  # noqa: BLE001
             pass
+
+    def _r2_dealer_plan(self, dk: str, comp: dict, forces) -> Optional[dict]:
+        """R2 dealer-aware (05/08 noite-2): candidatos + escolha Thompson.
+
+        Monta os braços (trend/residual/dealer/correct) da assinatura do
+        dealer×sentido e amostra o vencedor. S1 (força modal de longo prazo)
+        vem do SQLite via cache TTL — nunca bate no banco a cada spin.
+        Retorna None sem insumo (warmup/estratégia sem assinatura) — o
+        chamador segue o compose de produção (INV-3 intacto).
+        """
+        sig = getattr(self.strategy, "dealer_signature", None)
+        if sig is None or comp.get("r1_force") is None:
+            return None
+        from strategies import dealer_signature as dsig
+        dealer = getattr(self, "_ff_dealer", None) or "unknown"
+        key = sig.key(dealer, dk)
+        modal = None
+        try:
+            from database import get_repository
+            db_path = getattr(get_repository(), "db_path", None)
+            if db_path is not None:
+                modal = dsig.long_term_modal_force(str(db_path), dealer, dk)
+        except Exception:  # noqa: BLE001
+            modal = None
+        cands = sig.candidates(
+            key,
+            r1_force=int(comp["r1_force"]),
+            slope=comp.get("slope"),
+            forces_recent_first=list(forces or []),
+            size=len(roulette.WHEEL_SEQUENCE),
+            dealer_modal_force=modal,
+        )
+        if not cands:
+            return None
+        arm, force = sig.choose(key, cands)
+        return {"arm": arm, "force": int(force),
+                "candidates": dict(cands), "dealer": dealer,
+                "dk": dk, "live": False}
+
+    def _r2_dealer_resolve(self, pending, numero: int, hit_result: bool,
+                           direcao: str) -> None:
+        """Error Engine + fechamento do loop R2 dealer-aware na resolução.
+
+        1) SDA_ERROR_ENGINE=1 → classifica o processo do erro
+           (strategies/error_engine.py) e registra `error_class` no DNA.
+        2) pending com plano `r2ds` (shadow/live) → mede o hit would-be do R2
+           escolhido, registra `r2_source`/`r2_signed_err` no DNA e atualiza
+           bandit+EWMA do dealer (DATA_SUSPECT congela — dado ruim não ensina).
+        Telemetria/aprendizado puros: nunca altera aposta já resolvida.
+        """
+        from core.roulette import Direction
+        bet_direction = ((pending or {}).get("direction")
+                         or getattr(self, "last_decision_direction", None)
+                         or direcao or "")
+        dk = "cw" if bet_direction in ("cw", "horario") else "ccw"
+        dir_enum = (Direction.CLOCKWISE if dk == "cw"
+                    else Direction.COUNTERCLOCKWISE)
+        sig = getattr(self.strategy, "dealer_signature", None)
+        r2ds = (pending or {}).get("r2ds") or None
+        data_suspect = bool(getattr(self.game_state,
+                                    "last_phase_uncertain", False))
+
+        err_class = None
+        from app_config.settings import error_engine_enabled
+        if error_engine_enabled():
+            try:
+                from strategies.error_engine import classify_error
+                center = (pending or {}).get("center")
+                signed_err = None
+                if center is not None:
+                    signed_err = roulette.compute_wheel_dist_dir(
+                        int(center), int(numero), dir_enum)
+                coverage = (pending or {}).get("numbers") or []
+                gap = None
+                if coverage:
+                    gap = roulette.compute_wheel_dist_min_to_set(
+                        list(coverage), int(numero))
+                # Histórico causal do erro C1 assinado do sentido (REGRA
+                # 13/06) — update_adaptive já incluiu o spin atual aqui.
+                hist_map = getattr(self.strategy, "_region_err_hist", {}) or {}
+                err_hist = [float(v) for v in list(hist_map.get(dk, []))[-5:]]
+                err_class = classify_error(
+                    hit=bool(hit_result), data_suspect=data_suspect,
+                    signed_err=signed_err, gap_to_coverage=gap,
+                    err_hist=err_hist,
+                )
+                from database import dna_logger as _dna
+                _dna.dna_log_feature(
+                    self.last_decision_id, "error_class",
+                    {"raw": err_class, "bucket": err_class,
+                     "signed_err": signed_err, "gap": gap},
+                    spin_number=numero, direction=bet_direction,
+                    hit=bool(hit_result),
+                )
+            except Exception as _ee:  # noqa: BLE001
+                logger.warning(f"[error_engine] classify falhou: {_ee}")
+
+        if not r2ds or sig is None:
+            return
+        try:
+            from strategies.error_engine import is_frozen
+            frozen = (is_frozen(err_class) if err_class is not None
+                      else data_suspect)
+            key = sig.key(r2ds.get("dealer"), r2ds.get("dk") or dk)
+            r2c = r2ds.get("r2_center")
+            r2nums = {int(n) for n in (r2ds.get("r2_numbers") or [])}
+            if r2c is None or not r2nums:
+                return
+            hit_r2 = int(numero) in r2nums
+            signed_err_r2 = roulette.compute_wheel_dist_dir(
+                int(r2c), int(numero), dir_enum)
+            sig.update(key, str(r2ds.get("arm")), bool(hit_r2),
+                       signed_err_r2, frozen=frozen)
+            self.game_state._adaptive_state = self.strategy.get_adaptive_state()
+            try:
+                from database import dna_logger as _dna
+                _arm = str(r2ds.get("arm"))
+                _dna.dna_log_feature(
+                    self.last_decision_id, "r2_source",
+                    {"raw": _arm, "bucket": _arm,
+                     "live": bool(r2ds.get("live")),
+                     "force": r2ds.get("force"), "frozen": frozen},
+                    spin_number=numero, direction=bet_direction, hit=hit_r2,
+                )
+                _abs = abs(int(signed_err_r2))
+                _sgn = "+" if signed_err_r2 > 0 else ("-" if signed_err_r2 < 0 else "")
+                _band = ("near" if _abs <= 2 else
+                         ("mid" if _abs <= 7 else "far"))
+                _dna.dna_log_feature(
+                    self.last_decision_id, "r2_signed_err",
+                    {"raw": int(signed_err_r2), "bucket": f"{_sgn}{_band}"},
+                    spin_number=numero, direction=bet_direction, hit=hit_r2,
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception as _re:  # noqa: BLE001
+            logger.warning(f"[R2 dealer] resolve falhou: {_re}")
+
 
     def _engine_resolve(self, pending, hit_result=None) -> None:
         """Resolve os motores com o resultado do spin recém-verificado (t-1).
@@ -981,15 +1200,29 @@ class MessageHandler:
                             )
                     except Exception:  # noqa: BLE001
                         pass
+                    # R2 dealer-aware + Error Engine (05/08 noite-2): classe
+                    # do erro no DNA e fechamento do loop do bandit por dealer
+                    # (flags por-chamada dentro do método; OFF → no-op).
+                    try:
+                        self._r2_dealer_resolve(pending, numero,
+                                                bool(hit_result), direcao)
+                    except Exception:  # noqa: BLE001
+                        pass
                     # OBS-25-01: publicar spin_result no outbox para backtest offline
                     # H3 (03/08): + session_id → worker isola janela de lag
                     # features por sessão real (sem vazamento entre sessões).
+                    # R2 dealer-aware (05/08 noite-2): + dealer/table/provider
+                    # (fill-forward) → CDC popula o espelho e shared.dealers.
                     try:
                         from database.outbox_integration import maybe_publish_spin_result
                         last_dir = getattr(self, "last_decision_direction", None) or direcao
                         maybe_publish_spin_result(
                             self.last_decision_id, last_dir, hit_result, numero,
                             session_id=getattr(self, "current_session_id", None),
+                            dealer=getattr(self, "_ff_dealer", None),
+                            table=getattr(self, "_ff_wheel", None),
+                            provider=getattr(self, "_ff_provider", None),
+                            context=self._pg_feature_context(self.last_decision_id),
                         )
                     except Exception as exc:  # noqa: BLE001
                         logger.error("spin_result_hook_raise exc=%s", exc)

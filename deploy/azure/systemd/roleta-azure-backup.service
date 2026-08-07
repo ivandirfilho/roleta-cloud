@@ -1,0 +1,15 @@
+[Unit]
+Description=Roleta Cloud Azure SQLite backup to Blob
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/roleta
+Environment=REQUIRE_DB=1
+Environment=BACKUP_CONTAINER=backups
+Environment=BLOB_PREFIX=azure-local/
+ExecStart=/usr/bin/flock -n /run/lock/roleta-azure-backup.lock /opt/roleta/backup-sqlite-to-blob.sh
+Nice=10
+IOSchedulingClass=idle

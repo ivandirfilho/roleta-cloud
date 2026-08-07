@@ -1,0 +1,54 @@
+# Roleta Cloud — Caddy NATIVO da VM Azure (/etc/caddy/Caddyfile).
+# Réplica funcional do nginx de produção (server_snapshot/04_nginx_tls.md e
+# roleta.conf): estático em /var/www/roleta + /ws → app:8765 + HTTPS automático.
+#
+# CANARY (DNS ainda aponta p/ HostDime): SITE_ADDRESS default ":80" → sem TLS,
+#   validação por IP público com header Host. Caddy NÃO consegue emitir cert
+#   Let's Encrypt enquanto o domínio não resolver para a Azure.
+# CUTOVER (flip do DNS → 20.226.77.194): o operador exporta
+#   SITE_ADDRESS="roleta.xma-ia.com, www.roleta.xma-ia.com" e recarrega o Caddy;
+#   o HTTPS (com redirect 80→443) passa a ser emitido/renovado automaticamente,
+#   aposentando o certbot.
+{
+	email {$CADDY_EMAIL}
+}
+
+{$SITE_ADDRESS::80} {
+	root * /var/www/roleta
+	encode gzip
+
+	# WebSocket do motor (extensão "Escuta Beat"): wss://host/ws → app 8765.
+	# O Caddy trata o upgrade Upgrade/Connection automaticamente.
+	# O canário aceita escrita WS apenas dos CIDRs explicitamente liberados.
+	# O arquivo staged de cutover troca este valor para 0.0.0.0/0 + ::/0.
+	@ws_allowed {
+		path /ws /ws/*
+		remote_ip {$WS_ALLOWED_CIDRS:127.0.0.1/32 ::1/128}
+	}
+	handle @ws_allowed {
+		reverse_proxy 127.0.0.1:8765 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			# Conexão longeva (24h), igual ao nginx (proxy_read/send_timeout 86400).
+			transport http {
+				read_timeout 86400s
+				write_timeout 86400s
+			}
+		}
+	}
+	handle /ws* {
+		respond "WebSocket indisponível neste endereço" 403
+	}
+
+	# Healthcheck público enxuto → /health interno (8766). NÃO roteia /metrics,
+	# que fica só em loopback (8766 não é publicado para fora).
+	handle /healthz {
+		rewrite * /health
+		reverse_proxy 127.0.0.1:8766
+	}
+
+	# Frontend estático (dashboard). 404 para arquivo inexistente, como o nginx.
+	file_server
+}

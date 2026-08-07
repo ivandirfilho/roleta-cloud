@@ -1,0 +1,12 @@
+[Unit]
+Description=Push authoritative Roleta Cloud snapshot from HostDime
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/roleta/hostdime-snapshot.env
+ExecStart=/usr/bin/flock -n /run/lock/roleta-hostdime-snapshot-unit.lock /usr/local/sbin/roleta-hostdime-snapshot
+Nice=10
+IOSchedulingClass=idle

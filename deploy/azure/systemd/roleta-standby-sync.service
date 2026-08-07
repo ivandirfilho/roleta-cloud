@@ -1,0 +1,20 @@
+[Unit]
+Description=Refresh Roleta Cloud HostDime standby snapshot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/roleta
+Environment=BACKUP_CONTAINER=hostdime-standby
+Environment=BLOB_PREFIX=snapshots/
+Environment=TARGET_DIR=/opt/roleta/standby
+Environment=ALLOW_OVERWRITE=1
+Environment=BACKUP_EXISTING=0
+Environment=STATUS_FILE=/var/lib/roleta/standby-status.json
+Environment=APPLIED_STAMP_FILE=/var/lib/roleta/standby-applied-stamp
+Environment=MAX_SNAPSHOT_AGE_SEC=900
+ExecStart=/usr/bin/flock -n /run/lock/roleta-standby-sync.lock /opt/roleta/restore-sqlite-from-blob.sh
+Nice=10
+IOSchedulingClass=idle
