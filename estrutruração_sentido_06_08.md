@@ -10,6 +10,180 @@ composes, migrations, código do produtor/CDC, GitHub e evidência direta do hos
 > O nome deste arquivo preserva exatamente o nome solicitado. Em documentos
 > futuros, recomenda-se o nome normalizado `estruturacao_sentido_AAAA_MM_DD.md`.
 
+> **ATENÇÃO:** o texto original abaixo preserva o corte de 06/08 17:47 UTC.
+> A `main` avançou materialmente depois dele. O adendo a seguir é a fonte
+> autoritativa para o estado pós-corte; as seções 6.1–6.3 e 8.1 permanecem como
+> fotografia histórica da decisão anterior aos merges.
+
+## ADENDO pós-corte — 07/08 08:52 UTC
+
+### A. O que mudou na `main`
+
+| Merge | Entrega | Estado Git |
+|---|---|---|
+| #60 · `0eaf9af` | projeção contextual de `spin_features` | mergeado |
+| #63 · `65d1025` | audit + shadow V4 default ON | mergeado |
+| #62 · `d3c73d1` | BOARD real + governança/CI anti-silo | mergeado |
+| #58 · `a8ad09e` | dealer-aware + Error Engine | mergeado, flags OFF |
+| #43 · `c7775fc` | MIG-0 + pre-cutover Azure | mergeado |
+| #64 · `5222df5` | publicação Azure condicionada por flag OFF | mergeado |
+| #61 · `6757182` | este documento | mergeado, CI verde |
+
+**Importante:** merge em `main` não significou implantação completa. O host
+entrou em rollback automático e ficou estável em `a8ad09e`, enquanto
+`origin/main=6757182`.
+
+### B. Incidente P0 — loop de deploy com rollback
+
+Entre 08:29 e 08:52 UTC, o timer tentou implantar `6757182` a cada ~2 minutos:
+
+1. checkout avançava para a `main`;
+2. build e Alembic concluíam;
+3. o app novo encerrava antes de manter `/health` disponível;
+4. os três healthchecks falhavam;
+5. o deploy voltava para `a8ad09e`;
+6. o próximo tick repetia o ciclo.
+
+**Erro real do app:**
+
+```text
+FileNotFoundError: STATE_FILE configurado, mas o estado persistente nao existe:
+/app/data/state.json
+```
+
+#### Causa-raiz
+
+O PR #43:
+
+- removeu o bind legado `./state.json:/app/state.json`;
+- passou a configurar `STATE_FILE=/app/data/state.json`;
+- tornou a ausência do estado um erro fail-close;
+- adicionou `scripts/migrate-state-to-volume.sh` e um preflight no deploy.
+
+No host:
+
+- `/root/roleta-cloud/state.json` existe;
+- o volume `roleta-data` não contém `state.json`.
+
+O launcher executa primeiro o script de deploy do checkout estável
+`a8ad09e`, anterior ao preflight MIG-0. Esse script faz reset para a nova
+`main`, sobe o compose novo e só então descobre o arquivo ausente. O rollback
+retorna ao script antigo. É um **bootstrap circular**: o preflight correto
+existe na versão que nunca consegue permanecer implantada.
+
+O bootstrap one-time de 06/08 já havia confirmado o launcher versionado em
+`/usr/local/bin/roleta-deploy-pull.sh`; antes da intervenção, repetir
+`scripts/roleta-deploy-install.sh --check` e validar o marcador do launcher.
+Se voltar a existir cópia congelada, reinstalar o launcher é pré-requisito.
+
+Não é falha de Alembic, build, ISA, OOM ou JSON do healthcheck. Aumentar retry
+ou relaxar `/health` esconderia o crash e não resolveria o estado ausente.
+
+### C. Estado live pós-corte
+
+**Host estável:** `a8ad09e`, árvore limpa, app healthy após rollback.
+**Worker:** imagem/start de 03/08, ainda não recriado.
+**Deploy timer:** ativo e repetindo o ciclo.
+
+| Item | Estado real |
+|---|---|
+| Decisions | 11.703; última em 06/08 23:13:18 UTC |
+| Outbox | 71.000 processed; 0 pending; 0 failed |
+| Ingestão | inativa; 1 WS, 0 MASTER, `last_spin_ts=None` |
+| `spin_features` | CW 3.473 / CCW 3.232; contexto ainda 0% |
+| `phase_events` | 0 |
+| `SDA_PG_FEATURE_CONTEXT` | app 0; worker antigo sem suporte |
+| Audit/shadow V4 | flags 1 no app estável, mas sem evento/evidência |
+| Dealer-aware/Error Engine | código presente; três flags 0 |
+| MIG-0/Azure | upstream em `main`; não ativo no checkout estável |
+
+#### Consequências
+
+- #60 está mergeado, mas **não foi operacionalizado**: o produtor está OFF e
+  o worker continua antigo. Como o produtor não emitiu contexto, não houve
+  perda por ordem invertida.
+- #63 está configurado ON, mas o gate T4 não começou de forma auditável:
+  `phase_events=0`, cobertura=0 e relógio ainda pendente.
+- #58 está presente e dormente; não altera aposta.
+- #43 está em `main`, mas o runtime MIG-0 não entrou; somente o snapshot
+  HostDime→Blob previamente instalado segue operando.
+- alertas zerados durante os restarts não são prova de saúde.
+
+### D. Decisão imediata para cessar o loop
+
+Há duas rotas corretas; escolher **uma**, nunca combinar improvisadamente:
+
+#### Rota 1 — migração operacional canônica
+
+Em janela controlada e com aprovação humana:
+
+1. parar e bloquear temporariamente **timer e service** de deploy; confirmar
+   que não existe tick nem start manual/dependência em andamento;
+2. parar o app graciosamente;
+3. registrar SHA e backup do `state.json` legado;
+4. materializar o blob de `scripts/migrate-state-to-volume.sh` da `origin/main`
+   em local controlado, pois o script não existe em `a8ad09e`; executá-lo com
+   `REPO_DIR=/root/roleta-cloud`, sem trocar o checkout inteiro;
+5. exigir validação JSON e SHA origem=destino;
+6. preservar o `state.json` de origem durante soak/backup;
+7. permitir um único deploy;
+8. provar `/health`, estado carregado, MASTER e ingestão;
+9. só então reabilitar service/timer.
+
+O script é idempotente quando origem e destino coincidem e recusa sobrescrever
+destino divergente. Esta é a rota mais curta, mas é mutação de host.
+
+**Abort path obrigatório:** se o deploy único falhar, não repetir. O rollback
+legado volta a escrever no arquivo do host e torna a cópia do volume stale.
+Manter o app parado ou reabrir formalmente a rota legada; antes de qualquer
+novo deploy, comparar os dois SHAs, preservar ambos e copiar novamente o
+**estado legado mais recente** por procedimento autorizado. O script canônico
+recusa destino divergente de propósito; não usar overwrite improvisado.
+
+#### Rota 2 — correção em duas fases por PR
+
+Se não houver janela operacional aprovada:
+
+1. reverter somente os trechos runtime do MIG-0 que mudam bind/`STATE_FILE`;
+2. no mesmo PR, remover a chamada fail-close do preflight ou gateá-la por
+   `REQUIRE_STATE_VOLUME=0`/configuração equivalente; manter função, tooling e
+   documentação inertes;
+3. deixar a `main` voltar a implantar sem loop e provar ingestão;
+4. migrar/verificar o volume separadamente;
+5. em outro PR, ativar o preflight e trocar o runtime para
+   `/app/data/state.json` juntos, depois de a pré-condição existir.
+
+Esta é a rota mais conservadora porque restaura o deploy exclusivamente via
+Git/CI e elimina o bootstrap circular.
+
+### E. Ordem pós-estabilização
+
+1. cessar o loop e provar estado/ingestão;
+2. persistir `SDA_PG_FEATURE_CONTEXT=1` nos arquivos de ambiente duráveis do
+   host (`.env.pg` para worker e `.env` para app), nunca apenas no shell;
+3. recriar o **worker primeiro** com código #60 e flag ON, confirmando
+   `printenv` no container;
+4. congelar o marco de decisão;
+5. recriar o app com a mesma flag e confirmar `printenv`;
+6. validar preenchimento apenas após o corte;
+7. manter backfill `--apply` separado;
+8. registrar `ativado_audit_shadow` somente após o primeiro `phase_event`,
+   denominador e cobertura reais;
+9. só então retomar V6A, V3-B e decisões de Azure.
+
+### F. Impacto na recomendação arquitetural
+
+O incidente reforça, não invalida, a proposta deste documento:
+
+- capacidade continua não sendo o problema;
+- mudar máquina, estado e banco no mesmo lote aumenta variáveis;
+- preflight entregue junto da mudança que ele deveria bloquear não protege o
+  primeiro salto;
+- migrações de runtime precisam de duas fases: **preparar → provar → virar**;
+- PostgreSQL remoto continua condicionado ao outbox local durável;
+- o cutover Azure não deve avançar enquanto MIG-0, restore e rollback não
+  estiverem comprovados.
+
 ---
 
 ## 1. Resposta executiva
