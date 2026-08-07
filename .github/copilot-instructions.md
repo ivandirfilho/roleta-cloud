@@ -1,6 +1,7 @@
 # Roleta Cloud — instruções do repositório (auto-carregadas em toda sessão)
 
 > Backend de roleta em tempo real (WebSocket + SQLite, Docker no Debian) + extensão Chrome "Escuta Beat".
+> **Contrato operacional completo (camadas local/git/Debian, ciclo zero-humano, anti-conflito): `AGENTS.md` na raiz.**
 > Blueprint completo: `fluxo_mental_24.md`. Metodologia de sprints: `evolução_24_junho.md`. Board: `sprints/BOARD.md`.
 
 ## Invioláveis (toda mudança)
@@ -9,6 +10,8 @@
 - **Migração Alembic ADITIVA/retro-compatível** (o rollback de deploy NÃO faz downgrade de schema).
 - **Persistência round-trip:** campo de motor novo entra em `save()` + `load()` + `reset_session()`.
 - **`main` é produção:** o systemd timer puxa `origin/main` e faz deploy em ~2 min. NUNCA push/checkout/reset/merge direto em `main`; entregue por **PR**. Sem ssh/host/deploy a partir de um sprint.
+- **Espelho Azure no MESMO PR:** flag nova/alterada em `docker-compose.yml` → sincronize `deploy/azure/compose.azure.yml` (contrato `tests/test_azure_pre_cutover.py` falha se divergir).
+- **Workflow novo com secrets externos nasce GATEADO** por repo variable default-OFF (ex.: `if: ${{ vars.X_ENABLED == '1' }}`) — senão a main fica vermelha no primeiro push pós-merge.
 - **NÃO commitar `graphify-out/`** (artefato pesado, regenerável); rode `graphify update .` apenas localmente.
 
 ## Fluxo de sprints (Diretor ↔ Executor) — ciclo zero-humano
