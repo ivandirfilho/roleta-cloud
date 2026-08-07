@@ -3896,3 +3896,284 @@ que ele gera não é evidência: é "inverse crime". A separação `synthetic` /
 `eligible_for_go_gates` viajando dentro de cada artefato, foi o que impediu este sprint de fechar a
 própria DoD com números de bancada. **Toda taxa nasce com denominador, e todo denominador nasce com a
 classe da evidência que o produziu** — sem isso, um gate falseável vira um gate decorativo.
+
+
+---
+
+## ADENDO 06/08/2026 — PG-CTX: a projeção de contexto que existia no schema e nunca existiu no dado
+
+**Escopo.** `database/outbox_integration.py`, `server/message_handler.py`,
+`workers/cdc_worker.py`, `docker-compose.yml`, `docker-compose.pg.yml`,
+`database/schema_parity_manifest.json`, `tools/backfill_pg_feature_context.py` + 5 suítes novas.
+Zero migração. Zero mudança em decisão, stake ou INV-3. Tudo atrás de **flag default-OFF**.
+
+### A. O achado
+
+`cw/ccw.spin_features` — a feature store declarada "pronta para treino" no closeout de 03/08 —
+estava servindo, em 100% das linhas: `dealer = 'unknown'` (o DEFAULT do DDL) e NULL em
+`"table"`, `provider`, `round_id`, `wheel_model`, `vision_confidence`, `vision_source`,
+`spin_seq`, `direction_source`, `direction_confidence`, `direction_next`, `phase_uncertain`,
+`centro_previsto` e `gale_level`. O SQLite tinha todos esses campos preenchidos. As colunas de
+destino existiam desde as migrations 0007/0009/0010/0012. O outbox estava com **0 pendentes e
+0 erros** em 66.599 eventos, worker `healthy`, vetores 6d/4d 100% preenchidos.
+
+Ou seja: **nada estava quebrado. Nada nunca tinha sido ligado.**
+
+### B. Por que passou por três auditorias
+
+A pergunta feita foi sempre *"a tabela está fresca?"*. A resposta era sim — o último `ts` era de
+segundos atrás. A pergunta que ninguém fez foi *"a coluna tem valor?"*. Recência de linha e
+completude de coluna são medidas diferentes, e a primeira não implica a segunda: uma tabela
+escrita em tempo real, com zero backlog e índices quentes, pode entregar 100% de default numa
+coluna que já foi contada como pronta.
+
+Havia um terceiro fator, e esse é o que dói: **o contrato declarava o buraco**.
+`schema_parity_manifest.json` listava `dealer`/`dealer_table`/`provider`/`round_id`/
+`wheel_model`/`vision_*` em `sqlite_only_allowed` — "só existem no SQLite, por decisão" —
+mesmo depois de 0007/0009 terem criado os destinos no PG. Enquanto a mentira estava no manifest,
+**nenhum teste de paridade tinha como falhar**. O teste de paridade estava verde porque
+concordava com a versão errada da realidade.
+
+### C. Causa-raiz (dois silêncios em série)
+
+| Camada | O que fazia | Efeito |
+|---|---|---|
+| Produtor (`maybe_publish_spin_result`) | publicava `{event_type, direction, decision_id, hit, actual_number, session_id}` | o contexto nunca entrava no evento |
+| Worker (`_apply_spin_result`) | inseria colunas base + lag features | as 12 colunas de contexto ficavam no default do DDL |
+
+### D. O conserto, e as três decisões que valem registro
+
+**D.1 — O evento é self-contained; o worker não busca nada.**
+A tentação óbvia era o worker reconstruir o contexto lendo `spins_vectors` pelo `decision_id`.
+Seria errado: o batch roda com `FOR UPDATE SKIP LOCKED` em múltiplas instâncias e com rollback
+por savepoint por evento. Uma leitura ali é corrida com o vetor do mesmo giro sendo inserido por
+**outro** worker — e um rollback de savepoint desfaria a linha mas não a leitura. O contexto viaja
+**dentro** do evento (`payload["context"]`), e o teste `test_multi_worker_safety_event_is_self_contained`
+trava esse contrato: exatamente 2 statements por evento (a window query de lag do próprio schema
++ o INSERT), nenhum tocando `spins_vectors` ou `decisions`.
+
+**D.2 — O contexto é lido no publish, não na decisão.** *(achado da crítica de projeto)*
+O desenho inicial guardava um `last_decision_context` em memória, capturado quando a decisão era
+salva. Estava errado por um motivo que só aparece lendo `sqlite_repo.py:955`:
+`update_last_vision()` **reescreve** `dealer`, `dealer_table`, `provider`, `vision_confidence` e
+`vision_source` na decisão mais recente **depois** do save — é assim que a foto/OCR carimba o
+giro, porque o DOM da Evolution não expõe esses campos. Um contexto em cache nasceria defasado do
+próprio SQLite, e o valor gravado ao vivo divergiria do que o backfill reconstruiria da mesma
+linha. Relendo a linha autoritativa na hora de publicar (só com a flag ON), **ao vivo e backfill
+convergem por construção**. De quebra, o estado transiente deixa de existir: não há ciclo de vida
+novo para provar, nem interação com reset de sessão.
+Regressão guardada em `test_context_reflects_post_save_ocr_correction`.
+
+**D.3 — Divergência de `session_id` conta, mas não rejeita.** *(achado da crítica)*
+Um reset de sessão no meio da resolução faz o evento levar o `session_id` NOVO enquanto o
+contexto traz o da decisão. A primeira versão descartava o contexto nesse caso — o que jogaria
+fora um dealer perfeitamente válido e produziria alarme `context_missing` em toda troca de mesa.
+A identidade que importa é o **`decision_id`** (divergência aí é dado de outra decisão: rejeita).
+A sessão diverge e a linha é gravada assim mesmo, com o `session_id` do evento como autoritativo
+e um contador dedicado (`cdc_spin_result_context_session_mismatch_total`).
+
+### E. O alias mais perigoso do diff
+
+SQLite chama `dealer_table`; a coluna no PG (migration 0007) é literalmente **`table`** — palavra
+reservada, que precisa ir **citada**: `"table"`. Sem as aspas o INSERT vira erro de sintaxe; com o
+nome errado, a mesa some silenciosamente. O mapa é explícito
+(`CONTEXT_COLUMN_MAP`), está declarado no manifest (`pg_column: "table"`) e tem teste dedicado nas
+duas pontas. O teste de paridade contra PG vivo também aprendeu o alias — antes ele não tinha como
+casar `dealer_table` com `table` e teria dado falso-negativo.
+
+### F. Fail-soft com limite (o que NÃO é engolido)
+
+Contexto é opcional; o resultado não é. Um contexto malformado **jamais** pode mandar o
+`spin_result` para a DLQ. Mas "fail-soft" fácil demais esconde defeito: um `try/except` em volta
+do INSERT engoliria um mapeamento quebrado em toda a frota.
+
+A separação adotada: **coerção total por valor** (`_coerce_text/_float/_int/_bool` nunca levantam;
+lixo vira NULL e é contado) e **nenhum `except` cego em volta do SQL** — erro de coluna, de
+placeholder ou de schema continua estourando e virando retry/DLQ, alto e visível. Desfechos
+contados em `cdc_spin_result_context_total{status=disabled|absent|invalid|applied}`.
+
+### G. `spin_number` não é negociável
+
+No PG, `spin_number` é o número **REAL que resolveu a decisão anterior** (`payload.actual_number`)
+— não o `decisions.spin_number` do SQLite. A chave não entra na allowlist do contexto, e o teste
+`test_flag_on_keeps_actual_number_as_spin_number` injeta um `spin_number` hostil no contexto e
+exige que o valor gravado continue sendo o do resultado.
+**Débito registrado (não corrigido aqui, fora de escopo):** a linha legada
+`spin_number = meta.get("spin_number", spin_number)` ainda permitiria a um evento com `meta`
+sobrescrever o número. Hoje é inalcançável (o produtor nunca envia `meta` em `spin_result`), mas é
+uma armadilha aberta. Não foi tocada para manter o caminho OFF byte-idêntico.
+
+### H. Backfill: escrever menos é o recurso
+
+`tools/backfill_pg_feature_context.py` nasce com quatro travas, todas testadas por mutação:
+`--dry-run` é o default; **nunca INSERE** (linha de feature ausente é ausência de evidência —
+fabricar desfecho seria inventar dado); **nunca sobrescreve** (predicado por coluna:
+`dealer IS NULL OR dealer='unknown'`, demais `IS NULL` — rodar duas vezes é no-op); e `hit`,
+`spin_number`, `session_id` e as lag features estão numa lista de **proibidas** verificada em
+runtime e em teste. `max(decisions.id)` é congelado no início; sentido não mapeável é pulado, não
+adivinhado. Os valores saem do **mesmo** `build_pg_feature_context()` do runtime.
+**`--apply` NÃO foi executado neste PR.**
+
+### I. Dois defeitos achados na revisão do próprio diff (corrigidos antes do PR)
+
+**I.1 — O backfill não conseguia reparar linha meio preenchida.** O `WHERE` unia os predicados
+de todas as colunas com `AND`, tornando o reparo tudo-ou-nada **por linha**: bastava uma coluna
+já populada para o UPDATE casar 0 linhas e nenhuma das genuinamente vazias ser preenchida. O
+cenário não é hipotético, é o mesmo `update_last_vision()` do item D.2 pelo outro lado: se o OCR
+chega **depois** do publish, a linha nasce com `spin_seq` preenchido e `dealer` vazio — e o
+`dealer` nunca mais seria alcançado, porque o `ON CONFLICT DO NOTHING` também barra replay. Pior,
+o relatório escondia isso: `rowcount == 0` era contado como "alvo ausente/já preenchido", um
+balde só para duas causas opostas.
+Corrigido para semântica **por coluna**: `SET col = COALESCE(col, %s)` (com
+`COALESCE(NULLIF(dealer,'unknown'), %s)` no dealer) e `WHERE` **disjuntivo** — basta uma coluna
+vazia para a linha valer uma visita, e nenhuma coluna preenchida é tocada. Os contadores foram
+separados em `target_absent` (linha ainda não existe) e `already_filled` (nada a fazer), com um
+probe `SELECT 1` disparado **só** quando o UPDATE não altera nada.
+
+**I.2 — `OverflowError` escapava das quatro coerções ditas "totais".** Todas capturavam apenas
+`(TypeError, ValueError)`; `OverflowError` desce de `ArithmeticError`, então `int(float('inf'))` e
+`float(10**400)` passavam direto. No worker isso subiria até o `ROLLBACK TO SAVEPOINT` e
+`_mark_failed` — a linha de resultado essencial perdida, exatamente o desfecho que o comentário
+da coerção jurava impossível. No produtor, escaparia de `build_pg_feature_context()`, chamado
+sem guarda dentro do laço do backfill: abortaria a varredura inteira, não só a linha. Alcançável
+por `jsonb` (o `numeric` do PG não tem teto) ou por um REAL com `Inf` no SQLite, que é sem tipo.
+Corrigido capturando `ArithmeticError` nas quatro, e limitando `spin_seq`/`centro_previsto`/
+`gale_level` à faixa de **int4** — um inteiro válido em Python mas grande demais para `INTEGER`
+produziria a mesma perda de linha, só que vinda do banco.
+
+Ambos com regressão dedicada (`test_out_of_range_numbers_never_escape_the_coercion`,
+`test_predicates_are_disjunctive_so_one_filled_column_blocks_nothing`,
+`test_missing_target_row_is_reported_apart_from_already_filled`).
+
+### I.3 — O float que o JSONB recusa e o que a coluna REAL recusa não são o mesmo conjunto
+
+Achado independente, **reproduzido contra PostgreSQL 15 real** (pgvector/pg15 + psycopg2, banco
+descartável local). As duas pontas do caminho recusam coisas **diferentes**:
+
+| valor | payload JSONB (`shared.outbox`) | coluna `REAL` (`spin_features`) |
+|---|---|---|
+| `NaN` / `±Inf` | **ERRO** `invalid input syntax for type json` | aceita |
+| `1e300` | aceita | **ERRO** `out of range for type real` |
+| `1e-300` | aceita | **ERRO** (underflow) |
+| `0.0`, `0.87`, `3.4028235e38`, `1.4e-45` | aceita | aceita |
+
+A coerção "total" da rodada anterior devolvia `inf`/`NaN` e finitos gigantes intactos. Consequência
+medida no banco de verdade, **antes** do conserto:
+
+- `vision_confidence = ±Inf` ou `NaN` → `Json(payload)` derruba o INSERT do evento **inteiro** no
+  outbox. `maybe_publish_spin_result` não levanta (guard-rail), mas devolve `False`: **2 de 3
+  `spin_result` simplesmente deixaram de existir**. Um campo **opcional** matou o resultado
+  **essencial** antes mesmo de ele entrar na fila — a violação mais grave possível do contrato
+  fail-soft, porque não há DLQ para inspecionar depois: o evento nunca foi criado.
+- `vision_confidence = 1e300` → passa pelo JSONB, chega ao worker, e aí a coluna `REAL` recusa:
+  `status='pending' retries=1`, `cw.spin_features` vazio. O caminho para a DLQ, com o resultado
+  perdido no fim.
+
+**Conserto:** `_is_pg_float_safe()` no produtor e guarda equivalente no worker — rejeita
+não-finito **e** magnitude fora de `[1.4e-45, 3.4028235e38]` (limites medidos, não deduzidos:
+`3.5e38` e `1e-46` foram reprovados pelo banco; `3.4028235e38` e `1.4e-45` passaram). **Sem
+clamp** — valor fora da faixa é ausência, não um número aproximado; `0.0` e valores normais
+seguem intactos. O backfill herda tudo, porque usa o mesmo `build_pg_feature_context()`.
+
+**As duas guardas são necessárias e nenhuma é redundante:** a do produtor, porque um NaN nunca
+chegaria ao worker (o evento não existiria); a do worker, porque `1e300` atravessa o JSONB e só
+explode lá — e porque eventos legados ou escritos à mão chegam sem nunca terem passado pelo
+produtor. Prova em PG real: evento inserido à mão com `1e300`/`1e-300` no contexto é processado,
+os dois campos viram `NULL` e o resto (`dealer`, `"table"`, `spin_seq`, `phase_uncertain`) é
+projetado normalmente.
+
+**Sobre a redundância aparente entre `isfinite` e a faixa:** hoje a comparação de faixa já derruba
+`NaN`/`±Inf` sozinha (comparação com `NaN` é sempre falsa) — e a mutação que removia o `isfinite`
+inicialmente **sobreviveu**. Não removi a checagem: ela guarda uma invariante *diferente* (o JSONB
+recusa não-finito **qualquer que seja a largura da coluna**), que só se separa da faixa no dia em
+que alguém migrar as colunas para `float8`. Em vez de apagar a linha ou aceitar a mutação viva,
+o teste passou a fixar exatamente essa invariante: com os limites alargados para `inf` via
+monkeypatch, `±Inf`/`NaN` continuam caindo e `1e300` volta a passar. A mutação agora morre —
+e morre pelo motivo certo.
+
+Depender de "comparação com NaN é falsa" seria repetir a lição do ADENDO do spike de visão
+(`undefined < 0` também é `false` em JS, e foi assim que um frame decodificou lixo em silêncio):
+**a única checagem honesta é a que exige a condição desejada, não a que nega a indesejada.**
+
+### I.4 — Testes de integração que nunca limpavam o que sujavam
+
+`tests/test_cdc_worker.py` limpava `spins_vectors` e `outbox` por `meta.test_marker`, mas **nunca**
+`spin_features`. Linhas de teste ficavam no feature store e entravam na janela de lag
+(`recent_acc_10/50`, `streak_*`) das execuções seguintes — testes contaminando testes. Corrigido, e
+o arquivo ganhou a integração que faltava contra PG real: `spin_result` com contexto completo,
+parametrizado CW/CCW, provando a coluna citada `"table"`, `spin_number = actual_number` (mesmo com
+`meta` presente no payload), o fallback de float hostil e o cenário de skew worker-OFF. Tudo sob o
+`pytestmark` de PG opcional — **o CI comum continua determinístico e sem banco**.
+
+### I.5 — Uma promessa de relatório que o relatório não cumpria
+
+A docstring do backfill dizia que linhas nascidas acima do teto congelado ficariam para a próxima
+rodada "e o relatório diz quantas ficaram". O relatório só imprimia o teto. Agora conta de fato
+(`above_ceiling`, `SELECT count(*)` read-only das linhas **elegíveis** acima do teto) e o CLI diz
+`>0 = rode de novo`. `plan_updates` ganhou `frozen_max_id` opcional — reexecução reprodutível com o
+teto de uma rodada anterior, e é o que torna a contagem testável.
+
+### J. Prova por mutação (21 reversões isoladas, cada uma com o teste-alvo)
+
+`"table"` → `table` sem aspas ✗ (5 falhas) · flag do worker default ON ✗ (4) ·
+`spin_number` entra no mapa de contexto ✗ (19) · flag do produtor default ON ✗ (3) ·
+`dealer='unknown'` deixa de ser ausência ✗ (2) · identidade `decision_id` não checada ✗ (1) ·
+predicado do `dealer` vira sobrescrita ✗ (2) · allowlist deixa passar `hit` ✗ (1) ·
+`UPDATE` vira `INSERT` ✗ (3) · sentido desconhecido vira `cw` ✗ (1) ·
+handler lê o DB com a flag OFF ✗ (1) · `last_decision_direction` some do `__init__` ✗ (2) ·
+produtor aceita não-finito ✗ (1) · produtor ignora a faixa do float4 ✗ (7) · guarda removida do
+`_float_or_none` ✗ (10) · worker aceita não-finito ✗ (1) · worker ignora a faixa do float4 ✗ (5) ·
+limites divergem entre as pontas ✗ (1) · `above_ceiling` fixo em 0 ✗ (2).
+**Nenhuma reversão passa despercebida.**
+
+### K. Rollback
+
+| # | Camada | Ação | Efeito |
+|---|---|---|---|
+| 1 | **Flag** | `SDA_PG_FEATURE_CONTEXT=0` + `up -d --force-recreate` (nos dois serviços) | payload e SQL voltam ao legado byte a byte; nenhuma leitura extra |
+| 2 | **Código** | `git revert` do PR | remove produtor, worker e ferramenta. Zero migração para desfazer |
+| 3 | **Dados** | nenhuma ação | o que foi gravado é verdadeiro; não há linha a limpar |
+
+A env é **fixa por container**: trocar a flag exige recriar (não basta `restart`). Ordem de
+rollout: **worker primeiro, produtor depois** — invertido, o evento enriquecido é consumido como
+legado, marcado `processed`, e o `ON CONFLICT DO NOTHING` fecha a porta do replay (só o backfill
+conserta). O worker loga `spin_result_context_ignored` quando detecta a inversão.
+
+**Suítes.** `pytest tests/` **1249 passed, 13 skipped, 1 xfailed** (baseline antes deste PR:
+**1068 passed, 9 skipped** — os **185 testes novos** entram inteiros: 66 do produtor, 62 do
+worker, 32 do backfill, 10 do handler, 9 do contrato de projeção, +2 no `test_schema_parity` e
++4 de integração PG-gated). Os 4 de integração rodam contra PostgreSQL 15 real quando
+`ROLETA_TEST_PG_ENABLED=1` + `ROLETA_PG_DSN` estão setados (validados aqui num
+`pgvector/pgvector:pg15` descartável com as migrations 0001→0013 aplicadas) e **skipam no CI
+comum** — os outros 181 são determinísticos e não pedem banco.
+`lint_silent_except` OK (baseline 37→38 em `message_handler.py`: o `except` do novo helper de
+contexto) · `lint_dna_coverage` OK · `schema_symmetry` OK · `schema_parity` OK ·
+`docker compose config` OK nos dois arquivos (a flag resolve `"0"` por default e `"1"` com
+override) · `git diff --check` limpo.
+
+**Débito adjacente registrado (fora de escopo, não tocado):** `_extract_raw_features()` monta o
+vetor 6d a partir de campos do `Decision` sem a mesma guarda de float. Um `tr_c4_rate` não-finito
+derrubaria o INSERT do evento `spin_features` pelo mesmo mecanismo do JSONB. É caminho legado,
+anterior a este PR e independente do contexto — fica anotado aqui em vez de ampliar o diff.
+
+**Lição (Adequação funcional / Analisabilidade).** Um schema correto é uma promessa, não uma
+entrega. As colunas certas existiam, com os tipos certos, nas migrations certas, e mesmo assim o
+dado nunca chegou — porque **ninguém amarrou as três pontas**: o que o manifest promete, o que o
+produtor emite e onde o worker grava. Enquanto essas três verdades moram em arquivos que não se
+conhecem, cada uma pode estar internamente consistente e o conjunto estar vazio. O teste que
+faltava não é sobre PostgreSQL: é sobre **o contrato entre camadas quebrar sozinho quando uma
+delas se mexe**.
+
+---
+
+## ⚓ MUDANÇA DE CONVENÇÃO — 06/08/2026: ADENDOs agora vivem em `docs/iso/adendos/`
+
+Este documento permanece como **corpo histórico e arquitetural** do projeto, mas **deixa de
+receber ADENDOs incrementais por append**. Com múltiplos executores em paralelo, o append no
+fim deste arquivo (>300 KB) tornou-se o maior ponto de conflito de merge do repo — ADENDOs do
+mesmo dia acabaram intercalados em 4 posições diferentes e houve título duplicado.
+
+**A partir de 06/08/2026:** cada ADENDO é um arquivo próprio em
+[`docs/iso/adendos/`](docs/iso/adendos/README.md), no formato `AAAA-MM-DD-<slug>.md`, com o
+mesmo conteúdo mínimo de sempre (origem, decisão, flags, reversão, lição ISO). O índice fica
+no README da pasta. O guardrail de CI aceita a nova pasta como cumprimento da convenção ISO.

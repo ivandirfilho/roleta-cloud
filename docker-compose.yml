@@ -31,6 +31,16 @@ services:
       # 🎯 ROOT CAUSE HOOK-1: sem essa var, o hook nunca consegue init
       # (lia DSN como None e marcava _publisher_init_attempted=True para sempre)
       - ROLETA_PG_DSN=${ROLETA_PG_DSN:-}
+      # 🧩 PG feature-context (correção 06/08): projeta o contexto da decisão
+      # (dealer/mesa/provider/round_id/visão/fase + centro/gale) em
+      # cw|ccw.spin_features. As colunas de destino já existem (migrations
+      # 0007/0009/0010/0012) — faltava o produtor emitir e o worker projetar.
+      # DEFAULT OFF. Metadata pura: NÃO toca decisão, stake nem INV-3.
+      # A env é fixa por container ⇒ ligar/desligar exige `up -d --force-recreate`.
+      # ORDEM DE ROLLOUT: ligar PRIMEIRO no cdc-worker (docker-compose.pg.yml),
+      # só depois aqui. Ao contrário, os eventos enriquecidos são consumidos como
+      # legado e o ON CONFLICT DO NOTHING impede reparo por replay (só backfill).
+      - SDA_PG_FEATURE_CONTEXT=${SDA_PG_FEATURE_CONTEXT:-0}
       # 📸 Vision (foto_roleta): OCR foto->dados LIGADO por padrão (deve ficar
       # ligado e funcionando direto). Fixado explícito aqui (versionado) p/ não
       # depender só do default do código. Desliga só com SDA_VISION_OCR=0.
@@ -222,8 +232,8 @@ services:
       # Rollback: SDA_PHASE_EVENT_AUDIT=0 + SDA_DIRECTION_VISION_SHADOW=0 + redeploy
       # (minutos). A TABELA PERMANECE (aditiva, inofensiva) — o rollback de deploy
       # nao faz downgrade de schema.
-      - SDA_PHASE_EVENT_AUDIT=${SDA_PHASE_EVENT_AUDIT:-0}
-      - SDA_DIRECTION_VISION_SHADOW=${SDA_DIRECTION_VISION_SHADOW:-0}
+      - SDA_PHASE_EVENT_AUDIT=${SDA_PHASE_EVENT_AUDIT:-1}
+      - SDA_DIRECTION_VISION_SHADOW=${SDA_DIRECTION_VISION_SHADOW:-1}
       # Prazo (ms) contado do RECEBIMENTO no relogio monotonico do SERVIDOR — o
       # `captured_at_ms` do cliente e so diagnostico. 30000 < ciclo real (~44s),
       # entao um evento nunca sobrevive ate o giro seguinte (que ja e o sentido
