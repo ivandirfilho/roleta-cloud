@@ -184,4 +184,3 @@ FORA/502 — validação 100% client-side com payload sintético do passo 5, com
   1 xfailed** (re-run pós-refinamentos).
 - ⚠️ Nota de reload: extensão unpacked exige Reload em `chrome://extensions` (v3.11.0).
 
-
