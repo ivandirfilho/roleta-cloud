@@ -142,3 +142,78 @@ desligável via `SELF_HEAL=0` no environment da unit (documentar no runbook).
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+
+### 2026-08-16 · EXECUTADO (aguardando merge) · diagnóstico sem ssh + /health + self-heal
+
+**Re-sondagem inicial** (independente da do Diretor, mesmo resultado ⇒ incidente
+persistente, não transitório):
+
+| Sonda | Resultado |
+|---|---|
+| `GET /` | **200** (nginx/1.22.1 vivo, TLS ok) |
+| `GET /health` | **404** (location inexistente no conf do host) |
+| `GET /metrics` | **404** (idem) |
+| `GET /ws` (Upgrade) | **502** upstream `127.0.0.1:8765` |
+
+**H1 (serve-loop travado / deadlock no WS) — REFUTADA**, por dois caminhos
+independentes:
+1. *Estrutural:* `main.py:28` importa `server/websocket.py`, cujo top-level roda
+   `GameState.load()`; `start_health_server()` só é chamada **depois**, dentro de
+   `main()`. As portas 8765 e 8766 vivem e morrem juntas — não existe estado
+   "WS morto, health vivo". Além disso, um serve-loop *travado* (socket aceitando,
+   sem resposta) devolveria **504**, não 502. 502 = `connect()` recusado = processo
+   fora do ar.
+2. *Empírica:* 4 boots locais. Com PG derrubado e `SDA_PG_FEATURE_CONTEXT=1`, o WS
+   **sobreviveu** e entregou heartbeat — o modo de falha imaginado por H1 não se
+   reproduz. Com `STATE_FILE` inexistente, `FileNotFoundError` no import derruba
+   **as duas** portas (assinatura idêntica à observada).
+
+**H2 (NOOP-gap: deploy sai `exit 0` sem olhar o app) e H4 (`state.json` ausente →
+crash-loop)** permanecem como causas prováveis, e são exatamente o que esta
+entrega ataca (H2 diretamente; H4 fica diagnosticável pelo runbook).
+
+**Entrega:**
+- `roleta.conf`: `location = /health` e `= /metrics` → `127.0.0.1:8766`
+  (`/metrics` com `allow 127.0.0.1; deny all`). Valida a distinção
+  "nginx sem conf" × "app morto" de fora, sem ssh.
+- `scripts/roleta-deploy-pull.sh`: self-heal idempotente no tick NOOP — sonda
+  `/health` (8766) **e handshake WS** (8765, exige `101`); fora do ar ⇒
+  `docker compose up -d` + revalidação; não curou ⇒ **`exit ≠ 0`** (unit `failed`,
+  sem sucesso falso). Kill switch `SELF_HEAL=0`.
+- Freios anti-pausa: sentinela `self_heal_paused` (`pause_app.sh` cria — fatal se
+  falhar; `resume_app.sh` remove **só após** `healthy`) + stand-down por código de
+  saída deliberado (`0`, `143`, `137` sem OOM). `137` **com** `OOMKilled` cura.
+- `docs/runbooks/servidor-502-glassbox.md`: árvore de decisão das 4 sondas,
+  comandos do dono no host, caso `state.json` ausente, pré-requisito do entrypoint.
+
+**Validação:** suíte completa **1235 passed, 14 skipped, 1 xfailed**;
+`tests/test_spr_d1_self_heal.py` **12 cenários** executando `self_heal_tick()` real
+com stubs; `nginx -t` do `roleta.conf` em container ⇒ *"syntax is ok / test is
+successful"*; `bash -n` nos 3 scripts; lint `lint_silent_except` OK.
+
+**Code-review (subagent) → 5 achados corrigidos**, 1 crítico:
+1. **[CRÍTICO]** o harness extraía o bloco "do marcador até `cd $REPO_DIR`"; com
+   drift, ia até o EOF e `source`aria `git reset --hard origin/main` no checkout do
+   CI (simulado: 229 linhas capturadas). ⇒ sentinelas `# >>> SPR-D1 SELF-HEAL
+   BEGIN/END` + guard negativo (`exit 91`), verificado com marcador quebrado.
+2. sonda WS era TCP-connect e dava **falso-OK** (o `docker-proxy` faz `accept()`
+   antes de discar o backend — reproduzido em laboratório) ⇒ handshake real.
+3. `pause_app.sh` seguia para o `docker stop` mesmo falhando ao criar a sentinela
+   ⇒ fatal.
+4. stand-down `exited:0` não cobria 143/137 ⇒ `deliberate_stop()` com `OOMKilled`;
+   `docker stop --time 60` alinhado ao `stop_grace_period`.
+5. `resume_app.sh` removia a sentinela antes do `up -d` (~90s de corrida com o
+   tick) ⇒ remoção só depois do gate `healthy`.
+
+**Limite conhecido (declarado no ADENDO §5 e no runbook §7):** o systemd executa
+`/usr/local/bin/roleta-deploy-pull.sh` e o nginx lê `/etc/nginx/.../roleta.conf` —
+**ambos fora do repo**. Se forem cópias congeladas, este PR não cura o incidente
+até alguém rodar `scripts/roleta-deploy-install.sh` + `cp` do conf. O merge é
+usado como fix-forward e o resultado da re-sondagem entra abaixo.
+
+**Arquivos:** `roleta.conf`, `scripts/roleta-deploy-pull.sh`, `scripts/pause_app.sh`,
+`scripts/resume_app.sh`, `docs/runbooks/servidor-502-glassbox.md` (novo),
+`docs/runbooks/pause-policy.md`, `docs/iso/adendos/2026-08-16-diagnostico-502-self-heal.md`
+(novo), `docs/iso/adendos/README.md`, `tests/test_spr_d1_self_heal.py` (novo).
+Nenhuma flag do `docker-compose.yml` tocada ⇒ **sem espelho Azure**.
+Lock check: só o PR #65 aberto (docs-only) ⇒ **sem colisão**.
