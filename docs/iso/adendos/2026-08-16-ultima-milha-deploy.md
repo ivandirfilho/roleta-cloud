@@ -240,6 +240,14 @@ Essa distinção é a lição inteira deste sprint.
   microscópica do próprio "mergeou ≠ implantado" que este sprint existe para matar. Regra que
   fica: **para cada passo, pergunte "como isto reportaria sucesso sem ter efeito?" e feche esse
   caminho antes de fechar o caminho do erro barulhento.**
+- **Cobertura que pula em silêncio é a mesma mentira, um nível acima** (14764 · *manutenção
+  preventiva*). O cenário (c5) — destino em symlink, que é o layout padrão do Debian
+  (`sites-enabled` → `sites-available`) e portanto o caminho **mais provável** em produção —
+  se auto-pulava quando o filesystem não criava symlink, e o log do CI não dizia que tinha
+  pulado. Suíte verde, cenário nunca executado. Fechado no follow-up: o harness conta os
+  próprios asserts (`TOTAL n`) contra um número duro, um cenário pulado imprime `SKIP`
+  explícito, e pular em host POSIX virou erro de setup (`exit 92`). Regra que fica: **um teste
+  que pode se ausentar sem barulho não é cobertura — é a esperança de cobertura.**
 
 ## 7. Replay envelope
 

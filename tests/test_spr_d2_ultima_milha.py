@@ -18,6 +18,7 @@ teste nunca sourcear o fluxo de deploy real no checkout de quem roda).
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -38,8 +39,12 @@ def _bash(script: str, *args: str) -> subprocess.CompletedProcess:
         fh.write(script)
         path = fh.name
     try:
+        env = dict(os.environ)
+        # Git Bash so cria symlink nativo com isso; sem a variavel o cenario (c5)
+        # — o layout real do Debian — seria pulado em silencio no Windows.
+        env.setdefault("MSYS", "winsymlinks:nativestrict")
         return subprocess.run(
-            [BASH, path, *args], capture_output=True, text=True, timeout=180
+            [BASH, path, *args], capture_output=True, text=True, timeout=180, env=env
         )
     finally:
         Path(path).unlink(missing_ok=True)
@@ -111,7 +116,9 @@ systemctl() {
 }
 
 fail=0
+n_ok=0
 ok() { # nome obtido esperado
+    n_ok=$((n_ok + 1))
     if [ "$2" = "$3" ]; then
         echo "PASS  $1"
     else
@@ -192,7 +199,16 @@ if [ -L "$SE/roleta.conf" ]; then
     if [ -L "$SE/roleta.conf" ]; then a=sim; else a=nao; fi
     ok "(c5) symlink preservado" "$a" "sim"
 else
-    echo "PASS  (c5) pulado — o filesystem nao cria symlink"
+    # Git Bash no Windows nao cria symlink sem privilegio. Num host POSIX isso e
+    # erro de setup, nao "cenario indisponivel": sites-enabled -> sites-available
+    # E o layout padrao do Debian, entao pular em silencio aqui esconderia
+    # justamente o caminho mais provavel em producao.
+    case "$(uname -s 2>/dev/null || echo desconhecido)" in
+        Linux*|Darwin*|*BSD*)
+            echo "SETUP-FAIL (c5) host POSIX nao criou symlink"; exit 92 ;;
+        *)
+            echo "SKIP  (c5) o filesystem nao cria symlink" ;;
+    esac
 fi
 
 # --- (c6) reload pendente de um tick anterior -> recarrega mesmo em dia -----
@@ -255,6 +271,7 @@ ok "(c4) rc"               "$RC" "0"
 ok "(c4) reloads"          "$RELOADS" "0"
 
 rm -rf "$WORK" "$BLOCK"
+echo "TOTAL $n_ok"
 exit $fail
 """
 
@@ -299,7 +316,9 @@ publica() { # $1 = conteudo do script de deploy na main
 }
 
 fail=0
+n_ok=0
 ok() { # nome obtido esperado
+    n_ok=$((n_ok + 1))
     if [ "$2" = "$3" ]; then
         echo "PASS  $1"
     else
@@ -372,6 +391,7 @@ ok "(d3) avisou o fetch"      "$(tem 'FETCH FAIL')" "sim"
 ok "(d3) rodou a copia local" "$(tem 'DEPLOY-V1')" "sim"
 
 rm -rf "$WORK"
+echo "TOTAL $n_ok"
 exit $fail
 """
 
@@ -490,6 +510,23 @@ class TestDeployInstalaOConf(unittest.TestCase):
         self.assertIn("NGINX_CONF_CANDIDATES", self.src)
 
 
+def _total(stdout):
+    """Numero de asserts que o harness realmente executou (linha `TOTAL n`)."""
+    for linha in reversed(stdout.splitlines()):
+        if linha.startswith("TOTAL "):
+            return int(linha.split()[1])
+    return -1
+
+
+# Cobertura esperada. Sao numeros duros de proposito: um cenario que sumir (ou
+# que passe a pular em silencio) derruba o teste em vez de reduzir a cobertura
+# sem ninguem notar — o mesmo "sucesso falso" que este sprint existe para matar.
+CONF_ASSERTS_SEM_SYMLINK = 35  # (c5) precisa de symlink; Git Bash no Windows nao cria
+C5_ASSERTS = 3                 # rc + alvo atualizado + symlink preservado
+CONF_ASSERTS = CONF_ASSERTS_SEM_SYMLINK + C5_ASSERTS
+SHIM_ASSERTS = 18
+
+
 @unittest.skipUnless(BASH, "bash indisponivel")
 class TestConfSyncFuncional(unittest.TestCase):
     """Cenarios (a), (b) e (c) do brief, executando o bloco real do deploy."""
@@ -498,9 +535,18 @@ class TestConfSyncFuncional(unittest.TestCase):
         r = _bash(HARNESS_CONF, str(DEPLOY_SH))
         self.assertNotEqual(r.returncode, 90, f"sentinelas do bloco sumiram:\n{r.stdout}")
         self.assertNotEqual(r.returncode, 91, f"captura excedeu o bloco:\n{r.stdout}")
+        self.assertNotEqual(r.returncode, 92, f"setup do harness falhou:\n{r.stdout}")
         self.assertEqual(r.returncode, 0, f"{r.stdout}\n{r.stderr}")
         self.assertIn("PASS", r.stdout)
         self.assertNotIn("FAIL", r.stdout)
+
+        pulou = "SKIP" in r.stdout
+        if os.name != "nt":
+            # Em host POSIX (o CI) nenhum cenario pode ser pulado: e la que o
+            # layout real do Debian (sites-enabled -> sites-available) roda.
+            self.assertFalse(pulou, f"cenario pulado num host POSIX:\n{r.stdout}")
+        esperado = CONF_ASSERTS_SEM_SYMLINK if pulou else CONF_ASSERTS
+        self.assertEqual(_total(r.stdout), esperado, f"cobertura mudou:\n{r.stdout}")
 
 
 @unittest.skipUnless(BASH and GIT, "bash/git indisponiveis")
@@ -513,6 +559,8 @@ class TestShimFuncional(unittest.TestCase):
         self.assertEqual(r.returncode, 0, f"{r.stdout}\n{r.stderr}")
         self.assertIn("PASS", r.stdout)
         self.assertNotIn("FAIL", r.stdout)
+        self.assertNotIn("SKIP", r.stdout)
+        self.assertEqual(_total(r.stdout), SHIM_ASSERTS, f"cobertura mudou:\n{r.stdout}")
 
 
 if __name__ == "__main__":

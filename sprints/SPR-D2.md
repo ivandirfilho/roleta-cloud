@@ -181,3 +181,23 @@ pré-validação falha fechada se `mktemp` falhar; rollback também por `mv` at�
 **mutação 3/3 detectada** (remover pré-validação / rollback / idempotência quebra o harness).
 
 **Sem ssh, sem host.** Nenhuma flag do `docker-compose.yml` tocada ⇒ sem espelho Azure.
+
+---
+
+2026-08-16 · FOLLOW-UP (PR base main) · o harness parou de poder pular em silêncio.
+
+Achado ao inspecionar o log do CI do PR #81: o cenário **(c5) destino em symlink** — que é o
+layout padrão do Debian (sites-enabled → sites-available) e, portanto, o caminho MAIS
+provável no host real — se auto-pulava quando o filesystem não criava symlink, e o log não
+registrava o pulo. Suíte verde, cenário possivelmente nunca executado desde que foi escrito.
+
+- Harness conta os próprios asserts e imprime `TOTAL n`; o teste compara com número duro
+  (`CONF_ASSERTS = 38`, `SHIM_ASSERTS = 18`). Cenário que sumir derruba o teste.
+- Pulo virou `SKIP` explícito; em host POSIX pular o (c5) é `SETUP-FAIL` (`exit 92`).
+- `_bash()` exporta `MSYS=winsymlinks:nativestrict`, então o (c5) roda também no Windows —
+  a cobertura passou a ser 38 asserts em qualquer plataforma, em vez de 35 aqui e 38 lá.
+- Validado: mutação (apagar um assert) → `TOTAL 37 ≠ 38`, guard morde; (c5) executado de
+  verdade pela primeira vez (symlink preservado, alvo atualizado) · suíte 1254 passed.
+
+Efeito colateral útil: minha contagem declarada de asserts estava errada (34, real 35) — o
+guard pegou o erro na primeira execução.
