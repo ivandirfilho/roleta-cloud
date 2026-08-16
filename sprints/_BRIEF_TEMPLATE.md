@@ -1,6 +1,8 @@
 # SPR-XXX · <título curto> · Bloco BLK-? · Pri P?
 
 > **Brief auto-contido para um agente EXECUTOR em sessão nova.** Não exige contexto prévio.
+> **SDD: este brief É a spec — fonte da verdade e contrato do agente.** Decisões marcadas
+> como FECHADAS não se reabrem; ambiguidade real → 1 pergunta ao Diretor, não suposição.
 > Fonte/visão: `fluxo_mental_24.md` (card §6 do bloco, linha §7 do backlog, navegação no grafo §8).
 
 ## Meta (o Diretor preenche; o executor respeita)
@@ -10,6 +12,10 @@ locks:      []           # ex.: schema, alembic, BLK-G, compose, extensão
 touches:    []           # arquivos/dirs principais
 base_sha:   origin/main
 branch:     spr/SPR-XXX
+modelo:     auto         # roteamento do Diretor: spec FECHADA/escopo pequeno → rápido
+                         # (gpt-5.6-luna | gemini-flash); incidente P0/design aberto →
+                         # profundo (claude-opus-5); default auto = fable-5
+timebox:    45min        # estourou → parar, registrar no Log e avisar o Diretor
 ```
 
 ## Setup (worktree próprio — NÃO use o working dir do Diretor)
@@ -61,12 +67,15 @@ Reverter SEM perda (ISO obrig.): preferir **flag default-OFF na compose** (`SDA_
 
 ## Closeout (a ORDEM importa — não commitar antes de gerar o log)
 1. Rodar a **Validação** (incl. **suíte completa verde**) e colar o resultado no `## Log`.
-2. **ADENDO ISO**: anexar entrada em `Manutenabilidade_iso.md` (capacidades + impacto ISO por característica + scorecard delta + obrigações + **Rollback**) — exigência do ciclo.
+2. **ADENDO ISO = arquivo NOVO** em `docs/iso/adendos/AAAA-MM-DD-<slug>.md` (convenção no
+   README da pasta; capacidades + impacto ISO + obrigações + **Rollback** + **Replay
+   envelope**: modelo(s) usados, skills/MCPs-chave, nº de turnos aprox, duração). **NUNCA
+   apendar em `Manutenabilidade_iso.md`** (congelado 06/08).
 3. **Code-review pós-implantação** (subagent `code-review` ou rodada manual) → corrigir bugs antes do PR.
 4. **Append** no `## Log` (data · status · o que mudou · validação · arquivos).
 5. `graphify update .` só p/ navegação **local** → **NÃO commitar `graphify-out/`** (Diretor/CI atualiza após o merge).
 6. `git status` → **commitar TODOS os arquivos** (código + ADENDO + ESTE brief com o log) em `spr/SPR-XXX` (`SPR-XXX: <resumo>` + trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`). Excluir `graphify-out/`.
-7. `git push -u origin spr/SPR-XXX` e **abrir PR** (NÃO fazer merge).
+7. `git push -u origin spr/SPR-XXX` → **abrir PR** título `SPR-XXX:` → **armar auto-merge** (`gh pr merge --auto --squash <nº>`; NUNCA `--admin`/merge manual).
 8. `store_memory` do achado durável (escopo repository); avisar o Diretor: *"PR de SPR-XXX aberto"*.
 
 ---

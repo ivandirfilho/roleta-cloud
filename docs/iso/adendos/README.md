@@ -22,6 +22,8 @@ serializar no documento-mãe.
   3. Flags criadas/alteradas e default.
   4. Como reverter (flag OFF / revert do PR).
   5. Lições ISO 25010/14764 se houver.
+  6. **Replay envelope** (D7 do blueprint): modelo(s) usados, skills/MCPs-chave,
+     nº de turnos aprox e duração — rastro fino fica em `~/.copilot/telemetry/events.ndjson`.
 - `Manutenabilidade_iso.md` **continua valendo** como corpo histórico e
   arquitetural — só não recebe mais ADENDOs incrementais por append. Um
   ponteiro no fim dele aponta para cá.
