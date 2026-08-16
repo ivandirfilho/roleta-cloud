@@ -27,7 +27,22 @@ echo "[pause] T+0  aguardando 60s para clientes drenarem"
 sleep 60
 
 echo "[pause] T+60 parando container roleta-cloud (PG continua up)"
-docker stop --time 30 roleta-cloud
+# SPR-D1 (16/08/2026): sinaliza a parada DELIBERADA antes do stop. Sem esta
+# sentinela, o self-heal do tick NOOP (scripts/roleta-deploy-pull.sh) subiria o
+# container de volta em ate ~2 min e a janela de manutencao evaporaria.
+# resume_app.sh remove o arquivo.
+SELF_HEAL_PAUSED_FILE="${SELF_HEAL_PAUSED_FILE:-/var/lib/roleta-deploy/self_heal_paused}"
+mkdir -p "$(dirname "$SELF_HEAL_PAUSED_FILE")" 2>/dev/null || true
+# Falhar aqui e FATAL: a sentinela e o unico freio que cobre este stop, e seguir
+# em frente entregaria uma janela de manutencao que o self-heal desfaz sozinho em
+# ~2 min. Sem 2>/dev/null — se falhar (ex.: /var cheio), o motivo tem de aparecer.
+if ! echo "manual-pause ${TS}" > "$SELF_HEAL_PAUSED_FILE"; then
+    echo "[pause] ERRO: nao consegui criar ${SELF_HEAL_PAUSED_FILE} — abortando" >&2
+    echo "[pause] (sem a sentinela o self-heal ressuscitaria o app durante a manutencao)" >&2
+    exit 1
+fi
+echo "[pause] self-heal suspenso via ${SELF_HEAL_PAUSED_FILE}"
+docker stop --time 60 roleta-cloud
 
 echo "[pause] OK app parado. Container PG segue em pe:"
 docker ps --filter name=roleta-pg --format "  {{.Names}}  {{.Status}}"

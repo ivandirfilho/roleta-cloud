@@ -51,6 +51,14 @@ assert_state_volume_ready() {
 
 assert_state_volume_ready
 
+# SPR-D1 (16/08/2026): a sentinela de pausa e liberada SO no fim, depois do
+# healthcheck (ver abaixo). Removê-la aqui abriria uma janela de ate ~90s em que o
+# app ainda nao subiu e o self-heal ja voltou a vigiar: o tick dispararia um
+# `docker compose up -d` concorrente com o desta retomada (o Compose nao serializa
+# invocacoes) e, se o resume abortasse, o self-heal ficaria batendo a cada 2 min
+# com o operador ainda diagnosticando.
+SELF_HEAL_PAUSED_FILE="${SELF_HEAL_PAUSED_FILE:-/var/lib/roleta-deploy/self_heal_paused}"
+
 echo "[resume] T+0  subindo container roleta-cloud"
 docker compose up -d
 
@@ -67,8 +75,14 @@ done
 
 if [[ "$STATUS" != "healthy" ]]; then
   echo "[resume] ERRO: container nao ficou healthy em 90s. Status final: ${STATUS}"
+  echo "[resume] self-heal SEGUE suspenso (${SELF_HEAL_PAUSED_FILE}) — remova a mao apos diagnosticar"
   docker logs roleta-cloud --tail 30
   exit 2
+fi
+
+# App comprovadamente saudavel: so agora o self-heal volta a vigiar.
+if [[ -f "$SELF_HEAL_PAUSED_FILE" ]]; then
+  rm -f "$SELF_HEAL_PAUSED_FILE" && echo "[resume] self-heal reativado (${SELF_HEAL_PAUSED_FILE} removido)"
 fi
 
 echo "[resume] desmarcando app_paused no PG"
