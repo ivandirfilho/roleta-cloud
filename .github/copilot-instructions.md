@@ -4,6 +4,15 @@
 > **Contrato operacional completo (camadas local/git/Debian, ciclo zero-humano, anti-conflito): `AGENTS.md` na raiz.**
 > Blueprint completo: `fluxo_mental_24.md`. Metodologia de sprints: `evolução_24_junho.md`. Board: `sprints/BOARD.md`.
 
+## Ritual de abertura (OBRIGATÓRIO — antes da primeira ação de QUALQUER tarefa)
+1. Rode `pwsh -File scripts/agent-kickoff.ps1` (~10s, read-only): te dá main-red, PRs
+   abertos (lock check), últimos merges, estado REAL de produção (endpoints), frescor do
+   grafo e o tail do board. **Não pergunte ao usuário nada que esse output já responde.**
+2. Orientação profunda: `AGENTS.md` (contrato + mapa de leitura §5) e, para código,
+   grafo local (`graphify query --graph graphify-out/graph.json`) ANTES de grep/leitura ampla.
+3. Estado de produção NUNCA por suposição: endpoints `/health`/`/metrics` + issues
+   abertas. Servidor é intocável (sem ssh) — se a causa exigir host, é issue para o dono.
+
 ## Invioláveis (toda mudança)
 - **INV-3:** a estratégia SEMPRE indica `APOSTAR`; um veto entra como `min()` no stake e **nunca** suprime a indicação.
 - **Flags na compose:** comportamento novo nasce **atrás de flag default-OFF** em `docker-compose.yml`; leitura por-chamada (não cachear); nada hardcoded.
