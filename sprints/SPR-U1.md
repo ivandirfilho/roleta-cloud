@@ -97,3 +97,14 @@ auto-merge (`gh pr merge --auto --squash <nº>`). 4. Avisar o Diretor com top-3 
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+2026-08-16 · DONE · Auditoria completa: 34 achados (1×P0, 5×P1, 14×P2, 14×P3) nas 4
+superfícies; inventário 100%; matriz de estados 3×2×3×2; jornada 502 verificada com sonda
+real (`/health` 404, `/ws` 502 — backend fora, nginx vivo); suspeitas do Diretor: 6
+confirmadas, 2 refutadas com evidência (zonas mortas OK; backoff da extensão OK — só o
+dashboard martelam 5s fixo); SPR-X5 CONFIRMADO com 4 refinamentos v2 (racetrack deve
+obedecer ao futuro estado de erro; rótulo só nos centros; unificar CSS `.minimized`
+duplicado no próprio X5; clamp de drag). Top-3: OV-01 (P0 — minimizado cego a queda de
+servidor), BG-01/PP-01 (P1 — start/captura/popup reportam sucesso sem servidor), OV-02+MN-01
+(P1 — sem drag de mouse; grade de controle esconde os 2 resultados mais recentes).
+Validação: docs-only, revisão de consistência (todo achado com arquivo:linha), zero código.
+Arquivos: docs/ux/2026-08-16-auditoria-ux-front.md (novo), sprints/SPR-U1.md (este log).
