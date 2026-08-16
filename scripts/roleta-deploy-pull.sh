@@ -1,4 +1,7 @@
 #!/bin/bash
+# ROLETA-DEPLOY-PULL — marcador estavel do entrypoint canonico. O shim (SPR-D2)
+# recusa executar um alvo que nao o contenha (arquivo vazio/truncado passa em
+# `bash -n` e sairia 0, fingindo deploy bem-sucedido para sempre).
 # SP-03: pull-based deploy automatizado. (Fonte versionada — instalar em
 # /usr/local/bin/roleta-deploy-pull.sh no servidor; manter LF.)
 #
@@ -18,6 +21,10 @@
 #      aplica (reload OU recriacao unica do Prometheus) e VERIFICA que o
 #      container passou a ler os mesmos bytes do repo. Sem mudanca de obs,
 #      nao encosta no Prometheus.
+#  11) SPR-D2 (16/08): sync_nginx_conf() — instala `roleta.conf` no vhost do
+#      host (candidato pre-validado -> mv atomico -> nginx -t global -> reload,
+#      com rollback do backup). Roda tambem no tick NOOP: o vhost e estado
+#      convergente, nao subproduto de um commit novo.
 #
 # Idempotente. Logs vao para /var/log/roleta-deploy.log + journald.
 set -euo pipefail
@@ -206,6 +213,242 @@ self_heal_tick() {
 }
 # <<< SPR-D1 SELF-HEAL END
 
+# >>> SPR-D2 NGINX CONF BEGIN (sentinela usada por tests/test_spr_d2_ultima_milha.py —
+# o teste extrai daqui até o END para exercitar a instalação do conf sem rodar o deploy)
+# --- Instalação do `roleta.conf` pelo próprio deploy (SPR-D2, 16/08/2026) ----
+# BURACO CORRIGIDO: `roleta.conf` era fonte versionada que NENHUM deploy instalava.
+# O deploy fazia `nginx -t` + `reload` (do frontend) mas nunca copiava o arquivo, e
+# o nginx do host seguia servindo a cópia manual antiga. Foi por isso que o merge do
+# SPR-D1 não curou o 502: `/health` e `/metrics` existiam no repo e respondiam 404
+# em produção — "mergeou" ≠ "implantado".
+#
+# ORDEM DOS GATES (importa): valida o CANDIDATO antes de tocar no destino. Instalar
+# primeiro e testar depois deixa uma janela em que um `reload` de terceiro (o hook
+# do certbot, por exemplo) carregaria um vhost inválido. Aqui:
+#   1) escreve o candidato num arquivo OCULTO do mesmo diretório (o ponto inicial
+#      impede que `include sites-enabled/*` o veja em voo; e mesmo diretório garante
+#      que o `mv` seja rename atômico, não cópia);
+#   2) `nginx -t` num prefixo isolado que inclui SÓ o candidato -> reprovou, aborta
+#      com o destino intacto;
+#   3) backup + `mv` atômico;
+#   4) `nginx -t` GLOBAL (autoridade final, no contexto real) -> reprovou, restaura
+#      o backup, reconfere e sai != 0;
+#   5) `reload`.
+# Idempotente: sem diff (`cmp -s`), não encosta no nginx.
+NGINX_CONF_SYNC="${NGINX_CONF_SYNC:-1}"
+NGINX_CONF_SRC="${NGINX_CONF_SRC:-$REPO_DIR/roleta.conf}"
+NGINX_CONF_DST="${NGINX_CONF_DST:-}"
+# Layout do host é incerteza conhecida (o agente não faz ssh): tenta os caminhos
+# usuais e aceita override explícito. Documentado no runbook §3.
+NGINX_CONF_CANDIDATES="${NGINX_CONF_CANDIDATES:-/etc/nginx/sites-available/roleta.conf /etc/nginx/sites-enabled/roleta.conf /etc/nginx/conf.d/roleta.conf /etc/nginx/sites-available/roleta}"
+# Backups FORA das pastas do nginx: um `.bak` dentro de sites-enabled/ seria
+# carregado pelo glob `include sites-enabled/*` e duplicaria o server block.
+NGINX_BACKUP_DIR="${NGINX_BACKUP_DIR:-$STATE_DIR/nginx}"
+NGINX_BACKUP_KEEP="${NGINX_BACKUP_KEEP:-10}"
+NGINX_CONF_PREVALIDATE="${NGINX_CONF_PREVALIDATE:-1}"
+# Marca "arquivo trocado, reload ainda não confirmado". Sem isso, um SIGKILL/reboot
+# entre o `mv` e o `reload` (ou um reload que falha) deixaria o tick seguinte com
+# `cmp` igual -> no-op -> nginx servindo a config velha da memória PARA SEMPRE.
+NGINX_RELOAD_PENDING="${NGINX_RELOAD_PENDING:-$NGINX_BACKUP_DIR/.reload-pending}"
+
+resolve_nginx_conf_dst() {
+    local cand target found="" seen=""
+    if [ -n "$NGINX_CONF_DST" ]; then
+        printf '%s' "$NGINX_CONF_DST"
+        return 0
+    fi
+    # shellcheck disable=SC2086 — lista separada por espaço, split é intencional
+    for cand in $NGINX_CONF_CANDIDATES; do
+        [ -e "$cand" ] || continue
+        target="$cand"
+        # Symlink (layout Debian: sites-enabled/x -> sites-available/x): escreve no
+        # ALVO. Um `mv` sobre o link o substituiria por arquivo comum, quebrando a
+        # convenção do host e deixando sites-available com a cópia velha.
+        if [ -L "$cand" ]; then
+            target="$(readlink -f "$cand" 2>/dev/null || true)"
+            [ -n "$target" ] && [ -f "$target" ] || target="$cand"
+        fi
+        case " $seen " in *" $target "*) continue;; esac
+        seen="$seen $target"
+        [ -n "$found" ] || found="$target"
+    done
+    [ -n "$found" ] || return 1
+    # Dois arquivos REAIS distintos: qual é o ativo? Adivinhar produziria "sucesso"
+    # atualizando o inativo. Falha fechada pedindo NGINX_CONF_DST explícito.
+    if [ "$seen" != " $found" ]; then
+        printf '%s' "AMBIGUO:$seen"
+        return 2
+    fi
+    printf '%s' "$found"
+    return 0
+}
+
+# `nginx -T` lista os arquivos REALMENTE carregados. Serve de prova de que o
+# destino escolhido é o ativo — sem isso, instalar num vhost desabilitado passaria
+# em `nginx -t`, no reload e no healthcheck do frontend, reportando falso sucesso.
+# 0 = ativo | 1 = inativo (dump obtido e o arquivo não está nele) | 2 = indeterminado.
+nginx_conf_is_active() {
+    local dst="$1" dump
+    dump="$(nginx -T 2>/dev/null)" || return 2
+    [ -n "$dump" ] || return 2
+    case "$dump" in *"$dst"*) return 0;; esac
+    return 1
+}
+
+# Valida o candidato num prefixo isolado, SEM tocar no destino. Falso-negativo
+# possível (se o vhost dependesse de algo do `http` real — hoje não depende);
+# escape documentado: NGINX_CONF_PREVALIDATE=0.
+prevalidate_nginx_conf() {
+    local candidate="$1" dir out
+    [ "$NGINX_CONF_PREVALIDATE" = "1" ] || return 0
+    dir="$(mktemp -d 2>/dev/null)" || {
+        log "NGINX CONF PRE-VALIDACAO indisponivel — mktemp falhou; abortando (falha fechada, use NGINX_CONF_PREVALIDATE=0 para pular de propósito)"
+        return 1
+    }
+    {
+        echo "pid $dir/nginx.pid;"
+        echo "error_log $dir/error.log;"
+        echo "events { worker_connections 64; }"
+        echo "http {"
+        echo "    include $candidate;"
+        echo "}"
+    } > "$dir/nginx.conf"
+    if out="$(nginx -t -p "$dir" -c "$dir/nginx.conf" 2>&1)"; then
+        rm -rf "$dir" 2>/dev/null || true
+        return 0
+    fi
+    log "NGINX CONF PRE-VALIDACAO reprovou o candidato: $(printf '%s' "$out" | tr '\n' ' ')"
+    rm -rf "$dir" 2>/dev/null || true
+    return 1
+}
+
+prune_nginx_backups() {
+    local f
+    { ls -1t "$NGINX_BACKUP_DIR"/*.bak.* 2>/dev/null || true; } |
+        tail -n "+$((NGINX_BACKUP_KEEP + 1))" |
+        while read -r f; do rm -f "$f" 2>/dev/null || true; done
+    return 0
+}
+
+# 0 = em dia / instalado com sucesso / passo não aplicável; 1 = falha VISÍVEL.
+sync_nginx_conf() {
+    local dst rc tmp backup ts installed=0 active
+    [ "$NGINX_CONF_SYNC" = "1" ] || return 0
+    command -v nginx >/dev/null 2>&1 || return 0
+    [ -f "$NGINX_CONF_SRC" ] || {
+        log "NGINX CONF FALHA — fonte versionada ausente ($NGINX_CONF_SRC); o repo deveria sempre tê-la"
+        return 1
+    }
+
+    dst="$(resolve_nginx_conf_dst)" && rc=0 || rc=$?
+    if [ "$rc" = "2" ]; then
+        log "NGINX CONF MULTIPLOS DESTINOS reais (${dst#AMBIGUO:} ) — nao da para adivinhar o ativo"
+        log "NGINX CONF defina NGINX_CONF_DST no Environment= da unit (docs/runbooks/servidor-502-glassbox.md secao 3)"
+        return 1
+    fi
+    if [ "$rc" != "0" ]; then
+        log "NGINX CONF DESTINO NAO ENCONTRADO — candidatos: $NGINX_CONF_CANDIDATES"
+        log "NGINX CONF defina NGINX_CONF_DST no Environment= da unit (docs/runbooks/servidor-502-glassbox.md secao 3)"
+        return 1
+    fi
+
+    if cmp -s "$NGINX_CONF_SRC" "$dst"; then
+        # Em dia no disco. Só é no-op se o reload do tick anterior tiver confirmado.
+        [ -f "$NGINX_RELOAD_PENDING" ] || return 0
+        log "NGINX CONF RELOAD PENDENTE de um tick anterior — arquivo ja em dia, revalidando e recarregando"
+    else
+        log "NGINX CONF diff detectado — $NGINX_CONF_SRC difere de $dst"
+
+        if ! mkdir -p "$NGINX_BACKUP_DIR"; then
+            log "NGINX CONF FALHA ao criar $NGINX_BACKUP_DIR — destino intacto"
+            return 1
+        fi
+
+        tmp="$(dirname "$dst")/.$(basename "$dst").roleta-deploy.tmp"
+        if ! cp -f "$NGINX_CONF_SRC" "$tmp"; then
+            rm -f "$tmp" 2>/dev/null || true
+            log "NGINX CONF FALHA ao escrever o candidato em $tmp — destino intacto"
+            return 1
+        fi
+        chmod 644 "$tmp" 2>/dev/null || true
+
+        if ! prevalidate_nginx_conf "$tmp"; then
+            rm -f "$tmp" 2>/dev/null || true
+            log "NGINX CONF ABORTADO — candidato invalido; $dst permanece como estava"
+            return 1
+        fi
+
+        ts="$(date -u +%Y%m%dT%H%M%SZ)"
+        backup="$NGINX_BACKUP_DIR/$(basename "$dst").bak"
+        if [ -e "$dst" ]; then
+            if ! cp -f "$dst" "$backup" || ! cp -f "$dst" "$backup.$ts"; then
+                rm -f "$tmp" 2>/dev/null || true
+                log "NGINX CONF FALHA no backup de $dst — destino intacto"
+                return 1
+            fi
+        else
+            backup=""
+            log "NGINX CONF destino inexistente ($dst) — primeira instalacao, sem backup"
+        fi
+
+        # Sentinela ANTES do mv: a partir daqui o disco pode divergir da memória do
+        # nginx, e só o reload confirmado abaixo limpa a marca.
+        : > "$NGINX_RELOAD_PENDING" 2>/dev/null || true
+
+        if ! mv -f "$tmp" "$dst"; then
+            rm -f "$tmp" 2>/dev/null || true
+            rm -f "$NGINX_RELOAD_PENDING" 2>/dev/null || true
+            log "NGINX CONF FALHA no mv atomico para $dst — destino intacto"
+            return 1
+        fi
+        installed=1
+    fi
+
+    if ! nginx -t >/dev/null 2>&1; then
+        log "NGINX CONF INVALIDO no contexto global apos instalar em $dst: $(nginx -t 2>&1 | tr '\n' ' ')"
+        if [ "$installed" != "1" ]; then
+            log "NGINX CONF sem rollback — nada foi instalado neste tick; conf global quebrada por outra causa"
+            return 1
+        fi
+        if [ -n "$backup" ]; then
+            # Restauração também atômica: um SIGKILL no meio de um `cp` direto sobre o
+            # destino deixaria o vhost truncado.
+            if cp -f "$backup" "$tmp" && mv -f "$tmp" "$dst" && nginx -t >/dev/null 2>&1; then
+                rm -f "$NGINX_RELOAD_PENDING" 2>/dev/null || true
+                log "NGINX CONF ROLLBACK ok — $dst restaurado de $backup"
+            else
+                rm -f "$tmp" 2>/dev/null || true
+                log "NGINX CONF ROLLBACK INSTAVEL — $dst restaurado mas nginx -t segue falhando; intervencao do dono (runbook secao 3)"
+            fi
+        else
+            rm -f "$dst" 2>/dev/null || true
+            rm -f "$NGINX_RELOAD_PENDING" 2>/dev/null || true
+            log "NGINX CONF ROLLBACK ok — $dst removido (nao existia antes desta tentativa)"
+        fi
+        return 1
+    fi
+
+    if ! systemctl reload nginx >/dev/null 2>&1; then
+        log "NGINX RELOAD FALHOU com conf valido em $dst — nginx segue servindo a config antiga da memoria; o proximo tick tenta de novo (marca de pendencia mantida)"
+        return 1
+    fi
+    rm -f "$NGINX_RELOAD_PENDING" 2>/dev/null || true
+
+    prune_nginx_backups
+    log "NGINX CONF instalado -> $dst (backup ${backup:-nenhum}${ts:+ + $ts}) + reload ok"
+
+    # Última defesa contra falso sucesso: o arquivo pode estar perfeito e simplesmente
+    # não ser carregado (vhost em sites-available sem symlink em sites-enabled).
+    nginx_conf_is_active "$dst" && active=0 || active=$?
+    if [ "$active" = "1" ]; then
+        log "NGINX CONF DESTINO INATIVO — $dst nao aparece no 'nginx -T'; o vhost servido NAO e este"
+        log "NGINX CONF habilite o vhost (ln -s para sites-enabled) ou ajuste NGINX_CONF_DST (runbook secao 3)"
+        return 1
+    fi
+    return 0
+}
+# <<< SPR-D2 NGINX CONF END
+
 cd "$REPO_DIR"
 
 # OBS-INODE (05/08/2026): uma pendencia de observabilidade de um deploy anterior
@@ -233,7 +476,17 @@ if [ "$LOCAL" = "$REMOTE" ]; then
     # SPR-D1: nada a implantar != nada a fazer. Se o app estiver fora do ar,
     # cura aqui; sai != 0 se não conseguiu, para o systemd marcar a unit como
     # failed em vez de reportar sucesso com o Glass Box offline.
+    tick_rc=0
     if ! self_heal_tick; then
+        tick_rc=1
+    fi
+    # SPR-D2: o vhost também é estado convergente. Um tick sem commit novo ainda
+    # tem de reconciliar o nginx com a fonte versionada — foi exatamente essa
+    # divergência silenciosa que manteve o 502 vivo depois do merge do SPR-D1.
+    if ! sync_nginx_conf; then
+        tick_rc=1
+    fi
+    if [ "$tick_rc" != "0" ]; then
         exit 1
     fi
     exit 0
@@ -301,6 +554,18 @@ else
     log "WS PROBE FALHOU — /health ok mas ninguem escuta em ${WS_PROBE_PORT}: nginx devolvera 502 em /ws"
 fi
 
+# --- Vhost do nginx (SPR-D2, 16/08/2026): o conf também é entregável --------
+# Roda com o backend JÁ saudável e antes do sync de frontend (assim o reload do
+# frontend já encontra o vhost novo). Falha aqui não faz rollback do app — seria
+# desproporcional derrubar um backend saudável — mas contamina o status final:
+# `DEPLOY PARCIAL` + exit != 0, para o systemd marcar a unit como failed em vez
+# de reportar sucesso com o nginx servindo um vhost velho (o 502 de 16/08).
+NGINX_CONF_FAIL=0
+if ! sync_nginx_conf; then
+    NGINX_CONF_FAIL=1
+    log "NGINX CONF FALHOU — app saudavel em $REMOTE, mas o vhost do host NAO reflete o repo"
+fi
+
 # --- Frontend estático para o nginx do host (gap de deploy corrigido 17/06) ---
 # O container serve só o WebSocket (8765) + /health (8766); os assets do dashboard
 # Glass Box são servidos pelo nginx do HOST a partir de $WWW_DIR
@@ -338,6 +603,11 @@ log "DEPLOY OK (app) sha=$REMOTE"
 # READ-ONLY e NAO-FATAL. Deliberadamente NAO se auto-instala: um deploy que
 # reescreve o proprio entrypoint pode se tornar irrecuperavel se o arquivo novo
 # estiver quebrado; a correcao e um comando unico, documentado em docs/DEPLOY.md.
+#
+# SPR-D2 (16/08/2026): com o SHIM instalado no entrypoint, a sonda passa a ser
+# uma rede de seguranca de segunda linha — o shim le o deploy da main a cada
+# tick, entao o congelamento deixa de ser possivel por construcao. A sonda segue
+# aqui porque ela e quem denuncia um host que ainda NAO recebeu o bootstrap.
 if [ -f "$REPO_DIR/scripts/roleta-deploy-install.sh" ]; then
     REPO_DIR="$REPO_DIR" bash "$REPO_DIR/scripts/roleta-deploy-install.sh" --check || true
 fi
@@ -350,6 +620,14 @@ fi
 if ! obs_run apply "$LOCAL" "$REMOTE"; then
     log "OBS FAIL — Prometheus NAO refletiu a config nova (app segue saudavel em $REMOTE)"
     log "DEPLOY PARCIAL sha=$REMOTE"
+    exit 1
+fi
+
+# SPR-D2: o passo de obs roda mesmo com o conf do nginx falhado (senão um vhost
+# quebrado esconderia um drift silencioso de Prometheus). Só agora o tick assume
+# o status parcial.
+if [ "$NGINX_CONF_FAIL" != "0" ]; then
+    log "DEPLOY PARCIAL sha=$REMOTE — vhost do nginx nao sincronizado (ver NGINX CONF acima)"
     exit 1
 fi
 
