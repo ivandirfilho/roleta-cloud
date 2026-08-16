@@ -74,14 +74,17 @@ Evidência externa (Diretor 16/08 ~03:46Z): nginx vivo (`/`→200), `location /h
 morrem juntas; 502 = connect recusado = processo fora); H2 (NOOP-gap) atacada com self-heal;
 H4 diagnosticável em 30s pelo runbook. **Fix-forward NÃO curou** (re-sonda 04:58Z: `/health`
 404, `/ws` 502): `roleta.conf` e o entrypoint vivem FORA do repo e nenhum deploy os instala —
-*"mergeou ≠ implantado"*. **Issue #76 = bootstrap único do dono (~2 min)**; **SPR-D2** fecha a
-última milha (shim imutável + conf-install) para essa classe de intervenção nunca mais existir.
+*"mergeou ≠ implantado"*. **SPR-D2 (PRs #81+#82, MERGED)** fechou a última milha no repo:
+shim imutável (revert cura no tick seguinte) + deploy instala `roleta.conf` validando o
+candidato + harness sem skip silencioso. **⏳ ÚNICO elo restante = issue #76: bootstrap
+copy-paste do dono (~2 min) instala shim+conf no host; ela SÓ fecha com `/health` → 200**
+(re-sonda Diretor 06:15Z: `/health` 404, `/ws` 502 — como esperado até o bootstrap).
 
 **Backlog geral**
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|
-| SPR-D2 | P0 | **DOING** | brief em `spr/SPR-D2` → sessão executora (**Opus**) | SPR-D1 (MERGED) | deploy | última milha: shim imutável + deploy instala `roleta.conf` (nginx -t + rollback) + bootstrap único na issue #76 |
+| SPR-D2 | P0 | **MERGED** | spr/SPR-D2 | SPR-D1 | deploy | PRs #81+#82 (16/08, CI verde) · shim imutável + conf-install atômico + harness `TOTAL n` anti-skip · **implantação real = bootstrap issue #76 (dono, ~2 min)** · lição: *suíte verde ≠ cenário testado* |
 | SPR-X5 | P0 | **MERGED** | spr/SPR-X5 | — | extensão-JS, popup | PRs #75+#79 (16/08) · ext **3.11.0** na main (racetrack-guia + 4 refinamentos U1) · ⚠️ reload da unpacked pelo operador PENDENTE (igual V2) · lição 2×: PR nascido com base spr/* — briefs agora exigem base main |
 | SPR-D1 | P0 | **MERGED** | spr/SPR-D1 | — | deploy, health_server | PRs #74+#77 (16/08) · H1 refutada, self-heal+`/health`+runbook na main · **implantação real aguarda bootstrap do dono (issue #76)** → sucedido por SPR-D2 |
 | SPR-U1 | P1 | **MERGED** | spr/SPR-U1 | — | — (docs) | PR #72 (16/08) · 34 achados (1×P0 OV-01, 5×P1) em `docs/ux/2026-08-16-auditoria-ux-front.md` · gerou candidatos SPR-UX-* abaixo |
