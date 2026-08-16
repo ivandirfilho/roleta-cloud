@@ -40,7 +40,7 @@ curl -sSi -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-
 | raiz | /health | /ws | Leitura | Ação |
 |---|---|---|---|---|
 | — | — | `101` | **Tudo certo.** | Se o Glass Box ainda diz offline, o problema é do **cliente** (extensão/cache/URL) — §6. |
-| `200` | `404` | `502` | nginx vivo, mas **o `roleta.conf` novo ainda não está instalado** no host. | Instale o conf (§3) e repita as sondas — só então o `/health` distingue os casos. |
+| `200` | `404` | `502` | nginx vivo, mas **o `roleta.conf` novo ainda não está instalado** no host. | Desde o SPR-D2 isso se resolve sozinho no próximo tick; se persistir, §3. |
 | `200` | `502` | `502` | **App morto ou em crash-loop.** nginx de pé, container não. | §4 (o dono no host). |
 | `200` | `200` | `502` | App vivo servindo health, mas ninguém no 8765. Não deveria acontecer (§0). | §4 + colete `docker logs`; é achado novo, registre. |
 | `502`/`000` | `502`/`000` | `502`/`000` | nginx caiu ou a VM/rede está fora. | §5. |
@@ -50,22 +50,49 @@ curl -sSi -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-
 > prova barata de que o `roleta.conf` do SPR-D1 **está** instalado. **404** =
 > conf antigo.
 
-## 3. Instalar o `roleta.conf` novo (host, uma vez)
+## 3. `roleta.conf` desatualizado — hoje é automático (SPR-D2)
 
-O `roleta.conf` do repo é **fonte versionada**; o nginx do host lê a cópia em
-`/etc/nginx/sites-available/`. O deploy automático **não** copia este arquivo.
+O `roleta.conf` do repo é a **fonte versionada** e, desde 16/08 (SPR-D2), **o deploy o instala
+sozinho** a cada tick em que houver diferença: pré-valida o candidato em um prefixo nginx isolado,
+faz `mv` atômico, roda `nginx -t` global e, se reprovar, **restaura o backup** automaticamente.
+
+Ou seja: `/health` devolvendo `404` deixou de ser uma tarefa de host — é `git` + esperar o tick.
+
+Diagnóstico (sem ssh não dá para ver o arquivo; com ssh, um comando):
+
+```bash
+grep 'NGINX CONF' /var/log/roleta-deploy.log | tail -5
+cmp -s /root/roleta-cloud/roleta.conf /etc/nginx/sites-enabled/roleta.conf && echo "em dia" || echo "divergente"
+ls -t /var/lib/roleta-deploy/nginx/ | head        # backups: roleta.conf.bak + .bak.<TS>
+```
+
+| Log | Leitura | Ação |
+|---|---|---|
+| `NGINX CONF ok` | instalado e recarregado | nenhuma |
+| `NGINX CONF ABORTADO` | o candidato **reprovou** a pré-validação; **destino intacto** | o `roleta.conf` do repo está quebrado → corrigir por PR |
+| `NGINX CONF ROLLBACK ok` | `nginx -t` global reprovou; backup restaurado | o conf conflita com o `http{}` real → corrigir por PR |
+| `NGINX CONF ROLLBACK INSTAVEL` | rollback também não validou | **único caso que pede host**: restaure à mão de `/var/lib/roleta-deploy/nginx/roleta.conf.bak` e rode `nginx -t && systemctl reload nginx` |
+| `NGINX CONF destino nao encontrado` | nenhum candidato existe no host | primeira instalação: crie o arquivo/symlink uma vez (abaixo) ou aponte `NGINX_CONF_DST` |
+| `NGINX CONF MULTIPLOS DESTINOS` | há dois `roleta.conf` **reais** distintos (ex.: um em `conf.d/`, outro em `sites-available/` sem relação) — o deploy se recusa a adivinhar qual é o servido | apague o obsoleto **ou** fixe `NGINX_CONF_DST` no `Environment=` |
+| `NGINX CONF DESTINO INATIVO` | o arquivo foi instalado e validado, mas **não aparece no `nginx -T`**: o vhost servido é outro | `ln -sf` do `sites-available` para `sites-enabled` (bloco abaixo) ou corrija `NGINX_CONF_DST` |
+| `NGINX CONF RELOAD PENDENTE` | um tick anterior trocou o arquivo mas não confirmou o reload (reboot, SIGKILL ou reload falho); este tick está recarregando | nenhuma — é a auto-correção funcionando; se repetir todo tick, veja `systemctl status nginx` |
+| `NGINX RELOAD FALHOU` | conf válido, mas o `systemctl reload nginx` falhou | `systemctl status nginx`; o tick seguinte tenta de novo sozinho (a marca de pendência garante isso) |
+
+**Primeira instalação / host fora do padrão** (o deploy atualiza o conteúdo, mas não cria o
+symlink de `sites-enabled` na primeira vez):
 
 ```bash
 cd /root/roleta-cloud
-git pull --ff-only origin main
-cp /etc/nginx/sites-available/roleta.conf /root/roleta.conf.bak.$(date -u +%Y%m%dT%H%M%SZ)
 cp roleta.conf /etc/nginx/sites-available/roleta.conf
-nginx -t
-systemctl reload nginx
+ln -sf /etc/nginx/sites-available/roleta.conf /etc/nginx/sites-enabled/roleta.conf
+nginx -t && systemctl reload nginx
 curl -sS -o /dev/null -w "health %{http_code}\n" https://roleta.xma-ia.com/health
 ```
 
-Reverter: `cp /root/roleta.conf.bak.<TS> /etc/nginx/sites-available/roleta.conf && nginx -t && systemctl reload nginx`
+Kill switches (em `systemctl edit roleta-deploy.service`, `[Service] / Environment=…`):
+`NGINX_CONF_SYNC=0` (desliga o passo), `NGINX_CONF_PREVALIDATE=0` (pula só o gate isolado —
+use se o vhost passar a depender do `http{}` real e a pré-validação virar falso-negativo),
+`NGINX_CONF_DST=/caminho/exato.conf`.
 
 ## 4. App morto — diagnóstico no host (dono)
 
@@ -190,11 +217,37 @@ systemctl daemon-reload
 > produção. Verifique e corrija:
 > ```bash
 > /root/roleta-cloud/scripts/roleta-deploy-install.sh --check
-> /root/roleta-cloud/scripts/roleta-deploy-install.sh
+> /root/roleta-cloud/scripts/roleta-deploy-install.sh install-shim
 > systemctl start roleta-deploy.service
 > journalctl -u roleta-deploy.service -n 40 --no-pager
 > ```
 > Saída `1` no `--check` = congelado. Reverter: `roleta-deploy-install.sh --rollback`.
+
+## 7b. Shim de deploy (SPR-D2) — por que não há mais "mergeou ≠ implantado"
+
+O `--check` do §7 e o self-heal do §7 vivem no script **versionado**. Enquanto o entrypoint fosse
+uma cópia congelada — ou um launcher que só executasse o **checkout** —, um deploy quebrado podia
+impedir o próprio `git fetch/reset` e o revert no GitHub nunca chegava ao host.
+
+O **shim** (`scripts/roleta-deploy-shim.sh`, instalado por `install-shim`) inverte a ordem:
+
+```
+fetch origin main → git show origin/main:scripts/roleta-deploy-pull.sh → gate `bash -n` → exec
+```
+
+Consequências operacionais:
+
+- **`git revert` cura o deploy em ≤2 min**, sem ssh. É a rota padrão para qualquer regressão de deploy.
+- O shim **não** mexe na working tree (usa `git show`): o gate de NOOP do deploy continua comparando
+  `HEAD` com `origin/main` de verdade.
+- Script inválido em `main` ⇒ `SHIM ... rejeitado pelo gate` + `exit 1`; o host fica intacto (unit
+  `failed`, visível no journal).
+- Rede/GitHub fora ⇒ `SHIM FETCH FAIL` e ele executa a cópia local — sem janela sem deploy.
+- Auditoria do que rodou de fato:
+  ```bash
+  grep SHIM /var/log/roleta-deploy.log | tail -20
+  diff /var/lib/roleta-deploy/deploy-from-main.sh /root/roleta-cloud/scripts/roleta-deploy-pull.sh
+  ```
 
 ## 8. Encerramento
 

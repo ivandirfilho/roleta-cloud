@@ -134,3 +134,50 @@ de `nginx -t` · shim: o dono pode reapontar a unit para o script antigo (drop-i
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+
+2026-08-16 · ENTREGUE (PR base main) · última milha do deploy fechada.
+
+**O que foi feito**
+- `scripts/roleta-deploy-shim.sh` (novo): entrypoint imutável. A cada tick faz `git fetch
+  origin main`, materializa `scripts/roleta-deploy-pull.sh` de `origin/main` em
+  `$STATE_DIR` via `git show` e dá `exec`. Revert de PR volta a curar produção em ~2 min.
+- `scripts/roleta-deploy-pull.sh`: bloco `# >>> SPR-D2 NGINX CONF BEGIN/END` instala o
+  `roleta.conf` (idempotente por `cmp -s`, pré-validação do candidato, backup fora de
+  `/etc/nginx/`, `mv` atômico, `nginx -t` global, rollback, reload). Falha ⇒ `DEPLOY
+  PARCIAL` + `exit 1`.
+- `scripts/roleta-deploy-install.sh`: `atomic_install()` (gate `bash -n` → temp oculto →
+  `mv`), modo `install-shim`, `--check` ciente das duas famílias de marcador.
+- `tests/test_spr_d2_ultima_milha.py` (novo): 17 testes / 52 asserts, harnesses que
+  executam os blocos do script REAL (sentinelas) e repositórios git de verdade.
+- Docs: `docs/DEPLOY.md`, `docs/runbooks/servidor-502-glassbox.md` (§3 e §7b novo),
+  ADENDO `docs/iso/adendos/2026-08-16-ultima-milha-deploy.md` + índice.
+- Issue #76: comentário com o bootstrap único (comment 5305983914). **Não fechada** — só
+  fecha quando o dono confirmar `/health` → 200.
+
+**Duas correções de desenho que mudaram a implementação**
+1. O shim NÃO toca a working tree. A versão óbvia (`git reset --hard` antes do `exec`)
+   quebraria o deploy: o gate de NOOP compara `HEAD` com `origin/main` e ficaria sempre
+   igual ⇒ nunca mais build/alembic/`up -d`. Travado por teste.
+2. Conf com DOIS gates, validando o candidato ANTES de tocar o destino (instalar-e-testar
+   deixa janela para um reload de terceiro carregar vhost quebrado). Backups em
+   `/var/lib/roleta-deploy/nginx/` porque `.bak` em `sites-enabled/` seria carregado pelo
+   glob e quebraria o `nginx -t` sozinho.
+
+**Desvio do brief (documentado no ADENDO §2.1):** shim instalado NO CAMINHO do entrypoint,
+sem drop-in do systemd. A unit não muda, o bootstrap vira um comando e some o estado
+intermediário "shim instalado, unit apontando para o arquivo velho".
+
+**Review adversarial (subagent) → 6 achados, todos corrigidos e cobertos por teste:**
+marca `.reload-pending` (SIGKILL/reboot entre `mv` e `reload` deixaria o nginx na config
+velha para sempre); checagem `nginx -T` de destino ATIVO (vhost em `sites-available` sem
+symlink passaria em tudo e não mudaria nada); `MULTIPLOS DESTINOS` em vez de adivinhar;
+gate de identidade no shim (script vazio passa em `bash -n` e sai 0 = "deploy ok" eterno);
+pré-validação falha fechada se `mktemp` falhar; rollback também por `mv` atômico.
+
+**Validação:** `pytest tests/ --ignore=tests/test_obs_reload.py` → 1254 passed, 14 skipped,
+1 xfailed · contratos CI-only no Windows (`TestDeployEntrypoint`, `TestInstaladorDoEntrypoint`,
+`TestLauncherRuntime`, `TestComposeMount`, `TestDeployScriptChamaObsApply`) → 32 passed ·
+`bash -n` rc=0 nos 4 scripts · harnesses: 34 asserts (conf) + 18 (shim), nenhum pulado ·
+**mutação 3/3 detectada** (remover pré-validação / rollback / idempotência quebra o harness).
+
+**Sem ssh, sem host.** Nenhuma flag do `docker-compose.yml` tocada ⇒ sem espelho Azure.
