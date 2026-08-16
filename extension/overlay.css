@@ -271,9 +271,15 @@
   margin-top: 8px;
 }
 
-/* Modo minimizado */
+/* ===== ESTADO MINIMIZADO DO OVERLAY — bloco ÚNICO =====
+   SPR-X5 (auditoria SPR-U1, item 2): os DOIS blocos `.minimized` duplicados
+   (aqui e ~l.359) foram consolidados NESTE, declarado ANTES da media query
+   mobile — assim o override de 220px (≤768px) de fato vence por ordem de
+   fonte (antes a regra mobile era morta: mesma especificidade, fonte anterior). */
 #escuta-beat-overlay.minimized .eb-panel {
   min-width: auto;
+  /* SPR-X5: 200 → 240px p/ o racetrack guia caber legível (Diretor: 200–250px) */
+  max-width: 240px;
   padding: 8px 12px;
 }
 
@@ -287,6 +293,24 @@
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+#escuta-beat-overlay.minimized .eb-status {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+#escuta-beat-overlay.minimized .eb-header-buttons {
+  margin-left: 8px;
+}
+
+#escuta-beat-overlay.minimized .eb-new-session,
+#escuta-beat-overlay.minimized .eb-force-master {
+  display: none;
+}
+
+#escuta-beat-overlay.minimized .eb-minimize {
+  transform: rotate(180deg);
 }
 
 /* Animações */
@@ -344,6 +368,11 @@
     font-size: 16px;
     padding: 6px 10px;
   }
+
+  /* SPR-X5: no mobile o pill minimizado segura ~220px p/ o racetrack legível */
+  #escuta-beat-overlay.minimized .eb-panel {
+    max-width: 220px;
+  }
 }
 
 /* Touch-friendly */
@@ -355,40 +384,9 @@
   }
 }
 
-/* ===== ESTADO MINIMIZADO DO OVERLAY =====*/
-#escuta-beat-overlay.minimized .eb-panel {
-  padding: 8px 12px;
-  min-width: auto;
-  max-width: 200px;
-}
-
-#escuta-beat-overlay.minimized .eb-body {
-  display: none;
-}
-
-#escuta-beat-overlay.minimized .eb-header {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-#escuta-beat-overlay.minimized .eb-status {
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
-#escuta-beat-overlay.minimized .eb-header-buttons {
-  margin-left: 8px;
-}
-
-#escuta-beat-overlay.minimized .eb-new-session,
-#escuta-beat-overlay.minimized .eb-force-master {
-  display: none;
-}
-
-#escuta-beat-overlay.minimized .eb-minimize {
-  transform: rotate(180deg);
-}
+/* (SPR-X5: o segundo bloco `.minimized` duplicado que vivia aqui foi
+   consolidado no bloco único acima da media query mobile — item 2 da
+   auditoria SPR-U1; sem mudança visual.) */
 
 /* ===== OLD CONTROL PANEL v4.0 - DISABLED =====
    This section was for the separate control_panel.js which is now removed.
@@ -946,4 +944,110 @@
   color: #fff;
   font-weight: 900;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ========================================
+   SPR-X5 (16/08): mini-roleta racetrack — guia passivo do minimizado
+   Espelha o widget de vizinhos da Evolution. NÃO-interativa: o contêiner é
+   IRMÃO de .eb-panel (o root já é pointer-events:none), então o clique
+   atravessa para a mesa real. Aparece SÓ no minimizado + APOSTAR + toggle ON.
+   ======================================== */
+#eb-racetrack {
+  display: none;
+  pointer-events: none;
+  margin: 6px auto 0;
+  max-width: 240px;
+  line-height: 0;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
+/* exceção consciente ao "esconde tudo" do minimizado: o racetrack vive FORA
+   de .eb-body e só liga quando o helper marca .eb-rt-show */
+#escuta-beat-overlay.minimized #eb-racetrack.eb-rt-show {
+  display: block;
+}
+
+#eb-racetrack svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+
+/* Slot apagado: só a cor da casa (legibilidade dos ACESOS > completude) */
+.eb-rt-shape {
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 1.5;
+}
+
+.eb-rt-red {
+  fill: #6e1a1a;
+}
+
+.eb-rt-black {
+  fill: #14141c;
+}
+
+.eb-rt-green {
+  fill: #14591f;
+}
+
+/* Números: invisíveis por padrão em ~240px; só os acesos mostram */
+.eb-rt-num {
+  display: none;
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* Aceso: número coberto (17/21) — amarelo #ffe600 + glow (RacetrackAPI.highlight).
+   SPR-U1 item 1: SEM rótulo numérico — a ~220px número visível SÓ nos 3 centros
+   (legibilidade dos acesos > completude); aceso comum = amarelo puro. */
+.eb-rt-slot.active .eb-rt-shape {
+  fill: #ffe600;
+  stroke: rgba(255, 230, 0, 0.9);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.85));
+}
+
+/* Centro (c2/c3/c1): destaque MAIS FORTE — stroke branco + glow maior + nº maior */
+.eb-rt-slot.active-center .eb-rt-shape {
+  fill: #ffe600;
+  stroke: #fff;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.95));
+}
+
+.eb-rt-slot.active-center .eb-rt-num {
+  display: block;
+  fill: #000;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+/* Botão 🎡 (toggle do guia) — par dos botões redondos do header */
+.eb-rt-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 230, 0, 0.15);
+  border: 1px solid rgba(255, 230, 0, 0.4);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.eb-rt-toggle:hover {
+  background: rgba(255, 230, 0, 0.35);
+}
+
+.eb-rt-toggle.off {
+  opacity: 0.35;
+  filter: grayscale(1);
 }
