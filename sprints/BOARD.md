@@ -70,16 +70,25 @@ algoritmo. Gate sem denominador registrado **não** conta.
 
 Evidência externa (Diretor 16/08 ~03:46Z): nginx vivo (`/`→200), `location /health` NEM existe
 (404), `/ws`→**502** = upstream 127.0.0.1:8765 morto; CI main verde, merges recentes docs-only
-⇒ NÃO é regressão de código; suspeitas: WS morto c/ health vivo (H1) / timer-entrypoint (H2) /
-NOOP-gap do deploy (tick sem healthcheck não ressuscita container). Tratamento: **SPR-D1**.
+⇒ NÃO é regressão de código. **Diagnóstico SPR-D1 (PR #74): H1 REFUTADA** (8765/8766 vivem e
+morrem juntas; 502 = connect recusado = processo fora); H2 (NOOP-gap) atacada com self-heal;
+H4 diagnosticável em 30s pelo runbook. **Fix-forward NÃO curou** (re-sonda 04:58Z: `/health`
+404, `/ws` 502): `roleta.conf` e o entrypoint vivem FORA do repo e nenhum deploy os instala —
+*"mergeou ≠ implantado"*. **Issue #76 = bootstrap único do dono (~2 min)**; **SPR-D2** fecha a
+última milha (shim imutável + conf-install) para essa classe de intervenção nunca mais existir.
 
 **Backlog geral**
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|
-| SPR-X5 | P0 | **DOING** | brief em `spr/SPR-X5` → sessão executora | — | extensão-JS, popup | racetrack-guia acesa no overlay minimizado (pedido operador 16/08) · **serializa com V6A/X1..X4/V5** (lock extensão-JS) |
-| SPR-D1 | P0 | **DOING** | brief em `spr/SPR-D1` → sessão executora (**Opus**) | — | deploy, health_server | incidente 16/08 (seção acima): diagnóstico + `/health` no nginx + self-heal NOOP + runbook · fix-forward pelo próprio merge |
-| SPR-U1 | P1 | **DOING** | brief em `spr/SPR-U1` → sessão executora | — | — (docs novo) | auditoria UX sênior das 4 superfícies (Glass Box, popup, overlay exp/min) · saída = achados + sprints candidatos |
+| SPR-D2 | P0 | **DOING** | brief em `spr/SPR-D2` → sessão executora (**Opus**) | SPR-D1 (MERGED) | deploy | última milha: shim imutável + deploy instala `roleta.conf` (nginx -t + rollback) + bootstrap único na issue #76 |
+| SPR-X5 | P0 | **REVIEW** | `spr/SPR-X5` (código PRONTO, dcc112a) | — | extensão-JS, popup | ⚠️ PR #75 nasceu com base `spr/SPR-X5` (lição 2×: auto-merge instantâneo em branch sem proteção) → **PR corretivo `spr/SPR-X5`→`main` pendente** · ext 3.11.0 + 4 refinamentos do U1 · serializa com V6A/X1..X4/V5 |
+| SPR-D1 | P0 | **MERGED** | spr/SPR-D1 | — | deploy, health_server | PRs #74+#77 (16/08) · H1 refutada, self-heal+`/health`+runbook na main · **implantação real aguarda bootstrap do dono (issue #76)** → sucedido por SPR-D2 |
+| SPR-U1 | P1 | **MERGED** | spr/SPR-U1 | — | — (docs) | PR #72 (16/08) · 34 achados (1×P0 OV-01, 5×P1) em `docs/ux/2026-08-16-auditoria-ux-front.md` · gerou candidatos SPR-UX-* abaixo |
+| SPR-UX-CONN | P0 | TODO | — | SPR-X5 (lock) | extensão-JS, popup | jornada 502/OV-01: minimizado cego a queda de servidor (estado de erro explícito, success:false honesto, fila/descarte visível) · brief a escrever do §7 da auditoria |
+| SPR-UX-DESKTOP | P1 | TODO | — | SPR-UX-CONN (lock) | extensão-JS | drag por mouse + clamp, grid slice(-10) newest-first (MN-01), paridade popup×overlay · §7 auditoria |
+| SPR-UX-DASH | P1 | TODO | — | — | frontend | Glass Box: backoff+jitter na reconexão, "⚫ ONLINE" glifo, sanitização innerHTML · **paraleliza** (lock frontend disjunto) |
+| SPR-UX-POLISH | P2 | TODO | — | SPR-UX-DESKTOP | extensão-JS | P2/P3 da auditoria (por último) |
 | SPR-G2 | P0 | TODO | — | — | schema, alembic, BLK-I, sqlite_repo, message_handler | ⚠️ **brief desatualizado**: manda criar `0010_*`, mas a head já é **0013**. Revisar antes de voltar a READY · **serializa com SPR-V4** |
 | SPR-S1 | P0 | TODO | — | **SPR-G2** | BLK-G (análise) | — |
 | SPR-G1 | P1 | TODO | — | — | versioning, docs | — |
