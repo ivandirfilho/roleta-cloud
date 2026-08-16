@@ -126,3 +126,62 @@ corrigir. 4. Append no `## Log`. 5. Commit TUDO no branch da sessão
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+
+2026-08-16 · validado · Racetrack guia implementado e validado (servidor de produção
+FORA/502 — validação 100% client-side com payload sintético do passo 5, como previsto).
+- **Implementação:** `buildRacetrackSVG()` pura (slotsData/geometria canônicos do brief:
+  R_OUT=95, R_IN=50, CY=105, CX_L=95, CX_R=665, SLOT_W=38; sem `<script>`/fonte externa) +
+  helper único `renderMiniRacetrack(s)` ligado nos 3 writers (toggleMinimize, updateOverlay,
+  handleStateSync c/ assinatura anti-re-render no heartbeat 1s) e na limpeza
+  (handleNewSession/handleSessionReset). `#eb-racetrack` é IRMÃO de `.eb-panel` (root já é
+  `pointer-events:none` ⇒ clique atravessa DE VERDADE p/ a mesa; dentro do painel seria
+  capturado). Toggle 🎡 no header, persistido em `overlayUIState.racetrackEnabled`
+  (default ON; legado/ausente ⇒ ON). `.minimized .eb-panel` 200→240px (220px mobile),
+  nos DOIS blocos `.minimized` + media query. Número visível SÓ nos acesos (decisão 2).
+- **Vista expandida:** NÃO recebeu a roletinha (decisão 6 era opcional; o `#eb-regiao` já
+  lista os 17 números em texto — screenshot confirmou que ficaria poluído). Registrado.
+- **Validação automatizada (content.js REAL em jsdom + stub chrome.*): 24/24 ✅** —
+  37 casas na ordem física canônica (0 entre 26 e 32 ✔), 17 acesos = 14 `.active` +
+  3 `.active-center` (5/24/16 via `centrosFromSugestao`, fonte única), formato ÚNICO do
+  pill intacto (`minimizedStatusHTML` não alterado), PULAR/AGUARDAR/reset limpam,
+  heartbeat não diverge, toggle OFF persiste após reload (ON ao religar), degradação
+  limpa sem `numeros` (só centros) e sem nada (esconde).
+- **Screenshots headless (Edge --headless=new, harness com payload sintético):**
+  APOSTAR minimizado (racetrack abaixo de `[5] [24] [16] ⑰ G1 0/0`, arco contíguo de 17
+  aceso, centros destacados), PULAR (some), toggle OFF (some, botão dimmed), expandido
+  (sem racetrack, layout intacto), e prova de click-through via `elementFromPoint` no
+  centro do racetrack aceso ⇒ `hit=click-probe · clickthrough=OK`.
+- **Suítes:** `pytest tests/ --ignore=tests/test_obs_reload.py` ⇒ **1225 passed,
+  14 skipped, 1 xfailed** (Python intocado) · `node --test tests/js/*.test.js` ⇒ 53/53 ✅
+  · `node --check content.js` OK · manifest.json parse OK.
+- **Manifest:** 3.10.0 → **3.11.0**. ⚠️ Reload obrigatório da extensão unpacked em
+  `chrome://extensions` para o Chrome aplicar o content script novo.
+- **Arquivos:** `extension/content.js`, `extension/overlay.css`, `extension/manifest.json`,
+  `docs/iso/adendos/2026-08-16-racetrack-guia-overlay.md` (novo) + índice do README.
+- **Referência doada pelo operador:** HTML standalone (racetrack 760×210, RacetrackAPI
+  .highlight/.clear, `.active` #ffe600, clique por slot) — geometria/ordem reproduzidas
+  como função pura; listener de clique intencionalmente NÃO portado (decisão 3).
+
+2026-08-16 · refinado+revisado · Auditoria SPR-U1 (Diretor) incorporada + code-review.
+- **Code-review (subagent):** 1 achado Médio — a regra mobile de 220px do minimizado era
+  MORTA (bloco `.minimized` duplicado tardio vencia por ordem de fonte; media query não
+  soma especificidade). Corrigido pelo item 2 da auditoria (abaixo). Demais checagens do
+  review: geometria/ordem executadas e conferidas (37 casas, 18R/18B/1G, 0 entre 26 e 32),
+  sem injeção via payload (numeros/centros só entram em `classList`/`dataset`), click-through
+  estrutural OK, `minimizedStatusHTML`/estratégia/stake intocados, manifest OK.
+- **Auditoria SPR-U1 — 4 refinamentos aplicados:** (1) rótulo numérico SÓ nos 3 centros
+  (acesos comuns = amarelo puro; CSS `.active .eb-rt-num` removido); (2) blocos `.minimized`
+  duplicados CONSOLIDADOS em bloco único ANTES da media query mobile ⇒ override 220px
+  passa a valer (sem mudança visual desktop); (3) OV-01: `showConnectionStatus(false)` ⇒
+  `renderMiniRacetrack(null)` — racetrack NUNCA fica aceso com sugestão velha de servidor
+  morto; reconexão só reacende no próximo updateOverlay/state_sync (estado de erro completo
+  fica p/ SPR-UX-CONN); (4) clamp do drag nos 2 eixos no `setupDrag` (pill ~2× mais alto
+  não sai mais do viewport).
+- **Re-validação:** jsdom **28/28 ✅** (nova cena 7: desconexão limpa, reconexão não
+  reacende sozinha, novo APOSTAR reacende) · screenshots: APOSTAR v2 (número só nos
+  centros 5/24/16), mobile 375px (pill 220px vivo) · `node --check` OK ·
+  `pytest tests/ --ignore=tests/test_obs_reload.py` ⇒ **1225 passed, 14 skipped,
+  1 xfailed** (re-run pós-refinamentos).
+- ⚠️ Nota de reload: extensão unpacked exige Reload em `chrome://extensions` (v3.11.0).
+
+

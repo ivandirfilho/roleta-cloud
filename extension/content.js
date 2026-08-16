@@ -10,7 +10,8 @@ let overlayState = {
   isMinimized: false,
   lastSugestao: null,
   isVisible: true,
-  deviceRole: 'unknown'  // 🆕 v3.4: 'master' | 'slave' | 'unknown'
+  deviceRole: 'unknown',  // 🆕 v3.4: 'master' | 'slave' | 'unknown'
+  racetrackEnabled: true  // SPR-X5: toggle 🎡 da roletinha guia (default ON)
 };
 
 // === M15-ADA v4.0.2: Helper DRY para destaque C1 ===
@@ -116,12 +117,145 @@ function buildVeredito(ua) {
     + `<span style="opacity:0.85;">${dir ? ' · ' + dir : ''}${num}</span>`;
 }
 
+// ===== SPR-X5 (16/08): mini-roleta racetrack — guia passivo do minimizado =====
+// Espelha o widget de vizinhos da Evolution para o operador localizar em <1s onde
+// clicar na mesa real. NÃO-interativa (pointer-events:none no CSS): o clique real
+// é na mesa da Evolution — capturar clique aqui atrapalharia (decisão do Diretor).
+// Geometria/ordem doadas pelo operador (HTML standalone de referência no PR).
+
+// Ordem FÍSICA da roleta europeia no racetrack (37 casas):
+// top L→R (15) · arco direito 3/26/0 · bottom R→L (15) · arco esquerdo 8/23/10/5.
+// Conferência DoD: 0 fica entre 26 (arco direito) e 32 (1º do bottom).
+const EB_RT = {
+  VB_W: 760, VB_H: 210,
+  R_OUT: 95, R_IN: 50, CY: 105, CX_L: 95, CX_R: 665,
+  TOP: [24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35],
+  BOTTOM: [32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30],
+  ARC_R: [[3, -90, -30], [26, -30, 30], [0, 30, 90]],
+  ARC_L: [[8, 90, 135], [23, 135, 180], [10, 180, 225], [5, 225, 270]]
+};
+EB_RT.SLOT_W = (EB_RT.CX_R - EB_RT.CX_L) / EB_RT.TOP.length;  // (665-95)/15 = 38
+
+function ebRtPolar(cx, cy, r, deg) {
+  const rad = deg * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+// Setor anelar entre R_IN..R_OUT de a0..a1 graus (horário em coords de tela).
+// Mesmo path do createArcPath do HTML doado.
+function ebRtArcPath(cx, cy, a0, a1) {
+  const { R_OUT, R_IN } = EB_RT;
+  const p0 = ebRtPolar(cx, cy, R_OUT, a0);
+  const p1 = ebRtPolar(cx, cy, R_OUT, a1);
+  const p2 = ebRtPolar(cx, cy, R_IN, a1);
+  const p3 = ebRtPolar(cx, cy, R_IN, a0);
+  const f = (p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+  return `M ${f(p0)} A ${R_OUT} ${R_OUT} 0 0 1 ${f(p1)} `
+       + `L ${f(p2)} A ${R_IN} ${R_IN} 0 0 0 ${f(p3)} Z`;
+}
+
+function ebRtSlot(num, shapeMarkup, tx, ty) {
+  return `<g class="eb-rt-slot" data-num="${num}">${shapeMarkup}`
+    + `<text class="eb-rt-num" x="${tx.toFixed(2)}" y="${ty.toFixed(2)}">${num}</text></g>`;
+}
+
+// Função PURA: gera o SVG string do racetrack (montado UMA vez, lazy, no 1º
+// render — content script roda em <all_urls>, não paga o custo em toda página).
+// Sem <script> injetado, sem innerHTML de fonte externa — só os dados locais acima.
+function buildRacetrackSVG() {
+  const { VB_W, VB_H, R_OUT, R_IN, CY, CX_L, CX_R, SLOT_W, TOP, BOTTOM, ARC_R, ARC_L } = EB_RT;
+  const slotH = R_OUT - R_IN;
+  const rMid = (R_OUT + R_IN) / 2;
+  const shapeCls = (num) => `eb-rt-shape eb-rt-${getNumberColor(num)}`;  // hoisted
+  const parts = [];
+  TOP.forEach((num, i) => {
+    const x = CX_L + i * SLOT_W;
+    const rect = `<rect class="${shapeCls(num)}" x="${x}" y="${CY - R_OUT}" width="${SLOT_W}" height="${slotH}"/>`;
+    parts.push(ebRtSlot(num, rect, x + SLOT_W / 2, CY - rMid));
+  });
+  ARC_R.forEach(([num, a0, a1]) => {
+    const path = `<path class="${shapeCls(num)}" d="${ebRtArcPath(CX_R, CY, a0, a1)}"/>`;
+    const mid = ebRtPolar(CX_R, CY, rMid, (a0 + a1) / 2);
+    parts.push(ebRtSlot(num, path, mid.x, mid.y));
+  });
+  BOTTOM.forEach((num, i) => {
+    const x = CX_R - (i + 1) * SLOT_W;
+    const rect = `<rect class="${shapeCls(num)}" x="${x}" y="${CY + R_IN}" width="${SLOT_W}" height="${slotH}"/>`;
+    parts.push(ebRtSlot(num, rect, x + SLOT_W / 2, CY + rMid));
+  });
+  ARC_L.forEach(([num, a0, a1]) => {
+    const path = `<path class="${shapeCls(num)}" d="${ebRtArcPath(CX_L, CY, a0, a1)}"/>`;
+    const mid = ebRtPolar(CX_L, CY, rMid, (a0 + a1) / 2);
+    parts.push(ebRtSlot(num, path, mid.x, mid.y));
+  });
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">${parts.join('')}</svg>`;
+}
+
+// === Helper ÚNICO do racetrack (lição das "3 telas" de 05/08) ===
+// TODOS os writers do minimizado (toggleMinimize, updateOverlay, handleStateSync)
+// e a limpeza (handleNewSession/handleSessionReset, via null) passam por aqui —
+// ciclo de vida nunca diverge. Regras fechadas pelo Diretor (SPR-X5): mostra SÓ
+// com acao==='APOSTAR' e toggle 🎡 ON; acende sugestao.numeros (17/21) em amarelo
+// (.active, espelho de RacetrackAPI.highlight) e os centros (centrosFromSugestao,
+// fonte ÚNICA) em destaque forte (.active-center); PULAR/AGUARDAR/reset/sem-dados
+// ⇒ limpa/esconde. Degrada limpo sem `numeros` (acende só os centros) — aditivo.
+function renderMiniRacetrack(sugestao) {
+  const box = document.getElementById('eb-racetrack');
+  if (!box) return;
+  const numeros = (sugestao && sugestao.numeros) || [];
+  const centros = centrosFromSugestao(sugestao);
+  const show = overlayState.racetrackEnabled
+    && !!sugestao && sugestao.acao === 'APOSTAR'
+    && (numeros.length > 0 || centros.length > 0);
+  // Assinatura: o heartbeat de 1s (writer 3) não re-renderiza sem mudança real.
+  const sig = show ? `on:${numeros.join(',')}|${centros.join(',')}` : 'off';
+  if (box.dataset.ebRtSig === sig) return;
+  box.dataset.ebRtSig = sig;
+  if (!show) {
+    box.classList.remove('eb-rt-show');
+    return;
+  }
+  if (!box.dataset.ebRtBuilt) {
+    box.innerHTML = buildRacetrackSVG();
+    box.dataset.ebRtBuilt = '1';
+  }
+  const centerSet = new Set(centros.map(Number));
+  const numSet = new Set(numeros.map(Number));
+  box.querySelectorAll('.eb-rt-slot').forEach(g => {
+    const n = Number(g.dataset.num);
+    g.classList.toggle('active', numSet.has(n) && !centerSet.has(n));
+    g.classList.toggle('active-center', centerSet.has(n));
+  });
+  box.classList.add('eb-rt-show');
+}
+
+// Toggle 🎡 do operador (kill-switch do guia): persiste em chrome.storage junto
+// do overlayUIState (padrão loadUIState/saveUIState). Default ON — guia passivo,
+// sem efeito em aposta (INV-3 intacto; não é comportamento de estratégia).
+function toggleRacetrack() {
+  overlayState.racetrackEnabled = !overlayState.racetrackEnabled;
+  saveUIState();
+  updateRacetrackToggleVisual();
+  renderMiniRacetrack(overlayState.lastSugestao);
+}
+
+function updateRacetrackToggleVisual() {
+  const btn = document.getElementById('eb-rt-toggle');
+  if (!btn) return;
+  const on = overlayState.racetrackEnabled;
+  btn.classList.toggle('off', !on);
+  btn.title = on ? 'Roletinha guia: ON (clique para esconder)'
+                 : 'Roletinha guia: OFF (clique para mostrar)';
+}
+
 // 🆕 v4.0: Carregar estado salvo de UI
 async function loadUIState() {
   try {
     const data = await chrome.storage.local.get(['overlayUIState']);
     if (data.overlayUIState) {
       overlayState.isMinimized = data.overlayUIState.isMinimized || false;
+      // SPR-X5: toggle 🎡 persistido; ausente/legado ⇒ default ON
+      overlayState.racetrackEnabled = data.overlayUIState.racetrackEnabled !== false;
       console.log('📦 Estado de UI carregado:', overlayState.isMinimized ? 'minimizado' : 'expandido');
     }
   } catch (e) {
@@ -131,7 +265,10 @@ async function loadUIState() {
 
 async function saveUIState() {
   try {
-    await chrome.storage.local.set({ overlayUIState: { isMinimized: overlayState.isMinimized } });
+    await chrome.storage.local.set({ overlayUIState: {
+      isMinimized: overlayState.isMinimized,
+      racetrackEnabled: overlayState.racetrackEnabled  // SPR-X5: toggle 🎡
+    } });
   } catch (e) {
     // Ignora erro
   }
@@ -154,6 +291,7 @@ function createOverlay() {
         <div class="eb-header-buttons">
           <button class="eb-new-session" title="Nova Sessão (Novo Dealer)">🔄</button>
           <button class="eb-force-master" id="eb-force-master" title="Forçar MASTER" style="display:none">🎯</button>
+          <button class="eb-rt-toggle" id="eb-rt-toggle" title="Roletinha guia">🎡</button>
           <button class="eb-minimize" title="Minimizar">−</button>
         </div>
       </div>
@@ -234,6 +372,11 @@ function createOverlay() {
       </div>
 
     </div>
+    <!-- SPR-X5: guia racetrack — IRMÃO do painel de propósito: o root já é
+         pointer-events:none, então aqui o clique atravessa DE VERDADE para a
+         mesa (dentro do .eb-panel, pointer-events:auto, seria capturado).
+         Fica fora de .eb-body ⇒ escapa do display:none do minimizado. -->
+    <div id="eb-racetrack" aria-hidden="true"></div>
   `;
 
   document.body.appendChild(overlay);
@@ -249,6 +392,11 @@ function createOverlay() {
   // 🎯 Botão Forçar MASTER
   const forceMasterBtn = overlay.querySelector('.eb-force-master');
   forceMasterBtn.addEventListener('click', handleForceMaster);
+
+  // SPR-X5: toggle 🎡 da roletinha guia (persistido em overlayUIState)
+  const rtToggleBtn = overlay.querySelector('#eb-rt-toggle');
+  rtToggleBtn.addEventListener('click', toggleRacetrack);
+  updateRacetrackToggleVisual();
 
   // 🆕 v4.0: Botão de Controles
   const controlToggleBtn = overlay.querySelector('#eb-control-toggle');
@@ -504,6 +652,10 @@ function toggleMinimize() {
       }
     }
   }
+
+  // SPR-X5: writer 1 do minimizado — racetrack pelo helper único (no expandido o
+  // CSS esconde; a chamada mantém as classes em dia para o próximo minimizar).
+  renderMiniRacetrack(overlayState.lastSugestao);
 }
 
 // ===== ARRASTAR OVERLAY =====
@@ -528,8 +680,13 @@ function setupDrag(overlay) {
     const deltaX = startX - touch.clientX;
     const deltaY = touch.clientY - startY;
 
-    overlay.style.right = Math.max(0, startRight + deltaX) + 'px';
-    overlay.style.top = Math.max(0, startTop + deltaY) + 'px';
+    // SPR-X5 (auditoria SPR-U1, item 4): clamp nos DOIS eixos — com o racetrack
+    // o pill minimizado fica ~2× mais alto e dava para empurrá-lo para fora da
+    // borda inferior/lateral. Mantém o overlay inteiro dentro do viewport.
+    const maxRight = Math.max(0, window.innerWidth - overlay.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - overlay.offsetHeight);
+    overlay.style.right = Math.min(maxRight, Math.max(0, startRight + deltaX)) + 'px';
+    overlay.style.top = Math.min(maxTop, Math.max(0, startTop + deltaY)) + 'px';
   }, { passive: true });
 
   overlay.addEventListener('touchend', () => {
@@ -645,6 +802,9 @@ function updateOverlay(sugestao) {
     }
   }
 
+  // SPR-X5: writer 2 — racetrack guia (helper único; APOSTAR acende, senão limpa)
+  renderMiniRacetrack(sugestao);
+
   // Confiança
   const confianca = Math.min(100, Math.max(0, sugestao.confianca || 0));
   confidenceBar.style.width = confianca + '%';
@@ -711,6 +871,7 @@ function handleNewSession() {
   if (regiao) {
     regiao.textContent = 'Reiniciando sessão...';
   }
+  renderMiniRacetrack(null); // SPR-X5: feedback de reset limpa o guia
 
   // Enviar para background → servidor
   try {
@@ -777,6 +938,7 @@ function handleSessionReset(data) {
   // Limpar estado local
   overlayState.lastSugestao = null;
   overlayState.isMinimized = false;
+  renderMiniRacetrack(null); // SPR-X5: sessão zerada ⇒ racetrack limpa/esconde
 
   console.log('✅ Sessão resetada:', data);
 }
@@ -793,6 +955,10 @@ function showConnectionStatus(connected) {
       timer.style.color = '#ff4444';
     }
   }
+  // SPR-X5 (auditoria SPR-U1, OV-01): servidor caiu ⇒ racetrack NÃO fica aceso
+  // com sugestão velha (brilharia mentira). Mesmo caminho do PULAR/AGUARDAR;
+  // ao reconectar, o próximo updateOverlay/state_sync reacende sozinho.
+  if (!connected) renderMiniRacetrack(null);
 }
 
 // ===== LISTENER PARA MENSAGENS DO BACKGROUND =====
@@ -937,6 +1103,10 @@ function handleStateSync(data) {
     timer.textContent = statusText;
     timer.style.color = betPlaced ? '#00ff88' : '#ffcc00';
   }
+
+  // SPR-X5: writer 3 (heartbeat) — MESMA fonte dos demais writers (lastSugestao)
+  // e helper único; a assinatura interna evita re-render a cada tick de 1s.
+  if (overlayState.isMinimized) renderMiniRacetrack(overlayState.lastSugestao);
 }
 
 // ===== INICIALIZAÇÃO =====
@@ -952,6 +1122,10 @@ async function init() {
     overlay.classList.add('minimized');
     console.log('📦 Overlay iniciado minimizado');
   }
+
+  // SPR-X5: refletir o toggle 🎡 carregado (overlay pode nascer antes do load
+  // via mensagem do background; aqui o estado persistido vira visual).
+  updateRacetrackToggleVisual();
 
   // Notificar background que estamos prontos
   try {
