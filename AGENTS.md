@@ -20,6 +20,9 @@ lê pelos endpoints/métricas (`/health`, `/metrics`), nunca por ssh.
 
 ## 2. Ciclo de vida de QUALQUER mudança (zero-humano)
 
+0. **Kickoff (obrigatório):** `pwsh -File scripts/agent-kickoff.ps1` — orientação read-only
+   de ~10s (main-red, PRs abertos, merges recentes, produção por endpoint, grafo, board).
+   Agir sem rodar o kickoff = agir cego; não pergunte ao usuário o que o script responde.
 1. **Isolamento:** 1 sessão = 1 worktree = 1 branch novo de `origin/main`. Nunca duas
    sessões no mesmo branch; nunca trabalhar no checkout principal.
 2. **Contexto:** grafo primeiro (`graphify query` local) antes de grep/leitura ampla.
