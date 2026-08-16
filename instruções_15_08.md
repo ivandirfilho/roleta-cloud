@@ -143,3 +143,109 @@ Mas saber quem existe ajuda a entender o que está acontecendo:
 | **Issue `main-red`** | alarme automático de "produção quebrou" — já nasce com dono |
 | **Sprint / brief** | pacote de trabalho planejado (`sprints/SPR-*.md`) |
 | **Adendo** | registro histórico de uma mudança (`docs/iso/adendos/`) |
+
+---
+
+## 9. Perguntas do dono — respondidas (15/08, noite)
+
+### 9.1 "O Software-House configura tudo? Devo abrir a main por lá?"
+
+**Não — e essa é a confusão mais importante de desfazer.** O Software-House é a
+**fábrica-modelo**: guarda os blueprints, os 3 agentes da empresa e o rito. Ele NÃO
+configura os outros repos sozinho. Quem faz cada papel:
+
+| Papel | Quem faz |
+|---|---|
+| **Guardar o padrão** (blueprints, agentes-modelo, rito) | `Software-House` |
+| **Distribuir o padrão** (instruções que todo repo da org recebe + kit de templates) | `xmaiatec/.github` |
+| **Obrigar o padrão** (trava da org: PR obrigatório, squash, sem force-push) | **Ruleset da org** — desde hoje vale para TODOS os repos, inclusive os que você criar amanhã |
+| **Instalar o padrão** num repo (CI, contrato de agentes, proteção) | você dizer **"bootstrap de governança"** numa sessão |
+
+**"Abrir a main por lá" não existe:** cada produto tem a própria `main`. Regra prática —
+**abra a sessão no repo do ASSUNTO**:
+
+| Assunto | Onde abrir a sessão |
+|---|---|
+| Roleta (produto, apostas, painel, extensão) | projeto **Roleta Cloud** |
+| Governança da empresa, novos padrões, agentes corporativos | **Software-House** |
+| Infra AWS / Terraform / sentinel / gestão | o repo correspondente |
+| Repo novo | crie o repo → abra sessão nele → `bootstrap de governança` |
+
+### 9.2 "O que já está configurado no roleta-cloud?"
+
+É o repo mais completo (o piloto que provou o modelo). Checklist do que JÁ existe:
+
+| ✅ | O quê |
+|---|---|
+| ✅ | Contrato de agentes (`AGENTS.md`) + invioláveis auto-carregados (`.github/copilot-instructions.md`) |
+| ✅ | Papéis: Diretor de Sprints + Executor (`.github/agents/`) e skills `GO`/`status`/executor |
+| ✅ | Esteira completa: testes obrigatórios (`ci-ok`), auto-merge, anti-fila (`concurrency`), alarme `main-red`, guardrails ISO |
+| ✅ | Deploy automático (~2 min) com rollback; flags default-OFF; espelho Azure forçado por teste |
+| ✅ | Registro histórico (adendos ISO) + board de sprints + memória de agentes |
+
+### 9.3 "Projeto novo já herda configurações nativas?"
+
+**Herda automaticamente** (sem fazer nada):
+- Instruções org-wide do Copilot (vêm do `xmaiatec/.github`);
+- A trava da org (PR obrigatório, squash, sem apagar branch) — **corrigido hoje**: antes
+  valia só para 5 repos listados; agora vale para todos, inclusive futuros;
+- O plano Enterprise (Copilot, modelos, etc.).
+
+**NÃO herda sozinho** (é o papel do bootstrap — 1 frase, ~5 min):
+- CI com `ci-ok` + `main-red` · contrato `AGENTS.md` do domínio · proteção da main ·
+  auto-merge ligado · pasta de adendos.
+
+**Ritual do repo novo:** criar → abrir sessão → dizer `bootstrap de governança` → o PR
+instala tudo e integra sozinho.
+
+### 9.4 "Os MCPs estão instruídos em cada repositório novo?"
+
+**MCPs não moram nos repos — moram na SUA máquina** (`~/.copilot/`). Por isso **todo
+projeto, novo ou velho, já nasce com os 8 MCPs funcionando** (memória, grafo de código,
+arquivos, buscas etc.) e com as skills que ensinam QUANDO usá-los (ex.: "grafo antes de
+busca cega"). Não há o que instalar por repo.
+
+Só existe UM caso para configurar MCP dentro de um repo: ferramenta específica daquele
+projeto (ex.: banco de dados próprio) — aí o agente cria `.github/mcp.json` nele. Hoje
+nenhum repo precisa disso.
+
+### 9.5 "Como evoluem técnicas e tecnologias ao longo do tempo?"
+
+Existe um **ciclo de aprendizado** rodando:
+
+```mermaid
+flowchart LR
+    A["Sessões de trabalho<br/>(lições, incidentes)"] --> B["Memória + adendos<br/>(registro automático)"]
+    B --> C["Agente evolucao-continua<br/>destila em melhorias"]
+    C --> D["PR atualiza regras,<br/>skills e agentes"]
+    D --> E["Kit de bootstrap atualizado<br/>(xmaiatec/.github)"]
+    E --> F["Repos novos já nascem<br/>com a lição aprendida"]
+```
+
+Exemplo real: um workflow quebrou a `main` do roleta por falta de senha externa (PR #64)
+→ em 24h virou regra do kit ("workflow com segredo nasce desligado") → nenhum repo novo
+repete o erro. **Hoje o ciclo roda quando você pede** ("destile as lições da semana").
+A recomendação da 9.7 é agendar isso.
+
+### 9.6 "Vale a pena um framework/script de funcionamento no Software-House?"
+
+**Sim — é o próximo passo natural (Fase 2.1).** Hoje o kit de bootstrap vive em
+templates no `xmaiatec/.github` + uma skill **na sua máquina**. Funciona, mas depende do
+seu computador. O upgrade certo: um **workflow versionado no Software-House**
+("bootstrap-repo": você escolhe o repo alvo, ele abre o PR com o kit sozinho) — assim a
+fábrica instala o padrão a partir do próprio GitHub, de qualquer lugar, sem depender da
+sua máquina. Peça **"crie o workflow de bootstrap na fábrica"** quando quiser ativar.
+
+### 9.7 "Vale a pena automations dentro do GitHub Copilot App?"
+
+**Sim, para as SUAS rotinas** (o que valida código já é automático no GitHub). Regra de
+bolso: **código → CI no GitHub · rotina do dono → workflow do App**. As 4 que valem ouro:
+
+| Automation (no App) | Frequência | O que faz |
+|---|---|---|
+| Painel matinal | diária | roda `status` no roleta + PRs/issues abertas e te deixa o resumo pronto |
+| Scanner de conformidade | semanal | refaz a auditoria da org (a mesma da issue #37) e aponta drift |
+| Evolução contínua | semanal | roda o ciclo da 9.5 sem você pedir |
+| Vigia main-red | diária | se houver issue `main-red` aberta, abre sessão e resolve |
+
+Peça **"crie as automations do App"** que eu configuro as quatro na hora.
