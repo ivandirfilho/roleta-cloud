@@ -75,7 +75,7 @@ Reverter SEM perda (ISO obrig.): preferir **flag default-OFF na compose** (`SDA_
 4. **Append** no `## Log` (data · status · o que mudou · validação · arquivos).
 5. `graphify update .` só p/ navegação **local** → **NÃO commitar `graphify-out/`** (Diretor/CI atualiza após o merge).
 6. `git status` → **commitar TODOS os arquivos** (código + ADENDO + ESTE brief com o log) em `spr/SPR-XXX` (`SPR-XXX: <resumo>` + trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`). Excluir `graphify-out/`.
-7. `git push -u origin spr/SPR-XXX` → **abrir PR** título `SPR-XXX:` → **armar auto-merge** (`gh pr merge --auto --squash <nº>`; NUNCA `--admin`/merge manual).
+7. `git push -u origin spr/SPR-XXX` → **abrir PR com base `main`** (`gh pr create --base main …`; confira `baseRefName==main` ANTES de armar auto-merge — base `spr/*` não tem proteção e o auto-merge executa NA HORA sem CI; lição 2× 16/08) → título `SPR-XXX:` → **armar auto-merge** (`gh pr merge --auto --squash <nº>`; NUNCA `--admin`/merge manual).
 8. `store_memory` do achado durável (escopo repository); avisar o Diretor: *"PR de SPR-XXX aberto"*.
 
 ---

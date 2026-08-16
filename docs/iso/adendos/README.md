@@ -38,6 +38,7 @@ serializar no documento-mãe.
 | 2026-08-06 | `2026-08-06-fluxo-zero-humano.md` | Auto-merge + ativação por PR + main-red (mesma sessão, noite) |
 | 2026-08-06 | `2026-08-06-ativacao-audit-shadow.md` | PR #63 — flags `SDA_..._AUDIT`/`_SHADOW` ligadas em produção |
 | 2026-08-07 | `2026-08-07-instrucoes-nativas-camadas.md` | Auditoria pós-esteira: `AGENTS.md` raiz, header do singleton, lições #58/#43/#64 |
+| 2026-08-16 | `2026-08-16-rotinas-iso-nativas.md` | Governança — rotinas ISO nativas nas 6 camadas de instrução (base main, última milha, ADENDO como gate de CI) |
 | 2026-08-16 | `2026-08-16-racetrack-guia-overlay.md` | SPR-X5 — roletinha guia (racetrack) no overlay minimizado da Escuta Beat (ext. 3.11.0) |
 | 2026-08-16 | `2026-08-16-diagnostico-502-self-heal.md` | SPR-D1 — incidente 502 no `/ws`: `/health` no nginx + self-heal do tick NOOP |
 | 2026-08-16 | `2026-08-16-ultima-milha-deploy.md` | SPR-D2 — "mergeou ≠ implantado": shim de deploy auto-sincronizado + instalação do `roleta.conf` |

@@ -26,14 +26,20 @@ jobs:
           fi
           echo "OK: sem graphify-out/graph.* no diff."
 
-      - name: Lembrete ISO (ADENDO) — advisory
+      - name: ADENDO ISO obrigatório em mudança de comportamento (16/08)
         run: |
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.event.pull_request.head.sha }}"
+          title="${{ github.event.pull_request.title }}"
           changed="$(git diff --name-only "$base" "$head")"
+          # Reverts de emergência (main-red) não podem ser bloqueados por doc.
+          case "$title" in
+            Revert*|revert*) echo "revert de emergência — ADENDO dispensado (documente no PR body)"; exit 0 ;;
+          esac
           if echo "$changed" | grep -qE '^(app_config/|server/|strategies/|state/|core/|docker-compose\.yml)'; then
-            if ! echo "$changed" | grep -qE '(Manutenabilidade_iso\.md|^docs/iso/adendos/)'; then
-              echo "::warning::Mudança de comportamento sem ADENDO (docs/iso/adendos/ ou Manutenabilidade_iso.md) — confirme se aplica (convenção ISO)."
+            if ! echo "$changed" | grep -qE '^docs/iso/adendos/.+\.md$'; then
+              echo "::error::Mudança de comportamento sem ADENDO. Crie arquivo NOVO docs/iso/adendos/AAAA-MM-DD-<slug>.md (convenção no README da pasta; Manutenabilidade_iso.md está congelado — append lá NÃO conta)."
+              exit 1
             fi
           fi
-          echo "advisory ok."
+          echo "ADENDO ok (ou mudança fora do escopo de comportamento)."

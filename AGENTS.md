@@ -35,7 +35,9 @@ lê pelos endpoints/métricas (`/health`, `/metrics`), nunca por ssh.
 6. **ISO closeout:** ADENDO = **arquivo novo** `docs/iso/adendos/AAAA-MM-DD-<slug>.md`
    (convenção no README da pasta). **NUNCA apendar em `Manutenabilidade_iso.md`** (congelado).
 7. **Entrega:** commit (trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`)
-   → push → PR → **armar auto-merge** (`gh pr merge --auto --squash <nº>`). NUNCA `--admin`,
+   → push → **PR com base `main`** (`gh pr create --base main`; confira `baseRefName==main` no
+   output ANTES de armar auto-merge — base `spr/*` não tem proteção e o auto-merge executa
+   NA HORA sem CI) → **armar auto-merge** (`gh pr merge --auto --squash <nº>`). NUNCA `--admin`,
    bypass ou merge manual. Merge → deploy automático ~2 min.
 8. **Ativação também é PR:** flag shadow/audit liga IMEDIATAMENTE via PR `flag/ativar-<slug>`
    (default `:-1}` na compose + adendo). Flag de comportamento liga após janela shadow limpa
@@ -67,6 +69,18 @@ lê pelos endpoints/métricas (`/health`, `/metrics`), nunca por ssh.
   (lição PR #58: payload top-level do R2 E context dict do PG-CTX coexistem).
 - **INV-3:** a estratégia SEMPRE indica `APOSTAR`; veto entra como `min()` no stake, nunca
   suprime a indicação.
+- **PR de sprint nasce com base `main`** (lição 2× em 16/08, PRs #71/#75): sessão executora
+  criada a partir de `spr/<ID>` herda essa base no PR e o auto-merge executa NA HORA (branch
+  sem proteção) — o trabalho NÃO chega à main. `gh pr create --base main` + conferir
+  `baseRefName==main`; o Diretor confere de novo antes de aceitar o closeout.
+- **"Mergeou ≠ implantado" é bug de esteira** (3 casos em 16/08: entrypoint systemd → conf
+  nginx → extensão do operador): artefato consumido fora do git exige mecanismo de
+  sincronização automática. Host: shim do SPR-D2 (a unit executa o script de `origin/main`
+  a cada tick; revert cura sozinho). Extensão do operador: SPR-D4 (até lá, `git pull` no
+  checkout `Desktop\Roleta Cloud` + Reload no Chrome são parte da entrega, não rodapé).
+- **Suíte verde ≠ cenário testado** (lição PR #82): harness que pula cenário em silêncio
+  minta — todo harness novo imprime `TOTAL n` conferido contra número duro; pulo é `SKIP`
+  explícito ou `SETUP-FAIL`, nunca `PASS`.
 
 ## 5. Mapa de leitura (ordem para um agente novo)
 
