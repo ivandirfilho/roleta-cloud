@@ -66,25 +66,24 @@ errado · `stale+selfcontradict` <1% · cobertura ≥60% dos giros com aba visí
 **Evidência**: o Diretor cola no board as queries usadas, os denominadores, as datas e o `sha` do
 algoritmo. Gate sem denominador registrado **não** conta.
 
-## Incidente 16/08 — `/ws` 502 (Glass Box OFFLINE × HostDime "online")
+## Incidente 16/08 — `/ws` 502 · **RESOLVIDO 14:23 UTC (bootstrap via SSH pelo agente, autorizado pelo dono)**
 
-Evidência externa (Diretor 16/08 ~03:46Z): nginx vivo (`/`→200), `location /health` NEM existe
-(404), `/ws`→**502** = upstream 127.0.0.1:8765 morto; CI main verde, merges recentes docs-only
-⇒ NÃO é regressão de código. **Diagnóstico SPR-D1 (PR #74): H1 REFUTADA** (8765/8766 vivem e
-morrem juntas; 502 = connect recusado = processo fora); H2 (NOOP-gap) atacada com self-heal;
-H4 diagnosticável em 30s pelo runbook. **Fix-forward NÃO curou** (re-sonda 04:58Z: `/health`
-404, `/ws` 502): `roleta.conf` e o entrypoint vivem FORA do repo e nenhum deploy os instala —
-*"mergeou ≠ implantado"*. **SPR-D2 (PRs #81+#82, MERGED)** fechou a última milha no repo:
-shim imutável (revert cura no tick seguinte) + deploy instala `roleta.conf` validando o
-candidato + harness sem skip silencioso. **⏳ ÚNICO elo restante = issue #76: bootstrap
-copy-paste do dono (~2 min) instala shim+conf no host; ela SÓ fecha com `/health` → 200**
-(re-sonda Diretor 06:15Z: `/health` 404, `/ws` 502 — como esperado até o bootstrap).
+**Causa-raiz final:** merges docs ~02:00 UTC dispararam deploy → gate MIG-0 falhou (`state.json`
+nunca migrado ao volume — script de #43 mergeou mas nunca rodou no host: *mergeou ≠ implantado*)
+→ rollback recriou o container com imagem que EXIGE `STATE_FILE` → `FileNotFoundError` em
+crash-loop → 502. Reboot da VM (~03:34) irrelevante. **Cura:** stop gracioso → `migrate-state-
+to-volume.sh` (sha256 verificado) → `install-shim` (D2) → units → tick: alembic 0013, HEALTHCHECK
+ok, WS PROBE 101, conf instalado, frontend sync. **Sondas externas: `/health` 200 (v4.4.1) ·
+`/ws` 101 · `/metrics` 403 externo (allowlist, por design).** Issue #76 FECHADA com evidência.
+Host agora segue `origin/main` sozinho (shim). Follow-up: guard NGINX do D2 deu falso-negativo
+com vhost em symlink (→ SPR-D3).
 
 **Backlog geral**
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|
-| SPR-D2 | P0 | **MERGED** | spr/SPR-D2 | SPR-D1 | deploy | PRs #81+#82 (16/08, CI verde) · shim imutável + conf-install atômico + harness `TOTAL n` anti-skip · **implantação real = bootstrap issue #76 (dono, ~2 min)** · lição: *suíte verde ≠ cenário testado* |
+| SPR-D3 | P1 | TODO | — | SPR-D2 | deploy | guard `NGINX CONF` do D2: falso `DESTINO INATIVO`/`DEPLOY PARCIAL` quando o vhost ativo é symlink (`nginx -T` lista `sites-enabled/`, guard procura o alvo) → comparar com `readlink -f`; hoje TODO tick com diff de conf marca unit failed ruidosa |
+| SPR-D2 | P0 | **MERGED** | spr/SPR-D2 | SPR-D1 | deploy | PRs #81+#82 (16/08, CI verde) · shim imutável + conf-install atômico + harness `TOTAL n` anti-skip · **implantado no host 16/08 14:23 UTC (bootstrap #76 executado)** · lição: *suíte verde ≠ cenário testado* |
 | SPR-X5 | P0 | **MERGED** | spr/SPR-X5 | — | extensão-JS, popup | PRs #75+#79 (16/08) · ext **3.11.0** na main (racetrack-guia + 4 refinamentos U1) · ⚠️ reload da unpacked pelo operador PENDENTE (igual V2) · lição 2×: PR nascido com base spr/* — briefs agora exigem base main |
 | SPR-D1 | P0 | **MERGED** | spr/SPR-D1 | — | deploy, health_server | PRs #74+#77 (16/08) · H1 refutada, self-heal+`/health`+runbook na main · **implantação real aguarda bootstrap do dono (issue #76)** → sucedido por SPR-D2 |
 | SPR-U1 | P1 | **MERGED** | spr/SPR-U1 | — | — (docs) | PR #72 (16/08) · 34 achados (1×P0 OV-01, 5×P1) em `docs/ux/2026-08-16-auditoria-ux-front.md` · gerou candidatos SPR-UX-* abaixo |
