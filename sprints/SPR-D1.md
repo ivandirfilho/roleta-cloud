@@ -217,3 +217,42 @@ usado como fix-forward e o resultado da re-sondagem entra abaixo.
 (novo), `docs/iso/adendos/README.md`, `tests/test_spr_d1_self_heal.py` (novo).
 Nenhuma flag do `docker-compose.yml` tocada ⇒ **sem espelho Azure**.
 Lock check: só o PR #65 aberto (docs-only) ⇒ **sem colisão**.
+
+### 2026-08-16 · PÓS-MERGE (fix-forward) · NÃO curou — ação do dono pendente
+
+Merge do PR **#74** em `main` às **04:54:52Z**. Re-sondagem em **04:58:51Z**
+(header `Date` do servidor; ≥ 2 ticks do timer de 120s):
+
+| Sonda | Antes | Depois |
+|---|---|---|
+| `GET /` | 200 | **200** |
+| `GET /health` | 404 | **404** |
+| `GET /metrics` | 404 | **404** |
+| `GET /ws` | 502 | **502** |
+
+**Sem mudança — e a causa é a antecipada no ADENDO §5 / runbook §7.** Os dois
+artefatos corrigidos vivem **fora do repo** e nenhum deploy os instala sozinho:
+1. `/etc/nginx/sites-available/roleta.conf` — o deploy faz `nginx -t` + `reload`,
+   mas **não copia** o conf. `/health` em 404 é evidência direta disto.
+2. `/usr/local/bin/roleta-deploy-pull.sh` — o versionado chama
+   `roleta-deploy-install.sh --check`, que **detecta** o drift mas não instala. Se
+   o entrypoint for cópia congelada, o self-heal entregue **não está rodando**.
+
+Como ambos se instalam pela mesma via, o mais provável é que (2) também esteja
+pendente. Abri a issue **#76** (`ops:`) com os comandos exatos (~2 min) e o
+critério de verificação externa (`/health` → 200, `/ws` → 101).
+
+**Leitura honesta do sprint:** os objetivos de *diagnóstico* foram cumpridos (H1
+refutada por código e por reprodução; 502 virou assinatura inequívoca de "processo
+fora do ar") e os de *prevenção* estão em `main` (self-heal + `/health` + runbook +
+12 cenários de teste). O objetivo de *cura imediata* **não** foi atingido, porque
+a última milha do deploy ainda é manual — limite estrutural do sistema, não do
+sprint. Recomendação ao Diretor: sprint próprio para o `roleta-deploy-pull.sh`
+instalar o `roleta.conf` (com `nginx -t` + rollback) e se auto-atualizar; enquanto
+existir artefato de produção fora do git, "mergeou" ≠ "implantado".
+
+**Também nesta entrega:** o PR #73 foi aberto com base herdada da sessão
+(`spr/SPR-D1`) e mergeou nesse branch; o conteúdo foi levado a `main` pelo PR #74,
+cujo conflito `add/add` em `sprints/SPR-D1.md` foi resolvido preservando os dois
+lados (a versão do branch era superconjunto estrito: +75/-0). CI verde
+(`ci-ok`, `lint-and-test 3.12`, `extension-tests`, `iso-guardrails`).
