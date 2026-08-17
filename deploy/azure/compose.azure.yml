@@ -64,7 +64,10 @@ services:
       # 17/21 atual byte-idêntico, "17" trava cobertura 17 e "21" força 21.
       # Escalada paga somente se r>11,1pp (E[delta]=36r-4); relatório:
       # tools/coverage_gate_report.py. Rollback: SDA_V5_COVERAGE_LOCK="" + redeploy.
-      - SDA_V5_COVERAGE_LOCK=${SDA_V5_COVERAGE_LOCK:-}
+      # ATIVADA =17 em 16/08 (PR flag/ativar-coverage-lock-17): janela shadow 04-17/08
+      # (961 giros) — sempre-17 dominou o seletor em 5/5 dias (Δ+236u, payout
+      # normalizado); r extras=9,9% < breakeven 11,1pp. Desligar se Δ<0 por 3 dias.
+      - SDA_V5_COVERAGE_LOCK=${SDA_V5_COVERAGE_LOCK:-17}
       - SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-0}
       - GALE_CAP=${GALE_CAP:-1}
       - GALE_BANKROLL=${GALE_BANKROLL:-1000}
