@@ -44,13 +44,26 @@ na VM standby puxa digest novo (fecha o drift de 11 dias, E3).
 - Pipeline de imagem: `gh variable set AZURE_PUBLISH_ENABLED --body 0` (gate volta a skip).
 - Backfill: não requer reversão (não sobrescreve, não inventa — só preenche NULL/unknown).
 
-## 5. Evidência pós-ativação (preenchida na execução)
+## 5. Evidência pós-ativação (executada 17/08 00:57–01:15 UTC)
 
-- [ ] Flags vivas nos containers (env de `roleta-cloud` e `cdc-worker`)
-- [ ] `spin_features` novos com contexto (fill > 0 em vision/dealer nas linhas pós-deploy)
-- [ ] Backfill `--apply`: relatório (filled/target_absent/already_filled)
-- [ ] Run "Publish Azure images" = success + digest no ACR
-- [ ] VM standby rodando digest do ACR (fim do drift)
+- [x] **Flags vivas:** `roleta-cloud` env `SDA_PG_FEATURE_CONTEXT=1`+`SDA_DNA_REALIZE=1`;
+  `roleta-cdc-worker` recriado com flag=1. **Achado extra corrigido:** a imagem do worker
+  era de **03/08** (anterior ao próprio código do PG-CTX/#60) e o deploy não a recriava —
+  rebuild + `--force-recreate --no-deps` com `--env-file .env --env-file .env.pg`, worker
+  PRIMEIRO (ordem anti-inversão do ISO). Healthy.
+- [x] **Backfill `--apply`:** exit 0 · max decision_id 12.017 congelado · scanned 9.855 ·
+  **planned 5.949** (cw 3.098 / ccw 2.851) · acima do teto 0 · por campo: provider 5.948,
+  dealer_table 4.550, wheel_model 2.629, dealer 2.480, spin_seq/direction 1.796/1.714,
+  vision 1.592.
+- [x] **Fill depois:** cw 3.603 linhas (dealer 3.603, vision 816, provider 3.097) ·
+  ccw 3.352 (dealer 3.352, vision 776, provider 2.851) — vision/provider saíram de 0.
+- [x] **Pipeline de imagem:** run "Publish Azure images" **success** às 00:57 (primeiro
+  publish real); digest `sha256:2fa66bbf…` no ACR.
+- [x] **Standby atualizado:** `deploy-azure.sh` na VM puxou o digest do ACR e recriou o
+  container — `Up (healthy)`, imagem `acrroletaprod.azurecr.io/roleta-cloud@sha256:2fa66bbf…`.
+  **Drift de 11 dias eliminado**; MI da VM ganhou `AcrPull` (antes só tinha pull manual).
+- [ ] Contexto ao vivo no próximo giro real (sem tráfego na janela — último spin 00:58;
+  caminho de escrita provado pelo backfill; verificar no primeiro `APOSTAR` da próxima sessão).
 
 ## 6. Checklist do cutover 100% Azure (próxima etapa, PR próprio)
 
