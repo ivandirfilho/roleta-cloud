@@ -113,3 +113,6 @@ archive/historico_dev/Extrator Beat/
 archive/historico_dev/Roleta Cloud Antiga referencia/
 graphify-out/graph.json
 graphify-out/graph.html
+
+# super-grafo: saida regeneravel (rebuild_super_graph.ps1) - stale trap se versionada
+super_graph/graphify-out/

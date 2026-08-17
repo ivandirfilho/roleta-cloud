@@ -25,7 +25,9 @@ lê pelos endpoints/métricas (`/health`, `/metrics`), nunca por ssh.
    Agir sem rodar o kickoff = agir cego; não pergunte ao usuário o que o script responde.
 1. **Isolamento:** 1 sessão = 1 worktree = 1 branch novo de `origin/main`. Nunca duas
    sessões no mesmo branch; nunca trabalhar no checkout principal.
-2. **Contexto:** grafo primeiro (`graphify query` local) antes de grep/leitura ampla.
+2. **Contexto:** o kickoff (passo 0) já deixou o grafo fresco — consulte-o
+   (`graphify query --graph graphify-out/graph.json`) antes de grep/leitura ampla.
+   Grafos são artefatos derivados: nunca commitados, nunca fonte de verdade defasada.
 3. **Mudança:** cirúrgica, atrás de **flag default-OFF** na compose (leitura por-chamada);
    migração Alembic **aditiva**; campo de motor novo em `save()`+`load()`+`reset_session()`.
 4. **Espelho Azure:** mexeu em flags do `docker-compose.yml` → sincronize
