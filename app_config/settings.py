@@ -202,6 +202,13 @@ def v5_flip_puro_enabled() -> bool:
     return os.environ.get("SDA_V5_FLIP_PURO", "0").strip().lower() in ("1", "true", "on")
 
 
+def v5_coverage_lock() -> str:
+    """Optional V5 coverage lock: ``17``, ``21`` or empty (current behavior)."""
+    import os
+    value = os.environ.get("SDA_V5_COVERAGE_LOCK", "").strip()
+    return value if value in ("17", "21") else ""
+
+
 def sugestao_broadcast_enabled() -> bool:
     """Broadcast da mensagem `sugestao` a TODOS os clientes. **Default OFF**.
 
