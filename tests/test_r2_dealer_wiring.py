@@ -11,6 +11,9 @@ Cobre as costuras entre as peças novas e o código existente:
 """
 from __future__ import annotations
 
+import sqlite3
+import tempfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from core.roulette import roulette
@@ -52,6 +55,50 @@ def test_new_flags_default_off_and_env_toggle(monkeypatch):
     assert error_engine_enabled() is True
     assert r2_dealer_shadow_enabled() is True
     assert r2_dealer_live_enabled() is True
+
+
+def test_shadow_resolution_writes_r2_and_error_features_to_dna(monkeypatch):
+    from database import dna_logger
+    from server.message_handler import MessageHandler
+
+    monkeypatch.setenv("SDA_ERROR_ENGINE", "1")
+    monkeypatch.setenv("SDA_R2_DEALER_SHADOW", "1")
+    db_path = tempfile.mktemp(suffix=".db")
+    dna_logger.configure(db_path, enabled=True)
+    try:
+        handler = object.__new__(MessageHandler)
+        handler.strategy = SDA17Strategy()
+        handler.game_state = SimpleNamespace(last_phase_uncertain=False)
+        handler.last_decision_id = 42
+        handler.last_decision_direction = "cw"
+        pending = {
+            "direction": "cw",
+            "center": 12,
+            "numbers": [12, 11, 13],
+            "r2ds": {
+                "dealer": "Maria",
+                "dk": "cw",
+                "arm": "trend",
+                "force": 12,
+                "r2_center": 12,
+                "r2_numbers": [12, 11, 13],
+                "live": False,
+            },
+        }
+
+        handler._r2_dealer_resolve(pending, numero=20, hit_result=False, direcao="cw")
+
+        conn = sqlite3.connect(db_path)
+        names = {
+            row[0]
+            for row in conn.execute(
+                "SELECT feature_name FROM decision_dna WHERE decision_id = 42"
+            )
+        }
+        conn.close()
+        assert {"error_class", "r2_source", "r2_signed_err"} <= names
+    finally:
+        dna_logger.reset_for_tests()
 
 
 # ---- 2. compose_v5 r2_override_force ----

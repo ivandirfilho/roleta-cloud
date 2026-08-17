@@ -42,3 +42,4 @@ serializar no documento-mãe.
 | 2026-08-16 | `2026-08-16-racetrack-guia-overlay.md` | SPR-X5 — roletinha guia (racetrack) no overlay minimizado da Escuta Beat (ext. 3.11.0) |
 | 2026-08-16 | `2026-08-16-diagnostico-502-self-heal.md` | SPR-D1 — incidente 502 no `/ws`: `/health` no nginx + self-heal do tick NOOP |
 | 2026-08-16 | `2026-08-16-ultima-milha-deploy.md` | SPR-D2 — "mergeou ≠ implantado": shim de deploy auto-sincronizado + instalação do `roleta.conf` |
+| 2026-08-16 | `2026-08-16-ativa-dealer-shadow.md` | SPR-ML1 — Error Engine e R2 dealer-aware ligados em shadow |

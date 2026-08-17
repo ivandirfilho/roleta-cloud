@@ -243,18 +243,19 @@ services:
       # entao um evento nunca sobrevive ate o giro seguinte (que ja e o sentido
       # OPOSTO: um veredito correto do giro N e a direcao ERRADA do giro N+1).
       - SDA_DIRECTION_VISION_TTL_MS=${SDA_DIRECTION_VISION_TTL_MS:-30000}
-      # ===== R2 dealer-aware + Error Engine (05/08 noite-2): 3 flags DEFAULT OFF =====
-      # (rollout shadow-first; ADENDO no Manutenabilidade_iso.md):
+      # ===== R2 dealer-aware + Error Engine (05/08 noite-2) =====
+      # Shadow ligado em 16/08 por decisão do Diretor após a análise
+      # resultados_semana_10_08_16_08.md. Rollback: =0 + redeploy.
       # 1) Error Engine: classifica o PROCESSO do erro por resolucao
       #    (DATA_SUSPECT>HIT>GEOMETRY_MISS>SIGNATURE_SHIFT>FORCE_MISS>VARIANCE)
       #    e grava `error_class` no decision_dna. Telemetria pura (nao toca
       #    aposta); DATA_SUSPECT congela o aprendizado do bandit.
-      - SDA_ERROR_ENGINE=${SDA_ERROR_ENGINE:-0}
+      - SDA_ERROR_ENGINE=${SDA_ERROR_ENGINE:-1}
       # 2) SHADOW: bandit Thompson por dealer×sentido (bracos trend/residual/
       #    dealer/correct) escolhe um R2 em PAPER; resolucao mede would-hit e
       #    alimenta bandit+EWMA + DNA (r2_source/r2_signed_err). Aposta real
       #    INTACTA. Pre-requisito de auditoria antes do live.
-      - SDA_R2_DEALER_SHADOW=${SDA_R2_DEALER_SHADOW:-0}
+      - SDA_R2_DEALER_SHADOW=${SDA_R2_DEALER_SHADOW:-1}
       # 3) LIVE: o braco vencedor VIRA o R2 apostado (recompose com o mesmo
       #    clamp ±8 de R1 + disjuncao; INV-3 intacto — so o centro muda).
       #    Ligar SO depois de validar o funil r2_source em shadow.
