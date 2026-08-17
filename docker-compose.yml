@@ -44,7 +44,7 @@ services:
       # ORDEM DE ROLLOUT: ligar PRIMEIRO no cdc-worker (docker-compose.pg.yml),
       # só depois aqui. Ao contrário, os eventos enriquecidos são consumidos como
       # legado e o ON CONFLICT DO NOTHING impede reparo por replay (só backfill).
-      - SDA_PG_FEATURE_CONTEXT=${SDA_PG_FEATURE_CONTEXT:-0}
+      - SDA_PG_FEATURE_CONTEXT=${SDA_PG_FEATURE_CONTEXT:-1}
       # 📸 Vision (foto_roleta): OCR foto->dados LIGADO por padrão (deve ficar
       # ligado e funcionando direto). Fixado explícito aqui (versionado) p/ não
       # depender só do default do código. Desliga só com SDA_VISION_OCR=0.
@@ -151,7 +151,7 @@ services:
       # N resultados, calculando realized_lift_pp POR SENTIDO (cw/ccw) e espelhando
       # cada bucket ao PG (evento dna_lift_bucket). Corrige F1 da auditoria 03/08
       # (funcao orfa -> coluna 100% NULL). Default OFF; ligar via .env do host.
-      - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-0}
+      - SDA_DNA_REALIZE=${SDA_DNA_REALIZE:-1}
       - SDA_DNA_REALIZE_EVERY=${SDA_DNA_REALIZE_EVERY:-20}
       # DIR7 (sentido-fase): fusao da fonte de VIDEO (stand-by acoplavel). O futuro
       # servico de video publica direction_event; se confiavel, confirma/sobrepoe o
