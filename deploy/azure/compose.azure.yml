@@ -94,10 +94,12 @@ services:
       # PG-CTX (06/08, PR #60): projeta contexto da decisao em spin_features.
       # Espelho do default de producao (OFF; rollout: worker primeiro).
       - SDA_PG_FEATURE_CONTEXT=${SDA_PG_FEATURE_CONTEXT:-1}
-      # R2 dealer-aware + Error Engine (06/08, PR #58): espelho de producao (OFF).
+      # R2 dealer-aware + Error Engine: shadow ligado em 16/08 por decisão do
+      # Diretor após a análise resultados_semana_10_08_16_08.md.
+      # Rollback: =0 + redeploy. Live continua OFF.
       - SDA_R2_DEALER=${SDA_R2_DEALER:-0}
-      - SDA_R2_DEALER_SHADOW=${SDA_R2_DEALER_SHADOW:-0}
-      - SDA_ERROR_ENGINE=${SDA_ERROR_ENGINE:-0}
+      - SDA_R2_DEALER_SHADOW=${SDA_R2_DEALER_SHADOW:-1}
+      - SDA_ERROR_ENGINE=${SDA_ERROR_ENGINE:-1}
       - SDA_RESET_REANCORA=${SDA_RESET_REANCORA:-1}
       - SDA_UNCERTAIN_REANCORA=${SDA_UNCERTAIN_REANCORA:-1}
       - SDA_SENTIDO_AUTORITATIVO_SHADOW=${SDA_SENTIDO_AUTORITATIVO_SHADOW:-1}
