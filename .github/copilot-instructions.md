@@ -33,6 +33,6 @@
 - Detalhes operacionais: `fluxo_mental_24.md` §6, §9–§12. Aberturas/painel/GO: `evolução_24_junho.md` §0, §6, §8.
 
 ## Convenções
-- Grafo primeiro (`graphify`) antes de `grep` cego; mantenha o grafo fresco mas NÃO o commite.
+- **Grafo do repo é responsabilidade do kickoff** (`scripts/agent-kickoff.ps1` roda `graphify update .`, ~5s, em toda sessão): consulte `graphify query --graph graphify-out/graph.json` ANTES de grep cego; NÃO commite `graphify-out/` (nem o do `super_graph/` — saída regenerável).
 - Suíte verde (`pytest tests/`) + lints (`tools/lint_silent_except.py --update` se novo `except`) antes do PR.
 - Commits com trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.

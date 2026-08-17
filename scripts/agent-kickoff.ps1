@@ -35,16 +35,13 @@ try {
 }
 Write-Host "(health 404/ws 502 = incidente conhecido? cheque issues abertas antes de re-diagnosticar)"
 
-Write-Host "`n== 5. Grafo local (graphify) fresco? =="
-$g = "graphify-out\graph.json"
-if (Test-Path $g) {
-    $meta = (Get-Content $g -TotalCount 50 | Out-String)
-    if ($meta -match '"built_at_commit"\s*:\s*"([0-9a-f]+)"') {
-        $built = $Matches[1].Substring(0, 7)
-        $head = (git rev-parse --short HEAD).Trim()
-        Write-Host "grafo=$built vs HEAD=$head $(if ($built -ne $head) { '-> rode: graphify update .' } else { '(fresco)' })"
-    } else { Write-Host "grafo presente (sem metadata de commit) — confirme frescor" }
-} else { Write-Host "sem grafo local -> rode: graphify update ." }
+Write-Host "`n== 5. Grafo local (graphify) — auto-refresh (build ~5s; sempre fresco) =="
+if (Get-Command graphify -ErrorAction SilentlyContinue) {
+    $gt = Measure-Command { graphify update . 2>&1 | Out-Null }
+    Write-Host "grafo atualizado em $([math]::Round($gt.TotalSeconds))s -> graphify-out/graph.json (NUNCA commitar)"
+} else {
+    Write-Host "graphify ausente nesta maquina — siga sem grafo (grep/view) e registre no log da sessao"
+}
 
 Write-Host "`n== 6. Board (tail) =="
 if (Test-Path "sprints\BOARD.md") { Get-Content "sprints\BOARD.md" -Tail 12 }
