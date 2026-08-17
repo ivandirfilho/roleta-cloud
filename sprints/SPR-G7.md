@@ -104,3 +104,4 @@ título `SPR-G7:` → auto-merge → avisar o Diretor.
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+2026-08-16 · DONE · E7 normalizado; ferramenta read-only e relatório executados em 246 linhas do CSV (243 válidas) e 55 decisões do DB (39 resolvidas); nenhum tier passou o limite DD≤1,5x nos dois períodos · `pytest tests/test_backtest_staking_tiers.py -q` (4 passed), comando de validação do brief · `tools/backtest_staking_tiers.py`, `tests/test_backtest_staking_tiers.py`, `docs/backtests/2026-08-16-staking-tiers.md`, ADENDO ISO
