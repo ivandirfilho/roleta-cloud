@@ -37,10 +37,12 @@ def test_azure_strategy_flags_match_live_production_contract():
     assert azure["SDA_V5_SIG4"] == "1"
     assert azure["SDA_SUGESTAO_BROADCAST"] == "1"
     assert azure["SDA_V5_FLIP_PURO"] == "1"
-    assert hostdime["SDA_DNA_REALIZE"] == "0"
-    assert azure["SDA_DNA_REALIZE"] == "1"
+    # 16/08: ativação total dos dados (decisão do dono) — paridade plena rumo ao
+    # cutover 100% Azure; a exceção pré-cutover do SDA_DNA_REALIZE (hd=0/az=1) acabou.
+    assert hostdime["SDA_DNA_REALIZE"] == "1"
+    assert hostdime["SDA_PG_FEATURE_CONTEXT"] == "1"
 
-    for key in azure.keys() - {"SDA_DNA_REALIZE"}:
+    for key in azure.keys():
         assert azure[key] == hostdime[key], key
 
 
