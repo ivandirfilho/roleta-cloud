@@ -98,6 +98,11 @@ services:
       # vetando só o stake (INV-3); teto-21 de sessão não trava mais em 17.
       # Default OFF no código; ON aqui. Rollback: SDA_V5_FLIP_PURO=0 + redeploy.
       - SDA_V5_FLIP_PURO=${SDA_V5_FLIP_PURO:-1}
+      # SDA_V5_COVERAGE_LOCK: shadow-validada em 16/08; "" mantém o seletor
+      # 17/21 atual byte-idêntico, "17" trava cobertura 17 e "21" força 21.
+      # Escalada paga somente se r>11,1pp (E[delta]=36r-4); relatório:
+      # tools/coverage_gate_report.py. Rollback: SDA_V5_COVERAGE_LOCK="" + redeploy.
+      - SDA_V5_COVERAGE_LOCK=${SDA_V5_COVERAGE_LOCK:-}
       # force17 EXATO "sempre 17 números" — **default OFF** (realinhado ao estudo
       # 18/06). O estudo (analise_400 L940) recomenda a UNIÃO real ~15 (overlap
       # benéfico: breakeven 42,8% < 47,2%); forçar 17 PIORA (alarga a aposta). OFF =

@@ -89,3 +89,8 @@ add/add de `sprints/SPR-ST1.md` manter a SUA versão com Log) → título `SPR-S
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+<!-- 2026-08-16 · implementado · trava V5 17/21 + gate empírico read-only ·
+pytest tests/test_regions_v5.py tests/test_coverage_gate_report.py -q (64 passed);
+pytest tests/test_azure_pre_cutover.py -q (6 passed, 1 skipped); --help OK ·
+settings.py, message_handler.py, docker-compose.yml, deploy/azure/compose.azure.yml,
+tools/coverage_gate_report.py, tests/, docs/iso/adendos/ -->

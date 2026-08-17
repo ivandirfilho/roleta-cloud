@@ -60,6 +60,11 @@ services:
       - SDA_V5_SIG4=${SDA_V5_SIG4:-1}
       - SDA_SUGESTAO_BROADCAST=${SDA_SUGESTAO_BROADCAST:-1}
       - SDA_V5_FLIP_PURO=${SDA_V5_FLIP_PURO:-1}
+      # SDA_V5_COVERAGE_LOCK: shadow-validada em 16/08; "" mantém o seletor
+      # 17/21 atual byte-idêntico, "17" trava cobertura 17 e "21" força 21.
+      # Escalada paga somente se r>11,1pp (E[delta]=36r-4); relatório:
+      # tools/coverage_gate_report.py. Rollback: SDA_V5_COVERAGE_LOCK="" + redeploy.
+      - SDA_V5_COVERAGE_LOCK=${SDA_V5_COVERAGE_LOCK:-}
       - SDA_FORCE17_EXACT=${SDA_FORCE17_EXACT:-0}
       - GALE_CAP=${GALE_CAP:-1}
       - GALE_BANKROLL=${GALE_BANKROLL:-1000}

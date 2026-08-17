@@ -49,7 +49,8 @@ class _Result:
 def _clean_env():
     saved = {k: os.environ.get(k) for k in
              ("SDA_BET_PAIR", "SDA_STAKING_MODE", "GALE_CAP", "SDA_FORCE17_EXACT",
-              "SDA_V5_SIG4", "SDA_SUGESTAO_BROADCAST", "SDA_V5_FLIP_PURO")}
+              "SDA_V5_SIG4", "SDA_SUGESTAO_BROADCAST", "SDA_V5_FLIP_PURO",
+              "SDA_V5_COVERAGE_LOCK")}
     for k in saved:
         os.environ.pop(k, None)
     yield
@@ -273,6 +274,16 @@ class TestSettingsEnum:
         os.environ["SDA_BET_PAIR"] = "v5_9999"
         assert bet_pair_mode() == "full"
 
+    def test_coverage_lock_is_per_call_and_default_off(self):
+        from app_config.settings import v5_coverage_lock
+        assert v5_coverage_lock() == ""
+        os.environ["SDA_V5_COVERAGE_LOCK"] = "17"
+        assert v5_coverage_lock() == "17"
+        os.environ["SDA_V5_COVERAGE_LOCK"] = "21"
+        assert v5_coverage_lock() == "21"
+        os.environ["SDA_V5_COVERAGE_LOCK"] = "invalid"
+        assert v5_coverage_lock() == ""
+
 
 # ===== 4. Wiring MessageHandler =====
 
@@ -307,6 +318,27 @@ class TestWiringV5:
         assert len(r.numbers) == 21
         assert h._cs_meta["v5"]["mode"] == 21
         assert h._cs_meta["force17"]["coverage_n"] == 21
+
+    @pytest.mark.parametrize(("lock", "expected"), [("17", 17), ("21", 21)])
+    def test_coverage_lock_forces_selected_coverage(self, lock, expected):
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_COVERAGE_LOCK"] = lock
+        h = _handler()
+        dk = h._engine_dk()
+        h.strategy.v5_note_outcome(dk, hit=False)
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert len(r.numbers) == expected
+        assert h._cs_meta["v5"]["mode"] == expected
+
+    def test_coverage_lock_does_not_change_inv3_indication(self):
+        os.environ["SDA_BET_PAIR"] = "v5_1721"
+        os.environ["SDA_V5_COVERAGE_LOCK"] = "17"
+        h = _handler()
+        r = _Result(list(range(21)), [0, 5, 26])
+        h._engine_apply_selection(r)
+        assert h._cs_meta["v5"]["mode"] == 17
+        assert h._cs_meta["force17"]["v5_mode"] == 17
 
     def test_stop_loss_forca_17(self):
         os.environ["SDA_BET_PAIR"] = "v5_1721"
