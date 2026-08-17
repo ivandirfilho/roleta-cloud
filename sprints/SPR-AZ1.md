@@ -92,3 +92,4 @@ título `SPR-AZ1:` → auto-merge → avisar o Diretor.
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+2026-08-16 · concluído · sonda Azure best-effort, relatório de freshness e issue de verificação OIDC · kickoff + pytest · scripts/agent-kickoff.ps1, docs/azure/2026-08-16-standby-freshness.md, docs/iso/adendos/2026-08-16-spr-az1-standby.md
