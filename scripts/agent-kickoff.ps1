@@ -26,6 +26,13 @@ foreach ($u in "https://roleta.xma-ia.com/health", "https://roleta.xma-ia.com/")
         Write-Host "$u -> $(if ($code) { $code } else { 'sem resposta' })"
     }
 }
+try {
+    $azure = Invoke-WebRequest -Uri "https://20-226-77-194.sslip.io/healthz" -TimeoutSec 3 -UseBasicParsing
+    Write-Host "Azure standby https://20-226-77-194.sslip.io/healthz -> $($azure.StatusCode)"
+} catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    Write-Host "Azure standby https://20-226-77-194.sslip.io/healthz -> $(if ($code) { $code } else { 'sem resposta' })"
+}
 Write-Host "(health 404/ws 502 = incidente conhecido? cheque issues abertas antes de re-diagnosticar)"
 
 Write-Host "`n== 5. Grafo local (graphify) fresco? =="
