@@ -98,7 +98,7 @@ nos 2 períodos, mas maxDD 1,574× > teto 1,5×) — re-testar com ≥2 semanas 
 | SPR-G7 | P1 | **DONE** | ivandirfilho-spr-g7-exec | — | BLK-G, staking | PR #94 (16/08) · **recomendação NEGATIVA para tiers** (maxDD 1,574×>1,5×) · entregues: normalização E7 c/ teste, `tools/backtest_staking_tiers.py` (TOTAL n conferido), relatório `docs/backtests/2026-08-16-staking-tiers.md` · zero mudança de runtime · **lock BLK-G liberado** |
 | SPR-AZ1 | P2 | **MERGED** | ivandirfilho-spr-az1-exec | — | deploy-azure, docs, scripts | PR #92 + issue #91 (16/08) · sonda `/healthz` no kickoff (Azure standby → 200) · lag snapshot→restore não medível de fora (SSH expirado; registrado) · OIDC destravado em seguida pelo dono (ver #95: ACR `success`) |
 | SPR-REL1 | P2 | TODO | — | — | tools, docs | relatório de resultados automatizado (read-only PG→md diário) · brief a escrever |
-| SPR-ST1 | P1 | DOING | spr/SPR-ST1 | — | BLK-G, settings, compose | **trava de cobertura 17** (`SDA_V5_COVERAGE_LOCK`, default OFF) + régua empírica da escalada-21 · contrafactual 16/08 normalizado: sempre-17 +564u vs seletor atual +476u (r extras=9,4% < breakeven 11,1pp) · ativação = PR separado após ≥3d de contrafactual limpo · executor Luna 16/08 |
+| SPR-ST1 | P1 | **MERGED** | ivandirfilho-spr-st1-exec | — | BLK-G, settings, compose | PR #99 (16/08) · `SDA_V5_COVERAGE_LOCK` (vazia/17/21, por-chamada) no v5_1721 + `tools/coverage_gate_report.py` (régua E=36r−4, TOTAL n) · flag **OFF** (byte-idêntico) · **ativação**: PR `flag/ativar-coverage-lock-17` após ≥3d de contrafactual com r<11,1pp (base 16/08: sempre-17 +564u vs +476u, r=9,4%) · lock BLK-G liberado |
 
 **Backlog geral**
 
