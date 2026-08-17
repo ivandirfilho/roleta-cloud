@@ -28,12 +28,13 @@ instalar a extensão do V2 → só então `SDA_MIN_SPIN_INTERVAL_MS=15000`.
 desfaz o flip local do fantasma rejeitado. Por isso o V1 publica `state_sync.phase_authority` e o V2 o
 consome para reverter o flip.)*
 
-**Relógios que o Diretor precisa registrar aqui quando começarem** (senão os gates não são auditáveis):
-`ativado_V1V2 = PENDENTE` (⚠️ auditoria 06/08: em produção `SDA_PHASE_BUFFER_SYNC=0` e
-`SDA_MIN_SPIN_INTERVAL_MS=0` — o código dos merges V1/V2 está deployado porém **inerte**; ligar
-buffer-sync → confirmar ext 3.10.0 instalada → só então o gate temporal → registrar a data aqui) ·
-`ativado_audit_shadow = PENDENTE` (`SDA_PHASE_EVENT_AUDIT=0` **e** `SDA_DIRECTION_VISION_SHADOW=0` →
-os 7 dias do gate T4 ainda NÃO começaram a contar).
+**Relógios** (verificados AO VIVO 16/08 21:40 por probe read-only autorizado — `resultados_semana_10_08_16_08.md`):
+`ativado_audit_shadow = 06/08 (PR #63)` — em produção `SDA_PHASE_EVENT_AUDIT=1` e
+`SDA_DIRECTION_VISION_SHADOW=1`; ⚠️ blackout 06→16/08 (incidente 502) zerou a trilha: 289
+`phase_events` acumulados desde 16/08 14:31 → **contar o gate T4 a partir de 16/08**, não do merge ·
+`ativado_V1V2 = PARCIAL` — `SDA_PHASE_BUFFER_SYNC=1` e `SDA_PHASE_ALT_METRIC=1` ativos;
+`SDA_MIN_SPIN_INTERVAL_MS=0` (gate temporal): ext 3.11.0 sincronizada no operador 16/08, **falta o
+Reload no Chrome** → PR `flag/ativar-min-spin-interval` só após confirmação do reload.
 
 **Fila de integração 06/08 — AUTOMÁTICA desde 06/08 à noite:** auto-merge armado em #60, #61, #58
 (mergeiam sozinhos com `ci-ok` verde; `strict` OFF por design). **#43** fica FORA do auto-merge:
@@ -77,6 +78,21 @@ ok, WS PROBE 101, conf instalado, frontend sync. **Sondas externas: `/health` 20
 `/ws` 101 · `/metrics` 403 externo (allowlist, por design).** Issue #76 FECHADA com evidência.
 Host agora segue `origin/main` sozinho (shim). Follow-up: guard NGINX do D2 deu falso-negativo
 com vhost em symlink (→ SPR-D3).
+
+## Família dados & lucro — 16/08 noite (fonte: `resultados_semana_10_08_16_08.md`)
+
+Dia 16/08 (único com dados na semana — blackout 06→16/08): **+168,6u** (243 resolvidas, HR 56,8%),
+dealer 100% povoado via OCR, espelho PG em tempo real (outbox 4.176, backlog 0). Achados → sprint:
+cobertura-21 queimou −78,9u; assinatura do dealer coletada mas FORA do loop de ML
+(`SDA_R2_DEALER_SHADOW=0`, `SDA_ERROR_ENGINE=0`, DNA sem feature de dealer); `pnl_units` com escala
+mista (E7); Azure = standby frio por snapshot (gate `AZURE_PUBLISH_ENABLED` inexistente).
+
+| SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
+|---|---|---|---|---|---|---|
+| SPR-ML1 | P1 | DOING | spr/SPR-ML1 | — | compose, settings | liga shadow do dealer no ML (`SDA_ERROR_ENGINE`+`SDA_R2_DEALER_SHADOW` default 1; zero efeito em aposta, INV-3) + valida funil no DNA · executor Luna 16/08 |
+| SPR-G7 | P1 | DOING | spr/SPR-G7 | — | BLK-G, staking, compose | staking multi-tier (blocos do dono 5×1→5×2→5×4; ×2-pós-2-miss; 1-2-4 cap2) — backtest honesto histórico+16/08 + E7 (`pnl_units`) + régua 17/21; código só se vencer com DD aceitável · **serializa BLK-G** (S1/S2/T1/T2 aguardam) |
+| SPR-AZ1 | P2 | DOING | spr/SPR-AZ1 | — | deploy-azure, docs, scripts | freshness real do standby Azure + sonda `/healthz` no kickoff + issue OIDC p/ dono (runs `skipped`) · executor Luna 16/08 |
+| SPR-REL1 | P2 | TODO | — | — | tools, docs | relatório de resultados automatizado (read-only PG→md diário) · brief a escrever |
 
 **Backlog geral**
 
