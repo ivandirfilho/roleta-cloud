@@ -79,19 +79,24 @@ ok, WS PROBE 101, conf instalado, frontend sync. **Sondas externas: `/health` 20
 Host agora segue `origin/main` sozinho (shim). Follow-up: guard NGINX do D2 deu falso-negativo
 com vhost em symlink (→ SPR-D3).
 
-## Família dados & lucro — 16/08 noite (fonte: `resultados_semana_10_08_16_08.md`)
+## Família dados & lucro — 16/08 noite (fonte: `resultados_semana_10_08_16_08.md`) · **CICLO FECHADO em ~2h**
 
 Dia 16/08 (único com dados na semana — blackout 06→16/08): **+168,6u** (243 resolvidas, HR 56,8%),
 dealer 100% povoado via OCR, espelho PG em tempo real (outbox 4.176, backlog 0). Achados → sprint:
-cobertura-21 queimou −78,9u; assinatura do dealer coletada mas FORA do loop de ML
-(`SDA_R2_DEALER_SHADOW=0`, `SDA_ERROR_ENGINE=0`, DNA sem feature de dealer); `pnl_units` com escala
-mista (E7); Azure = standby frio por snapshot (gate `AZURE_PUBLISH_ENABLED` inexistente).
+cobertura-21 queimou −78,9u; assinatura do dealer coletada mas FORA do loop de ML; `pnl_units` com
+escala mista (E7); Azure = standby frio por snapshot.
+**Ativações reais (lote 16/08 noite):** `ativado_dealer_shadow = 16/08 (PR #93)` — `SDA_ERROR_ENGINE=1`
++ `SDA_R2_DEALER_SHADOW=1` defaults na compose (shadow, zero aposta; janela de validação começa no
+deploy ~2min pós-merge) · `ativado_dados_total = 16/08 (PRs #89+#95, outra sessão)` —
+`SDA_PG_FEATURE_CONTEXT=1` + `SDA_DNA_REALIZE=1` + backfill 5.949 linhas + ACR `success` (gate OIDC
+criado) + worker rebuilt · **decisão G7: NÃO adotar `GALE_TIERS`** (1-2-4 cap2 venceu flat em PnL
+nos 2 períodos, mas maxDD 1,574× > teto 1,5×) — re-testar com ≥2 semanas de povoamento contínuo.
 
 | SPR | Pri | Status | Branch | Depende de | Locks | PR / Nota |
 |---|---|---|---|---|---|---|
-| SPR-ML1 | P1 | DOING | spr/SPR-ML1 | — | compose, settings | liga shadow do dealer no ML (`SDA_ERROR_ENGINE`+`SDA_R2_DEALER_SHADOW` default 1; zero efeito em aposta, INV-3) + valida funil no DNA · executor Luna 16/08 |
-| SPR-G7 | P1 | DOING | spr/SPR-G7 | — | BLK-G, staking, compose | staking multi-tier (blocos do dono 5×1→5×2→5×4; ×2-pós-2-miss; 1-2-4 cap2) — backtest honesto histórico+16/08 + E7 (`pnl_units`) + régua 17/21; código só se vencer com DD aceitável · **serializa BLK-G** (S1/S2/T1/T2 aguardam) |
-| SPR-AZ1 | P2 | DOING | spr/SPR-AZ1 | — | deploy-azure, docs, scripts | freshness real do standby Azure + sonda `/healthz` no kickoff + issue OIDC p/ dono (runs `skipped`) · executor Luna 16/08 |
+| SPR-ML1 | P1 | **MERGED** | ivandirfilho-spr-ml1-exec | — | compose, settings | PR #93 (16/08) · shadow do dealer LIGADO (`SDA_ERROR_ENGINE`+`SDA_R2_DEALER_SHADOW` default 1) + teste do funil DNA · suíte 1255 verde · live (`SDA_R2_DEALER`) só após janela shadow limpa em adendo |
+| SPR-G7 | P1 | **DONE** | ivandirfilho-spr-g7-exec | — | BLK-G, staking | PR #94 (16/08) · **recomendação NEGATIVA para tiers** (maxDD 1,574×>1,5×) · entregues: normalização E7 c/ teste, `tools/backtest_staking_tiers.py` (TOTAL n conferido), relatório `docs/backtests/2026-08-16-staking-tiers.md` · zero mudança de runtime · **lock BLK-G liberado** |
+| SPR-AZ1 | P2 | **MERGED** | ivandirfilho-spr-az1-exec | — | deploy-azure, docs, scripts | PR #92 + issue #91 (16/08) · sonda `/healthz` no kickoff (Azure standby → 200) · lag snapshot→restore não medível de fora (SSH expirado; registrado) · OIDC destravado em seguida pelo dono (ver #95: ACR `success`) |
 | SPR-REL1 | P2 | TODO | — | — | tools, docs | relatório de resultados automatizado (read-only PG→md diário) · brief a escrever |
 
 **Backlog geral**
