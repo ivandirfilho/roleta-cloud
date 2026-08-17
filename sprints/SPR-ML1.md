@@ -94,3 +94,4 @@ pytest tests/ -q --ignore=tests/test_obs_reload.py
 
 ## Log (o EXECUTOR faz append; o DIRETOR lê só o tail)
 <!-- AAAA-MM-DD · status · resumo · validação · arquivos tocados -->
+<!-- 2026-08-16 · DONE · defaults de SDA_ERROR_ENGINE/SDA_R2_DEALER_SHADOW ligados nas duas composes; teste do funil DNA adicionado · validação: pytest tests/test_azure_pre_cutover.py -q; pytest tests/ -q --ignore=tests/test_obs_reload.py · compose, teste R2, adendo ISO -->
